@@ -34,7 +34,7 @@ import operator
 import os
 import threading
 import time
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import numpy as np
 import torch
@@ -49,7 +49,7 @@ from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared import mlx_dtype_report, mlx_plan_cache
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Iterator, Sequence
+    from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 
 __all__ = ["GraphNet", "UnsupportedOp"]
 
@@ -1200,13 +1200,17 @@ def _wino_ok(
     return conv_ops.supported(tuple(xl.shape), w.shape[0])
 
 
+def _pair(v: Sequence[int]) -> tuple[int, int]:
+    return cast("tuple[int, int]", tuple(v))
+
+
 def _direct_ok(cin: int, hw: int, wshape: Sequence[int], stride: Sequence[int]) -> bool:
     """Whether the kernels-mode direct few-channel conv takes this dense 2-D conv (`hw` input pixels, OIHW `wshape`)."""
     if len(wshape) != 4 or cin != wshape[1] or hw < DIRECT_MIN_HW or DIRECT_OFF:
         return False
     from fastforks.kernels.conv_mlx import ops as conv_ops
 
-    return conv_ops.direct_supported(wshape[1], wshape[0], tuple(wshape[2:]), tuple(stride))
+    return conv_ops.direct_supported(wshape[1], wshape[0], _pair(wshape[2:]), _pair(stride))
 
 
 DIRECT_MIN_HW = 128 * 128  # smaller maps: launch-bound either way, `mx.conv2d` keeps them
@@ -1355,7 +1359,7 @@ def _sdpa_qkv_args(node: Any) -> tuple[Any, list[Any]] | None:
     The fused qkv projection of Swin and ViT blocks; the slice is `select`, or `slice` + `squeeze`.
     """
     peeled: list[Any] = []
-    perm = None
+    perm: Any = None
     for i, arg in enumerate(node.args[:3]):
         chain, t = [], arg
         if isinstance(t, torch.fx.Node) and t.target is aten.squeeze.dims and list(t.args[1]) == [0]:
@@ -1447,7 +1451,7 @@ def _conv_act(
         if act == 1:
             return mx.maximum(y, 0)
         return mx.where(y > 0, y, y * slope.reshape(1, -1, 1, 1))  # ty: ignore[unresolved-attribute]
-    return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)  # ty: ignore[invalid-return-type]
+    return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)
 
 
 def _conv_res(
@@ -1517,7 +1521,7 @@ def _depthwise3d(x: mx.array, w: mx.array, stride: Sequence[int], padding: Seque
                 ]
                 t = sl * wl[a, b, c]
                 acc = t if acc is None else acc + t
-    return acc  # ty: ignore[invalid-return-type]
+    return acc
 
 
 TRANSPOSE3D_SLAB_MB = 96
@@ -1562,7 +1566,7 @@ def _conv_transpose3d_phases_whole(x: mx.array, w: mx.array, stride: Sequence[in
     """`_conv_transpose3d_phases` of the whole input in one go."""
     k = w.shape[2:]
     wt = mx.transpose(w, (1, 2, 3, 4, 0))  # [Cout, kd, kh, kw, Cin]
-    taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
+    taps: list[Any] = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
     for ax in range(3):
         s, p, kk = stride[ax], padding[ax], k[ax]
         per = []
@@ -1630,7 +1634,7 @@ def _conv_transpose2d_phases(
         y = mx.transpose(y.reshape(n, h, wd, sh, sw, cout), (0, 1, 3, 2, 4, 5))
         return y.reshape(n, h * sh, wd * sw, cout)
     wt = mx.transpose(w, (1, 2, 3, 0))  # [Cout, kh, kw, 1]
-    taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
+    taps: list[Any] = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
     for ax in range(2):
         s, p, kk = stride[ax], padding[ax], k[ax]
         per = []
@@ -1813,7 +1817,7 @@ def _conv_core(
             wd = mx.where(mask[:, None, None, :], mx.tile(wl, (1, 1, 1, groups)), 0).astype(wl.dtype)
             from fastforks.kernels.conv_mlx import ops as conv_ops
 
-            return _nchw(conv_ops.direct(xl, wd, b, tuple(stride), tuple(padding), tuple(dilation)))
+            return _nchw(conv_ops.direct(xl, wd, b, _pair(stride), _pair(padding), _pair(dilation)))
         if 1 < groups == xl.shape[3] < w.shape[0] and w.shape[0] % groups == 0:
             # depthwise with a channel multiplier: repeat the input, then a plain depthwise conv (MLX's grouped conv
             # is slow there: TEED's 3 -> 24 at 1280^2 8.2 -> 3.8 ms, 48 -> 96 at 320^2 8.1 -> 1.3 ms, float16)
@@ -1832,14 +1836,14 @@ def _conv_core(
             bias = b if b is not None else mx.zeros((groups,), dtype=xl.dtype)
             return _nchw(
                 ops.depthwise(
-                    xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, tuple(stride), tuple(padding), tuple(dilation)
+                    xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, _pair(stride), _pair(padding), _pair(dilation)
                 )
             )
         if _KERNELS and groups == 1 and _direct_ok(xl.shape[3], xl.shape[1] * xl.shape[2], w.shape, stride):
             from fastforks.kernels.conv_mlx import ops as conv_ops
 
             return _nchw(
-                conv_ops.direct(xl, wl, b, tuple(stride), tuple(padding), tuple(dilation), act=act, slope=slope)
+                conv_ops.direct(xl, wl, b, _pair(stride), _pair(padding), _pair(dilation), act=act, slope=slope)
             )
         if _KERNELS and _wino_ok(xl, w, stride, padding, dilation, groups):
             from fastforks.kernels.conv_mlx import ops as conv_ops
@@ -2206,7 +2210,7 @@ def _window_sum(x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[i
     """
     if tuple(k) == tuple(s) and not any(pad):
         oh, ow = x.shape[2] // k[0], x.shape[3] // k[1]
-        acc = None
+        acc: Any = None
         for i in range(k[0]):
             for j in range(k[1]):
                 part = x[:, :, i : i + k[0] * (oh - 1) + 1 : k[0], j : j + k[1] * (ow - 1) + 1 : k[1]]
@@ -2218,12 +2222,12 @@ def _window_sum(x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[i
     for axis, (kk, ss) in enumerate(zip(k, s, strict=True), start=2):
         n_out = (y.shape[axis] - kk) // ss + 1
         idx = [slice(None)] * 4
-        acc = None
+        acc2: Any = None
         for i in range(kk):
             idx[axis] = slice(i, i + ss * (n_out - 1) + 1, ss)
             part = y[tuple(idx)]
-            acc = part if acc is None else acc + part
-        y = acc
+            acc2 = part if acc2 is None else acc2 + part
+        y = acc2
     return y
 
 
@@ -2448,7 +2452,11 @@ def _trilinear(x: mx.array, size: Sequence[int] | None, align: bool, scales: Seq
     from fastforks.kernels.graph_mlx.ops import trilinear
 
     shape = x.shape[2:]
-    out = tuple(size) if size is not None else tuple(int(s * f) for s, f in zip(shape, scales, strict=True))
+    out = (
+        tuple(size)
+        if size is not None
+        else tuple(int(s * f) for s, f in zip(shape, cast("Sequence[float]", scales), strict=True))
+    )
 
     def ratio(o: int, i: int, f: float | None) -> float:
         if align:
@@ -2456,7 +2464,8 @@ def _trilinear(x: mx.array, size: Sequence[int] | None, align: bool, scales: Seq
         return (1.0 / f) if (f and size is None) else i / o
 
     fs = scales if scales is not None else (None,) * 3
-    return trilinear(x, out, tuple(ratio(o, i, f) for o, i, f in zip(out, shape, fs, strict=True)), align=align)  # type: ignore[arg-type]
+    ratios = tuple(ratio(o, i, f) for o, i, f in zip(out, shape, fs, strict=True))
+    return trilinear(x, cast("tuple[int, int, int]", out), cast("tuple[float, float, float]", ratios), align=align)
 
 
 def _cubic(t: np.ndarray) -> np.ndarray:
@@ -2865,7 +2874,7 @@ def _prefetch(tensors: Iterable[Any]) -> list[threading.Thread]:
         with torch.no_grad():
             while work:
                 s, a, b = work.pop()
-                torch.empty(0, dtype=torch.uint8).set_(s, a, (b - a,))[::page].max()  # torch drops the GIL here
+                torch.empty(0, dtype=torch.uint8).set_(s, a, (b - a,))[::page].max()  # ty: ignore[no-matching-overload] - the stub lacks storage + size  # torch drops the GIL here
                 del s
 
     n = _PREFETCH_THREADS  # contiguous runs of pieces per thread: sequential reads within each
@@ -3040,8 +3049,8 @@ def _profiled(
     ins = ",".join(str(tuple(x.shape)) for x in a[:2] if isinstance(x, mx.array))
     op = getattr(f, "__name__", str(f))
     if op == "<lambda>":  # the op table's lambdas: named by their line in this file
-        op = f"lambda@{f.__code__.co_firstlineno}"
-    rec = PROFILE.setdefault((op, f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
+        op = f"lambda@{cast('Any', f).__code__.co_firstlineno}"
+    rec = cast("dict[tuple[str, str], list[float]]", PROFILE).setdefault((op, f"{ins}->{shape}"), [0.0, 0])
     rec[0] += dt
     rec[1] += 1
 
@@ -3072,7 +3081,7 @@ def _lean_set_grad(mode: bool) -> None:
 
 
 @contextlib.contextmanager
-def _no_op_regions() -> Iterator[None]:
+def _no_op_regions() -> Generator[None]:
     """While exporting: autocast and grad-mode regions that change nothing are not recorded.
 
     `torch.export` records every `torch.autocast` and `torch.no_grad` region of the forward and then splits the graph at
@@ -3093,8 +3102,8 @@ def _no_op_regions() -> Iterator[None]:
     with _regions_lock:
         if _regions_users == 0:
             _regions_originals.append((autocast.__enter__, autocast.__exit__, torch._C._set_grad_enabled))
-            autocast.__enter__, autocast.__exit__ = _lean_enter, _lean_exit  # type: ignore[method-assign]
-            torch._C._set_grad_enabled = _lean_set_grad
+            autocast.__enter__, autocast.__exit__ = _lean_enter, _lean_exit  # type: ignore[method-assign]  # ty: ignore[invalid-assignment]
+            torch._C._set_grad_enabled = _lean_set_grad  # ty: ignore[invalid-assignment]
         _regions_users += 1
     _regions_local.on = True
     try:
@@ -3115,11 +3124,11 @@ about twice the trace time of `_export_decomposed`)."""
 
 
 @contextlib.contextmanager
-def _no_stack_traces() -> Iterator[None]:
+def _no_stack_traces() -> Generator[None]:
     """While exporting: no Python stack trace per graph node (nothing here reads them; 10 to 20 % of a trace)."""
     from torch.fx import config
 
-    old, config.do_not_emit_stack_traces = config.do_not_emit_stack_traces, True
+    old, config.do_not_emit_stack_traces = config.do_not_emit_stack_traces, True  # ty: ignore[invalid-assignment] - typed `Literal[False]`
     try:
         yield
     finally:
@@ -3149,7 +3158,9 @@ def _split_decomp_table() -> tuple[dict[Any, Any], dict[Any, Any]]:
     """`_decomp_table` split as `run_decompositions` splits it: (composite ops, AOT tracer table); 40 ms a call."""
     from torch.export.exported_program import _split_decomp_table_to_cia_and_python_decomp
 
-    return _split_decomp_table_to_cia_and_python_decomp(dict(_decomp_table()))
+    return cast(
+        "tuple[dict[Any, Any], dict[Any, Any]]", _split_decomp_table_to_cia_and_python_decomp(dict(_decomp_table()))
+    )
 
 
 def _export_decomposed(module: torch.nn.Module, args: tuple[Any, ...]) -> Any:
@@ -3187,10 +3198,12 @@ def _used_tensors(module: torch.nn.Module, args: tuple[Any, ...]) -> set[int] | 
     seen: set[int] = set()
 
     class _Record(TorchFunctionMode):
-        def __torch_function__(self, func: Any, types: Any, a: Any = (), kw: Any = None) -> Any:
-            kw = kw or {}
-            seen.update(id(x) for x in pytree.tree_leaves((a, kw)) if isinstance(x, torch.Tensor) and id(x) in ids)
-            return func(*a, **kw)
+        def __torch_function__(self, func: Any, types: Any, args: Any = (), kwargs: Any = None) -> Any:
+            kwargs = kwargs or {}
+            seen.update(
+                id(x) for x in pytree.tree_leaves((args, kwargs)) if isinstance(x, torch.Tensor) and id(x) in ids
+            )
+            return func(*args, **kwargs)
 
     try:
         with FakeTensorMode(allow_non_fake_inputs=True) as fake, _Record():
@@ -3201,7 +3214,7 @@ def _used_tensors(module: torch.nn.Module, args: tuple[Any, ...]) -> set[int] | 
 
 
 @contextlib.contextmanager
-def _unused_hidden(module: torch.nn.Module, used: set[int]) -> Iterator[dict[str, torch.Tensor]]:
+def _unused_hidden(module: torch.nn.Module, used: set[int]) -> Generator[dict[str, torch.Tensor]]:
     """While exporting: the parameters / buffers outside `used` as plain attributes, which export does not lift.
 
     A method of a large net (a runner's `encode_image`) reads a tenth of its weights, and each lifted placeholder
@@ -3531,23 +3544,23 @@ class GraphNet:
                     lead, lo, hi, wk, bk = merged[node.name]
                     if wk is not None:  # the first sibling runs the merged convolution
                         a = node.args
-                        args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:])
-                        plan.append(("call", lead, _conv, _plain(args), {}))
+                        call_args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:])
+                        plan.append(("call", lead, _conv, _plain(call_args), {}))
                     plan.append(("call", node.name, _channel_slice, (_Name(lead), lo, hi), {}))
                     continue
                 if node.name in fused.res:
                     wk, bk, rname = fused.res[node.name]
                     a = node.args
-                    args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:], _Name(rname))
-                    plan.append(("call", node.name, _conv_res, _plain(args), {}))
+                    call_args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:], _Name(rname))
+                    plan.append(("call", node.name, _conv_res, _plain(call_args), {}))
                     continue
                 if node.name in mask_skip:  # built by `_sdpa_parts` from its parts
                     continue
                 if node.name in transposed:  # a constant: the weight stored transposed
                     continue
                 if node.name in mask_parts:
-                    fn, args = mask_parts[node.name]
-                    plan.append(("call", node.name, fn, _plain(tuple(args)), _plain(dict(node.kwargs))))
+                    fn, call_args = mask_parts[node.name]
+                    plan.append(("call", node.name, fn, _plain(tuple(call_args)), _plain(dict(node.kwargs))))
                     continue
                 if node.name in fused.conv:
                     act, slope = fused.conv[node.name]
@@ -3992,8 +4005,9 @@ class GraphNet:
             def decide(te: float, me: int, tc: float, mc: int) -> None:
                 if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
                     use[0] = fn
-                decided[k] = use[0] is jit
-                self._tune_memo.setdefault(shape_key, decided[k])
+                verdict = use[0] is jit
+                decided[k] = verdict
+                self._tune_memo.setdefault(shape_key, verdict)
                 kinds[k] = "tuned-" + ("compiled" if decided[k] else "eager")
                 if TUNE_LOG:
                     print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
@@ -4005,10 +4019,11 @@ class GraphNet:
 
             def step(xs: tuple[mx.array, ...]) -> tuple[mx.array, ...]:
                 """One call of the spread trial (`spread` holds the timings so far)."""
-                n = len(spread)
+                trial = cast("list[Any]", spread)
+                n = len(trial)
                 g = jit if n % 2 == 0 else fn
                 if n < 2:
-                    spread.append(None)
+                    trial.append(None)
                     res = g(*xs)
                     if n == 0:
                         kinds[k] = "trial"
@@ -4019,10 +4034,10 @@ class GraphNet:
                 t0 = time.perf_counter()
                 res = g(*xs)
                 mx.eval(res)
-                spread.append((time.perf_counter() - t0, mx.get_peak_memory()))
+                trial.append((time.perf_counter() - t0, mx.get_peak_memory()))
                 if n == 3:
                     tune[0] = False
-                    (tc, mc), (te, me) = spread[2], spread[3]
+                    (tc, mc), (te, me) = trial[2], trial[3]
                     decide(te, me, tc, mc)
                 return res
 

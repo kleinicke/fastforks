@@ -22,7 +22,7 @@ Precision: the renderer, the Gaussian state and the updates are float32; the net
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -543,7 +543,7 @@ def _run_conv(c: tuple[mx.array, mx.array | None], x: mx.array, stride: int = 1)
 class _ResNet:
     """`ResNetFeatureWarpper`: conv1 (output 0), bn1 + relu + maxpool, layer1 (output 1), layer2 (output 2)."""
 
-    def __init__(self, m: nn.Module, dt: mx.Dtype) -> None:
+    def __init__(self, m: Any, dt: mx.Dtype) -> None:
         self.conv1 = _conv(m.conv1, dt)
         s = m.bn1.weight.detach().float() / (m.bn1.running_var.detach().float() + m.bn1.eps).sqrt()
         self.bn1 = (to_mx(s).astype(dt), to_mx(m.bn1.bias.detach().float() - m.bn1.running_mean.float() * s).astype(dt))
@@ -620,7 +620,7 @@ def _rows(fn: Callable[..., mx.array], *xs: mx.array) -> mx.array:
 class _PointTransformer:
     """`PlainPointTransformer(512, 8, 4 blocks, attn_proj_channels=64)` on fixed kNN indices."""
 
-    def __init__(self, m: nn.Module, dt: mx.Dtype) -> None:
+    def __init__(self, m: Any, dt: mx.Dtype) -> None:
         self.k = m.knn_samples
         self.blocks = []
         for b in m.blocks:
@@ -660,7 +660,8 @@ class Refine:
         self.head = [_linear(net.update_head[i], dt) for i in (0, 2, 4, 6)]
         self._head_compiled = mx.compile(self._head)
         self.resnet = _ResNet(net.update_feature, dt)
-        self.attn = [_LowresAttn(b, dt) for b in net.update_error_attn]
+        attns: Any = net.update_error_attn
+        self.attn = [_LowresAttn(b, dt) for b in attns]
         self.mean = to_mx(net.mean.float().reshape(3))
         self.std = to_mx(net.std.float().reshape(3))
 

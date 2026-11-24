@@ -8,7 +8,7 @@ argmax labels (TotalSegmentator), the Gaussian merging and the argmax run on MLX
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import torch
@@ -107,4 +107,4 @@ def port(portable: type[Runner]) -> type[Runner]:
                 ]
 
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
-    return mlx_wrap.port(Graph, attrs=())
+    return cast("type[Runner]", mlx_wrap.port(Graph, attrs=()))

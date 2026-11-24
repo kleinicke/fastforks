@@ -15,10 +15,14 @@ float16 result is a little less exact than the direct convolution's (F(4,3) abou
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from fastforks._core.mlx import metal_kernel, mx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 _MATS = {
     2: {
@@ -56,7 +60,7 @@ _MIN_VOXELS = 1024  # smaller volumes: launch cost dominates
 
 
 def _header(m: int) -> str:
-    def arr(a: list[list[float]]) -> str:
+    def arr(a: Sequence[Sequence[float]]) -> str:
         return "{" + ",".join(f"{float(v)!r}f" for r in a for v in r) + "}"
 
     return (
@@ -138,7 +142,7 @@ _OUT_SRC = """
     }
 """
 
-_K: dict[int, tuple[object, object]] = {}
+_K: dict[int, tuple[Callable[..., list[mx.array]], Callable[..., list[mx.array]]]] = {}
 
 
 def _scale(m: int, dtype: mx.Dtype) -> int:
@@ -152,7 +156,7 @@ def _scale(m: int, dtype: mx.Dtype) -> int:
     return 32 if m == 4 else 4
 
 
-def _kernels(m: int) -> tuple[object, object]:
+def _kernels(m: int) -> tuple[Callable[..., list[mx.array]], Callable[..., list[mx.array]]]:
     if m not in _K:
         _K[m] = (
             metal_kernel(
@@ -245,7 +249,7 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
     k_in, k_out = _kernels(m)
     off = mx.array([r0], dtype=mx.uint32)
     tx = min(_TG // (c // CV), tw) if c // CV < _TG else 1
-    v = k_in(  # ty: ignore[call-non-callable]
+    v = k_in(
         inputs=[x, off],
         template=[
             ("T", x.dtype),
@@ -316,7 +320,7 @@ def conv3d(
     off = mx.array([0], dtype=mx.uint32)
     c3 = 3 * c
     tx = min(_TG // (c3 // CV), tw) if c3 // CV < _TG else 1
-    v = k_in(  # ty: ignore[call-non-callable]
+    v = k_in(
         inputs=[x.reshape(n * d, h, wd, c), off],
         template=[
             ("T", x.dtype), ("C", c), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),

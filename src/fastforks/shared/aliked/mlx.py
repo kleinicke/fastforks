@@ -140,7 +140,8 @@ class MlxAliked:
 
     def __init__(self, net: ALIKED) -> None:
         """Copy the weights of `net` to MLX (batch norm folded, channels last)."""
-        head, dkd = net.desc_head, net.dkd
+        head: Any = net.desc_head
+        dkd = net.dkd
         if head.conv2D or head.mask or head.kernel_size <= 1:
             msg = "MlxAliked covers ALIKED's released SDDH (kernel_size 3, no mask, no conv2D)"
             raise NotImplementedError(msg)
@@ -156,7 +157,8 @@ class MlxAliked:
             (_Deform(b.conv1, b.bn1), _Deform(b.conv2, b.bn2), _conv(b.downsample)) for b in (net.block3, net.block4)
         ]
         self.level_convs = [_conv(c) for c in (net.conv1, net.conv2, net.conv3, net.conv4)]
-        first, rest = net.score_head[0], [m for m in net.score_head[1:] if hasattr(m, "weight")]
+        score_head: Any = net.score_head
+        first, rest = score_head[0], [m for m in score_head[1:] if hasattr(m, "weight")]
         w = first.weight.detach().float().numpy()[:, :, 0, 0]  # [8, 128]: one slice per level
         widths = [int(c[0].shape[0]) for c in self.level_convs]
         self.score_first = [mx.array(s.T.copy()) for s in np.split(w, np.cumsum(widths)[:-1], axis=1)]

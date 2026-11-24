@@ -6,7 +6,7 @@ factors exact, `fastforks._core.mlx_cast.to_float32` marks the coordinate / logi
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 
@@ -43,8 +43,9 @@ def port(portable: type[Runner], *, cache_mb: int = 0) -> type[Runner]:
             return self._run(torch.cat([frames(t) for t in range(n)]), queries)
 
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
-    return mlx_wrap.port(
-        Graph, attrs=(), methods=("_run",), net_attr="_fwd", cache_mb=cache_mb, fp32_inputs=("queries",)
+    return cast(
+        "type[Runner]",
+        mlx_wrap.port(Graph, attrs=(), methods=("_run",), net_attr="_fwd", cache_mb=cache_mb, fp32_inputs=("queries",)),
     )
 
 

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
@@ -194,7 +194,7 @@ class MlxPortable(Runner):
         elif p.quant == "none":
             _require_mlx_ram(ctx.variant.ref, (dit, vae), DTYPES[ctx.dtype].size)
         cfg = CONFIGS[p.variant]
-        self.net = mlx_net.Net(
+        self.net: Any = mlx_net.Net(
             dit, vae, cfg, DTYPES[ctx.dtype], quant=p.quant == "nf4", stream=p.stream, resident=resident
         )
         self.noise = Noise(ctx.params.seed)
@@ -204,7 +204,7 @@ class MlxPortable(Runner):
         return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
 
 
-def _require_mlx_ram(ref: str, paths: tuple[str, ...], itemsize: int) -> None:
+def _require_mlx_ram(ref: str, paths: tuple[str | Path, ...], itemsize: int) -> None:
     """Fail clearly when the resident weights (the bf16 checkpoints in the run dtype) exceed 80 % of unified memory.
 
     Without the check a 7 B transformer in bf16 (16.5 GB) on a 16 GB Mac pages the weights to swap on every call.

@@ -13,7 +13,7 @@ from __future__ import annotations
 import math
 import os
 from collections import defaultdict
-from typing import Any
+from typing import Any, cast
 
 import torch
 
@@ -113,12 +113,12 @@ def band_tail(  # noqa: C901, PLR0911, PLR0912, PLR0915
     if not chain:
         return plan
     entry = cur
-    h0 = shape(entry)[2]  # ty: ignore[not-subscriptable]
-    heights = {n: shape(n)[2] for n in chain}  # ty: ignore[not-subscriptable]
+    h0 = cast("tuple[int, ...]", shape(entry))[2]
+    heights = {n: cast("tuple[int, ...]", shape(n))[2] for n in chain}
     if any(h % h0 for h in heights.values()):
         return plan
     chain.reverse()  # input first
-    top = {n: math.prod(shape(n)) * itemsize for n in chain}  # ty: ignore[arg-type]
+    top = {n: math.prod(cast("tuple[int, ...]", shape(n))) * itemsize for n in chain}
     if max(top.values()) < BAND_MIN_MB << 20:
         return plan
     scale = {n: heights[n] // h0 for n in chain}
@@ -187,7 +187,7 @@ def band_tail(  # noqa: C901, PLR0911, PLR0912, PLR0915
             return g._uncl(mx.concatenate([g._cl(o) for o in outs], axis=1))  # noqa: SLF001
         return mx.concatenate(outs, axis=2)
 
-    banded.uncompilable = True  # type: ignore[attr-defined]  # it evaluates band by band: no `mx.compile`
+    banded.uncompilable = True  # ty: ignore[unresolved-attribute]  # it evaluates band by band: no `mx.compile`
     cut = {*chain, *(a for n in chain for a in names[n])}
     kept = [p for p in plan if not (p[0] in ("call", "alias") and p[1] in cut)]
     new = ("call", out_name, banded, (g._Name(entry),), {})  # noqa: SLF001

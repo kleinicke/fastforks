@@ -262,7 +262,7 @@ def _prelu(x: mx.array, a: mx.array) -> mx.array:
 
 def _roll(x: mx.array, shift: int) -> mx.array:
     """`x` `[B, h, w, C]` rolled by `shift` rows and columns."""
-    return mx.roll(x, (shift, shift), (1, 2))  # ty: ignore[invalid-argument-type] - the stub knows one axis only
+    return mx.roll(x, (shift, shift), (1, 2))
 
 
 def _shuffle4(x: mx.array) -> mx.array:

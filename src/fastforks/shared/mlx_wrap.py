@@ -23,7 +23,7 @@ import torch
 from fastforks._core.deferred_init import skipped_init
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Mapping
+    from collections.abc import Callable, Generator, Mapping
 
     from fastforks._core.runner import Context, Runner
 
@@ -88,7 +88,7 @@ def _patch_load(delta: int) -> None:
 
 
 @contextlib.contextmanager
-def _lazy_twin() -> Iterator[None]:
+def _lazy_twin() -> Generator[None]:
     """While the PyTorch twin is built: its weights are never copied or randomly initialised, they are the checkpoint's.
 
     `load_state_dict` assigns the checkpoint's tensors to the parameters when their dtype fits (safetensors and zip
@@ -224,7 +224,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     float32 (camera intrinsics and poses, depth bounds: the replay would round them before any float32 island). Each of
     the `methods` takes the names among its own arguments; every name must be an argument of one of them.
     """
-    out_key = "image" if whole is True else whole
+    out_key = "image" if whole is True else str(whole)
 
     class Mlx(portable):  # ty: ignore[unsupported-base]
         __doc__ = f"Apple MLX: `{portable.__name__}` with its network run by the exported-graph translation."

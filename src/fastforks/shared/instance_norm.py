@@ -124,7 +124,7 @@ def is_in_resblock(m: nn.Module) -> bool:
     )
 
 
-def _backbone_forward(self: nn.Module, x: torch.Tensor) -> list[torch.Tensor]:
+def _backbone_forward(self: Any, x: torch.Tensor) -> list[torch.Tensor]:  # noqa: ANN401 - a torch module, typed dynamically
     """`Backbone.forward` in fp16 channels-last from the scaled input on, the stem ReLU inside its norm pass."""
     x = (2 * (x / 255.0) - 1.0).half().contiguous(memory_format=CL)
     x = instance_norm(self.norm1, self.conv1(x), RELU, inplace=True)
@@ -132,11 +132,11 @@ def _backbone_forward(self: nn.Module, x: torch.Tensor) -> list[torch.Tensor]:
     return [x, F.avg_pool2d(x, kernel_size=2, stride=2)]  # high to low res
 
 
-def _norm_relu(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+def _norm_relu(self: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - a torch module, typed dynamically
     return instance_norm(self, x, RELU, inplace=True)
 
 
-def fuse_nmrf_encoder(encoder: nn.Module) -> int:
+def fuse_nmrf_encoder(encoder: Any) -> int:  # noqa: ANN401 - a torch module, typed dynamically
     """Run an NMRF / BridgeDepth encoder's instance norms on `fastbb` (fp16, in place); the modules changed.
 
     The ResNet `Backbone` (if it is one: BridgeDepth's ConvNeXt variant has none) and the `concatconv` / `gw` heads,

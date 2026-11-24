@@ -130,8 +130,8 @@ class MlxLightGlue:
 
     def _encoding(self, kpts: np.ndarray, size: np.ndarray) -> mx.array:
         """`normalize_keypoints` and the Fourier encoding: `[2, 1, N, d]` (cos, sin; per head the same)."""
-        size = size.astype(np.float32)
-        k = (kpts.astype(np.float32) - size / 2) / (size.max() / 2)
+        wh = size.astype(np.float32)
+        k = (kpts.astype(np.float32) - wh / 2) / (np.max(wh) / 2)
         p = self.posenc(mx.array(k))
         return mx.repeat(mx.stack([mx.cos(p), mx.sin(p)])[:, None], 2, axis=-1)
 

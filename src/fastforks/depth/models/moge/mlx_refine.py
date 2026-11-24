@@ -16,13 +16,12 @@ The refiner runs in float32 (as the portable runner off CUDA).
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastforks._core.mlx import metal_kernel, mx, to_mx, to_torch
 
 if TYPE_CHECKING:
     import torch
-    from torch import nn
 
     from .sparse import SparseUNet
 
@@ -214,15 +213,15 @@ class MlxRefiner:
     def __init__(self, net: SparseUNet) -> None:
         """Convert the parameters of the PyTorch refiner."""
 
-        def lin(m: nn.Module) -> tuple[mx.array, mx.array]:
+        def lin(m: Any) -> tuple[mx.array, mx.array]:  # noqa: ANN401 - torch modules of the vendored net
             return to_mx(m.weight.detach().float().t()), to_mx(m.bias.detach().float())
 
-        def conv(m: nn.Module) -> dict[str, mx.array]:
+        def conv(m: Any) -> dict[str, mx.array]:  # noqa: ANN401
             w = m.weight.detach().float()  # [C_out, 3 (i), 3 (j), 3 (z), C_in]
             o, c = w.shape[0], w.shape[-1]
             return {"w": to_mx(w.reshape(o, 27, c).permute(1, 2, 0).contiguous()), "b": to_mx(m.bias.detach().float())}
 
-        def block(stage: nn.ModuleList) -> list[dict[str, mx.array]]:
+        def block(stage: Any) -> list[dict[str, mx.array]]:  # noqa: ANN401
             out = []
             for blk in stage.children():
                 ln = blk.norm1

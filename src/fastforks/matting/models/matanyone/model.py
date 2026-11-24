@@ -535,7 +535,7 @@ def _mlx_decode(  # noqa: PLR0913 - upstream's signature
     p8 = _mlx_block(m.up_16_8, p16, t8(ms_image_feat[1]))
     p4 = _mlx_block(m.up_8_4, p8, t4(ms_image_feat[2]))
     p2 = _mlx_block(m.up_4_2, p4, t2(ms_image_feat[3]))
-    p1 = _mlx_image_block(m.up_2_1, p2, ms_image_feat[4], t1)
+    p1 = _mlx_image_block(m.up_2_1, p2, ms_image_feat[4], cast("torch.nn.Conv2d", t1))
     logits = (m.pred_seg if seg_pass else m.pred_mat)(F.relu(to_float32(p1)))
     if last_mask is not None:
         logits = last_mask + ((torch.sigmoid(logits) - 0.5) * 2 if sigmoid_residual else logits)

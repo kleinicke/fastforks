@@ -15,6 +15,7 @@ Exact regroupings in real arithmetic; outputs differ from the portable forward b
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -39,7 +40,11 @@ class MlxSEARAFT(nn.Module):
         self.flow_head = net.flow_head
         self.upsample_weight = net.upsample_weight
         self.update_block = net.update_block
-        conv, bn = net.cnet.conv1, net.cnet.bn1
+        self.w_stem1: torch.Tensor
+        self.w_stem2: torch.Tensor
+        self.b_stem: torch.Tensor
+        stem: Any = net.cnet
+        conv, bn = stem.conv1, stem.bn1
         k = bn.weight.detach() / torch.sqrt(bn.running_var + bn.eps)
         w = conv.weight.detach() * k[:, None, None, None]
         self.register_buffer("w_stem1", w[:, :3].contiguous(), persistent=False)

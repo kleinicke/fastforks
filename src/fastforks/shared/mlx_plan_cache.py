@@ -39,7 +39,7 @@ import torch
 import torch.utils._pytree as pytree
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 ENV = "FASTFORKS_MLX_PLAN_CACHE"
 FORMAT = 2  # bump when the stored layout or what the translation reads from the program changes
@@ -56,7 +56,7 @@ def directory() -> Path | None:
 
 
 @contextlib.contextmanager
-def scope(name: str) -> Iterator[None]:
+def scope(name: str) -> Generator[None]:
     """While an MLX runner is built: its `MlxModule`s get cache keys `name#0`, `name#1`, ... in creation order."""
     token = _SCOPE.set((name, [0]))
     try:
