@@ -108,13 +108,24 @@ class Portable(Runner):
         """`__call__` for every image of `images` `[B, 3, H, W]`; box models in one network call."""
         if self.ctx.params.segmentation_head:
             return super().detect_batch(images, score_threshold)
-        raw = {k: v.float() for k, v in self._raw(images).items()}
         size = device_tensor([list(images.shape[-2:])] * images.shape[0], device=images.device)
-        rs = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)  # num_select rows per image
-        scores, boxes = torch.stack([r["scores"] for r in rs]), torch.stack([r["boxes"] for r in rs])
-        labels = self.ids[torch.stack([r["labels"] for r in rs])]
+        scores, boxes, labels = self._selected(images, size)
         keep = (labels >= 0) & (scores > score_threshold)
         return split_kept(keep, self.ctx.params.max_detections, boxes=boxes, scores=scores, labels=labels)
+
+    def _selected(self, images: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Box models: `_post` of the network outputs of `images` at their `size` `[B, 2]` (height, width)."""
+        return self._post(self._raw(images), size)
+
+    def _post(self, raw: dict[str, torch.Tensor], size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """PostProcess of the network outputs `raw`: scores, boxes, labels of `num_select` rows per image.
+
+        Box models only: their PostProcess ignores the score threshold, so this is one fixed-shape computation.
+        """
+        raw = {k: v.float() for k, v in raw.items()}
+        rs = self.postprocess(raw, target_sizes=size)  # num_select rows per image
+        scores, boxes = torch.stack([r["scores"] for r in rs]), torch.stack([r["boxes"] for r in rs])
+        return scores, boxes, self.ids[torch.stack([r["labels"] for r in rs])]
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: RGB `[B, 3, H, W]` in [0, 1] -> raw outputs.
@@ -152,17 +163,32 @@ class Kernels(Portable):
             use_fp16_accumulate(self.net)
         # The authors offer this fixed-shape inference path and spatial-tensor cache for graph capture.
         prepare_graph(self.net)
-        self.graphs = GraphCache(self.net, graphs=1)
+        # Seg: the network; box models: network and PostProcess (`_top`), which take the size as a graph input
+        self.graphs = GraphCache(self.net if ctx.params.segmentation_head else self._top, graphs=1)
+
+    def _top(self, x: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Box models: `_post` of the network outputs of the prepared input `x`, the graph's forward."""
+        return self._post(dict(zip(RAW, self.net(x), strict=False)), size)
+
+    def _input(self, image: torch.Tensor) -> torch.Tensor:
+        return rfdetr_input.prepare(image.float(), self.mean, self.std, self.ctx.params.resolution)
+
+    def _selected(self, images: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        x = self._input(images)
+        out = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x, size)
+        return self._top(x, size) if out is None else out
 
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        x = rfdetr_input.prepare(image.float(), self.mean, self.std, self.ctx.params.resolution)
+        x = self._input(image)
+        if not self.ctx.params.segmentation_head:  # the graph holds `_top`
+            return dict(zip(RAW, self.net(x), strict=False))
         raw = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         if raw is None:
             raw = self.net(x)
         return dict(zip(RAW, cast("tuple[torch.Tensor, ...]", raw), strict=False))
 
     def release_graphs(self) -> None:
-        """Release the fixed network-input graph and its private memory pool."""
+        """Release the fixed-input graph and its private memory pool."""
         self.graphs.release()
 
 

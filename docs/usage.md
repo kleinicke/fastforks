@@ -728,6 +728,13 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
   Windows page-locks at most about half of the RAM (15.1 GiB of 32 GB); the blocks past that upload from pageable
   memory without overlapping the computation, which is slower, and the load logs a warning saying how much was
   page-locked.
+- Out of memory can turn into slow instead of an error: since driver 536.40 the NVIDIA setting "CUDA - Sysmem
+  Fallback Policy" (NVIDIA Control Panel, Manage 3D settings) lets the driver move GPU memory to system RAM when the
+  card is full. A model that just fits then runs several times slower. Set it to "Prefer No Sysmem Fallback" to get
+  the out-of-memory error (and its advice: a smaller tile, input or batch) instead.
+- On the GPU that drives the display, Windows resets the driver when one kernel runs longer than about 2 s (TDR; the
+  `TdrDelay` registry value). A very large input on a slow GPU can reach that; the call then fails with a CUDA error
+  and the screen goes black for a moment. Smaller inputs or tiles avoid it.
 
 ## Apple silicon (MPS)
 

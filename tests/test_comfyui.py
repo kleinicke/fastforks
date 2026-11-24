@@ -589,7 +589,7 @@ def test_pack_metadata() -> None:
         comfy = m["tool"]["comfy"]
         assert {"PublisherId", "DisplayName", "Icon"} <= set(comfy), d
         assert comfy["DisplayName"].startswith("fastforks \N{EN DASH} fast vision models"), d
-        assert m["project"]["license"] == {"text": "Apache-2.0"}, d
+        assert m["project"]["license"] == {"file": "LICENSE"}, d  # Apache-2.0, a copy of the repository's LICENSE
         requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").splitlines()
         assert requirements == m["project"]["dependencies"], d
         assert m["project"]["description"].startswith("Fast vision nodes: "), d
@@ -832,12 +832,18 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
         d.mkdir()
     pack.fp.paths["fastforks"] = [str(first), str(extra), str(tmp_path / "missing")]
     again = str(tmp_path / "extra" / ".." / "normal")  # the same folder spelled another way is read once
-    environ = {"FASTFORKS_CACHE": str(normal), "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)])}
+    environ = {
+        "FASTFORKS_CACHE": str(normal),
+        "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)]),
+        "FASTFORKS_WEIGHTS_PATH": str(normal),
+    }
     pack.nodes.setup_cache(environ, platform="linux")
     assert environ["FASTFORKS_CACHE"] == str(first)
     ours = str(Path(pack.fp.models_dir) / "fastforks")  # there once the pack kept its model inputs: read as well
     assert [d for d in environ["FASTFORKS_READ_CACHES"].split(os.pathsep) if d != ours] == [str(extra), str(normal)]
     assert pack.fp.paths["fastforks"][-1] == ours
+    # weights put into the folders by hand are found, after the user's own search path
+    assert environ["FASTFORKS_WEIGHTS_PATH"].split(os.pathsep) == [str(normal), *pack.fp.paths["fastforks"]]
     assert "FASTFORKS_MLX_PLAN_CACHE" not in environ  # macOS only
 
 
@@ -1347,3 +1353,10 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
     (out,) = nodes.FaceRestore().run(image=gray, model="codeformer", backend="auto", dtype="auto")
     assert out.shape == (1, 150, 200, 3)
     torch.testing.assert_close(out, gray.expand(-1, -1, -1, 3))
+
+
+@pytest.mark.parametrize("pack_dir", [PACK, COMMERCIAL_PACK], ids=lambda p: p.name)
+def test_pack_ships_the_repository_licence(pack_dir: Path) -> None:
+    """Each pack folder is published on its own (`comfy node publish`), so it carries a copy of the LICENSE."""
+    assert (pack_dir / "LICENSE").read_bytes() == (PACK.parents[1] / "LICENSE").read_bytes()
+    assert 'license = { file = "LICENSE" }' in (pack_dir / "pyproject.toml").read_text(encoding="utf-8")

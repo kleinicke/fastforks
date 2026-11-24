@@ -329,8 +329,8 @@ class Kernels(Runner):
         return {"depth": out[:, 0, :h, :w]}
 
 
-class _Mlx(  # ty: ignore[unsupported-base]
-    mlx_wrap.port(
+class _Mlx(
+    mlx_wrap.port(  # ty: ignore[unsupported-base]
         Portable, attrs=(), methods=("_mono", "_backbone", "_update", "_post"), fp32_methods=("_backbone",), prune=True
     )
 ):

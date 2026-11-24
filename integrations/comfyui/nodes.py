@@ -402,7 +402,9 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
     """Download weights and kernels into ComfyUI's `models/fastforks` (the first `fastforks` model folder).
 
     Files already in the HF hub or torch hub cache, the normal fastforks cache or other `fastforks` folders of
-    `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded. On macOS
+    `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded. Weights
+    put into a `fastforks` folder by hand, as `<file>` or `<family>/<file>`, are found too (`FASTFORKS_WEIGHTS_PATH`,
+    after the user's own entries). On macOS
     the MLX ports' first-run plans go to `models/fastforks/mlx-plans` unless `FASTFORKS_MLX_PLAN_CACHE` is set.
     """
     import folder_paths  # noqa: PLC0415 - ComfyUI only
@@ -418,6 +420,9 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
             seen.add(p)
             keep.append(d)
     environ["FASTFORKS_READ_CACHES"] = os.pathsep.join(keep)
+    # weights put there by hand (`<file>` or `<family>/<file>`, hash-checked; a file that does not verify is skipped)
+    hand = [*environ.get("FASTFORKS_WEIGHTS_PATH", "").split(os.pathsep), *dirs]
+    environ["FASTFORKS_WEIGHTS_PATH"] = os.pathsep.join(dict.fromkeys(filter(None, hand)))
     log.info("fastforks: downloads go to %s; also reading %s", dirs[0], keep)
     if platform == "darwin" and _PLAN_ENV not in environ:
         # an MLX port's first run of an image size exports and tunes the network (seconds to minutes); kept on disk,
@@ -1012,7 +1017,7 @@ class Segment(_Node):
         text: str,
     ) -> tuple[torch.Tensor]:
         """Segment every image with the same prompts."""
-        m = load(model, backend, dtype)
+        m: Any = load(model, backend, dtype)  # a promptable model: its `prompts`
         pos = convert.points(positive_points, "positive_points")
         neg = convert.points(negative_points, "negative_points")
         bx = convert.box(box)

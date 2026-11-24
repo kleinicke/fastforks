@@ -180,8 +180,8 @@ class Portable(Runner):
         return scores, labels, torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
 
     def _selected(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """`select` of the network outputs of `x`."""
-        return self.select(*self._forward(x))
+        """`select` of the network outputs of `square`'s `x`."""
+        return self.select(*self._forward(self.normalise(x)))
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
@@ -191,7 +191,7 @@ class Portable(Runner):
         """`__call__` for every image of `images` `[B, 3, H, W]`, one network call."""
         p: Any = self.ctx.params
         h, w = images.shape[-2:]
-        scores, labels, boxes = self._selected(self.normalise(square(images, p.size)))
+        scores, labels, boxes = self._selected(square(images, p.size))
         out = boxes * device_tensor([w, h, w, h], device=boxes.device, dtype=boxes.dtype)
         keep = (labels >= 0) & (scores >= score_threshold)
         return split_kept(keep, p.max_detections, boxes=out, scores=scores, labels=labels)
@@ -232,13 +232,14 @@ class Kernels(Portable):
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
     def _eager(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """Network and top-k selection, the graph's forward.
+        """Normalisation, network and top-k selection of `square`'s `x`, the graph's forward.
 
         The resize, the threshold and the scale to input pixels stay eager: a graph of the resize per input shape
-        measured 0.1 ms at best, for up to 48 MiB more reserved.
+        measured 0.1 ms at best, for up to 48 MiB more reserved. The normalisation takes the one `size` x `size` shape
+        and so costs the graph only its float32 input.
         """
         with fp16_accumulate():
-            return self.select(*self.net(x))
+            return self.select(*self.net(self.normalise(x)))
 
     def _selected(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         out = None if self.graphs is None else self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)

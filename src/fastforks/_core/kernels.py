@@ -346,6 +346,8 @@ def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
 @functools.cache
 def _own_group(gid: int) -> bool:
     """Whether `gid` is this user's primary group and has no other members (Ubuntu's user-private group)."""
+    if sys.platform == "win32":  # no POSIX groups (also what the imports below would find)
+        return False
     try:
         import grp  # noqa: PLC0415 - POSIX only (no such module on Windows)
         import pwd  # noqa: PLC0415
