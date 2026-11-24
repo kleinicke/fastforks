@@ -405,8 +405,8 @@ Same machine, driver and torch as above.
 
 - Kernels mode now matches bare-metal Linux for sam2.1-hiera-tiny, and is within 4-9 % for the others
   (bridgedepth 84.9 is faster than the Linux row, which predates later kernel work).
-- rf-detr-s portable is bimodal between processes: 16.0-16.4 ms or 35.7-37.2 ms (11 processes: 3 fast, 1 at
-  23.9, 7 slow), with either SDPA order (`FASTFORKS_SDPA=auto` and `efficient,math,cudnn` alike). Its GPU work is
+- rf-detr-s portable is bimodal between processes: 16.0-16.4 ms or 35.7-37.2 ms (11 bench processes: 3 fast, 8 slow;
+  a probe process also hit 23.9), with either SDPA order (`FASTFORKS_SDPA=auto` and `efficient,math,cudnn` alike). Its GPU work is
   about 4 ms per call. The host is the limit: about 500 kernel launches per call, and in a slow process
   `cudaLaunchKernel` takes about 20 us of CPU each (torch profiler). The SM / memory clocks are the same in both modes
   (2730-2752 / 13801 MHz, P1). That makes it the WDDM launch path, per process, not fastforks code. Kernels mode
