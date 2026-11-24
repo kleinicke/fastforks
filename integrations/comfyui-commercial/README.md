@@ -56,6 +56,13 @@ the fastforks pack's nodes (every model) are used: remove or disable one of them
   - Metric3D v2: `metric3d-vit-large`
   - MoGe: `moge-2-vitb-normal`, `moge-2-vitl-normal`, `moge-2-vits-normal`, `moge-3-vitl`
   - StableNormal turbo: `stablenormal-turbo`
+- **Line art / edges**:
+  - AnyLine line art: `anyline`
+  - HED soft edges (ControlNet 1.1): `hed`
+  - Line art (informative-drawings): `lineart`, `lineart-coarse`
+  - Anime line art: `lineart-anime`
+  - M-LSD line segments: `mlsd`
+  - TEED edges: `teed`
 - **Remove background**:
   - BEN2: `ben2`
   - BiRefNet: `birefnet`, `birefnet-lite`

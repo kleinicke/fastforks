@@ -928,6 +928,30 @@ class Normals(_Node):
         return (convert.to_image(maps, _out_device()),)
 
 
+class Edges(_Node):
+    """Line art, soft edges or line segments as a white-on-black image: the ControlNet line / edge hints."""
+
+    DESCRIPTION = (
+        "Line / edge map (white lines on black), e.g. for lineart, soft-edge (HED / PiDiNet) or M-LSD ControlNets."
+    )
+    RETURN_TYPES = ("IMAGE",)
+    TASK = "edges"
+    DEFAULT = "lineart"
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
+
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor]:
+        """Run the model on every image."""
+        m = load(model, backend, dtype)
+        maps = each_result(image, m, batch_size, lambda r, k: at(r.edges, k).float().unsqueeze(0).expand(3, -1, -1))
+        return (convert.to_image(maps, _out_device()),)
+
+
 class RemoveBackground(_Node):
     """Foreground alpha (background removal / matting)."""
 
@@ -1817,6 +1841,7 @@ _NODES: tuple[tuple[str, type[_Node], str], ...] = (
     ("Depth", Depth, "Depth ({pack})"),
     ("VideoDepth", VideoDepth, "Video depth ({pack})"),
     ("Normals", Normals, "Normals ({pack})"),
+    ("Edges", Edges, "Line art / edges ({pack})"),
     ("RemoveBackground", RemoveBackground, "Remove background ({pack})"),
     ("Segment", Segment, "Segment (SAM, {pack})"),
     ("Detect", Detect, "Detect objects ({pack})"),
