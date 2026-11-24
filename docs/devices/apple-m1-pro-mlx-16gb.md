@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1496 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1504 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -342,6 +342,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`inspyrenet-fast`](../models/matting.md#inspyrenet) | 129 | 95.6 | – | – | – | 1060 | – |
 | [`isnet`](../models/matting.md#isnet) | 197 | 145 | 197 | 121 | 1.2x | 1200 | 1254 |
 | [`isnet-general-use`](../models/matting.md#isnet) | 211 | 145 | 209 | 122 | 1.2x | 1217 | 1328 |
+| [`matanyone`](../models/matting.md#matanyone) | 5111 | 3495 | – | – | – | 3609 | – |
 | [`rmbg-2.0`](../models/matting.md#birefnet) | 1643 | 1050 | – | – | – | 2508 | – |
 | [`u2net`](../models/matting.md#u2net) | 82.5 | 62.9 | unsupported | – | – | 1156 | – |
 | [`u2net-human-seg`](../models/matting.md#u2net) | 78.6 | 62.7 | unsupported | – | – | 972 | – |
@@ -745,13 +746,13 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`alltracker`](../models/tracking.md#alltracker) | 3151 | 2288 | – | 2232 |
 | [`alltracker-tiny`](../models/tracking.md#alltracker) | 2909 | 2174 | – | 2245 |
 | [`bootstapir`](../models/tracking.md#tapir) | 1881 | – | – | 2497 |
-| [`cotracker3-offline`](../models/tracking.md#cotracker) | 1446 | – | – | 3213 |
-| [`cotracker3-online`](../models/tracking.md#cotracker) | 1590 | – | – | 2641 |
-| [`locotrack-b`](../models/tracking.md#locotrack) | 1482 | – | – | 1738 |
-| [`locotrack-s`](../models/tracking.md#locotrack) | 1209 | – | – | 1653 |
+| [`cotracker3-offline`](../models/tracking.md#cotracker) | 1595 | 1455 | – | 3219 |
+| [`cotracker3-online`](../models/tracking.md#cotracker) | 1638 | 1491 | – | 2453 |
+| [`locotrack-b`](../models/tracking.md#locotrack) | 1453 | 1113 | – | 1597 |
+| [`locotrack-s`](../models/tracking.md#locotrack) | 1233 | 961 | – | 1575 |
 | [`tapir`](../models/tracking.md#tapir) | 1592 | – | – | 1717 |
-| [`tapnext`](../models/tracking.md#tapnext) | 4034 | – | – | 2443 |
-| [`tapnext-pp`](../models/tracking.md#tapnext) | 4036 | – | – | 2025 |
+| [`tapnext`](../models/tracking.md#tapnext) | 4033 | 3724 | – | 2420 |
+| [`tapnext-pp`](../models/tracking.md#tapnext) | 4035 | 3746 | – | 1677 |
 | [`track-on-r`](../models/tracking.md#track_on) | 11174 | 8822 | unsupported | 3089 |
 | [`track-on2`](../models/tracking.md#track_on) | 10543 | 8827 | unsupported | 3090 |
 

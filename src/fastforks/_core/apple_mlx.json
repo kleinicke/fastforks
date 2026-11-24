@@ -1568,34 +1568,35 @@
   "cotracker3-offline@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }
   },
   "cotracker3-online@1": {
-   "auto": [
-    "portable",
-    "float32"
-   ],
    "dtypes": {
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }
@@ -5523,15 +5524,25 @@
    }
   },
   "locotrack-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }
@@ -5539,20 +5550,23 @@
   "locotrack-s@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }
@@ -5928,7 +5942,21 @@
    }
   },
   "matanyone@1": {
-   "mps_dtype": "float16"
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mps_dtype": "float16",
+   "passed": {
+    "portable": [
+     "float16",
+     "float32"
+    ]
+   }
   },
   "megaflow@1": {
    "auto": [
@@ -10586,20 +10614,23 @@
   "tapnext-pp@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }
@@ -10607,20 +10638,23 @@
   "tapnext@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }

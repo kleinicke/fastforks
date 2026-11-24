@@ -44,8 +44,8 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2250 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 577 models, 1496 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1504 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -314,7 +314,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 | 95.6 ms · portable fp16 |
 | [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 | 121 ms · kernels fp16 |
 | [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 | 122 ms · kernels fp16 |
-| [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | – |
+| [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | 3495 ms · portable fp16 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | 1008 ms · portable fp16 | 1050 ms · portable fp16 |
 | [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 62.9 ms · portable fp16 |
 | [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 62.7 ms · portable fp16 |
@@ -616,13 +616,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`alltracker`](models/tracking.md#alltracker) | 3067 ms · portable fp16 | 2288 ms · portable fp16 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | 2743 ms · portable fp16 | 2174 ms · portable fp16 |
 | [`bootstapir`](models/tracking.md#tapir) | 1704 ms · portable fp32 | 1881 ms · portable fp32 |
-| [`cotracker3-offline`](models/tracking.md#cotracker) | 1428 ms · portable fp32 | 1446 ms · portable fp32 |
-| [`cotracker3-online`](models/tracking.md#cotracker) | 1704 ms · portable fp32 | 1590 ms · portable fp32 |
-| [`locotrack-b`](models/tracking.md#locotrack) | 1786 ms · portable fp32 | 1482 ms · portable fp32 |
-| [`locotrack-s`](models/tracking.md#locotrack) | 1781 ms · portable fp32 | 1209 ms · portable fp32 |
+| [`cotracker3-offline`](models/tracking.md#cotracker) | 1528 ms · portable fp32 | 1455 ms · portable fp16 |
+| [`cotracker3-online`](models/tracking.md#cotracker) | 1829 ms · portable fp32 | 1491 ms · portable fp16 |
+| [`locotrack-b`](models/tracking.md#locotrack) | 1786 ms · portable fp32 | 1113 ms · portable fp16 |
+| [`locotrack-s`](models/tracking.md#locotrack) | 1781 ms · portable fp32 | 961 ms · portable fp16 |
 | [`tapir`](models/tracking.md#tapir) | 1356 ms · portable fp32 | 1592 ms · portable fp32 |
-| [`tapnext`](models/tracking.md#tapnext) | 5855 ms · portable fp32 | 4034 ms · portable fp32 |
-| [`tapnext-pp`](models/tracking.md#tapnext) | 5610 ms · portable fp32 | 4036 ms · portable fp32 |
+| [`tapnext`](models/tracking.md#tapnext) | 5855 ms · portable fp32 | 3724 ms · portable fp16 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | 5610 ms · portable fp32 | 3746 ms · portable fp16 |
 | [`track-on-r`](models/tracking.md#track_on) | 8274 ms · portable fp32 | 8822 ms · portable fp16 |
 | [`track-on2`](models/tracking.md#track_on) | 8370 ms · portable fp32 | 8827 ms · portable fp16 |
 

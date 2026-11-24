@@ -122,7 +122,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | isnet | matting | portable_mlx + kernels_mlx (fp16 only), fp32+fp16 pass | fp32 234 / 1649 vs MPS 157 / 1787. fp16 portable 153 / 1259 vs 130 / 1746; Winograd fp16 128 / 1445 (ties MPS, declared fp16 only). |
 | u2net | matting | portable_mlx, fp32+fp16 pass | fp16 62 / 1201 vs MPS 79 / 1885; fp32 83 / 1526 vs 82 / 1910. |
 | vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1317 / 2451 vs MPS 2333 / 5185; fp16 1280 / 2283 vs 1360 / 2542 (was 1595 / 3923: D=256 global attention now query-blocked, tune trials drop their cache, matting tail in strips). b fp32 2502 / 2701 vs 4680 / 5737; fp16 2368 / 2474 vs 2740 / 2966. Routed fp16. |
-| matanyone | matting | not ported (tried, slower) | Tried 2026-11-20: the per-frame stages (`_frame_features`, `_encode_mask`, `pixel_fusion`, `readout_query`, `_segment`, `pred_uncertainty`) exported as fixed-shape MLX graphs, with the memory bank and loop in PyTorch. It worked (golden pass; positional-encoding cache dropped, `aten.prod.dim_int` mapped, aux-mask `torch.where` made exportable) but 1080x1920 ran fp16 6335 ms / 3718 MB vs MPS 3091 / 3838, fp32 8946 / 4671 vs 3444 / 6010. The decoder (`_segment`, 64→16 and 128→64 3x3 convs, 1x1 convs and bilinear upsampling at full and half resolution) takes ~420 ms per step on MLX vs ~136 on MPS, and runs 11 times per call. That is 4.7 of the 6.3 s. Memory gain only 3% in fp16, so the runner was dropped. Revisit when MLX low-channel full-res convs get faster. Golden skipped in the MLX run. |
+| matanyone | matting | portable_mlx (per-frame stages as fixed-shape graphs, memory bank and loop in PyTorch; fused 4-D decoder), fp32+fp16 pass; opt-in (`device="mlx"`), not routed | 2026-11-24, 1080x1920: fp16 3495 / 3609 (first call 6.6 s) vs MPS 3091 / 3838 (3.2 s); fp32 5111 / 4169 (8.2 s) vs 3444 / 6010 (3.8 s). 13% slower than MPS in fp16, 6% leaner: see the 2026-11-24 section. First try 2026-11-20: the per-frame stages (`_frame_features`, `_encode_mask`, `pixel_fusion`, `readout_query`, `_segment`, `pred_uncertainty`) exported as fixed-shape MLX graphs, with the memory bank and loop in PyTorch. It worked (golden pass; positional-encoding cache dropped, `aten.prod.dim_int` mapped, aux-mask `torch.where` made exportable) but 1080x1920 ran fp16 6335 ms / 3718 MB vs MPS 3091 / 3838, fp32 8946 / 4671 vs 3444 / 6010. The decoder (`_segment`, 64→16 and 128→64 3x3 convs, 1x1 convs and bilinear upsampling at full and half resolution) takes ~420 ms per step on MLX vs ~136 on MPS, and runs 11 times per call. That is 4.7 of the 6.3 s. Memory gain only 3% in fp16, so the runner was dropped then. |
 | rtmpose / dwpose / rtmw | pose | portable_mlx, fp32+fp16 pass | rtmpose-t fp16 24 / 607 vs MPS 26 / 1460; fp32 27 / 656 vs 26 / 1462. Goldens tried: t, l-384, dwpose-t, rtmw-m, halpe26, hand5, face6, ap10k. |
 | rtmo | pose | portable_mlx, fp32+fp16 pass | t fp16 14 / 596 vs fp32 16 / 673 vs MPS 20 / 1506; l fp16 72 / 1171 vs MPS 62 / 1829. fp16: float32 score logit, Winograd 3x3 in float32, float32 GELU. |
 | hrnet | pose | portable_mlx, fp32+fp16 pass | w32 fp16 125 / 1049 vs MPS 122 / 1675; fp32 166 / 1247 vs 141 / 1748. Winograd: tie, not declared. |
@@ -157,9 +157,9 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | megaloc | retrieval | portable_mlx (`_descriptor` graph), fp32+fp16 pass | 480x640 fp32 53 / 1345 vs MPS 54 / 1926; fp16 83 / 1496 vs 45 / 2617 (fp16 slower than fp32 on MLX here: the Sinkhorn step casts to float32). Less memory; fp32 is the better MLX dtype. |
 | tapir | tracking | portable_mlx: whole offline pass as one graph (adds `grid_sampler_3d`, `avg_pool3d` ops); fp32 only (fp16 misses the goldens' tolerances) | 480x854 ms / MB, fp32. tapir 2770 / 1720 -> 1592 / 1717 vs MPS 1382 / 2630 (2026-11-20: depthwise conv1d of the PIPs mixer as shifted multiply-adds instead of MLX's grouped conv1d, which fuse with the GELU: 1.9 -> 0.8 ms per [64, 24, 2048] conv). 1.15x slower, 35% leaner: not routed. All variants pass goldens. |
 | alltracker | tracking | portable_mlx: per-query-frame group graph (`group` arg replaces data-dependent `unique`/`nonzero`); fp32 only | 480x854 fp32 5397 / 2597 vs MPS 3508 / 4571. |
-| locotrack | tracking | portable_mlx: whole pass as one graph; fp32 only | 2026-11-22: locotrack-b fp32 1482 / 1738 (first call 5.1 s), locotrack-s 1209 / 1653 (4.7 s) vs MPS 2104 / 2474 and 1781 / 2427. MLX export uses 128-query chunks; both auto-route to MLX. |
-| tapnext | tracking | portable_mlx: per-frame step graph (pipelined, released); fp32 only | 2026-11-22: tapnext fp32 7477 / 3673 -> 4034 / 2443 (first call 77 -> 6.5 s), tapnext-pp 4036 / 2025, vs MPS 5855 / 3754 and 5610 / 3657. Both auto-route to MLX. |
-| cotracker | tracking | portable_mlx: offline = whole pass as one graph; online = window loop eager (data-dependent, `torch.export` guards), CNN and update transformer on MLX; fp32 only | offline fp32 3577 / 3438 vs MPS 1430 / 4725 (bench after the shared fixes: ~3057 ms, not re-surveyed); online 3340 / 3971 vs 1707 / 4689. 2026-11-20 profile (offline): about half is the feature CNN's convs (MLX conv2d 2-3x slower than MPS), the rest correlation lerps and SDPA; no cheap win. |
+| locotrack | tracking | portable_mlx: whole pass as one graph; fp32+fp16 pass | 2026-11-22: locotrack-b fp32 1482 / 1738 (first call 5.1 s), locotrack-s 1209 / 1653 (4.7 s) vs MPS 2104 / 2474 and 1781 / 2427. MLX export uses 128-query chunks; both auto-route to MLX. 2026-11-24 fp16 (unit features, cost volumes, coordinates, logit state and the refiner's residual stream float32; convs, attention and MLPs float16): locotrack-b 1113 / 1597 (first call 4.8 s) vs fp32 1453 / 1682, locotrack-s 961 / 1575 (4.7 s) vs 1233 / 1541; MPS fp16 2084 / 1483 and 1951 / 2430. |
+| tapnext | tracking | portable_mlx: per-frame step graph (pipelined, released); fp32+fp16 pass | 2026-11-22: tapnext fp32 7477 / 3673 -> 4034 / 2443 (first call 77 -> 6.5 s), tapnext-pp 4036 / 2025, vs MPS 5855 / 3754 and 5610 / 3657. Both auto-route to MLX. 2026-11-24 fp16 (GEMMs float16; residual stream, norms, temporal conv, RG-LRU scan, heads, query tokens and state float32, as upstream's autocast): tapnext 3724 / 2420 (first call 6.2 s) vs fp32 4033 / 2421, tapnext-pp 3746 / 1677 (6.1 s) vs 4035 / 2010. Both route fp16. |
+| cotracker | tracking | portable_mlx: offline = whole pass as one graph; online = window loop eager (data-dependent, `torch.export` guards), CNN and update transformer on MLX; fp32+fp16 pass | offline fp32 3577 / 3438 vs MPS 1430 / 4725 (bench after the shared fixes: ~3057 ms, not re-surveyed); online 3340 / 3971 vs 1707 / 4689. 2026-11-20 profile (offline): about half is the feature CNN's convs (MLX conv2d 2-3x slower than MPS), the rest correlation lerps and SDPA; no cheap win. 2026-11-24 fp16: offline 1455 / 3219 (first call 7.9 s) vs fp32 1595 / 3203 and MPS fp16 1658 / 2781, fp32 1528 / 2737; online 1491 / 2453 (4.1 s) vs fp32 1638 / 2725 and MPS fp16 1913 / 1682, fp32 1829 / 2734. |
 | track_on | tracking | portable_mlx: per-frame loop eager (data-dependent: queries join at their frame), DINOv3 adapter backbone and the per-frame `step` (attention over memory, correlation, rerank, head; the frame's tensors as arguments) as graphs; fp32+fp16 pass | track-on2 fp32 21453 / 4902 -> 10755 / 3318 vs MPS 8354 / 6102; fp16 21190 / 4947 -> 7623 / 3056 (2026-11-20: the step ran eagerly on the CPU before). fp16 routed (`auto`): 9% faster than MPS fp32 (no MPS fp16 row) at half the memory. |
 | nnfoundation (cnn) | volume | `mlx_wrap.port(Portable)`: 3D UNet exported whole; 5-D conv via `mx.conv3d` (transposed: matmul for stride == kernel, else `conv_transpose3d`) | 200x200 fp32 5421 ms / 10651 MB -> 4271 / 9100 vs MPS 3645 / 9435; fp16 4721 / 10094 -> 3520 / 8041 vs 2935 / 7824 (2026-11-20: channels-last instance-norm statistics, 1-channel stem conv3d as one conv2d over folded depth taps); goldens pass. Still 1.2x slower: the rest is `mx.conv3d` itself (~2.4 TFLOPS: 64@112^3 ~115 ms, 32@224^3 ~258 ms per conv). With the graph kernels forced (channel_stats, Winograd 3D) fp16 bench 3045 / 6469: 3.7% slower but 17% leaner than MPS, short of the route rule, so no kernels mode is declared. |
 | nnfoundation (vit) | volume | same | 192x192 fp32 18038 ms / 4313 MB vs MPS 21342 / 4987; fp16 13037 / 2469 vs 17636 / 3817; goldens pass. Faster and lighter than MPS. |
@@ -3626,3 +3626,74 @@ MPS memory: live tensors peak at 2.5 GB (s fp32) / 3.9 GB (l fp32), the driver a
 and 8 / 11.4 GB over repeated calls. The gap is the MPS caching allocator plus graph temporaries (1 GB jumps at
 cnn_backbone conv1_down, feat_pyramid concat_conv0 and the first transformer up_concat0), not the network's tensors, so
 l fp32 swapping and xl fp32 OOM are not fixable with module rewrites. Left as is; fp16 is the Apple route anyway.
+
+## 2026-11-24: float16 on MLX for tapnext, cotracker and locotrack; matanyone ported (M1 Pro 16 GB)
+
+Survey rows (portable, `ms / first call s / peak MB`; tracking 24 frames at 480 x 854 with 256 queries, matanyone
+1080 x 1920; every golden passes):
+
+| ref | MLX fp32 | MLX fp16 | MPS fp32 | MPS fp16 |
+|---|---|---|---|---|
+| tapnext | 4033 / 6.5 / 2421 | 3724 / 6.2 / 2420 | 5855 / 5.8 / 3754 | 5998 / 6.9 / 3755 |
+| tapnext-pp | 4035 / 6.4 / 2010 | 3746 / 6.1 / 1677 | 5610 / 5.8 / 3657 | 5654 / 5.8 / 3552 |
+| cotracker3-offline | 1595 / 8.5 / 3203 | 1455 / 7.9 / 3219 | 1528 / 1.8 / 2737 | 1658 / 1.9 / 2781 |
+| cotracker3-online | 1638 / 4.6 / 2725 | 1491 / 4.1 / 2453 | 1829 / 2.1 / 2734 | 1913 / 2.2 / 1682 |
+| locotrack-b | 1453 / 5.3 / 1682 | 1113 / 4.8 / 1597 | 1786 / 2.0 / 1470 | 2084 / 2.3 / 1483 |
+| locotrack-s | 1233 / 5.2 / 1541 | 961 / 4.7 / 1575 | 1781 / 2.2 / 2427 | 1951 / 2.3 / 2430 |
+| matanyone | 5111 / 8.2 / 4169 | 3495 / 6.6 / 3609 | 3444 / 3.8 / 6010 | 3091 / 3.2 / 3838 |
+| tapir (fp32 only on MLX) | 1592 / 16.7 / 1717 | not built | 1356 / 1.5 / 1604 | 1393 / 1.6 / 1610 |
+
+float16 against float32 on MLX: faster on every ref (7 to 32 %). Peak memory is lower or within noise: +16 MB on
+cotracker3-offline, +34 MB on locotrack-s, -1 MB on tapnext, 85 to 560 MB lower on the others. `auto` (generated):
+tapnext, tapnext-pp, locotrack-s and cotracker3-online route to MLX float16; cotracker3-offline (first call 7.9 s,
+budget 4.9 s) and locotrack-b (1597 MB against MPS 1470 MB, the memory rule) stay on MPS with `device="mlx"` opt-in.
+CoTracker also gained MPS float16 in the card, but it is slower than MPS float32 there (1658 vs 1528, 1913 vs 1829).
+
+What stays float32 in the float16 replays (`to_float32` / `to_run_dtype`, identity in PyTorch, so CUDA and MPS are
+unchanged):
+
+- tapnext: residual stream, norms, temporal conv, RG-LRU scan, heads; the query tokens and the state enter float32
+  (`fp32_inputs=("point", "state")`). The GEMMs run float16, as under upstream's autocast.
+- cotracker: the queries (offline) and the track state `coords` / `vis` / `conf` (online) enter float32.
+- locotrack: unit features, cost volumes and their conv, coordinates, logit state and the refiner's residual stream.
+  Pixel scale factors are Python floats (`tracking._mlx.scale_xy`): a float16 constant `256 / 150` is 0.1 px off.
+- `mlx_wrap.port(fp32_inputs=...)` now gives each ported method the names among its own arguments and raises on a name
+  no method has.
+
+### A released twin changed the next shape's graph (tapnext-pp float16 golden)
+
+The first tapnext-pp float16 survey row failed its golden (tracks mean |diff| 1.597: one query at one frame 57 px
+off), though the golden passed alone. It only failed after the 256-query bench shape had been exported, with
+`release=True`. Cause: the release replaced every consumed twin tensor by a stride-0 stand-in
+(`zeros(()).expand(shape)`), and `torch.export` decomposes a linear whose bias is not contiguous into `mm` + `add`
+instead of `addmm`: the second shape's plan had 1864 entries against 1763, 101 of 102 `addmm` gone. The values are the
+same weights, but the bias is no longer fused into the GEMM, the float16 rounding differs, and a query that has not
+started yet (its track is read from the unknown token, a two-peaked soft argmax) flipped peaks. Fix: the release keeps
+1-D tensors (biases and norm scales: a few MB at most). Exports with and without stand-ins are now identical
+(2238 call nodes each for the step graph); tapnext-pp float16 passes after the bench (mean 0.0019) and in the survey.
+This also restores the fused bias for every later shape of any released port.
+
+### matanyone on MLX
+
+The 2026-11-20 port lost to MPS in the decoder (`_segment`: 420 ms per step against 136). Now the single-object
+decoder runs 4-D and fused (`_mlx_decode`, MLX only; several objects or sizes that do not double fall back to
+upstream's `MaskDecoder.forward`), with three Metal kernels (`fastforks._core.decoder_ops`): `up2_skip` (2x bilinear
+upsample + skip add + optional ReLU), `up2_proj` (the same with the 1x1 projection of the skip source inside the
+kernel, so the projected 64-channel full-resolution map is never stored) and `area_pool`.
+
+| 1080 x 1920, own harness | first call s | warm ms | peak MB | `_segment` ms / step |
+|---|---|---|---|---|
+| MLX fp16 before | 8.09 | 4625 | 3892 | 276 |
+| MLX fp16 fused decoder | 7.20 | 3456 | 3571 | 173 |
+| MLX fp32 before | 10.51 | 7180 | 4985 | |
+| MLX fp32 fused decoder | 8.63 | 5098 | 4170 | |
+| MPS fp16 | 3.46 | 3210 | 3817 | 141 |
+
+Still 13 % slower than MPS warm in the survey (3495 vs 3091 ms) and 2x on the first call, 6 % leaner: opt-in, not
+routed. What is left per step in `_segment` is MLX's low-channel convs at high resolution: 64->16 3x3 at 1088 x 1920
+25.5 ms (about 0.8 TFLOPS), 128->64 3x3 at 544 x 960 23.5 ms, `up2_proj` 17 ms, 64->64 3x3 at 544 x 960 13 ms, 16->16
+full resolution 10.8 ms. Over the whole call the largest op is the 256->256 3x3 at 68 x 120 (392 ms over 199 calls).
+Tried without gain: `cache_mb` 300 / 400 / 600 (3506 / 3496 / 3451 ms at 3774 / 3829 / 4034 MB), the prediction conv
+in float16 (3469 ms). Not built: one kernel for `conv1(relu(up(x) + proj(image)))`.
+
+tapir float16 on MLX was tried again and not built: see `mlx-coverage-gaps.md`.

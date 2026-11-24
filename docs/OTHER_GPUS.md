@@ -59,7 +59,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 <!-- capabilities:begin (tools/gen_docs.py, from the model cards) -->
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) | MLX portable | MLX kernels (libraries, dtypes) |
 |---|---|---|---|---|---|---|
-| alexnet, alltracker, any2full, anysplat, birefnet, bisenet, boq, c_foundationstereo, c_radio, cas_gwcnet, clip, clipseg, coex, dat, densenet, depth_anything_3, depth_pro, depthfm, depthsplat, detr, dfine, dinov2, dinov2_linear, dinov2_linear_cls, dinov3, dlnr, drct, ema_vfi, eomt, fast_acvnet, film, flexglue, flowseek, geocalib, gfpgan, gimm_vfi, gmflow, gwcnet, hat, hed, hrnet, insid3, inspyrenet, lama, lineart, lineart_anime, lingbot_depth, lingbot_map, loftr, lotus, lwdetr, mapanything, marigold, marigold_normals, mask2former, megaflow, megaloc, metric3d, midas, mlsd, mobile_sam, mobilenetv1, mvsanywhere, neuflow_v2, nnfoundation, omni_dc, oneformer, parseq, patchmatchnet, pi3, pointdit, ppocrv5, prompt_depth_anything, psmnet, rcnn, realplksr, recover, repvit, restormer, retinaface, rfdetr, rfdetr_keypoint, rtdetrv2, rtmdet, rtmo, s2m2, sam, sam2, sam3, sam_hq, sapiens, shufflenetv2, siglip2, squeezenet, stablenormal, starnet, swin2sr, swinir, tipsv2, totalsegmentator, u2net, unik3d, vgg, vggt_omega, video_depth_anything, vitmatte, waft, waft_stereo, yunet, zoedepth | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | - |
+| alexnet, alltracker, any2full, anysplat, birefnet, bisenet, boq, c_foundationstereo, c_radio, cas_gwcnet, clip, clipseg, coex, cotracker, dat, densenet, depth_anything_3, depth_pro, depthfm, depthsplat, detr, dfine, dinov2, dinov2_linear, dinov2_linear_cls, dinov3, dlnr, drct, ema_vfi, eomt, fast_acvnet, film, flexglue, flowseek, geocalib, gfpgan, gimm_vfi, gmflow, gwcnet, hat, hed, hrnet, insid3, inspyrenet, lama, lineart, lineart_anime, lingbot_depth, lingbot_map, locotrack, loftr, lotus, lwdetr, mapanything, marigold, marigold_normals, mask2former, matanyone, megaflow, megaloc, metric3d, midas, mlsd, mobile_sam, mobilenetv1, mvsanywhere, neuflow_v2, nnfoundation, omni_dc, oneformer, parseq, patchmatchnet, pi3, pointdit, ppocrv5, prompt_depth_anything, psmnet, rcnn, realplksr, recover, repvit, restormer, retinaface, rfdetr, rfdetr_keypoint, rtdetrv2, rtmdet, rtmo, s2m2, sam, sam2, sam3, sam_hq, sapiens, shufflenetv2, siglip2, squeezenet, stablenormal, starnet, swin2sr, swinir, tapnext, tipsv2, totalsegmentator, u2net, unik3d, vgg, vggt_omega, video_depth_anything, vitmatte, waft, waft_stereo, yunet, zoedepth | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | - |
 | coatnet, davit, deit, efficientformer, efficientformerv2, efficientvit, eva02, fastvit, focalnet, hgnetv2, inception_v3, mobilenetv4, nafnet, nsfw_vit, segformer, segnext, shvit, siglip, swin, tinyvit, vit, wd_tagger | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | graph_mlx fp32/fp16 |
 | convnext, convnext_features, convnextv2, dinov3_convnext, efficientnet, efficientnetv2, mobilenetv2, mobilenetv3, regnet, resnet | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | cnn_mlx fp32/fp16 |
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 | fp32/fp16 | - |
@@ -70,19 +70,18 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | depth_anything_v2 | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | dpt_mlx fp32/fp16 |
 | raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 | fp32/fp16 | - |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 | fp32/fp16 | - |
-| cotracker, efficientvit_sam | fp16 | fp16 | fp32 | - | fp32 | - |
 | loma | bf16 | fp16 | fp32 | - | fp32/fp16 | - |
-| locotrack, tapir, tapnext | fp16 | fp16 | fp32/fp16 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 | fp32/fp16 | - |
+| efficientvit_sam | fp16 | fp16 | fp32 | - | fp32 | - |
 | moge | fp16 | fp16 | fp32/fp16 | sparse_metal fp32 | fp32/fp16 | - |
 | flowformer | fp32 | fp32 | fp32/fp16 | - | fp32/fp16 | - |
 | seedvr2 | bf16 | bf16 | - | - | bf16/fp16 | - |
+| tapir | fp16 | fp16 | fp32/fp16 | - | fp32 | - |
 | lightglue | fp32 | fp16 | fp32 | - | fp32/fp16 | - |
 | xfeat | fp32 | fp32 | fp32 | - | fp32 | - |
 | marigold_v2 | bf16 | bf16 | - | - | bf16 | - |
 | romav2 | bf16 | bf16 | fp32 | roma_metal fp32 | fp32/fp16 | roma_mlx, dpt_mlx fp32/fp16 |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 | fp32/fp16 | - |
-| matanyone | fp16 | fp16 | fp32/fp16 | - | - | - |
 | mvsplat | fp16 | fp16 | fp32/fp16 | mvsplat_metal fp32 | fp32/fp16 | conv_mlx fp32/fp16 |
 | crestereo | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | crestereo_mlx fp32/fp16 |
 | vggt | fp16 | fp16 | fp32/fp16 | vggt_metal fp32 | fp32/fp16 | - |

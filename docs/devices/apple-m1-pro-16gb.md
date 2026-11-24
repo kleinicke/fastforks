@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-24 |
-| rows | 2250 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 2252 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -808,8 +808,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`alltracker`](../models/tracking.md#alltracker) | 3628 | 3218 | 3067 | unsupported | 6081 | 3782 |
 | [`alltracker-tiny`](../models/tracking.md#alltracker) | 3057 | 3144 | 2743 | unsupported | 5785 | 3640 |
 | [`bootstapir`](../models/tracking.md#tapir) | 1930 | 1704 | 1719 | unsupported | 2931 | 1743 |
-| [`cotracker3-offline`](../models/tracking.md#cotracker) | – | 1428 | – | unsupported | – | 2751 |
-| [`cotracker3-online`](../models/tracking.md#cotracker) | – | 1704 | – | unsupported | – | 2748 |
+| [`cotracker3-offline`](../models/tracking.md#cotracker) | – | 1528 | 1658 | unsupported | – | 2737 |
+| [`cotracker3-online`](../models/tracking.md#cotracker) | – | 1829 | 1913 | unsupported | – | 2734 |
 | [`locotrack-b`](../models/tracking.md#locotrack) | 1973 | 1786 | 2084 | unsupported | 2491 | 1470 |
 | [`locotrack-s`](../models/tracking.md#locotrack) | 1821 | 1781 | 1951 | unsupported | 2433 | 2427 |
 | [`tapir`](../models/tracking.md#tapir) | 1548 | 1356 | 1393 | unsupported | 2759 | 1604 |

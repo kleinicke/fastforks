@@ -449,7 +449,7 @@ No MLX float16, because the golden fails (tolerances unchanged):
 ## Where MLX trails MPS: the next optimization queue (2026-11-24)
 
 From the two M1 Pro survey files (best passing row per ref and backend, warm ms): 541 refs have both, geomean MLX/MPS
-0.895, and 176 run more than 5% slower on MLX. Only `matting/matanyone` has no MLX port; the six TotalSegmentator
+0.895, and 176 run more than 5% slower on MLX. `matting/matanyone` has had an MLX port since 2026-11-24; the six TotalSegmentator
 refs have a port but no MLX row yet. Rows the running agents are re-measuring (ben2, EfficientViT-SAM, the Conv3d and
 fp16 re-surveys) may already be better than below.
 
@@ -476,5 +476,80 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 1.7 | dlnr-sceneflow, ema-vfi-small-t, raft-stereo-middlebury | 29-37 s first calls: compile time first |
 | 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
 
-Also: port MatAnyone (memory-propagation matting, the last family without MLX), and survey the six TotalSegmentator
+Also: survey the six TotalSegmentator
 refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
+
+## TAPIR / BootsTAPIR float16 on MLX (2026-11-23): not declared
+
+The tracking fp16 pass (tapnext, cotracker, locotrack gained MLX float16) left the `tapir` card at MLX float32: one
+card holds both variants, and tapir@1 misses its golden in every mixed-precision variant tried, while bootstapir@1
+passes all of them (tracks mean ~0.0027-0.0034, p99 ~0.012-0.017, visibility mean <= 0.0001). Tolerances: tracks
+mean 0.0075 / p99 0.027, visibility mean 0.0011 / p99 0.0063. MPS fp16 (autocast) passes for both (tapir mean 0.0039).
+
+| tapir@1 MLX fp16 variant | tracks mean / p99 | visibility mean / p99 |
+|---|---|---|
+| fp32 queries, coordinates, logits, unit features, mixer residual stream, cost volume | 0.0086 / 0.061 | 0.0030 / 0.022 |
+| + backbone input fp32, or + hid convs fp32 | unchanged | unchanged |
+| + whole PIPs mixer fp32 | 0.0091 / 0.058 | 0.0031 / 0.023 |
+| + antialiased resize in fp32 | 0.0066 / 0.032 | 0.0007 / 0.004 |
+| + video entering as fp32 too | 0.0067 / 0.025 | 0.0022 / 0.011 |
+| + MLX half Winograd 3x3 convs in fp32 (`half_wino_f32`) | 0.0038 / 0.022 | 0.0014 / 0.007 |
+| + Winograd fp32 and fp32 resize | 0.0047 / 0.039 | 0.0020 / 0.013 |
+| + Winograd fp32 and fp32 ResNet residual stream | 0.0051 / 0.032 | 0.0022 / 0.015 |
+| + all three | 0.0034 / 0.017 | 0.0017 / 0.009 |
+
+The error does not fall monotonically with more fp32: a few ambiguous tracks flip between candidate positions (and
+their visibility flips with them), so each variant misses a different limit. Everything was reverted; tapir keeps
+the fp32 port. Revisit with a tighter fp16 backbone (direct instead of Winograd convs throughout, fp32 instance-norm
+outputs) or a golden with fewer ambiguous query points.
+
+### Where the tapir@1 budget goes (2026-11-23, second pass): the fp16 weights
+
+A second pass asked which op breaks the golden. No single op does. Two measurements on the M1 Pro (480 x 854 call
+for time and peak; the golden clip for the errors; limits as above):
+
+Weights rounded to fp16 with all arithmetic in fp32 (CPU, PyTorch; nothing else differs from the reference):
+
+| tapir@1 weights rounded to fp16 | tracks mean / p99 | visibility mean / p99 |
+|---|---|---|
+| all | 0.00123 / 0.00848 | 0.00098 / 0.00466 |
+| ResNet `initial_conv` only | | 0.00044 |
+| ResNet stage 1 only | | 0.00041 |
+| ResNet stage 2 / 3 / 4 only | | 0.00009 / 0.00005 / 0.00001 |
+| whole ResNet | | 0.00100 |
+| cost-volume convs only | | 0.00004 |
+| PIPs mixer only | | 0.00003 |
+| bootstapir@1, all | 0.00048 / 0.00191 | 0.00001 / 0.00011 |
+
+So for tapir@1 the fp16 rounding of the first convolution and the first ResNet stage alone uses 0.9 of the
+visibility-mean limit (0.0011) before any fp16 arithmetic happens. A float16 replay casts every constant to the run
+dtype (also the weights of convolutions kept in fp32), so every MLX fp16 variant starts there. bootstapir@1 is not
+sensitive to its weights, which is why it passes everything.
+
+fp32 islands on top of the fp16 replay (W: half Winograd convs in fp32; V: video enters as fp32; Bk: ResNet stages
+below k compute in fp32; H: cost-volume convs fp32; M: mixer fp32):
+
+| tapir@1 MLX | tracks mean / p99 | visibility mean / p99 | warm ms | peak MB | golden |
+|---|---|---|---|---|---|
+| fp32 | 0.00001 / 0.00004 | 0 / 0 | 1299 | 1672 | pass |
+| fp16 plain | 0.01195 / 0.05409 | 0.00324 / 0.02362 | 1079 | 1687 | fail |
+| V, W | 0.00568 / 0.02217 | 0.00125 / 0.00570 | 1092 | 1680 | fail (visibility mean) |
+| B1, V, W | 0.00811 / 0.03161 | 0.00073 / 0.00487 | 1157 | 1681 | fail (tracks) |
+| B2, V, W | 0.00757 / 0.02325 | 0.00156 / 0.00927 | 1198 | 1689 | fail |
+| B5, V | 0.00512 / 0.02368 | 0.00124 / 0.00570 | 1125 | 1737 | fail (visibility mean) |
+| H, V, W | 0.00505 / 0.01592 | 0.00135 / 0.00672 | 1133 | 1680 | fail |
+| M, V, W | 0.00548 / 0.02087 | 0.00122 / 0.00624 | 1398 | 1690 | fail |
+| H, M, V, W | 0.00634 / 0.02865 | 0.00125 / 0.00642 | 1387 | 1681 | fail |
+| B5, H, M, V (nearly all arithmetic fp32) | 0.00505 / 0.02417 | 0.00108 / 0.00510 | 1273 | 1695 | pass, at 98 % of the limit |
+
+The one passing variant computes almost everything in fp32 on fp16-rounded weights: no faster than fp32 (1273 against
+1299 ms) and its peak is above fp32's, so it fails the float16 gates (no slower, no more memory) by itself and passes
+the golden with no margin. The golden has 36 track values, so a single track that moves between two candidate
+positions shifts the mean by more than the remaining budget; that is the non-monotonic pattern in both tables.
+
+A real fix needs fp32 weights for `initial_conv` and stage 1 inside an fp16 replay (a per-parameter fp32 mechanism
+in `mlx_graph`'s constant and conv-fold paths, which does not exist) plus fp32 Winograd convs for the rest. The best
+case is the V, W row's speed with stage 1 in fp32: about 1160-1200 ms against 1299 ms (8-10 %) with the peak a few
+MB above fp32. Not built: the gain is small, the memory gate would likely fail, and it would be a mechanism for one
+variant of one card. tapir stays fp32 on MLX. MPS fp16 (autocast, which also rounds the conv weights) passes with
+tracks 0.0043 / 0.018: its arithmetic noise happens to land on the passing side of the same narrow margin.
