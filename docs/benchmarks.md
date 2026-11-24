@@ -566,9 +566,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`memfof-kitti`](models/flow.md#memfof) | OOM | 16074 ms · portable fp16 |
 | [`memfof-sintel`](models/flow.md#memfof) | OOM | 16049 ms · portable fp16 |
 | [`memfof-spring`](models/flow.md#memfof) | 3060 ms · portable fp32 | 3319 ms · portable fp16 |
-| [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 949 ms · portable fp16 |
-| [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 721 ms · portable fp16 | 952 ms · portable fp16 |
-| [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 739 ms · portable fp16 | 946 ms · portable fp16 |
+| [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 960 ms · portable fp16 |
+| [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 721 ms · portable fp16 | 960 ms · portable fp16 |
+| [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 739 ms · portable fp16 | 941 ms · portable fp32 |
 | [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 1028 ms · portable fp16 |
 | [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 | 1094 ms · portable fp16 |
 | [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 | 1127 ms · portable fp16 |

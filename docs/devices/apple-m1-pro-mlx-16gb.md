@@ -56,11 +56,11 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 4102 | 2933 | unsupported | – | – | 2876 | – |
 | [`hitnet-eth3d`](../models/stereo.md#hitnet) | 419 | 289 | unsupported | – | – | 1157 | – |
 | [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 1616 | 686 | unsupported | – | – | 1891 | – |
-| [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 14411 | 9128 | 10129 | 5478 | 1.7x | 2749 | 2863 |
-| [`igev-plusplus-kitti12`](../models/stereo.md#igev_plusplus) | 15055 | 8568 | 10166 | 5297 | 1.6x | 2754 | 2873 |
-| [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 15502 | 8456 | 10077 | 5268 | 1.6x | 2749 | 2894 |
-| [`igev-plusplus-middlebury`](../models/stereo.md#igev_plusplus) | 15680 | 7451 | 10176 | 5290 | 1.4x | 2749 | 2872 |
-| [`igev-plusplus-sceneflow`](../models/stereo.md#igev_plusplus) | 14770 | 10068 | 10647 | 6039 | 1.7x | 2993 | 2957 |
+| [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 11268 | 9128 | 10129 | 5478 | 1.7x | 2749 | 2863 |
+| [`igev-plusplus-kitti12`](../models/stereo.md#igev_plusplus) | 11383 | 8568 | 10166 | 5297 | 1.6x | 2754 | 2873 |
+| [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 11467 | 8456 | 10077 | 5268 | 1.6x | 2749 | 2894 |
+| [`igev-plusplus-middlebury`](../models/stereo.md#igev_plusplus) | 11338 | 7451 | 10176 | 5290 | 1.4x | 2749 | 2872 |
+| [`igev-plusplus-sceneflow`](../models/stereo.md#igev_plusplus) | 11310 | 10068 | 10647 | 6039 | 1.7x | 2993 | 2957 |
 | [`igev-stereo-eth3d`](../models/stereo.md#igev_stereo) | 4658 | 3628 | unsupported | – | – | 3428 | – |
 | [`igev-stereo-kitti12`](../models/stereo.md#igev_stereo) | 4594 | 3654 | unsupported | – | – | 3414 | – |
 | [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 4609 | 3674 | unsupported | – | – | 3419 | – |
@@ -688,9 +688,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`memfof-kitti`](../models/flow.md#memfof) | 19707 | 16074 | – | 3652 |
 | [`memfof-sintel`](../models/flow.md#memfof) | 19915 | 16049 | – | 3643 |
 | [`memfof-spring`](../models/flow.md#memfof) | 3774 | 3319 | unsupported | 1986 |
-| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 951 | 949 | unsupported | 9200 |
-| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 1021 | 952 | unsupported | 9201 |
-| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 975 | 946 | unsupported | 9170 |
+| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 967 | 960 | unsupported | 9202 |
+| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 979 | 960 | unsupported | 9271 |
+| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 941 | 951 | unsupported | 9267 |
 | [`raft-large`](../models/flow.md#raft) | 1552 | 1028 | unsupported | 2069 |
 | [`raft-large-kitti`](../models/flow.md#raft) | 1443 | 1094 | unsupported | 2056 |
 | [`raft-large-things`](../models/flow.md#raft) | 1635 | 1127 | unsupported | 2036 |

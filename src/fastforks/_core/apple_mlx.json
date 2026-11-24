@@ -6688,7 +6688,7 @@
   "neuflow-v2-things@1": {
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
     "float16": "portable",

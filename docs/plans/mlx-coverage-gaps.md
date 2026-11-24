@@ -599,3 +599,83 @@ Still open for MoGe:
   half its conv.
 - `moge-3-vitl` (2573 ms vs 2415 ms for MPS kernels float32; MPS portable fp16 is 3333): the ViT-L encoder at 3578
   tokens dominates.
+
+## Ragged 3x3 convs and MLX's fast path: what the translator pads (2026-11-24)
+
+From the RAFT and SEA-RAFT MLX ports: MLX's implicit GEMM is erratic on 3x3 output counts that are not a multiple of
+64, and its Winograd (dense 3x3, stride 1, channels in multiples of 32, inputs + outputs >= 256, >= 4096 positions)
+is the fast path. `_conv2d` in `shared/mlx_graph.py` already padded most ragged shapes; the question was a general
+output-padding rule for the rest.
+
+**Float32: added** (`FF_MLX_NO_WINO64=1` turns it off). The shapes no earlier rule caught are convs under the
+Winograd width whose next multiple of 64 outputs is in it: 128 -> 80, 128 -> 96, 112 -> 96, 64 -> 144. They are now
+padded to that multiple (zero weights, output sliced), within the existing 512 MB per-sample transient bound, in
+portable mode only. `mx.conv2d` alone, M1 Pro, float32, ms as it is -> padded (peak MB of the bare conv):
+
+| shape | 128 -> 80 | 128 -> 96 | 64 -> 144 |
+|---|---|---|---|
+| 64 x 64 | 0.64 -> 0.55 (5 -> 34) | 0.72 -> 0.56 (5 -> 34) | |
+| 135 x 240 | 3.3 -> 2.2 (36 -> 204) | 5.4 -> 2.2 (40 -> 204) | 7.3 -> 1.9 (44 -> 193) |
+| 8 x 96 x 128 | 63 -> 6.0 (108 -> 607) | 9.5 -> 6.0 (120 -> 607) | |
+| 270 x 480 (over the bound: not padded) | 12.4 -> 7.7 (143 -> 776) | 21.5 -> 7.7 (159 -> 776) | 29.2 -> 6.5 (174 -> 742) |
+| 540 x 960 (over the bound: not padded) | | 347 -> 28.5 (633 -> 3077) | |
+
+Padding 128 -> 80 only to 96 (still the GEMM) is slower: 3.3 -> 14.2 ms. 64 -> 160 into 192 gains little
+(2.7 -> 1.9 ms) and stays as it is (the existing rule leaves 160 / 224 / 288 outputs alone).
+
+Families with such convs (scan of the cached checkpoints for 3x3 weights in the gap, then the `mx.conv2d` calls the
+rule changes at the survey input) and the regression set, survey protocol, float32 portable, rule off -> on:
+
+| ref | convs changed | warm ms | peak MB |
+|---|---|---|---|
+| igev-plusplus-sceneflow | 128 of 758 (GRU 128 -> 96, 256 x 376) | 15700 -> 11507 | 4721 -> 4675 |
+| neuflow-v2 | 9 of 97 (128 -> 96 / 66) | 1016 -> 835 (noise, see below) | 9230 -> 9253 |
+| rt-monster-plusplus-mix-all | 1 of 157 | 845 -> 843 | 2142 -> 2142 |
+| dfine-l-coco | 1 of 108 | 73.1 -> 72.8 | 997 -> 974 |
+| hgnetv2_b4, efficientformerv2_s2 | 0 (under 4096 positions) | 7.3 -> 7.5, 9.6 -> 9.4 | 757 -> 756, 642 -> 645 |
+| hitnet-eth3d | 0 of 116 | 394 -> 389 | 1636 -> 1769 |
+| loftr-outdoor | 0 | 1765 -> 1755 | 4103 -> 4107 |
+| disk-lightglue | 0 | 892 -> 896 | 2199 -> 2189 |
+| recover-cx | 0 | 1050 -> 1064 | 1576 -> 1551 |
+| raft-stereo-middlebury | 0 | 5118 -> 5081 | 4278 -> 4232 |
+
+The rows with no conv changed are the noise of the protocol: a few percent in time and up to ~130 MB in the peak
+footprint (hitnet-eth3d runs the same graph both times). neuflow-v2 is noise too: its median swings between 830 and
+1020 ms run to run (float16, where the rule cannot fire, gave 951 -> 828 ms in the same A/B), and the re-survey
+below shows no gain. IGEV++ is the one family that gains.
+
+Re-survey with goldens (float32 portable, all pass at mean 0.0; warm ms / first call s / peak MB, before -> after):
+
+| ref | warm ms | first call s | peak MB |
+|---|---|---|---|
+| igev-plusplus-sceneflow | 14770 -> 11310 | 44.7 -> 18.3 | 4834 -> 4707 |
+| igev-plusplus-eth3d | 14411 -> 11268 | 25.0 -> 18.3 | 4683 -> 4667 |
+| igev-plusplus-kitti12 | 15055 -> 11383 | 22.5 -> 18.4 | 4456 -> 4744 |
+| igev-plusplus-kitti15 | 15502 -> 11467 | 22.1 -> 18.5 | 4685 -> 4728 |
+| igev-plusplus-middlebury | 15680 -> 11338 | 23.2 -> 18.4 | 4665 -> 4705 |
+| neuflow-v2 | 951 -> 967 | 3.31 -> 2.77 | 9257 -> 9211 |
+| neuflow-v2-sintel | 1021 -> 979 | 3.05 -> 2.75 | 9268 -> 9226 |
+| neuflow-v2-things | 975 -> 941 | 2.99 -> 2.76 | 9255 -> 9267 |
+
+The IGEV++ peaks are the same graph's footprint within the noise above (the five refs share one architecture; the
+A/B in one process gave 4721 -> 4675 MB), kitti12's earlier 4456 MB being the outlier. The float32 rows stay behind
+MLX kernels float16 (igev-plusplus-sceneflow 6039 ms / 2957 MB). neuflow-v2's two dtypes tie within that noise
+(things: float32 941 ms against float16 951), which is all that moved its generated MLX default to float32.
+
+**Kernels mode: not applied.** igev-plusplus-sceneflow kernels float32 10.35 -> 10.33 s (peak 4585 -> 4750 MB),
+float16 5.38 -> 5.58 s; rt-monster-plusplus-mix-all kernels float16 512 -> 511 ms (peak 1522 -> 1596 MB).
+
+**Float16 portable: no general rule.** Every padded float16 shape that is faster is faster because it lands in
+MLX's Winograd (128 -> 80 3.6 -> 2.1 ms padded to 128; 242 -> 96 17.5 -> 5.6 ms; 256 -> 126 at 135 x 240
+7.7 -> 3.0 ms), whose half-precision error is ~17x the direct conv's. That is the reason portable float16 stays out
+of it by default (hat-x4 went over its golden), and SEA-RAFT confirmed it again: its encoders' 128 -> 128 convs in
+half Winograd are 9 % faster (1029 -> 936 ms) but put sea-raft-s-spring at mean 0.0023 against a 0.002 tolerance.
+Float16 padding that stays on the GEMM is never faster (128 -> 64 into 128: 1.6 -> 1.9 ms; 256 -> 6 into 16 / 32:
+0.95 -> 1.7 / 2.2 ms; 64 -> 64 at 540 x 960 into 128 -> 128: 10.5 -> 26.5 ms). So it stays an opt-in per net
+(`half_wino_pad=True` or a tuple of `(cin, cout)` pairs, checked against the family's golden): LoFTR, RAFT's local
+padding, SEA-RAFT's 256 -> 126.
+
+**Left, not built:** a 7x7 stride-2 stem on 6 input channels is ~9x slower than on 3 (float16 1080 x 1920: 46 ms
+against 5.3 ms; float32 53 against 6.2; padding the input to 16 channels: 17 ms). SEA-RAFT's port splits it into
+two 3-channel convs by hand. A translator rule (split a few-channel conv by input halves) would catch other
+stacked-pair stems, but no other family was profiled for it.

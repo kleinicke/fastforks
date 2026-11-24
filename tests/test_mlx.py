@@ -419,6 +419,18 @@ def test_conv_padded_into_winograd_matches_torch(monkeypatch, chunk_mb):
     torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize("cout", [80, 96])
+def test_narrow_conv_padded_into_winograd_matches_torch(cout):
+    """A float32 3x3 with 128 -> 80 / 96 channels (under MLX's Winograd width; padded to 128 outputs, sliced)."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    torch.manual_seed(0)
+    m = torch.nn.Conv2d(128, cout, 3, padding=1)
+    x = torch.randn(1, 128, 64, 72)
+    torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize("wino", [False, True])
 def test_half_ragged_conv_matches_torch(wino):
     """A float16 3x3 with 196 -> 196 channels: output-only padding by default, MLX's Winograd with `half_wino_pad`."""

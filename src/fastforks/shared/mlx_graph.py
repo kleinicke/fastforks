@@ -1864,6 +1864,7 @@ SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3
 OUT64_OFF = bool(os.environ.get("FF_MLX_NO_OUT64"))  # output counts as they are, not padded to a multiple of 64
 WINO_CHUNK_BYTES = int(os.environ.get("FF_MLX_WINO_CHUNK_MB", "128")) << 20  # see `_conv2d`
 WINO32_OFF = bool(os.environ.get("FF_MLX_NO_WINO32"))  # float32 odd multiples of 16 not padded into MLX's Winograd
+WINO64_OFF = bool(os.environ.get("FF_MLX_NO_WINO64"))  # ... nor narrow multiples of 16 up to the next multiple of 64
 WINO_PAD_SAMPLE_BYTES = int(os.environ.get("FF_MLX_WINO_PAD_MB", "512")) << 20  # see `_conv2d`
 
 
@@ -2011,6 +2012,21 @@ def _conv2d(
                 # too big for Winograd: a multiple of 64 outputs on the unpadded (so not Winograd) input instead, the
                 # GEMM's fast tile (2 x 312x420 196 -> 196: 208 outputs on 224 inputs 101-163 ms, 256 on 196 97 ms)
                 pad_out, pad_in = o64 - cout, 0
+        elif (
+            not WINO64_OFF
+            and not half
+            and not _KERNELS
+            and not _mlx_winograd((o, *wl.shape[1:3], cin_p), o, stride, dilation, groups, hw)
+            and _wino_bytes(per_sample, cin_p, o64, xl.dtype) <= WINO_PAD_SAMPLE_BYTES
+        ):
+            # too narrow for MLX's Winograd (inputs + outputs under 256) but in it at the next multiple of 64, and no
+            # odd multiple of 16 to round up above: the GEMM is erratic here too (M1 Pro 3x3, float32, 135x240:
+            # 128 -> 80 3.3 -> 2.2 ms, 128 -> 96 5.4 -> 2.2, 64 -> 144 7.3 -> 1.9; 8 x 96x128 128 -> 80 63 -> 6.0,
+            # 128 -> 96 9.5 -> 6.0; 64x64 0.7 -> 0.55; igev-plusplus-sceneflow's 128 GRU convs 128 -> 96 on 256x376:
+            # 15.7 -> 11.5 s at the same peak). Same precision rule and transient bound as
+            # above (270x480 128 -> 96: 21.5 -> 7.7 ms but 159 -> 776 MB, so not padded there). Not in kernels mode:
+            # no gain there (igev-plusplus-sceneflow float32 10.35 -> 10.33 s, float16 5.38 -> 5.58 s).
+            pad_out = o64 - cout
     if (pad_out or pad_in) and half:
         # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
         # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
