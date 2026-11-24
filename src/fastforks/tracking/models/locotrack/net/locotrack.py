@@ -28,6 +28,8 @@ from typing import NamedTuple
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: float16 MLX replay (`Transformer`)
+from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks: float32 features in a float16 MLX replay (`_unit`)
 from fastforks._core.upload import device_tensor  # fastforks
 
 SIZE = 256  # training resolution; the network runs at it
@@ -168,7 +170,7 @@ class MultiHeadAttention(nn.Module):
             return y.view(b, t, self.heads, -1).transpose(1, 2)
 
         q, k, v = split(self.query_proj(x)), split(self.key_proj(x)), split(self.value_proj(x))
-        y = F.scaled_dot_product_attention(q, k, v, attn_mask=bias.to(q.dtype))
+        y = F.scaled_dot_product_attention(q, k, v, attn_mask=to_run_dtype(bias, q.dtype))
         return self.final_proj(y.transpose(1, 2).reshape(b, t, c))
 
 
@@ -188,10 +190,14 @@ class Transformer(nn.Module):
         )
         self.ln_out = nn.LayerNorm(dim)
 
-    def forward(self, h: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:  # noqa: D102
+    def forward(self, h: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+        """fastforks: as under autocast in a float16 MLX replay: the attention and the MLP in the run dtype, the norms
+        and the residual stream `h` in float32 (`to_run_dtype(y, y.dtype)` is the identity in PyTorch)."""
         for layer in self.layers:
-            h = h + layer["attn"](layer["layer_norm1"](h), bias)
-            h = h + layer["dense"](layer["layer_norm2"](h))
+            y = layer["layer_norm1"](h)
+            h = h + to_float32(layer["attn"](to_run_dtype(y, y.dtype), bias))
+            y = layer["layer_norm2"](h)
+            h = h + to_float32(layer["dense"](to_run_dtype(y, y.dtype)))
         return self.ln_out(h)
 
 
@@ -207,8 +213,9 @@ class PIPSTransformer(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`x` `[N, T, cin]` -> the position, occlusion and expected-distance updates `[N, T, 4]`."""
-        h = self.transformer(self.input_proj(x), alibi_bias(self.heads, x.shape[1], x.device))
-        return F.linear(h, self.output_proj.weight[:4], self.output_proj.bias[:4])
+        h = to_float32(self.input_proj(to_run_dtype(x, x.dtype)))  # fastforks: float32 residual stream (`Transformer`)
+        h = self.transformer(h, alibi_bias(self.heads, x.shape[1], x.device))
+        return to_float32(F.linear(h, self.output_proj.weight[:4], self.output_proj.bias[:4]))
 
 
 class Features(NamedTuple):
@@ -219,13 +226,15 @@ class Features(NamedTuple):
 
 
 def _unit(x: torch.Tensor) -> torch.Tensor:
+    if EXPORTING_FOR_MLX.get():  # fastforks: float32 unit features in a float16 MLX replay, as under autocast (its
+        x = to_float32(x)  # float32 `sum` promotes the quotient): the float16 sum of squares overflows
     return x / torch.sqrt(torch.clamp(torch.sum(torch.square(x), -1, keepdim=True), min=1e-12))
 
 
 def map_coordinates_3d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
     """Trilinear samples `[B, N, C]` of `feats` `[B, T, H, W, C]` at `coords` `[B, N, 3]` `(t, y, x)` (raster)."""
     x = feats.permute(0, 4, 1, 2, 3)
-    y = coords[:, :, None, None, :].float().clone()
+    y = to_float32(coords[:, :, None, None, :])  # fastforks: a copy, float32 in a float16 MLX replay too
     y[..., 0] += 0.5
     y = 2 * (y / device_tensor(x.shape[2:], device=y.device)) - 1  # fastforks: no host sync (a pageable upload syncs the host)
     out = F.grid_sample(x, y.flip(-1), mode="bilinear", align_corners=False, padding_mode="border")
@@ -309,6 +318,8 @@ class LocoTrack(nn.Module):
         torch.Tensor, torch.Tensor, torch.Tensor
     ]:
         """Points `[B, N, T, 2]` `(x, y)` (256 raster), occlusion and expected-distance logits `[B, N, T]`."""
+        # fastforks: in a float16 MLX replay the cost volumes and their small conv stay float32 (`_unit`; the softmax
+        # sharpens them 20x: float16 costs moved locotrack-b's p99 to 0.022 against 0.021)
         hires_q, lowres_q = query
         cost = torch.einsum("bnc,bthwc->tbnhw", lowres_q, f.grids[1])
         cost_hires = torch.einsum("bnc,bthwc->tbnhw", hires_q, f.grids[0])
@@ -316,8 +327,9 @@ class LocoTrack(nn.Module):
         interp = F.interpolate(cost.reshape(t * b * n, 1, *cost.shape[3:]), (h, w), mode="bilinear", align_corners=False)
         stack = torch.cat([interp, cost_hires.reshape(t * b * n, 1, h, w)], 1)  # [tbn, 2, h, w]
         del cost, cost_hires, interp
-        pos = self.cost_conv(stack).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4)
+        pos = to_float32(self.cost_conv(stack)).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4)  # fastforks: float32
         occ = self.occ_linear(torch.cat([stack.mean((2, 3)), stack.amax((2, 3)), stack.amin((2, 3))], -1))
+        occ = to_float32(occ)  # fastforks: the logit state stays float32 in a float16 MLX replay
         del stack
         heat = F.softmax(pos.reshape(b, n, t, -1) * SOFTMAX_TEMPERATURE, -1).view_as(pos)
         points = soft_argmax(heat) * device_tensor([SIZE / w, SIZE / h], device=heat.device)  # fastforks: no host sync (a pageable upload syncs the host)
@@ -339,6 +351,7 @@ class LocoTrack(nn.Module):
             b, n, t = neighborhood.shape[:3]
             corr = torch.einsum("bntsc,bnjc->bntsj", neighborhood, supp.flatten(2, 3).to(neighborhood.dtype))
             del neighborhood, yx
+            corr = to_run_dtype(corr, corr.dtype)  # fastforks: float32 correlation, convs in the run dtype (autocast)
             corrs.append(cmdtop(corr.reshape(b * n * t, SUPPORT, SUPPORT, SUPPORT, SUPPORT)).view(b, n, t, -1))
             del corr
         rel_fwd = F.pad(points[..., :-1, :] - points[..., 1:, :], (0, 0, 0, 1))
@@ -346,7 +359,7 @@ class LocoTrack(nn.Module):
         rel = torch.cat([rel_fwd, rel_bwd], -1) / SIZE
         x = torch.cat([occ[..., None], expd[..., None], *corrs, posenc(rel)], -1)
         b, n, t, c = x.shape
-        res = self.torch_pips_mixer(x.reshape(b * n, t, c)).reshape(b, n, t, -1).float()
+        res = to_float32(self.torch_pips_mixer(x.reshape(b * n, t, c))).reshape(b, n, t, -1)
         return points + res[..., :2], occ + res[..., 2], expd + res[..., 3]
 
     def track(self, f: Features, queries: torch.Tensor, chunk: slice) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

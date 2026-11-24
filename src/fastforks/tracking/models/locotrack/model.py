@@ -17,11 +17,12 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
 from fastforks._core.tracing import EXPORTING_FOR_MLX
-from fastforks._core.upload import device_tensor
 from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._mlx import port as mlx_port
+from fastforks.tracking._mlx import scale_xy
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
 from .net.locotrack import (
@@ -78,7 +79,8 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
-    scale = device_tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
+    sx, sy = SIZE / w, SIZE / h
+    queries = to_float32(queries)  # the coordinates stay float32 in a float16 MLX replay (Python-float factors)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     grids: list[list[torch.Tensor]] = [[], [], []]
     with region:
@@ -90,15 +92,15 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
             for g, f in zip(grids, net.frame_features(video * 2 - 1), strict=True):
                 g.append(f)
             del video
-        q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
+        q = torch.cat([queries[:, :1], scale_xy(queries[:, 1:] + 0.5, sx, sy).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []
         chunk = MLX_QUERY_CHUNK if EXPORTING_FOR_MLX.get() else QUERY_CHUNK
         for s in range(0, q.shape[1], chunk):
             p, occ, expd = net.track(f, q, slice(s, s + chunk))
             points.append(p[0])
-            vis.append(((1 - occ.float().sigmoid()) * (1 - expd.float().sigmoid()))[0])
-    tracks = torch.cat(points).float().transpose(0, 1) / scale - 0.5
+            vis.append(((1 - to_float32(occ).sigmoid()) * (1 - to_float32(expd).sigmoid()))[0])
+    tracks = scale_xy(to_float32(torch.cat(points)).transpose(0, 1), 1 / sx, 1 / sy) - 0.5
     return {"tracks": tracks, "visibility": torch.cat(vis).T}
 
 
