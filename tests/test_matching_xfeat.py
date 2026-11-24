@@ -33,10 +33,12 @@ def test_match_without_keypoints() -> None:
             assert indices.device == left.device
 
 
-def _random_matcher(matcher: str, seed: int) -> Matcher:
+def _random_matcher(
+    matcher: str, seed: int, *, threshold: float = 0.002, max_keypoints: int = 300, long_side: int = 0
+) -> Matcher:
     """A `Matcher` of random weights and batch norm statistics that finds a few hundred keypoints."""
     torch.manual_seed(seed)
-    net = Matcher(Params(matcher, detection_threshold=0.002, max_keypoints=300, long_side=0)).eval()
+    net = Matcher(Params(matcher, threshold, max_keypoints, long_side)).eval()
     gen = torch.Generator().manual_seed(seed)
     for m in net.modules():
         if isinstance(m, torch.nn.BatchNorm2d):
@@ -137,3 +139,111 @@ def test_mlx_lighterglue_matches_module(seed: int, width: float, depth: float) -
     assert (width == 0.95) == (int(want["prune0"].min()) == net.conf.n_layers)  # the smaller width prunes points
     torch.testing.assert_close(torch.from_numpy(pairs), want["matches"][0])
     torch.testing.assert_close(torch.from_numpy(scores), want["scores"][0], rtol=1e-3, atol=0)
+
+
+def _pair(seed: int, size: tuple[int, int], size2: tuple[int, int] | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+    gen = torch.Generator().manual_seed(seed)
+    return torch.rand(1, 3, *size, generator=gen), torch.rand(1, 3, *(size2 or size), generator=gen)
+
+
+def _points(kpts: torch.Tensor) -> list[tuple[float, ...]]:
+    return sorted(tuple(row) for row in kpts.tolist())
+
+
+def _matches(out: dict[str, torch.Tensor]) -> dict[tuple[float, ...], float]:
+    """`(x1, y1, x2, y2) -> score`: the matches without the keypoint ranks (equal scores may be ranked differently)."""
+    k1, k2 = out["keypoints1"], out["keypoints2"]
+    pairs = zip(out["pairs"].tolist(), out["scores"].tolist(), strict=True)
+    return {(*k1[i].tolist(), *k2[j].tolist()): score for (i, j), score in pairs}
+
+
+@pytest.mark.parametrize(
+    ("seed", "size", "size2", "long_side"),
+    [(0, (96, 128), None, 0), (1, (100, 150), (130, 97), 0), (3, (120, 200), (150, 110), 96)],
+)
+def test_static_forward_equals_forward(
+    seed: int, size: tuple[int, int], size2: tuple[int, int] | None, long_side: int
+) -> None:
+    """The fixed-shape path `torch.export` traces returns the eager call's keypoints, matches and scores."""
+    net = _random_matcher("mnn", seed, max_keypoints=200 if long_side else 300, long_side=long_side)
+    image1, image2 = _pair(seed + 10, size, size2)
+    with torch.inference_mode():
+        want, got = net(image1, image2), net.forward_static(image1, image2)
+    assert len(want["keypoints1"]) > 100
+    assert len(want["pairs"]) > 20
+    assert {k: (v.shape, v.dtype) for k, v in got.items()} == {k: (v.shape, v.dtype) for k, v in want.items()}
+    for name in ("keypoints1", "keypoints2"):
+        assert _points(got[name]) == _points(want[name])
+    assert _matches(got) == _matches(want)
+
+
+@pytest.mark.parametrize(("threshold", "some"), [(0.002, True), (0.9, False)])
+def test_static_forward_pads_and_masks(threshold: float, some: bool) -> None:  # noqa: FBT001 - a test parameter
+    """Fewer maxima than `max_keypoints`, and none at all: the unused slots are no keypoints and match nothing."""
+    net = _random_matcher("mnn", 2, threshold=threshold, max_keypoints=4096)
+    image1, image2 = _pair(12, (96, 128))
+    with torch.inference_mode():
+        want, got = net(image1, image2), net.forward_static(image1, image2)
+        slots = net.extract_static(image1)[2]
+    assert slots.shape == (4096,)
+    assert int(slots.sum()) == len(want["keypoints1"])
+    assert (0 < len(want["keypoints1"]) < 4096) == some
+    for name in ("keypoints1", "keypoints2"):
+        assert _points(got[name]) == _points(want[name])
+    assert got["pairs"].shape == (len(got["scores"]), 2)
+    assert got["pairs"].dtype == torch.long
+    assert (len(got["pairs"]) > 0) == some
+    if some:  # the padded and the eager similarity products may round apart: only that the matches join keypoints
+        assert int(got["pairs"][:, 0].max()) < len(got["keypoints1"])
+        assert int(got["pairs"][:, 1].max()) < len(got["keypoints2"])
+
+
+def test_static_forward_is_not_lighterglue() -> None:
+    net = _random_matcher("lighterglue", 0)
+    with pytest.raises(NotImplementedError, match="mutual nearest neighbours only"):
+        net.forward_static(*_pair(10, (96, 128)))
+
+
+def test_export_traces_the_static_forward() -> None:
+    """`torch.export` captures the matcher; the program returns the eager result on images it was not traced with."""
+    net = _random_matcher("mnn", 0).requires_grad_(requires_grad=False)
+    program = torch.export.export(net, _pair(10, (96, 128)), strict=False)
+    image1, image2 = _pair(77, (96, 128))
+    with torch.inference_mode():
+        want, got = net(image1, image2), program.module()(image1, image2)
+    assert len(want["pairs"]) > 20
+    for name in ("keypoints1", "keypoints2"):
+        assert _points(got[name]) == _points(want[name])
+    assert _matches(got) == _matches(want)
+
+
+def test_onnx_runtime_equals_the_static_forward() -> None:
+    """ONNX Runtime on the dynamo export: the keypoints, and the matches up to float32 rounding of the similarities.
+
+    Random weights give nearly parallel descriptors (cosine about 0.997), so most nearest neighbours win by less than
+    the rounding difference between the two runtimes; the scores of the matches both find are compared.
+    """
+    pytest.importorskip("onnxscript")
+    ort = pytest.importorskip("onnxruntime")
+    import io  # noqa: PLC0415
+
+    net = _random_matcher("mnn", 0).requires_grad_(requires_grad=False)
+    names = ["keypoints1", "keypoints2", "pairs", "scores"]
+    program = torch.onnx.export(
+        net, _pair(10, (96, 128)), dynamo=True, input_names=["image1", "image2"], output_names=names, verbose=False
+    )
+    assert program is not None
+    buffer = io.BytesIO()
+    program.save(buffer)
+    session = ort.InferenceSession(buffer.getvalue(), providers=["CPUExecutionProvider"])
+    image1, image2 = _pair(77, (96, 128))
+    with torch.inference_mode():
+        want = net.forward_static(image1, image2)
+    outputs = session.run(None, {"image1": image1.numpy(), "image2": image2.numpy()})
+    got = dict(zip(names, map(torch.from_numpy, outputs), strict=True))
+    for name in ("keypoints1", "keypoints2"):
+        assert _points(got[name]) == _points(want[name])
+    want_matches, got_matches = _matches(want), _matches(got)
+    common = want_matches.keys() & got_matches.keys()
+    assert len(common) > 0.8 * len(want_matches)
+    assert max(abs(want_matches[m] - got_matches[m]) for m in common) < 1e-5

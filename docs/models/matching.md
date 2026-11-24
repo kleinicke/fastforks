@@ -545,7 +545,8 @@ Commercial use: yes.
 - Options: `max_keypoints` = 4096 (>= 1), `long_side` = 0 (>= 0)
 - Kernel libraries: `keypoint_nms`
 - Variants: `xfeat`, `xfeat-lighterglue`
-- Public ONNX / TensorRT export is unavailable for `xfeat`, `xfeat-lighterglue` (torch.export stops at a data-dependent branch (NMS / keypoint selection)).
+- Public TensorRT export is unavailable for `xfeat` (no TensorRT engine built or checked yet; the ONNX graph is checked with random weights only (real-weights ONNX check pending)).
+- Public ONNX / TensorRT export is unavailable for `xfeat-lighterglue` (torch.export stops at a data-dependent branch (NMS / keypoint selection)).
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `xfeat` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `xfeat-lighterglue` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved)
@@ -586,7 +587,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float32 (the default), p
 
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
-- Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.
+- `xfeat` exports to ONNX with data-dependent output lengths (each image's keypoints, the matches); keypoints of exactly equal score may be ranked differently than in the model call. `xfeat-lighterglue` does not export. `torch.compile` runs with graph breaks.
 - `xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.
 - On CUDA, kernels uses IEEE FP32 convolutions. Portable follows PyTorch's cuDNN precision setting. Both modes returned identical keypoints, matches and scores on 32 checked MegaDepth pairs when they used the same convolution precision.
 

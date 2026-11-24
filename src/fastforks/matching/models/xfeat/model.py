@@ -7,6 +7,12 @@ similarity threshold; the score of a match is its cosine similarity) or LighterG
 LightGlue with XFeat's config = fastforks.shared.lightglue, match threshold 0.1). With `long_side > 0` each image is
 first resized so its longest side is `long_side` (upstream LightGlue's resize; upstream XFeat does not resize).
 Returns both keypoint sets, the index pairs of the matches and their scores. Float32.
+
+`torch.export` (ONNX) of the mutual-nearest-neighbour variant traces `Matcher.forward_static` instead: the same
+arithmetic with every intermediate at a fixed size (the top `max_keypoints` of the whole masked score map, a validity
+mask, masked nearest neighbours) and one `nonzero` for each data-dependent output length. It returns what the eager
+call returns; only keypoints of exactly equal score may be ranked differently (upstream ranks with an unstable
+`argsort`, the trace with `topk`).
 """
 
 from __future__ import annotations
@@ -16,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
@@ -27,6 +34,7 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.lightglue import LightGlue, resize_long
 
+from .net.interpolator import InterpolateSparse2d
 from .net.xfeat import XFeat
 
 if TYPE_CHECKING:
@@ -81,14 +89,72 @@ class Matcher(nn.Module):
     @staticmethod
     def to_input(kpts: torch.Tensor, size: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
         """Keypoints of the resized image in input pixels (pixel centres at integers, as LightGlue's `extract`)."""
+        return Matcher._to_input(kpts, int(size[0]), int(size[1]), image)
+
+    @staticmethod
+    def _to_input(kpts: torch.Tensor, width: int, height: int, image: torch.Tensor) -> torch.Tensor:
         h, w = image.shape[-2:]
-        if (int(size[0]), int(size[1])) == (w, h):
+        if (width, height) == (w, h):
             return kpts
-        scale = device_tensor([float(size[0]) / w, float(size[1]) / h], device=kpts.device, dtype=kpts.dtype)
+        scale = device_tensor([float(width) / w, float(height) / h], device=kpts.device, dtype=kpts.dtype)
         return (kpts + 0.5) / scale - 0.5
+
+    def extract_static(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """`extract` without data-dependent shapes: `min(max_keypoints, pixels)` ranked slots and which are keypoints.
+
+        Upstream `detectAndCompute` with the 5x5 NMS as a mask of the score map instead of a position list: every
+        pixel is scored (the heatmap times the reliability, with upstream's samplers), a pixel that is no maximum
+        above the threshold scores -1, and `topk` ranks them. The slots with a score above 0 are upstream's keypoints
+        and come first. Returns the keypoints in input pixels `[K, 2]`, the descriptors `[K, 64]` and the mask `[K]`.
+        """
+        p, xfeat = self.params, self.xfeat
+        resized = resize_long(image, p.long_side) if p.long_side > 0 else image
+        x, rh, rw = xfeat.preprocess_tensor(resized)
+        height, width = x.shape[-2:]
+        dense, logits, reliability = xfeat.net(x)
+        dense = F.normalize(dense, dim=1)
+        heatmap = xfeat.get_kpts_heatmap(logits)
+        peaks = heatmap == F.max_pool2d(heatmap, kernel_size=5, stride=1, padding=2)
+        keep = (peaks & (heatmap > p.detection_threshold)).flatten(1)
+        keep = keep & (torch.arange(height * width, device=x.device) > 0)  # upstream drops (0, 0), its padding value
+        pixels = xfeat.create_xy(height, width, x.device)[None]  # every (x, y), row-major as upstream's `nonzero`
+        nearest, bilinear = InterpolateSparse2d("nearest"), InterpolateSparse2d("bilinear")
+        scores = nearest(heatmap, pixels, height, width) * bilinear(reliability, pixels, height, width)
+        scores = torch.where(keep, scores.squeeze(-1), -1.0)
+        top, order = scores.topk(min(p.max_keypoints, height * width), dim=-1)
+        kpts = torch.stack([order % width, order // width], dim=-1)
+        desc = F.normalize(xfeat.interpolator(dense, kpts, H=height, W=width), dim=-1)
+        kpts = kpts * torch.tensor([rw, rh], device=x.device, dtype=torch.get_default_dtype())
+        kpts = self._to_input(kpts, resized.shape[-1], resized.shape[-2], image)
+        return kpts[0], desc[0], top[0] > 0
+
+    def forward_static(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """`forward` of the mutual-nearest-neighbour matcher as `torch.export` traces it (see the module docstring).
+
+        The valid slots of `extract_static` come first, so an index into the slots is the index into the returned
+        keypoints. A slot without a keypoint is nobody's neighbour (similarity -inf) and matches nothing.
+        """
+        if self.matcher is not None:
+            msg = "the fixed-shape forward pass covers mutual nearest neighbours only, not LighterGlue"
+            raise NotImplementedError(msg)
+        (k1, d1, v1), (k2, d2, v2) = self.extract_static(image1), self.extract_static(image2)
+        # two products, as upstream `match`: the transposed one may round differently
+        match12 = (d1 @ d2.t()).masked_fill(~v2[None], -torch.inf).argmax(dim=1)
+        match21 = (d2 @ d1.t()).masked_fill(~v1[None], -torch.inf).argmax(dim=1)
+        mutual = (match21[match12] == torch.arange(len(match12), device=match12.device)) & v1 & v2[match12]
+        idx0 = mutual.nonzero()[:, 0]
+        idx1 = match12[idx0]
+        return {
+            "keypoints1": k1[v1.nonzero()[:, 0]],
+            "keypoints2": k2[v2.nonzero()[:, 0]],
+            "pairs": torch.stack([idx0, idx1], dim=-1),
+            "scores": (d1[idx0] * d2[idx1]).sum(-1),
+        }
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's features and matches (batch 1)."""
+        if self.matcher is None and torch.compiler.is_exporting():  # LighterGlue's layer pruning is not traced
+            return self.forward_static(image1, image2)
         f1, f2 = self.extract(image1), self.extract(image2)
         if self.matcher is None:
             idx0, idx1 = self.xfeat.match(f1["descriptors"], f2["descriptors"], min_cossim=-1)
@@ -141,7 +207,11 @@ class Portable(Runner):
         return self.net(image1, image2)
 
     def module(self) -> torch.nn.Module:
-        """Extractor and matcher (data-dependent keypoint counts: compiles with graph breaks, does not export)."""
+        """Extractor and matcher. The keypoint and match counts are data-dependent: `torch.compile` graph-breaks.
+
+        `torch.export` traces the mutual-nearest-neighbour matcher's `Matcher.forward_static` (dynamic output
+        lengths); LighterGlue does not export.
+        """
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 

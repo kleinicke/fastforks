@@ -55,7 +55,6 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 
 _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
     "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
-    "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "aliked-flexglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
     "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
@@ -75,6 +74,8 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "dedode-v2-b@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "loftr-outdoor@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
+    "xfeat@1": "sparse keypoint and match counts use nonzero; non-strict torch.export captures a fixed-size path with"
+    " dynamic outputs",
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
