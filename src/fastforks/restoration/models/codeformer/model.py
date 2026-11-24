@@ -22,8 +22,10 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
+from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import CodeFormer
 from .net.codeformer_arch import adaptive_instance_normalization
@@ -41,6 +43,7 @@ class Params:
     size: int  # 512: the aligned face crop (the transformer's 16 x 16 position embedding)
     fidelity: float  # w (load option): 0.5 by default (upstream default)
     key: str  # checkpoint key ("params_ema")
+    cuda_graphs: bool  # kernels: replay the network from a CUDA graph
 
 
 def _attn(m: AttnBlock, x: torch.Tensor) -> torch.Tensor:
@@ -127,7 +130,10 @@ class Portable(Runner):
 
 
 class Kernels(Runner):
-    """Our kernels: fp16 NHWC convolutions with fused GroupNorm / SiLU / residual epilogues, portable transformer."""
+    """Our kernels: fp16 NHWC convolutions with fused GroupNorm / SiLU / residual epilogues, portable transformer.
+
+    The face replays from a CUDA graph per input shape (the host-side launches left the GPU idle a fifth of the time).
+    """
 
     Params = Params
 
@@ -146,13 +152,24 @@ class Kernels(Runner):
         self.net.eval().to(ctx.device)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        after = cudnn_hacc.capture_after()
+        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if p.cuda_graphs else None
 
     pad = Portable.pad
 
+    def _eager(self, image: torch.Tensor) -> torch.Tensor:
+        out = self._forward(self.net, (image * 2 - 1).half(), self.ctx.params.fidelity)
+        return (out.float() + 1) / 2
+
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored face in [0, 1] (the network works in [-1, 1])."""
-        out = self._forward(self.net, (image * 2 - 1).half(), self.ctx.params.fidelity)
-        return {"image": (out.float() + 1) / 2}
+        out = None if self.graphs is None else self.graphs.run((image.device, image.dtype, tuple(image.shape)), image)
+        return {"image": self._eager(image) if out is None else out}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
 
 RUNNERS = {
