@@ -328,6 +328,10 @@ def test_results_move_to_the_requested_device():
     assert isinstance(moved, list)
     assert [r.x.device for r in moved] == [meta, meta]
     assert core_model._results_to({"x": 1}, meta) == {"x": 1}
+    nested = core_model._results_to({"a": torch.zeros(1), "b": (one, 2)}, meta)
+    assert nested["a"].device == meta
+    assert nested["b"][0].x.device == meta
+    assert nested["b"][1] == 2
 
 
 @pytest.mark.parametrize("size", [(37, 53), (74, 106), (1, 9)])

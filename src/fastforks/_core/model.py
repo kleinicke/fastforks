@@ -286,11 +286,14 @@ def _fall_back_to_mps(model: Model, error: Exception) -> None:
 
 
 def _results_to(out: object, device: torch.device) -> object:
-    """A result (or a list / tuple of results) moved to `device`; anything else unchanged."""
-    if isinstance(out, NumpyOutputs):
+    """A result, tensor, or list / tuple / dict of them moved to `device`; anything else unchanged."""
+    if isinstance(out, NumpyOutputs | torch.Tensor):
         return out.to(device)
-    if isinstance(out, list | tuple) and out and all(isinstance(o, NumpyOutputs) for o in out):
-        return type(out)(o.to(device) for o in out)
+    if isinstance(out, dict):
+        return {k: _results_to(v, device) for k, v in out.items()}
+    if isinstance(out, list | tuple):
+        moved = [_results_to(o, device) for o in out]
+        return type(out)(*moved) if hasattr(out, "_fields") else type(out)(moved)  # a named tuple takes fields
     return out
 
 

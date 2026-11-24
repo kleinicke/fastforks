@@ -901,9 +901,7 @@ def require_available(variant: Variant, feature: Feature) -> None:
     reason = planned_reason(variant, feature)
     if reason is not None:
         what = {"load": "loading", "compile": "compile()", "onnx": "export_onnx", "tensorrt": "export_tensorrt"}
-        msg = (
-            f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE} yet: {reason.rstrip('.')}"
-        )
+        msg = f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE} yet: {reason.rstrip('.')}"
         if feature == "kernels":
             msg += "; use mode='portable'"
         elif feature in {"onnx", "tensorrt", "compile"}:
