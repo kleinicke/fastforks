@@ -346,8 +346,9 @@ class DepthModel(core.Model):
         if k.shape[0] != batch:
             msg = f"intrinsics: expected 1 or {batch} matrices, got shape {tuple(k.shape)}"
             raise InputError(msg)
-        if not bool(cameras.valid(k, "intrinsics")):
-            msg = f"intrinsics: {cameras.problem(k, 'intrinsics')}"
+        host = k if k.device.type == "cpu" else k.cpu()  # one copy instead of ~10 tiny kernels and a sync on the device
+        if not bool(cameras.valid(host, "intrinsics")):
+            msg = f"intrinsics: {cameras.problem(host, 'intrinsics')}"
             raise InputError(msg)
         k = k.to(self._device).contiguous()
         return k.clone() if k.data_ptr() == given.data_ptr() else k  # the result owns its matrices (9 floats each)

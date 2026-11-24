@@ -29,6 +29,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, style_weights
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import GFPGANv1Clean
 from .net.stylegan2_clean_arch import ModulatedConv2d
@@ -50,6 +51,7 @@ class Params:
     scale: int  # 1: the restored face has the input's size
     size: int  # 512: the aligned face crop (out_size)
     key: str  # checkpoint key ("params_ema")
+    cuda_graphs: bool  # kernels: replay the network from a CUDA graph
 
 
 def _torch_conv(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int, groups: int) -> torch.Tensor:
@@ -225,7 +227,10 @@ def _hacc_module(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 
 
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`, modulated ones included); one face a call."""
+    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`, modulated ones included); one face a call.
+
+    The faces replay from a CUDA graph per input shape (about 350 launches a face, host-bound on Windows).
+    """
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
@@ -239,14 +244,25 @@ class Kernels(Portable):
                 m.weight = torch.nn.Parameter(weight.unsqueeze(0), requires_grad=False)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_module)
+        after = cudnn_hacc.capture_after()
+        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
-    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        """The restored faces in [0, 1]."""
+    def _eager(self, image: torch.Tensor) -> torch.Tensor:
         x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)
         with fp16_accumulate():
             out = [_forward(self.net, x[i : i + 1], self.noise, _hacc, _cuda_weights) for i in range(x.shape[0])]
         faces = out[0] if len(out) == 1 else torch.cat(out)
-        return {"image": (faces.float() + 1) / 2}
+        return (faces.float() + 1) / 2
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The restored faces in [0, 1]."""
+        out = None if self.graphs is None else self.graphs.run((image.device, image.dtype, tuple(image.shape)), image)
+        return {"image": self._eager(image) if out is None else out}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}

@@ -310,9 +310,7 @@ class MultiViewModel(core.Model):
             most = "any number of" if r.max_views is None else f"at most {r.max_views}"
             msg = f"{self.variant.ref} takes at least {r.min_views} and {most} views, got {n}"
             raise InputError(msg)
-        k = self._camera("intrinsics", r.intrinsics, intrinsics, n, (3, 3))
-        if k is not None and intrinsics is not None:
-            self._check_principal_point(k, x.shape[-2], x.shape[-1])
+        k = self._camera("intrinsics", r.intrinsics, intrinsics, n, (3, 3), size=(x.shape[-2], x.shape[-1]))
         c2w = self._camera("cam_to_world", r.cam_to_world, cam_to_world, n, (4, 4))
         run_c2w = c2w
         if c2w is not None and c2w.device.type != self._device.type:  # float64 on MPS (kept on the CPU): float32
@@ -399,8 +397,15 @@ class MultiViewModel(core.Model):
         self._check_size(x)
         return x
 
-    def _camera(
-        self, name: str, use: str, value: ArrayLike | None, n: int, shape: tuple[int, int]
+    def _camera(  # noqa: PLR0913 - the camera input, its contract and the image size
+        self,
+        name: str,
+        use: str,
+        value: ArrayLike | None,
+        n: int,
+        shape: tuple[int, int],
+        *,
+        size: tuple[int, int] | None = None,
     ) -> torch.Tensor | None:
         if value is None:
             if use == "required":
@@ -426,26 +431,10 @@ class MultiViewModel(core.Model):
         if t.shape[0] != n:
             msg = f"{name}: expected {n} matrices, got shape {tuple(t.shape)}"
             raise InputError(msg)
-        if not bool(cameras.valid(t, name)):
-            msg = f"{name}: {cameras.problem(t, name)}"
-            raise InputError(msg)
+        _check_camera(t, name, size)
         if t.dtype == torch.float64 and self._device.type == "mps":  # no float64 on MPS: kept on the CPU
             return t.cpu().contiguous()
         return to_device(t, self._device).contiguous()  # a pageable upload would sync the host
-
-    def _check_principal_point(self, k: torch.Tensor, h: int, w: int) -> None:
-        """Normalised or identity matrices (principal point near the corner) are not pixel intrinsics: refuse them.
-
-        Garbage geometry gave NaN points and a device-side assert in a kernel (the CUDA context is dead afterwards).
-        """
-        cx, cy = k[:, 0, 2], k[:, 1, 2]
-        if bool(((cx < 0.1 * w) | (cx > 0.9 * w) | (cy < 0.1 * h) | (cy > 0.9 * h)).any()):
-            msg = (
-                f"intrinsics: the principal point (K[0, 2], K[1, 2]) must lie inside the image (here {w} x {h} px), "
-                "not near a corner: intrinsics are OpenCV pixel matrices, "
-                "e.g. [[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], not normalised ones or the identity"
-            )
-            raise InputError(msg)
 
     def _depth_range(self, value: tuple[float, float] | None) -> torch.Tensor | None:
         use = self._runner.depth_range
@@ -535,3 +524,31 @@ def bench_inputs(model: MultiViewModel, size: BenchSize) -> BenchInputs:
 
 
 list_models, model_card, load = task_api(TASK, MultiViewModel)
+
+
+def _check_camera(t: torch.Tensor, name: str, size: tuple[int, int] | None) -> None:
+    """`cameras.valid`, and for intrinsics with an image `size` the principal point, on a host copy of `t`.
+
+    One copy of a few matrices instead of ~20 tiny kernels and a host sync on the device.
+    """
+    host = t if t.device.type == "cpu" else t.cpu()
+    if not bool(cameras.valid(host, name)):
+        msg = f"{name}: {cameras.problem(host, name)}"
+        raise InputError(msg)
+    if size is not None:
+        _check_principal_point(host, *size)
+
+
+def _check_principal_point(k: torch.Tensor, h: int, w: int) -> None:
+    """Normalised or identity matrices (principal point near the corner) are not pixel intrinsics: refuse them.
+
+    Garbage geometry gave NaN points and a device-side assert in a kernel (the CUDA context is dead afterwards).
+    """
+    cx, cy = k[:, 0, 2], k[:, 1, 2]
+    if bool(((cx < 0.1 * w) | (cx > 0.9 * w) | (cy < 0.1 * h) | (cy > 0.9 * h)).any()):
+        msg = (
+            f"intrinsics: the principal point (K[0, 2], K[1, 2]) must lie inside the image (here {w} x {h} px), "
+            "not near a corner: intrinsics are OpenCV pixel matrices, "
+            "e.g. [[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], not normalised ones or the identity"
+        )
+        raise InputError(msg)

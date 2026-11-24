@@ -12,7 +12,8 @@ image. `install(aliked)` keeps the four levels as they are and:
   bilinearly sampled at the pixel (`align_corners`, as their upsampling), normalized by their norm, then the patches
   and the samples' bilinear interpolation (zero padding) of those pixels as upstream's `grid_sample`.
 
-`detection_maps` then returns `(*levels, score_map, nms_scores)`; `forward` reads it.
+`detection_maps` then returns `(*levels, score_map, nms_scores)`; `forward` reads it. `graph_maps(aliked)` replays
+it from a CUDA graph per input size (about 260 fixed-shape launches, host-bound on Windows).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ import torch.nn.functional as F
 
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.aliked import InputPadder, simple_nms
 
@@ -42,6 +44,30 @@ def install(aliked: ALIKED) -> None:
         raise NotImplementedError(msg)
     override(aliked, detection_maps, "detection_maps")
     override(aliked, forward)
+
+
+def graph_maps(aliked: ALIKED, graphs: int = 2) -> GraphCache:
+    """Replay the installed `detection_maps` of `aliked` from a CUDA graph per input size; returns the cache.
+
+    The graph's static outputs are handed to the keypoint selection and descriptors without a copy: the caller runs one
+    extraction at a time, and none of the extraction's outputs is a view of them.
+    """
+    # the cache holds the bound method weakly: no reference cycle keeps the graph pool after the model goes
+    cache = vars(aliked)["maps_graphs"] = GraphCache(aliked.detection_maps, graphs=graphs)
+    override(aliked, _graphed_detection_maps, "detection_maps")
+    return cache
+
+
+def _graphed_detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """The lazy `detection_maps` replayed from the image size's CUDA graph once captured: static outputs, no copy."""
+    graphs: GraphCache = vars(self)["maps_graphs"]
+    out = graphs.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
+    return detection_maps(self, image) if out is None else out
+
+
+def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
+    """A graph's static outputs as they are: read before the next replay (`graph_maps`)."""
+    return out
 
 
 def detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
