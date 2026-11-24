@@ -435,11 +435,8 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
         log.info("fastforks: MLX first-run plans are kept in %s", environ[_PLAN_ENV])
 
 
-_SHARED = (
-    "upscale_models",
-    "facerestore_models",
-    "facedetection",
-)  # fixed: folders with upstream checkpoints of our cards
+# fixed: ComfyUI folders where other nodes keep upstream checkpoints of our cards
+_SHARED = ("upscale_models", "facerestore_models", "facedetection")
 
 
 def shared_folders(folder_paths: Any) -> list[str]:  # noqa: ANN401 - ComfyUI's folder_paths module
