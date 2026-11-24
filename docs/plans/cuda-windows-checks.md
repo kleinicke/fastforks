@@ -27,3 +27,11 @@ eager path as in v0.2.0. Mac coverage: 8 CPU ONNX exports and 16 MLX goldens.
   example `tests/test_vitpose_stream.py`), from a checkout whose path has a space. Both now split
   `/proc/self/maps` lines on at most five fields.
 - [ ] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
+
+## Test environment: OpenCV 5 (2026-11-24)
+
+`tests/test_cv2_resize.py::test_cubic_levels_match_opencv` fails on the Mac venv, which has opencv-python-headless
+5.0.0: 4.5-5.1 % of the uint8 pixels differ from `cv2.resize(INTER_CUBIC)` (limit 1 %, all within 1 level), on
+origin as well. The test deps ask for `>=4.10`, so CI may pick up 5.x too. Check on Linux whether OpenCV 5 changed
+its cubic rounding; if so, either pin `<5` for the oracle or match both (the models' preprocessing was written
+against 4.x).
