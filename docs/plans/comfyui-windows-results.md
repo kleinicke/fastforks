@@ -245,8 +245,8 @@ None of these is Windows-specific; the Windows run surfaced them.
    - ~~The pack folder has no LICENSE file~~: both pack folders carry a copy (tested). The `[tool.comfy]` Icon is empty.
    - ComfyUI-Manager's "Install via Git URL" clones the repository root, which is not a pack.
    - Publishing to the Comfy registry from `integrations/comfyui` is still to be done.
-6. **Old weights layout.** Weights stored in a directory laid out as `<family>/<file>` are found only through
-   `FASTFORKS_WEIGHTS_PATH`. The pack's read cache reads only `blobs/`.
+6. ~~**Old weights layout.**~~ The pack puts its `fastforks` model folders on `FASTFORKS_WEIGHTS_PATH` (after the
+   user's entries), so weights put there by hand as `<file>` or `<family>/<file>` are found, not only `blobs/`.
 7. **Not run:**
    - bfloat16 on an RTX 20xx (no such card here).
    - A comparison against Linux output PNGs.

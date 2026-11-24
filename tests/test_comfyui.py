@@ -747,11 +747,17 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
         d.mkdir()
     pack.fp.paths["fastforks"] = [str(first), str(extra), str(tmp_path / "missing")]
     again = str(tmp_path / "extra" / ".." / "normal")  # the same folder spelled another way is read once
-    environ = {"FASTFORKS_CACHE": str(normal), "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)])}
+    environ = {
+        "FASTFORKS_CACHE": str(normal),
+        "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)]),
+        "FASTFORKS_WEIGHTS_PATH": str(normal),
+    }
     pack.nodes.setup_cache(environ, platform="linux")
     assert environ["FASTFORKS_CACHE"] == str(first)
     assert environ["FASTFORKS_READ_CACHES"].split(os.pathsep) == [str(extra), str(normal)]
     assert pack.fp.paths["fastforks"][-1] == str(Path(pack.fp.models_dir) / "fastforks")
+    # weights put into the folders by hand are found, after the user's own search path
+    assert environ["FASTFORKS_WEIGHTS_PATH"].split(os.pathsep) == [str(normal), *pack.fp.paths["fastforks"]]
     assert "FASTFORKS_MLX_PLAN_CACHE" not in environ  # macOS only
 
 

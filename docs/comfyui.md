@@ -159,7 +159,8 @@ A node that cannot do what you set says what to change, in the node's words (`ba
   publish a model only inside a larger archive, which is downloaded once and not kept: SPAN's 18 MB file comes from a
   1.3 GB archive (about a minute on a fast line), so the console names the file with the archive's size. Offline mode
   (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the
-  download. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
+  download. A file put there by hand, under its original name (`models/fastforks/<file>` or
+  `models/fastforks/<family>/<file>`), is found and hash-checked; one that does not verify is skipped. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
   login in ComfyUI's Python (`hf auth login`, or `HF_TOKEN` set before starting ComfyUI); the error says so.
 
 ## Speed
