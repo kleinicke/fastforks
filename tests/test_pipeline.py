@@ -38,6 +38,7 @@ class Fake:
 
     def __init__(self, device: str = "cpu", sleep_cycles: int = 0) -> None:
         self.device = torch.device(device)
+        self._device = self.device
         self.sleep_cycles = sleep_cycles
         self.calls = 0
 
@@ -342,6 +343,7 @@ def test_other_errors_raise_even_with_skip():
 
     class M:
         device = fake.device
+        _device = device
         variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, left, right):
@@ -575,6 +577,7 @@ def test_autocast_of_the_caller_applies():
 
     class M:
         device = torch.device("cpu")
+        _device = device
         variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, left, right):
@@ -824,6 +827,7 @@ def test_gpu_errors_raise_with_skip():
 
     class M:
         device = torch.device("cuda")
+        _device = device
         variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, *_):

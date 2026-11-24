@@ -29,7 +29,11 @@ def test_encoder_example_inputs_are_3d_volumes() -> None:
     from types import SimpleNamespace  # noqa: PLC0415
 
     encoder = SimpleNamespace(
-        channels=2, device=torch.device("cpu"), max_size=None, _runner=SimpleNamespace(multiple=8)
+        channels=2,
+        device=torch.device("cpu"),
+        _device=torch.device("cpu"),
+        max_size=None,
+        _runner=SimpleNamespace(multiple=8),
     )
     (x,) = volume.VolumeEncoder.example_inputs(encoder, 12, 20, batch=3)
     assert x.shape == (3, 2, 16, 24, 24)
@@ -49,7 +53,9 @@ def test_encoder_example_inputs_are_3d_volumes() -> None:
 def test_interactive_example_is_a_prepared_patch() -> None:
     from types import SimpleNamespace  # noqa: PLC0415
 
-    model = SimpleNamespace(device=torch.device("cpu"), _runner=SimpleNamespace(_dtype=torch.float16))
+    model = SimpleNamespace(
+        device=torch.device("cpu"), _device=torch.device("cpu"), _runner=SimpleNamespace(_dtype=torch.float16)
+    )
     (x,) = volume.VolumeInteractive.example_inputs(model, 192, 192)
     assert x.shape == (1, 8, 192, 192, 192)
     assert x.dtype == torch.float16
