@@ -42,6 +42,10 @@ _COLOURS = [  # OpenPose-like limb colours
 ]
 
 
+_PIN_MAX = 64 << 20  # bytes: larger uploads go through pinned chunks of `_CHUNK` (see `_staged`)
+_CHUNK = 32 << 20
+
+
 def upload(x: torch.Tensor, device: torch.device) -> torch.Tensor:
     """`x` on `device` as float32; CPU -> CUDA through pinned memory, asynchronously.
 
@@ -49,8 +53,36 @@ def upload(x: torch.Tensor, device: torch.device) -> torch.Tensor:
     WDDM). Plain torch, not `fastforks._core.upload`: the pack uses fastforks' public API only.
     """
     if x.device.type == "cpu" and torch.device(device).type == "cuda":
-        x = x.pin_memory().to(device, non_blocking=True)
+        if x.numel() * x.element_size() <= _PIN_MAX:
+            x = x.pin_memory().to(device, non_blocking=True)
+        else:
+            stream, side = torch.cuda.current_stream(device), _side_stream(device)
+            with torch.cuda.stream(side):
+                x = _staged(x, device)
+                done = torch.cuda.Event()
+                done.record(side)
+            stream.wait_event(done)
+            x.record_stream(stream)
     return x.to(device=device, dtype=torch.float32)
+
+
+def _staged(x: torch.Tensor, device: torch.device) -> torch.Tensor:
+    """`x` (CPU) copied to `device` on the current stream in pinned chunks of `_CHUNK` bytes, two in flight.
+
+    torch keeps freed pinned blocks for reuse and has no public call to release them: pinning a batch of 16 1080p
+    frames at once left 1 GiB of RAM locked after the node. In chunks the pinned blocks stay at a few `_CHUNK`s and
+    the copy keeps the pinned speed; waiting for a chunk waits only for the copies before it on this stream.
+    """
+    src = x.contiguous().view(-1)
+    y = torch.empty(x.shape, dtype=x.dtype, device=device)
+    dst, step, flight = y.view(-1), max(1, _CHUNK // x.element_size()), []
+    for i in range(0, src.numel(), step):
+        if len(flight) == 2:  # noqa: PLR2004 - chunks in flight
+            flight.pop(0).synchronize()
+        dst[i : i + step].copy_(src[i : i + step].pin_memory(), non_blocking=True)
+        flight.append(torch.cuda.Event())
+        flight[-1].record()
+    return y
 
 
 def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
@@ -118,10 +150,11 @@ class _Ahead:
 
 
 def _side_upload(x: torch.Tensor, device: torch.device) -> tuple[torch.Tensor, torch.cuda.Event]:
-    """`x` (CPU) uploaded to `device` on a side stream through pinned memory, and the event that marks the copy done."""
+    """`x` (CPU) uploaded to `device` on a side stream (pinned as in `upload`) and the event that marks the copy."""
     stream = _side_stream(device)
     with torch.cuda.stream(stream):
-        y = x.pin_memory().to(device, torch.float32, non_blocking=True)
+        small = x.numel() * x.element_size() <= _PIN_MAX
+        y = (x.pin_memory().to(device, non_blocking=True) if small else _staged(x, device)).to(torch.float32)
         event = torch.cuda.Event()
         event.record(stream)
     return y, event
