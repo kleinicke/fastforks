@@ -579,6 +579,27 @@ def test_commercial_pack_never_runs_nc_models(pack: Any, monkeypatch: pytest.Mon
     assert registry.NONCOMMERCIAL_ENV not in os.environ
 
 
+def test_example_workflows_match_the_nodes(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each Fastforks node in the example workflows exists, has one value per widget, a listed model and its links."""
+    monkeypatch.setattr(pack.nodes, "upscale_files", list)
+    prims = {"STRING", "INT", "FLOAT", "BOOLEAN", "COMBO"}
+    files = sorted((PACK / "workflows").glob("fastforks-w*.json"))
+    assert len(files) >= 14
+    for f in files:
+        for n in json.loads(f.read_text(encoding="utf-8"))["nodes"]:
+            if not n["type"].startswith("Fastforks"):
+                continue
+            spec = pack.NODE_CLASS_MAPPINGS[n["type"]].INPUT_TYPES()
+            ins = {**spec["required"], **spec.get("optional", {})}
+            forced = {k for k, t in ins.items() if len(t) > 1 and t[1].get("forceInput")}
+            widgets = [k for k, t in ins.items() if k not in forced and (isinstance(t[0], list) or t[0] in prims)]
+            assert len(n["widgets_values"]) == len(widgets), (f.name, n["type"])
+            values = dict(zip(widgets, n["widgets_values"], strict=True))
+            if "model" in values:
+                assert values["model"] in ins["model"][0], (f.name, values["model"])
+            assert {i["name"] for i in n["inputs"]} <= set(ins) - set(widgets), (f.name, n["type"])
+
+
 def test_pack_split(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """The fastforks pack lists every model (nc ones tagged), fastforks-commercial commercial ones; same classes."""
     nodes = pack.nodes

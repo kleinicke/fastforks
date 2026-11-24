@@ -94,7 +94,7 @@ class WF:
             "extra": {},
             "version": 0.4,
         }
-        Path(path).write_text(json.dumps(data, indent=1))
+        Path(path).write_text(json.dumps(data, indent=1), newline="\n")  # LF on Windows too
 
 
 def note(g: WF, text: str, x: int = 0, y: int = -260) -> None:
@@ -466,6 +466,133 @@ def w10_optical_flow() -> WF:
         out=1,
         ckpt_name="gmflow-scale1-mixdata.pth",
     )
+    return g
+
+
+@wf
+def w11_edges() -> WF:
+    """Example 11: line art and edges."""
+    g = WF()
+    note(
+        g,
+        "Line art and edge maps (white on black), the hints of lineart, soft-edge and M-LSD ControlNets: "
+        "lineart, anime line art, AnyLine, HED, TEED (soft edges) and M-LSD (straight line segments).",
+    )
+    img = load(g, "example.png", 0, 0)
+    shootout(
+        g,
+        "FastforksEdges",
+        "image",
+        [{"model": m} for m in ("lineart", "lineart-anime", "anyline", "hed", "teed", "mlsd")],
+        img=img,
+        step=380,
+    )
+    return g
+
+
+@wf
+def w12_inpaint() -> WF:
+    """Example 12: inpainting and object removal."""
+    g = WF()
+    note(
+        g,
+        "Inpainting with LaMa. Top: the object under a click (Segment, SAM 2.1) is removed; the mask is grown a "
+        "little so no outline is left. Bottom: a fixed 200 x 200 square at the centre is filled. To paint your own "
+        "mask, open the image in the mask editor (right-click > Open in MaskEditor) and connect the MASK output of "
+        "Load Image to `mask` instead.",
+    )
+    img = load(g, "example.png", 0, 0)
+    seg = g.add(
+        "FastforksSegment",
+        380,
+        0,
+        size=(330, 230),
+        title="object under the click",
+        image=(img, 0),
+        positive_points="384,384",
+    )
+    grow = g.add("GrowMask", 740, 0, size=(240, 80), mask=(seg, 0), expand=12)
+    n = g.add("FastforksInpaint", 1010, 0, size=(330, 230), title="remove the object", image=(img, 0), mask=(grow, 0))
+    preview(g, grow, 1010, 300, mask=True)
+    preview(g, n, 1370, 0)
+    base = g.add("SolidMask", 380, 640, size=(240, 100), value=0.0, width=768, height=768)
+    box = g.add("SolidMask", 380, 780, size=(240, 100), value=1.0, width=200, height=200)
+    sq = g.add(
+        "MaskComposite",
+        740,
+        640,
+        size=(240, 130),
+        destination=(base, 0),
+        source=(box, 0),
+        _widgets=[284, 284, "add"],  # x, y (they would clash with the node position), operation
+    )
+    n = g.add("FastforksInpaint", 1010, 640, size=(330, 230), title="fill a square", image=(img, 0), mask=(sq, 0))
+    preview(g, n, 1370, 640)
+    return g
+
+
+@wf
+def w13_segment_like() -> WF:
+    """Example 13: segment like a reference."""
+    g = WF()
+    note(
+        g,
+        "Segment like a reference (INSID3): one example image with a mask of a concept (here the object under a "
+        "click on example.png, from Segment) finds the same concept in other images, no prompt per image. "
+        "Batch more reference images and masks (one mask each) for a broader concept.",
+    )
+    ref = load(g, "example.png", 0, 0)
+    seg = g.add(
+        "FastforksSegment",
+        380,
+        0,
+        size=(330, 230),
+        title="reference mask (click)",
+        image=(ref, 0),
+        positive_points="384,384",
+    )
+    preview(g, seg, 740, 0, mask=True)
+    imgs = [load(g, f"clip{i}.png", 0, 420 + i * 360) for i in range(3)]
+    b = g.add("ImageBatch", 380, 420, size=(200, 50), image1=(imgs[0], 0), image2=(imgs[1], 0))
+    b = g.add("ImageBatch", 380, 540, size=(200, 50), image1=(b, 0), image2=(imgs[2], 0))
+    n = g.add(
+        "FastforksSegmentLike",
+        620,
+        420,
+        size=(330, 230),
+        image=(b, 0),
+        reference_image=(ref, 0),
+        reference_mask=(seg, 0),
+    )
+    preview(g, n, 980, 420, mask=True)
+    return g
+
+
+@wf
+def w14_video_matte() -> WF:
+    """Example 14: video matting."""
+    g = WF()
+    note(
+        g,
+        "Video matting (MatAnyone, non-commercial weights): a mask of the first frame (here the object under a "
+        "click, from Segment; move the click to pick another object) is followed through the clip, giving an alpha "
+        "per frame. Only the first mask of a batch is used. Frames are read one at a time, so long clips fit.",
+    )
+    imgs = [load(g, f"clip{i}.png", 0, i * 360) for i in range(4)]
+    b = g.add("ImageBatch", 330, 0, size=(200, 50), image1=(imgs[0], 0), image2=(imgs[1], 0))
+    b = g.add("ImageBatch", 330, 120, size=(200, 50), image1=(b, 0), image2=(imgs[2], 0))
+    b = g.add("ImageBatch", 330, 240, size=(200, 50), image1=(b, 0), image2=(imgs[3], 0))
+    first = g.add(
+        "FastforksSegment",
+        600,
+        0,
+        size=(330, 230),
+        title="first-frame mask (click)",
+        image=(imgs[0], 0),
+        positive_points="384,384",
+    )
+    n = g.add("FastforksVideoMatte", 960, 0, size=(330, 230), frames=(b, 0), mask=(first, 0))
+    preview(g, n, 1320, 0, slot=1, mask=True)
     return g
 
 

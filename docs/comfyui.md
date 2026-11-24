@@ -201,14 +201,17 @@ ComfyUI from git run the nodes at the same speed.
 
 ## Example workflows
 
-`integrations/comfyui/workflows/` holds ten workflows that put competing models (and, in the second one, backends)
-side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and compare: depth,
-backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame interpolation,
-stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
-the UI). They load these images from ComfyUI's `input` folder; only `example.png` ships with ComfyUI, put your own
-files there under the other names: `scene.png` (a photo with people and objects: detection, pose), `small.png` (a
-small image to upscale), `clip0.png` .. `clip3.png` (consecutive frames of a video: interpolation, optical flow) and
-`stereo_left.png` / `stereo_right.png` (a rectified stereo pair). Six of the ten also carry branches with another
+`integrations/comfyui/workflows/` holds fourteen workflows. The first ten put competing models (and, in the second
+one, backends) side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and
+compare: depth, backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame
+interpolation, stereo and optical flow. The last four show line art / edges, inpainting (object removal from a click,
+and a fixed square), segmenting like a reference, and video matting from a first-frame click; they use only fastforks
+and ComfyUI's own nodes. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
+the UI; ComfyUI also lists them under the pack's templates). They load these images from ComfyUI's `input` folder;
+only `example.png` ships with ComfyUI, put your own files there under the other names: `scene.png` (a photo with
+people and objects: detection, pose), `small.png` (a small image to upscale), `clip0.png` .. `clip3.png` (consecutive
+frames of a video: interpolation, optical flow, segmenting like a reference, video matting) and `stereo_left.png` /
+`stereo_right.png` (a rectified stereo pair). Six of the ten also carry branches with another
 pack's nodes for comparison (comfyui_controlnet_aux, ComfyUI-RMBG, ComfyUI-segment-anything-2,
 ComfyUI-Frame-Interpolation); without that pack ComfyUI marks those nodes as missing: delete them or install the
 pack. The upscaling one compares with ComfyUI's own upscale-model node, which needs a file in
