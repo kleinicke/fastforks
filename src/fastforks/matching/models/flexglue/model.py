@@ -32,7 +32,7 @@ from fastforks._core.upload import device_tensor
 from fastforks.kernels import image_normalize
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.aliked import ALIKED
+from fastforks.shared.aliked import ALIKED, lazy
 from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import resize_long
@@ -210,7 +210,12 @@ def _descriptor_forward(descriptor: Descriptor, image: torch.Tensor) -> torch.Te
 
 
 class Kernels(Portable):
-    """Fuse the descriptor input normalization and capture repeated feature grids."""
+    """Fuse the descriptor input normalization, capture repeated feature grids, ALIKED's score head per level.
+
+    ALIKED (`fastforks.shared.aliked.lazy`) convolves its four feature levels with the score head's first 1 x 1
+    convolution before upsampling them, the full-size 128-channel map is not formed: the score map up to float32
+    rounding.
+    """
 
     module = Runner.module
 
@@ -223,6 +228,7 @@ class Kernels(Portable):
             half_weights(descriptor, channels_last=False)
             half_weights(self.net.matcher.transformers, channels_last=False)
         override(descriptor, _descriptor_forward)
+        lazy.install(self.net.extractor)
         dense = CapturedModule(self.net.descriptor, pixels=2**21)
         self.net.set_submodule("descriptor", dense)
         self.graphs = dense.graphs
