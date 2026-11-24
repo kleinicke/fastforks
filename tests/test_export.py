@@ -75,6 +75,7 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "dedode-v2-b@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "loftr-outdoor@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
+    "loma-b64@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"

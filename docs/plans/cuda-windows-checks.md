@@ -21,13 +21,17 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
   and a profile from 288 × 288 to 384 × 432. The engine's mean absolute difference from eager stayed below
   0.0018 pixels at min, opt and max. The 0.2.0 dynamic ONNX export failed on `aten.cudnn_grid_sampler`.
   CPU ONNX checks passed for CAS-GwcNet-C, CoEx and GREAT-IGEV. BridgeDepth hit the expected top-k tie in ONNX Runtime.
+  With Python 3.11 and CPU PyTorch 2.8, the dynamic AANet and CoEx ONNX graphs ran at all three profile shapes.
+  Their mean disparity differences from eager stayed below 0.000002 pixels.
   Both CAS-GwcNet variants have a TensorRT gate because the fixed engines diverged on rectified KITTI inputs.
 - [x] GMFlow-scale1-mixdata exported from CUDA in FP16 at 256 × 384. ONNX Runtime differed from CUDA eager by
-  0.00053 flow pixels on average on the textured pair. The TensorRT card gate still applies, so engine speed and
-  memory remain open.
+  0.00053 flow pixels on average on the textured pair. A direct TensorRT 11.4 build from that ONNX file ran in
+  2.11 ms after warmup with a 0.00324-pixel mean error. The 0.2.0 exporter failed to convert rank-three attention
+  on the same inputs. The public TensorRT gate remains pending checks at additional sizes and on other variants.
 - [x] GIMM-VFI-R exported from CUDA in FP16 at 128 × 128. ONNX Runtime differed from CUDA eager by an average
   of 0.000054 on the normalized pixels. RIFE 4.26 passed its fixed FP16 TensorRT smoke. The GIMM-VFI-R TensorRT
-  quality gate still applies.
+  quality gate still applies. A direct FP16 TensorRT 11.4 build from the GIMM-VFI-R ONNX file differed by 0.077
+  on average on the same pair.
 - [x] **Linux CUDA, RTMO:** all four variants passed portable and kernels goldens with the restored FP16
   `out_cls` convolution. The RTMO-T FP16 public TensorRT engine built and returned finite matching-shape outputs.
 - [x] **Linux CUDA, PSMNet/GwcNet kernels mode:** portable and kernels goldens passed, including both GwcNet variants.
@@ -78,6 +82,12 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
 
 An isolated PyTorch 2.15.0+cu132 environment passed 16 representative CUDA parity, export and stereo checks,
 and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environment remains the release default.
+The Ubuntu non-model regression suite passed 6,738 CPU checks and 508 CUDA checks. An isolated install of the
+0.2.1 wheels also ran depth, stereo and classification inference on Python 3.11 with CPU PyTorch 2.8.
+The CUDA golden sweep covered 584 model references across the release candidates. With the targeted reruns,
+1,162 model and backend pairs passed. Six kernels cases were gated on the new TotalSegmentator cards.
+The CPU export sweep also verified that non-strict `torch.export` captures LoMa-B64's variable-length matches
+and reproduces the eager outputs. Full-graph `torch.compile` still graph-breaks on the data-dependent match count.
 
 - **NeuFlow v2:** all six CUDA goldens passed in portable and kernels mode. With the same FP16 weights and textured
   synthetic pair at 1920 × 1080, 15 timed calls after six warmups had median latency of 69.7 → 67.6 ms in portable
@@ -101,6 +111,10 @@ and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environm
   goldens. On a 1080p frame with 15 synthetic person boxes, portable RTMW-L went from 11.6 to 15.3 ms and
   RTMW-L-384 from 25.2 to 32.0 ms compared with the faster, out-of-tolerance layout. Kernels measured 9.3
   and 18.4 ms, respectively. DWPose and RTMPose retain their channels-last path.
+- An additional 40 timing rows compared the candidate with the starting branch, `d8099bff`. At 375 × 1242,
+  AANet kernels used 286 MiB reserved and NeuFlow v2 portable used 262 MiB reserved on both revisions. Alternating
+  runs at 1080p measured RTMO-M portable at 7.45 and 7.40 ms and RTMPose-T-Face6 portable at 4.53 and 4.50 ms.
+  All 74 model goldens from the accompanying speed-floor check passed.
 - RTMO-T at 1080p measured 6.43 ms portable and 2.32 ms kernels. GMFlow-scale1-mixdata
   at 1080p measured 442.4 and 271.9 ms, with 2102 and 1040 MiB peak reserved. DepthFM at 994 × 1482 measured
   4.88 and 3.38 s, with 5850 and 4092 MiB peak reserved. These are warmed inference times.
@@ -108,11 +122,19 @@ and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environm
   PyTorch 2.14.1 with Triton 3.8. PyTorch 2.15.0 with Triton 3.9 took 115.4 and 50.9 ms. The first compiled
   call took 448 and 479 seconds, respectively. Mean disparity error against eager stayed below 0.00066 pixels.
 
-## TotalSegmentator reference outputs
+## Public release assets
 
-The six new CT reference files were absent from the public reference dataset. The pinned upstream generator used
-the registered checkpoints, and each output matched its committed SHA-256. All six passed the portable golden
-test on Ubuntu CPU and CUDA. These cards still gate kernels mode. The six files are ready for the dataset upload.
+The public kernel repository held all 644 files at their pinned sizes and SHA-256 digests. The public reference
+dataset held 577 of the 584 expected files with matching digests. The count includes the Windows-specific
+Marigold reference and excludes the CoEx reference per the existing staging policy.
+
+The six missing TotalSegmentator CT references were reproduced with the pinned upstream generator and registered
+checkpoints. Each file matched its committed SHA-256 and passed the portable golden test on Ubuntu CPU and CUDA.
+These cards still gate kernels mode. The six files are ready for the dataset upload.
+
+The seventh file, `marigold-v2-depth@1.windows.npz`, still needs the original Windows output or a Windows rerun.
+The Ubuntu golden regenerated byte for byte. Ubuntu runs with alternate CPU RoPE calculations and SDPA backend
+order produced different hashes from the expected Windows one. See the [Windows validation](windows-kernels.md).
 
 ## Test environment: OpenCV 5 (2026-11-24)
 

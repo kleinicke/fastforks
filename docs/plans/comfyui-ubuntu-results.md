@@ -70,6 +70,10 @@ workflows. In a separate test, six cycles of w02, w09 and `/free` reproduced all
 CUDA allocators. Warmed process memory after unloading was stable at 660 MiB with `cudaMallocAsync` and
 722 MiB with the native allocator, measured with `nvidia-smi`.
 
+Both archives also passed their smoke workflows against the wheels from `ca21523f`. The full archive repeated
+the empty-cache public download, cancellation and retry check with those wheels. Two clean builds of all three
+wheels produced identical SHA-256 digests.
+
 Publishing the wheels and the Comfy Registry packs are release steps. The public Registry lookup returned
 `Publisher not found` for the configured `kleinicke` ID on 2026-11-24. Confirm the publisher account and its
 ID before publishing either pack. See the [Windows results](comfyui-windows-results.md) and
