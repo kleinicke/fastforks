@@ -7,6 +7,7 @@ uses = ["cuda_graphs", "mlx_wrap", "sam_attention", "sam_prompt"]  # fastforks.s
 
 limitations = [
   "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.",
+  "Kernels keep CUDA graphs of the prompt decode: their private pool and static outputs stay reserved, so reserved is ~100 MiB above `cuda_graphs=false` at 1024 x 1024 (540 vs 440 MiB, RTX 5060 Ti, Windows; peak allocated +37 MiB); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
