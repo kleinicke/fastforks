@@ -548,10 +548,21 @@ def test_moge_folded_top_level_matches_the_conv_stack(name: str) -> None:
         uv = [u.double() for u in uv]
         head = getattr(net, f"{name}_head")
         want = head(net.neck([enc, *uv[1:]]))[-1]
-        levels, _ = moge_model._below_top(net.neck, [enc, *uv[1:4]])
+
+        def below_top(cs, feats):  # `ConvStack.forward` without its last level: the outputs, the last resampler's input
+            outs, x = [], feats[0]
+            for i in range(4):
+                f = cs.input_blocks[i](feats[i])
+                x = cs.res_blocks[i](f if i == 0 else x + f)
+                outs.append(cs.output_blocks[i](x))
+                x = cs.resamplers[i](x) if i < 3 else x
+            return outs, x
+
+        pad = lambda x: torch.nn.functional.pad(x.float(), (1, 1, 1, 1), mode="replicate")  # noqa: E731
+        levels, _ = below_top(net.neck, [enc, *uv[1:4]])
         got = moge_model._FoldedTop(net.neck, head)(
-            moge_model._rep_pad32(moge_model._below_top(head, levels)[1].float()),
-            moge_model._rep_pad32(levels[-1].float()),
+            pad(below_top(head, levels)[1]),
+            pad(levels[-1]),
             *moge_model._plane_axes(cols << 4, rows << 4, aspect, "cpu"),
         )
     assert got.shape == want.shape

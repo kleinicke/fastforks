@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1506 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1508 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -124,15 +124,15 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`da3metric-large`](../models/depth.md#depth_anything_3) | 286 | 231 | – | – | – | – | 1555 | – |
 | [`da3mono-large`](../models/depth.md#depth_anything_3) | 288 | 231 | – | – | – | – | 1557 | – |
 | [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1138 | 878 | – | – | – | – | 4123 | – |
-| [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 229 | 182 | – | 214 | 168 | 1.1x | 1026 | 1029 |
-| [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 669 | 522 | – | 628 | 501 | 1.0x | 1896 | 1768 |
+| [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 228 | 184 | – | 214 | 169 | 1.1x | 1026 | 1026 |
+| [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 671 | 518 | – | 630 | 498 | 1.0x | 1893 | 1759 |
 | [`depth-anything-v2-metric-hypersim-b`](../models/depth.md#depth_anything_v2) | 237 | 184 | – | 216 | 170 | 1.1x | 1017 | 1027 |
 | [`depth-anything-v2-metric-hypersim-l`](../models/depth.md#depth_anything_v2) | 700 | 527 | – | 641 | 581 | 0.9x | 1831 | 1737 |
 | [`depth-anything-v2-metric-hypersim-s`](../models/depth.md#depth_anything_v2) | 96.4 | 79.8 | – | 106 | 68.5 | 1.2x | 737 | 710 |
 | [`depth-anything-v2-metric-vkitti-b`](../models/depth.md#depth_anything_v2) | 291 | 188 | – | 232 | 198 | 0.9x | 1021 | 996 |
 | [`depth-anything-v2-metric-vkitti-l`](../models/depth.md#depth_anything_v2) | 661 | 527 | – | 720 | 587 | 0.9x | 1924 | 1684 |
 | [`depth-anything-v2-metric-vkitti-s`](../models/depth.md#depth_anything_v2) | 117 | 78.5 | – | 87.1 | 67.4 | 1.2x | 735 | 707 |
-| [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 93.0 | 73.4 | – | 88.2 | 66.3 | 1.1x | 727 | 698 |
+| [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 92.3 | 73.8 | – | 84.9 | 66.5 | 1.1x | 725 | 696 |
 | [`depth-pro`](../models/depth.md#depth_pro) | 7541 | 4653 | – | – | – | – | 5490 | – |
 | [`depthfm-v1`](../models/depth.md#depthfm) | 75642 | 39312 | – | – | – | – | 8118 | – |
 | [`distill-any-depth-b`](../models/depth.md#depth_anything_v2) | 231 | 184 | – | 216 | 170 | 1.1x | 1027 | 1020 |
@@ -147,10 +147,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`marigold-v2-depth`](../models/depth.md#marigold_v2) | – | – | 51319 | – | – | – | 2251 | – |
 | [`metric3d-vit-large`](../models/depth.md#metric3d) | 2586 | 2337 | – | – | – | – | 2943 | – |
 | [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 861 | 668 | – | – | – | – | 1994 | – |
-| [`moge-2-vitb-normal`](../models/depth.md#moge) | 595 | 449 | – | unsupported | – | – | 1731 | – |
-| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1350 | 1027 | – | – | – | – | 2482 | – |
-| [`moge-2-vits-normal`](../models/depth.md#moge) | 372 | 271 | – | unsupported | – | – | 1449 | – |
-| [`moge-3-vitl`](../models/depth.md#moge) | 2867 | 2573 | – | – | – | – | 3084 | – |
+| [`moge-2-vitb-normal`](../models/depth.md#moge) | 579 | 443 | – | unsupported | – | – | 1389 | – |
+| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1349 | 1033 | – | unsupported | – | – | 1927 | – |
+| [`moge-2-vits-normal`](../models/depth.md#moge) | 372 | 282 | – | unsupported | – | – | 1250 | – |
+| [`moge-3-vitl`](../models/depth.md#moge) | 2879 | 2543 | – | unsupported | – | – | 2566 | – |
 | [`omni-dc`](../models/depth.md#omni_dc) | 4033 | 3873 | – | – | – | – | 5387 | – |
 | [`pointdit-b-512`](../models/depth.md#pointdit) | 343 | 356 | – | – | – | – | 1695 | – |
 | [`pointdit-l-512`](../models/depth.md#pointdit) | 1047 | 1231 | – | – | – | – | 4003 | – |

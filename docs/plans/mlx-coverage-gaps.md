@@ -591,14 +591,60 @@ work of 2026-11-23 had already landed after the 886 ms row):
 
 Still open for MoGe:
 
-- First call. The export of `_trunk` is ~1.6 s of the ~2 s first call (translate 0.26 s), so vits and vitb miss the
-  auto budget (MPS first + 2 x MPS warm: 1.0 s and 1.6 s) although they are 10% faster warm. A hand-written
-  `mlx_vit` encoder with only the decoder exported is the way in.
+- First call: done, see "MoGe trunk without an export" below.
 - Warm, vits fp16 per call (eager per-op times): ViT ~135 ms (SDPA 64, linears 46), decoder 3x3 convs ~120,
   replicate pads ~47, relu/add ~29, antialiased input resize 14. A replicate pad (2.4 ms at 64 x 392 x 584) costs
   half its conv.
 - `moge-3-vitl` (2573 ms vs 2415 ms for MPS kernels float32; MPS portable fp16 is 3333): the ViT-L encoder at 3578
   tokens dominates.
+
+### MoGe trunk without an export (2026-11-24)
+
+The first call of an exported port pays for `torch.export` itself: in a fresh process ~0.6 s of imports the first
+time anything is exported, ~0.9 s to trace MoGe ViT-S's `_trunk` (more for B / L), 0.13-0.26 s to translate. Caching
+the translated plan across processes would still leave the trace, and exporting only the decoder still pays the
+0.6 s of imports, so the whole trunk is now hand-written on MLX (`moge/mlx_net.py`): the antialiased input resize
+as two matrices, the shared DINOv2 encoder (`mlx_vit.dinov2_layers` / `dinov2_table`, which Depth Anything V2's
+engine now uses too), and the decoder channels-last (3x3 replicate-padded convs, the stride-2 transposed convs as
+one GEMM plus a depth-to-space, the uv 1x1 convs as a separable sum, the folded top level in float32 with the
+neck's part of every head in one conv). Nothing is exported and the weights convert at load (as on MPS), so load
+time rises by what the first call used to hide (survey loads are disk-bound and noisy: vits 0.2 -> 0.3 s, vitl
+0.3 -> ~1.5 s, moge-3 0.3 -> 1.5-4 s; MPS loads 0.3 / 0.7 / 3.4 s).
+
+MLX fp16 portable, 994x1482, survey rows (warm ms / first call s / peak MB), MPS best as in the table above:
+
+| ref | MPS | MLX before | MLX now | first-call budget | auto |
+|---|---|---|---|---|---|
+| moge-2-vits-normal | 303 / 0.40 / 1679 | 271 / 1.96 / 1449 | 282 / 0.31 / 1250 | 1.00 | MLX (was MPS) |
+| moge-2-vitb-normal | 494 / 0.62 / 2263 | 449 / 2.14 / 1731 | 443 / 0.46 / 1389 | 1.61 | MLX (was MPS) |
+| moge-2-vitl-normal | 1176 / 1.25 / 3258 | 1027 / 3.21 / 2482 | 1033 / 1.06 / 1927 | 3.60 | MLX |
+| moge-3-vitl | 2415 / 2.61 / 6121 | 2573 / 4.85 / 3084 | 2543 / 3.05 / 2566 | 7.44 | MPS (warm) |
+
+Float32 rows: vits 372 -> 372 ms (first 2.20 -> 0.41 s, peak 1874 -> 1790 MB), vitb 595 -> 579 (2.33 -> 0.61,
+2082 -> 2036), vitl 1350 -> 1349 (3.64 -> 1.44, 3520 -> 3004), moge-3 2867 -> 2879 (5.31 -> 4.71, 3873 -> 3207).
+A second input shape costs one call now (vits 1.15 -> 0.28 s). The Depth Anything V2 rows did not move.
+
+Warm speed is equal within noise except vits fp16, 271 -> 282 ms (+4%; in-process A/B 277-282 against 271-272).
+What was tried on that gap, vits fp16:
+
+- GELU as one compiled float32 kernel, as the translator has it (`mlx_vit.gelu`, every `mlx_vit` family): 282 ->
+  277 ms. Kept.
+- `row_layer_norm` for the 384-wide norms (the translator's choice below 512): 0-3 ms, inside the noise. Not taken
+  (it would bring a kernels op into the shared portable encoder for one ViT size).
+- `mx.pad(mode="edge")` instead of slice + concatenate: 282 -> 308 ms. Reverted.
+- The translator's `_conv2d` channel padding rules on the decoder convs: no change (none of them applies: 256 / 128
+  / 64 channel convs and 16 / 12 / 4 output float32 top convs).
+- 1x1 convs as 2-D instead of 4-D matmuls: no change. Reverted.
+- `mx.async_eval` checkpoints: none 281, synchronous 285, every 2 or 4 ViT blocks 279-281 against 282. No lead.
+- Stage times: resize 8 ms, ViT 109-114 ms, whole trunk ~272 ms, call ~279 ms.
+
+Still open:
+
+- The same no-export trunk would cut the first call of the other DINOv2-backbone ports that still export
+  (`da3-large-1.1`, `da3metric-large`, `da3mono-large`, `da3-giant`, `depth-pro`): `dinov2_layers` is the encoder,
+  each needs its decoder written by hand.
+- vits fp16's 4% warm gap against the replayed graph: cause not found (none of the single ops above).
+- `moge-3-vitl` stays on MPS kernels float32 (2543 against 2415 ms warm).
 
 ## Ragged 3x3 convs and MLX's fast path: what the translator pads (2026-11-24)
 

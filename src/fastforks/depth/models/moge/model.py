@@ -31,7 +31,6 @@ from torch import nn
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import half_weights
-from fastforks._core.mlx_cast import to_float32
 from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks._core.upload import to_device
@@ -818,95 +817,67 @@ class _FoldedTop(nn.Module):
         self.register_buffer("bias", bias.float())
 
     def forward(self, head: torch.Tensor, neck: torch.Tensor, u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-        """`head`, `neck`: `[B, 64, h + 2, w + 2]` (float32, replicate-padded); `u`, `v`: the axes of the uv plane."""
-        y = F.conv2d(head, to_float32(self.get_buffer("head"))) + F.conv2d(neck, to_float32(self.get_buffer("neck")))
+        """`head`, `neck`: `[B, 64, h + 2, w + 2]` (float32, replicate-padded); `u`, `v`: the axes of the uv plane.
+
+        The reference of `mlx_net.forward`'s top level, which runs these weights channels-last.
+        """
+        y = F.conv2d(head, self.get_buffer("head")) + F.conv2d(neck, self.get_buffer("neck"))
         b, c, h, w = y.shape
         y = y.view(b, c // 4, 2, 2, h, w).permute(0, 1, 4, 2, 5, 3).reshape(b, c // 4, 2 * h, 2 * w)
-        plane = to_float32(self.get_buffer("plane"))
-        rows = plane[:, 1].view(1, -1, 1, 1) * v.view(1, 1, -1, 1) + to_float32(self.get_buffer("bias")).view(
-            1, -1, 1, 1
-        )
+        plane = self.get_buffer("plane")
+        rows = plane[:, 1].view(1, -1, 1, 1) * v.view(1, 1, -1, 1) + self.get_buffer("bias").view(1, -1, 1, 1)
         return y + plane[:, 0].view(1, -1, 1, 1) * u.view(1, 1, 1, -1) + rows
-
-
-def _below_top(cs: ConvStack, feats: Sequence[torch.Tensor]) -> tuple[list[torch.Tensor], torch.Tensor]:
-    """`ConvStack.forward` without its last level: the other levels' outputs and the last resampler's input."""
-    outs = []
-    x = feats[0]
-    n = len(cs.res_blocks) - 1
-    for i in range(n):
-        f = cs.input_blocks[i](feats[i])
-        x = cs.res_blocks[i](f if i == 0 else x + f)
-        outs.append(cs.output_blocks[i](x))
-        if i < n - 1:
-            x = cs.resamplers[i](x)
-    return outs, x
-
-
-def _rep_pad32(x: torch.Tensor) -> torch.Tensor:
-    return F.pad(to_float32(x), (1, 1, 1, 1), mode="replicate")
 
 
 class _MlxPortable(Portable):
     """`Portable` for the MLX runners.
 
-    The trunk runs as an MLX graph (`mlx_wrap.port`) with the heads' full-resolution level folded to half resolution
-    (`_FoldedTop`), the MoGe-3 refiner as hand-written MLX operations and Metal kernels (`mlx_refine`, float32; on
-    the CPU it took 3.8 s and ~4 GB at 994x1482).
+    The trunk is hand-written MLX operations (`mlx_net`: no exported graph, so no trace on a first call) with the
+    heads' full-resolution level folded to half resolution (`_FoldedTop`); the MoGe-3 refiner is hand-written MLX
+    operations and Metal kernels too (`mlx_refine`, float32; on the CPU it took 3.8 s and ~4 GB at 994x1482).
     """
 
-    _mlx_refiner: Any = None
+    module = Runner.module  # MLX operations: nothing to export
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network and fold the heads' last level."""
-        super().__init__(ctx)
-        net = self.net
+        """Convert the trunk's weights (folding the heads' last level); only the refiner stays a module."""
+        Runner.__init__(self, ctx)
+        from . import mlx_net, mlx_refine  # noqa: PLC0415 - MLX only on Apple
+
+        net = _net(ctx)
         heads = {"points": net.points_head, "mask": net.mask_head}
         if ctx.params.normals:
             heads["normal"] = net.normal_head
-        net.folded = nn.ModuleDict({k: _FoldedTop(net.neck, m) for k, m in heads.items()})
-
-    def _trunk(
-        self, image: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor]:
-        net, p = self.net, self.ctx.params
-        b, _, h, w = image.shape
-        rows, cols = grid(h, w, p.resolution_level)
-        a = w / h
-        feat, cls = net.encoder(image, rows, cols)
-        uv = [
-            view_plane_uv(cols << i, rows << i, a, image.device).permute(2, 0, 1)[None].expand(b, -1, -1, -1)
-            for i in range(4)
-        ]
-        enc = torch.cat([feat, uv[0].to(feat.dtype)], 1)
-        levels, _ = _below_top(net.neck, [enc, *uv[1:]])
-        low = _rep_pad32(levels[-1])
-        axes = _plane_axes(cols << 4, rows << 4, a, image.device)
-        folded = cast("nn.ModuleDict", net.folded)
-        top = {
-            k: m(_rep_pad32(_below_top(getattr(net, f"{k}_head"), levels)[1]), low, *axes) for k, m in folded.items()
-        }
-        scale = net.scale_head(cls)[:, 0].exp()
-        return top["points"], top["mask"], top.get("normal"), scale, enc
+        folded: dict[str, nn.Module] = {k: _FoldedTop(net.neck, m) for k, m in heads.items()}
+        self.trunk = mlx_net.Trunk(net, folded, mlx_wrap.run_dtype(ctx))
+        self.refiner = None if net.refiner is None else mlx_refine.MlxRefiner(net.refiner)
 
     def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
-        coords, mask, normal, scale, enc = self._trunk(image)
-        if self.net.refiner is not None:
+        from fastforks._core.mlx import mx, to_torch  # noqa: PLC0415 - MLX only on Apple
+
+        b, _, h, w = image.shape
+        rows, cols = grid(h, w, self.ctx.params.resolution_level)
+        a = w / h
+        axes = [_plane_axes(cols << i, rows << i, a, "cpu") for i in range(5)]
+        tops, scale, feat = self.trunk(image, rows, cols, axes)
+        maps = dict(zip(self.trunk.names, (to_torch(mx.transpose(t, (0, 3, 1, 2))) for t in tops), strict=True))
+        coords = maps["points"]
+        if self.refiner is not None:
             from . import mlx_refine  # noqa: PLC0415 - MLX only on Apple
 
-            if self._mlx_refiner is None:
-                self._mlx_refiner = mlx_refine.MlxRefiner(self.net.refiner)
-            coords = mlx_refine.refine(self._mlx_refiner, coords, enc, _REFINE_STEPS, _DEPTH_RES)
-        return coords, mask, normal, scale
+            uv0 = torch.stack(torch.meshgrid(*axes[0], indexing="xy"))[None].expand(b, -1, -1, -1)
+            enc = torch.cat([to_torch(mx.transpose(feat, (0, 3, 1, 2))), uv0], 1)
+            coords = mlx_refine.refine(self.refiner, coords, enc, _REFINE_STEPS, _DEPTH_RES)
+        return coords, maps["mask"], maps.get("normal"), to_torch(scale)
 
 
-# compile=False: the compiled fp16 segments of the full-resolution decoder peak at 3.9 GB (moge-2-vits 994x1482), the
-# lazy replay at 2.0 GB, at the same speed (vitb: 8 % slower, 2.1 GB vs MPS 2.3 GB)
+# `mlx_wrap.port` with nothing to wrap: it builds the runner with float32 weights read lazily from the checkpoint
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False, pipeline=True),
-    "kernels_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False),
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
     "kernels_mps": MetalKernels,
 }
 

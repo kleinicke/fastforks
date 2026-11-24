@@ -38,7 +38,9 @@ __all__ = [
     "block",
     "blocks",
     "depth_of",
+    "dinov2_layers",
     "dinov2_params",
+    "dinov2_table",
     "gelu",
     "patches",
     "rope_tables",
@@ -63,9 +65,14 @@ def patches(x: mx.array, patch: int) -> mx.array:
     return x.reshape(b, h0 * w0, patch * patch * c)
 
 
-def gelu(x: mx.array) -> mx.array:
-    """Exact (erf) GELU, as torch's default."""
-    return x * (0.5 + 0.5 * mx.erf(x * 0.7071067811865476))
+def _gelu(x: mx.array) -> mx.array:
+    y = x.astype(mx.float32)
+    return (y * (0.5 + 0.5 * mx.erf(y * 0.7071067811865476))).astype(x.dtype)
+
+
+gelu = mx.compile(_gelu, shapeless=True)
+"""Exact (erf) GELU, as torch's default: one fused kernel that computes in float32 (as `mlx_graph`'s; five passes
+uncompiled, MoGe ViT-S 994x1482 float16 282 -> 277 ms; `1 + erf` of a negative input cancels in float16)."""
 
 
 def rope_tables(cos: mx.array, sin: mx.array, prefix: int) -> tuple[mx.array, mx.array]:
@@ -246,6 +253,36 @@ def _embed(p: dict[str, mx.array], x: mx.array, table: mx.array) -> mx.array:
     t = patches(x.astype(table.dtype), PATCH) @ p["patch.weight"] + table[1:]
     prefix = table[:1] if "registers" not in p else mx.concatenate([table[:1], p["registers"]])
     return mx.concatenate([mx.broadcast_to(prefix, (x.shape[0], *prefix.shape)), t], axis=1)
+
+
+def dinov2_layers(
+    p: dict[str, mx.array], heads: int, x: mx.array, table: mx.array, layers: tuple[int, ...]
+) -> list[mx.array]:
+    """Normalised `[B, 3, H, W]` -> the tokens `[B, 1 + R + N, C]` after the blocks `layers`, each through the norm.
+
+    DINOv2's `get_intermediate_layers(norm=True)` with 1-based, ascending `layers` (the blocks after the last one do
+    not run); `table`: `dinov2_table` in the weights' dtype. Lazy, in that dtype: for a port that writes its head in
+    MLX operations too (Depth Anything V2, MoGe).
+    """
+    _, hs = blocks(p, max(layers), heads, EPS, _embed(p, x, table), layers)
+    return [mx.fast.layer_norm(h, p["norm.weight"], p["norm.bias"], EPS) for h in hs]
+
+
+def dinov2_table(
+    cls: torch.Tensor, grid: torch.Tensor, bias: torch.Tensor, h0: int, w0: int, offset: float = 0.1
+) -> torch.Tensor:
+    """The embedding table `[1 + h0 * w0, C]` of an `h0 x w0` patch grid (float32): what `_embed` adds.
+
+    Row 0 = `cls` (`pos.cls`: class token + its position), the rest = the patch positions `grid` (`pos.grid`, a square
+    table) + the patch embedding's `bias`. Another grid size is DINOv2's `interpolate_pos_encoding`: bicubic by scale
+    factors, with its `interpolate_offset`.
+    """
+    side = math.isqrt(grid.shape[0])
+    if (h0, w0) != (side, side):
+        g = grid.reshape(1, side, side, -1).permute(0, 3, 1, 2)
+        g = F.interpolate(g, scale_factor=((h0 + offset) / side, (w0 + offset) / side), mode="bicubic")
+        grid = g[0].permute(1, 2, 0).reshape(h0 * w0, -1)
+    return torch.cat([cls, grid + bias])
 
 
 def _feature_forward(

@@ -20,10 +20,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from fastforks._core.mlx import mx, to_mx, tuning
-from fastforks.shared.mlx_vit import blocks, depth_of, dinov2_params, patches
+from fastforks.shared.mlx_vit import dinov2_layers, dinov2_params, dinov2_table
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,11 +31,8 @@ if TYPE_CHECKING:
 
 LAYOUT = "v1"  # version of `prepare`'s parameter layout (for the conversion cache's file name)
 PATCH = 14
-EPS = 1e-6  # LayerNorm
 HEADS = {"vits": 6, "vitb": 12, "vitl": 16, "vitg": 24}
 LAYERS = {"vits": (3, 6, 9, 12), "vitb": (3, 6, 9, 12), "vitl": (5, 12, 18, 24), "vitg": (10, 20, 30, 40)}
-GRID = 37  # the position table's side (518 / 14)
-OFFSET = 0.1  # upstream `interpolate_offset`
 TABLES = 8  # position tables kept (one per grid size, least recently used dropped)
 SHUFFLE = (4, 2)  # stride (= kernel) of the transposed convolutions of the two finest levels
 
@@ -161,14 +157,11 @@ def head(  # noqa: PLR0913 - the head's pieces
 
 
 def forward(  # noqa: PLR0913 - the network's pieces
-    p: dict[str, mx.array], depth: int, arch: str, x: mx.array, table: mx.array, *, sigmoid: bool, up: Resize = resize
+    p: dict[str, mx.array], arch: str, x: mx.array, table: mx.array, *, sigmoid: bool, up: Resize = resize
 ) -> mx.array:
     """Normalised `[B, 3, h, w]` -> float32 `[B, h, w]` (`table`: `Engine.table`, in the weights' dtype)."""
     h0, w0 = x.shape[2] // PATCH, x.shape[3] // PATCH
-    t = patches(x.astype(table.dtype), PATCH) @ p["patch.weight"] + table[1:]
-    t = mx.concatenate([mx.broadcast_to(table[:1], (x.shape[0], 1, table.shape[1])), t], axis=1)
-    _, hs = blocks(p, depth, HEADS[arch], EPS, t, LAYERS[arch])
-    feats = [mx.fast.layer_norm(h, p["norm.weight"], p["norm.bias"], EPS)[:, 1:] for h in hs]
+    feats = [t[:, 1:] for t in dinov2_layers(p, HEADS[arch], x, table, LAYERS[arch])]
     return head(p, feats, h0, w0, sigmoid=sigmoid, up=up)
 
 
@@ -179,16 +172,14 @@ class Engine:
         """Cast the float32 parameters of `prepare` (`p32`, emptied) to the run dtype; `up`: the head's resize."""
         self.dtype = getattr(mx, dtype)
         host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos.cls", "pos.grid", "patch.bias")}
-        self.pos = host["pos.grid"].reshape(1, GRID, GRID, -1).permute(0, 3, 1, 2)  # fp32, as upstream's table
-        self.cls, self.bias = host["pos.cls"], host["patch.bias"]
+        self.pos, self.cls, self.bias = host["pos.grid"], host["pos.cls"], host["patch.bias"]  # fp32, as upstream
         fp32 = ("head.out3.weight", "head.out3.bias")
         self.p = {k: v if k in fp32 else v.astype(self.dtype) for k, v in p32.items()}
         p32.clear()
         mx.eval(self.p)
-        depth = depth_of(self.p)
 
         def run(x: mx.array, table: mx.array) -> mx.array:
-            return forward(self.p, depth, arch, x, table, sigmoid=sigmoid, up=up)
+            return forward(self.p, arch, x, table, sigmoid=sigmoid, up=up)
 
         self.run: Callable[[mx.array, mx.array], mx.array] = mx.compile(run) if tuning().compile_steps else run
         self.tables: OrderedDict[tuple[int, int], mx.array] = OrderedDict()
@@ -197,11 +188,7 @@ class Engine:
         """`[1 + h0 * w0, C]` in the run dtype: row 0 = cls token + its position, the rest = positions + patch bias."""
         key = (h0, w0)
         if key not in self.tables:
-            grid = self.pos
-            if key != (GRID, GRID):  # upstream `interpolate_pos_encoding` (fp32, bicubic, scale factors)
-                grid = F.interpolate(grid, scale_factor=((h0 + OFFSET) / GRID, (w0 + OFFSET) / GRID), mode="bicubic")
-            t = torch.cat([self.cls, grid[0].permute(1, 2, 0).reshape(h0 * w0, -1) + self.bias])
-            table = to_mx(t).astype(self.dtype)
+            table = to_mx(dinov2_table(self.cls, self.pos, self.bias, h0, w0)).astype(self.dtype)
             mx.eval(table)
             self.tables[key] = table
             while len(self.tables) > TABLES:
