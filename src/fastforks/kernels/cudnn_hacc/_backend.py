@@ -67,9 +67,9 @@ class CudnnError(RuntimeError):
 def _mapped_path(soname: str) -> str:
     """Absolute path of the already loaded `soname` (from `/proc/self/maps`), else `soname` itself."""
     try:
-        with open("/proc/self/maps") as f:  # noqa: PTH123
+        with open("/proc/self/maps", encoding="utf-8") as f:  # noqa: PTH123
             for line in f:
-                path = line.rsplit(maxsplit=1)[-1]
+                path = line.split(None, 5)[-1].rstrip("\n")  # the sixth field, may hold spaces
                 if path.startswith("/") and path.rsplit("/", 1)[-1].startswith(soname):
                     return path
     except OSError:

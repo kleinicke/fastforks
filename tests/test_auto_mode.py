@@ -167,3 +167,18 @@ def test_auto_mps_dtype_needs_the_card_and_the_table(monkeypatch):
     monkeypatch.setattr(core_model, "_apple_mlx", lambda: {variant.ref: {"mps_dtype": "float16"}})
     unvalidated = core_model.dataclasses.replace(card, portable_mps_dtypes=("float32",))
     assert core_model._auto_mps_dtype(unvalidated, variant) is None
+
+
+def test_apple_table_routes_only_to_card_mlx_dtypes():
+    """Every MLX route and passing run in apple_mlx.json is a mode/dtype the card's MLX port declares."""
+    models = json.loads((ROOT / "src/fastforks/_core/apple_mlx.json").read_text(encoding="utf-8"))["models"]
+    assert models
+    bad = []
+    for key, row in models.items():
+        card, _ = registry.resolve_any(key.split("@", 1)[0])
+        used = {(mode, dtype) for dtype, mode in row.get("mlx", {}).items()}
+        used |= {(mode, dtype) for mode, dtypes in row.get("passed", {}).items() for dtype in dtypes}
+        if row.get("mlx_default"):
+            used.add(tuple(row["mlx_default"]))
+        bad += [f"{key}: {mode} {dtype}" for mode, dtype in sorted(used) if dtype not in card.mlx_dtypes(mode)]
+    assert not bad, "routes to dtypes the card's MLX port does not declare:\n" + "\n".join(bad)

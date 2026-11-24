@@ -280,7 +280,7 @@ OPS[aten.roll.default] = lambda x, shifts, dims=(): _roll(x, shifts, dims)
 OPS[aten.repeat.default] = lambda x, r: mx.tile(x, list(r))
 OPS[aten.tril.default] = lambda x, k=0: mx.tril(x, k)
 OPS[aten.triu.default] = lambda x, k=0: mx.triu(x, k)
-OPS[aten.cumsum.default] = lambda x, d, dtype=None: mx.cumsum(x, d)
+OPS[aten.cumsum.default] = lambda x, d, dtype=None: mx.cumsum(_cum_in(x, dtype), d)
 OPS[aten.as_strided.default] = lambda x, size, stride, offset=0: mx.as_strided(
     x, list(size), list(stride), int(offset or 0)
 )
@@ -662,6 +662,18 @@ def _fft_c2r(x: mx.array, dim: Sequence[int], normalization: int, last_dim_size:
     return y * (n * _fft_scale(normalization, n))
 
 
+def _cum_in(x: mx.array, dtype: torch.dtype | None) -> mx.array:
+    """The input of a cumulative sum in PyTorch's result dtype: `dtype` if given, int64 for integer and bool inputs."""
+    if dtype is not None:
+        return x.astype(_dt(dtype))
+    return x.astype(mx.int64) if x.dtype == mx.bool_ or mx.issubdtype(x.dtype, mx.integer) else x
+
+
+def _ddof(correction: float | None) -> int:
+    """`mx.var`'s `ddof` for an ATen `correction`: None is PyTorch's default, the unbiased estimate (1)."""
+    return 1 if correction is None else int(correction)
+
+
 OPS[aten.empty.memory_format] = lambda size, dtype=None, **_: mx.zeros(tuple(size), dtype=_dt(dtype) or mx.float32)
 OPS[aten.view_as_real.default] = lambda x: mx.stack([mx.real(x), mx.imag(x)], axis=-1)
 OPS[aten.view_as_complex.default] = lambda x: x[..., 0] + 1j * x[..., 1]
@@ -681,6 +693,10 @@ def _vector_norm(
     ax = tuple(d) if d else None
     if ord == float("inf"):
         r = mx.max(y, axis=ax, keepdims=keep)
+    elif ord == -float("inf"):
+        r = mx.min(y, axis=ax, keepdims=keep)
+    elif ord == 0:  # the count of non-zero entries
+        r = mx.sum((y != 0).astype(mx.float32), axis=ax, keepdims=keep)
     elif ord == 2:
         r = mx.sqrt(mx.sum(y * y, axis=ax, keepdims=keep))
     elif ord == 1:
@@ -697,8 +713,8 @@ OPS[aten.any.dim] = lambda x, d, keep=False: mx.any(x, axis=d, keepdims=keep)
 OPS[aten.all.dim] = lambda x, d, keep=False: mx.all(x, axis=d, keepdims=keep)
 OPS[aten.argmax.default] = lambda x, d=None, keep=False: mx.argmax(x, axis=d, keepdims=keep)
 OPS[aten.argmin.default] = lambda x, d=None, keep=False: mx.argmin(x, axis=d, keepdims=keep)
-OPS[aten.var.correction] = lambda x, d=None, correction=1, keepdim=False: mx.var(
-    x, axis=tuple(d) if d else None, keepdims=keepdim, ddof=int(correction or 0)
+OPS[aten.var.correction] = lambda x, d=None, correction=None, keepdim=False: mx.var(
+    x, axis=tuple(d) if d else None, keepdims=keepdim, ddof=_ddof(correction)
 )
 
 
@@ -710,7 +726,7 @@ def _var_mean(
     y = x.astype(mx.float32)
     axis = tuple(d) if d else None
     return (
-        mx.var(y, axis=axis, keepdims=keepdim, ddof=int(correction or 0)).astype(x.dtype),
+        mx.var(y, axis=axis, keepdims=keepdim, ddof=_ddof(correction)).astype(x.dtype),
         mx.mean(y, axis=axis, keepdims=keepdim).astype(x.dtype),
     )
 
@@ -792,6 +808,18 @@ OPS[aten.empty_permuted.default] = lambda size, physical_layout, dtype=None, **_
 OPS[aten.min.default] = lambda x: mx.min(x)
 
 
+def _negated(x: mx.array) -> mx.array:
+    """`-x` for a descending argsort: unsigned and boolean values widen to a signed type first (negation wraps)."""
+    if x.dtype == mx.bool_ or x.dtype in (mx.uint8, mx.uint16):
+        return -x.astype(mx.int32)
+    if x.dtype == mx.uint32:
+        return -x.astype(mx.int64)
+    if x.dtype == mx.uint64:
+        msg = "descending sort of uint64 values"
+        raise UnsupportedOp(msg)
+    return -x
+
+
 @_reg(aten.sort.default, aten.sort.stable)
 def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:
     dim = kw.get("dim", -1)
@@ -802,14 +830,14 @@ def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:
     bools = [a for a in args if isinstance(a, bool)]
     if bools:
         descending = bools[-1]
-    order = mx.argsort(-x if descending else x, axis=dim)
+    order = mx.argsort(_negated(x) if descending else x, axis=dim)
     return mx.take_along_axis(x, order, axis=dim), order
 
 
 @_reg(aten.topk.default)
 def _topk(x: mx.array, k: int, dim: int = -1, largest: bool = True, sorted_: bool = True) -> tuple[mx.array, mx.array]:
     del sorted_
-    order = mx.argsort(-x if largest else x, axis=dim)
+    order = mx.argsort(_negated(x) if largest else x, axis=dim)
     idx = mx.take(order, mx.arange(k), axis=dim)
     return mx.take_along_axis(x, idx, axis=dim), idx
 
@@ -2568,7 +2596,7 @@ def _var_mean_cl(
         return _var_mean(x, d, correction, keepdim)
     n, c = x.shape[:2]
     flat = _cl(x).reshape(n, -1, c)
-    rows, ddof = flat.shape[1], int(correction or 0)
+    rows, ddof = flat.shape[1], _ddof(correction)
     if _KERNELS and rows >= 4096:
         from fastforks.kernels.graph_mlx import ops
 
@@ -3371,6 +3399,11 @@ class GraphNet:
                     plan.append(("call", node.name, _conv_act, _plain(folds.args.get(node.name, node.args)), kw))
                     continue
                 args = folds.args.get(node.name, node.args)
+                if node.target is aten.max_pool2d_with_indices.default and any(
+                    u.target is operator.getitem and u.args[1] == 1 for u in node.users
+                ):
+                    msg = "max_pool2d indices (the translation returns only the pooled values)"
+                    raise UnsupportedOp(msg)
                 op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
                 if op is _run_dtype:
                     op = functools.partial(mx.astype, dtype=self.dtype)

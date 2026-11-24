@@ -125,7 +125,8 @@ def _runtime() -> ctypes.CDLL | None:
             maps = Path("/proc/self/maps").read_text(encoding="utf-8")
         except OSError:
             maps = ""
-        found = sorted({line.split()[-1] for line in maps.splitlines() if "/libcudart.so" in line})
+        # the path is the sixth field and may hold spaces
+        found = sorted({line.split(None, 5)[5] for line in maps.splitlines() if "/libcudart.so" in line})
     return ctypes.CDLL(found[0]) if len(found) == 1 else None
 
 

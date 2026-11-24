@@ -9,6 +9,7 @@ CONTRIBUTING.md ("Model cards").
 from __future__ import annotations
 
 import dataclasses
+import importlib.metadata
 import re
 import tomllib
 from dataclasses import dataclass, field
@@ -42,10 +43,8 @@ OptionEffect = Literal["speed", "precision"]
 Feature = Literal["load", "kernels", "compile", "onnx", "tensorrt"]
 """What a card can mark as not working yet (`[planned]`): loading at all, the kernels backend, `Model.compile()`,
 `export_onnx` (also blocks `export_tensorrt`, which exports ONNX first) or `export_tensorrt`."""
-RELEASE = "0.2.0"
-"""The release these cards describe; `[planned]` features are not available in it."""
-PLANNED_RELEASE = "0.2.1"
-"""The release the `[planned]` features are planned for (internal list: docs/plans/KNOWN_BROKEN_0.2.1.md)."""
+RELEASE = importlib.metadata.version("fastforks-core")
+"""The installed release; the cards' `[planned]` features are not available in it (docs/plans/KNOWN_BROKEN_0.2.1.md)."""
 
 SCHEMA = 2
 _T = TypeVar("_T")
@@ -231,7 +230,7 @@ class Variant:
             `<name>` loads, as `timm.create_model("resnet50")` picks its default pretrained tag. At most one variant
             per `<name>` and task (checked by the registry).
         planned: Features known not to work yet -> why (the family's card `[planned]` with the variant's `planned`
-            overrides); using one raises `BackendUnavailableError` "not available in 0.2.0, planned for 0.2.1".
+            overrides); using one raises `BackendUnavailableError` "not available in <release> yet".
     """
 
     id: str
@@ -897,14 +896,13 @@ def require_available(variant: Variant, feature: Feature) -> None:
     """Raise if the card marks `feature` of `variant` as `[planned]` (known not to work in this release).
 
     Raises:
-        BackendUnavailableError: "`<ref>`: <feature> is not available in 0.2.0, planned for 0.2.1: <reason>".
+        BackendUnavailableError: "`<ref>`: <feature> is not available in <release> yet: <reason>".
     """
     reason = planned_reason(variant, feature)
     if reason is not None:
         what = {"load": "loading", "compile": "compile()", "onnx": "export_onnx", "tensorrt": "export_tensorrt"}
         msg = (
-            f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE}, planned for"
-            f" {PLANNED_RELEASE}: {reason.rstrip('.')}"
+            f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE} yet: {reason.rstrip('.')}"
         )
         if feature == "kernels":
             msg += "; use mode='portable'"

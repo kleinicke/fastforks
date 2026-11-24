@@ -700,7 +700,7 @@ Commercial use: yes.
 - Training data: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingChairs, then FlyingThings3D (part of SceneFlow))
   - `raft-large`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, then fine-tuned on a mix of Sintel, KITTI 2015, HD1K and FlyingThings3D (clean pass))
   - `raft-large-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (as raft-large, then fine-tuned on KITTI 2015)
-- Options: `iters` = 12 (>= 1)
+- Options: `iters` = 12 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `raft_flow`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `raft-large`, `raft-large-things`, `raft-large-kitti`, `raft-small`
 - Outputs: flow
@@ -790,7 +790,7 @@ Commercial use: yes.
 - Weights licence: BSD-3-Clause
 - Licence evidence: <https://github.com/visinf/ReCoVEr/blob/503a27e38bad1080bd29da91df74c5523e11f8d8/LICENSE>
 - Training data: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH), as upstream's config/recover_*/Tartan*.json stages)
-- Options: `iters` = 4 (>= 1)
+- Options: `iters` = 4 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `recover_motion`, `flow_upsample`, `cudnn_hacc`
 - Variants: `recover-cx`, `recover-rn`, `recover-mn`
 - Outputs: flow

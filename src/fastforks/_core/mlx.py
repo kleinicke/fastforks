@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import functools
 import hashlib
 import itertools
 import os
@@ -212,7 +213,13 @@ def tuning() -> Tuning:
 
     Read when a model is built (and when a compiled step is traced), not per call.
     """
-    return dataclasses.replace(TUNING[tuning_row()], **(_parse(os.environ.get(_ENV, "")) | _OVERRIDE))
+    return _tuning(os.environ.get(_ENV, ""), tuple(_OVERRIDE.items()))
+
+
+@functools.lru_cache(maxsize=8)
+def _tuning(env: str, override: tuple[tuple[str, object], ...]) -> Tuning:
+    """`tuning()` for one environment value and override set: the kernel launchers call it per op."""
+    return dataclasses.replace(TUNING[tuning_row()], **(_parse(env) | dict(override)))
 
 
 def version() -> str:
@@ -354,7 +361,8 @@ def converted(
         return dict(cast("dict[str, mx.array]", mx.load(str(path))))  # a safetensors file loads as a dict
     arrays = build()
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{os.getpid()}.{path.name}")  # `mx.save_safetensors` wants the suffix
+    # per process and thread; ends in the suffix `mx.save_safetensors` wants
+    tmp = path.with_name(f".{os.getpid()}.{threading.get_ident()}.{path.name}")
     try:
         mx.save_safetensors(str(tmp), arrays)
         tmp.replace(path)

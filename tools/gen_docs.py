@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import _devices
 import goldens
 from fastforks._core import licences, registry
-from fastforks._core.cards import PLANNED_RELEASE, planned_reason
+from fastforks._core.cards import planned_reason
 from fastforks._core.sizes import card_size_lines
 from fastforks._core.tasks import spec
 
@@ -2174,7 +2174,7 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
-PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not available in this release
+PLANNED = "planned"  # a card-`[planned]` feature: not available in this release
 
 
 def _planned_line(card: ModelCard) -> list[str]:

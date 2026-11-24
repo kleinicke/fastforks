@@ -27,9 +27,10 @@ import logging
 import os
 import re
 import sys
+import threading
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeVar, cast
 
 import torch
 
@@ -45,6 +46,9 @@ if TYPE_CHECKING:
 
     from fastforks.detection import DetectionModel
     from fastforks.pose import PoseModel
+
+    _P = ParamSpec("_P")
+    _R = TypeVar("_R")
 
 log = logging.getLogger("fastforks.comfyui")
 
@@ -62,6 +66,7 @@ _MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few 
 _FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
 _files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration._api._checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
+_cache_lock = threading.RLock()  # re-entrant: `load` asks ComfyUI for room, which calls back into `make_room`
 FULL_PACK = "fastforks"  # registry id of the default pack (integrations/comfyui): every model, nc ones tagged
 COMMERCIAL_PACK = "fastforks-commercial"  # registry id of the commercial-only pack (integrations/comfyui-commercial)
 ONLY_FULL = (
@@ -349,6 +354,18 @@ def describe_backend(b: Any) -> str:  # noqa: ANN401 - fastforks.Backend
     return f"{b.device}, {b.dtype}, {'MLX graph' if b.mode != 'portable' and b.device == 'mlx' else b.mode}"
 
 
+def _locked(fn: Callable[_P, _R]) -> Callable[_P, _R]:
+    """`fn` holding `_cache_lock`: ComfyUI's API server can unload (`/free`) while the prompt worker loads."""
+
+    @functools.wraps(fn)
+    def locked(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with _cache_lock:
+            return fn(*args, **kwargs)
+
+    return locked
+
+
+@_locked
 def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
@@ -418,6 +435,7 @@ def fastforks_cache_default() -> str:
     return platformdirs.user_cache_dir("fastforks")
 
 
+@_locked
 def unload_all() -> None:
     """Drop every cached model and return their memory to the device."""
     if _cache:
@@ -482,6 +500,7 @@ def _held_on(m: fastforks.Model, device: torch.device) -> bool:
     return m.device.type == device.type and (m.device.index or 0) == (device.index or 0)  # `cuda` is `cuda:0`
 
 
+@_locked
 def make_room(memory_required: float, device: torch.device | None) -> None:
     """Free our cached models' memory on `device` while there is less than `memory_required` free there.
 
@@ -1078,9 +1097,11 @@ class Detect(_Node):
         size = (image.shape[1], image.shape[2])  # BHWC
 
         def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a detection result
+            rows = r.to_list()
             if keep:
-                r = r[torch.tensor([str(d.get("class_name")).lower() in keep for d in r.to_list()], dtype=torch.bool)]
-            dets = [{k: v for k, v in d.items() if k != "mask"} for d in r.to_list()]
+                sel = [str(d.get("class_name")).lower() in keep for d in rows]
+                r, rows = r[torch.tensor(sel, dtype=torch.bool)], [d for d, s in zip(rows, sel, strict=True) if s]
+            dets = [{k: v for k, v in d.items() if k != "mask"} for d in rows]
             return convert.union_mask(r.masks, r.boxes, size), dets
 
         # a batch: one network call where the family batches (DETR-style detectors), else one image at a time

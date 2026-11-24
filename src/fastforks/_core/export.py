@@ -93,7 +93,7 @@ def check_exportable(
     """Raise unless `model` runs portable, its card does not mark `feature` as `[planned]` and the size is supported.
 
     Raises:
-        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (planned for 0.2.1).
+        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (card `[planned]`).
         InputError: The size is below the model's minimum, or `batch < 1`.
     """
     require_available(model.variant, feature)

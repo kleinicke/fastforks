@@ -93,7 +93,7 @@ def main() -> int:
     a = ap.parse_args()
     res = []
     for path in a.files:
-        d = json.loads(Path(path).read_text())
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
         tot = {"port": 0.0, "kern": 0.0, "mps": 0.0}
         print(f"== {d['ref']} {d['input']}")
         for row in sorted(d["convs"], key=lambda r: -r["count"] * _flops(r)):

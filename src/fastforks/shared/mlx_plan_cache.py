@@ -189,7 +189,7 @@ class Entry:
         """Per segment: True compiled, False eager, None not tuned; None when no record matches `extra`."""
         path = self.base.with_suffix(".tune.json")
         try:
-            got = json.loads(path.read_text()).get(self._tune_key(extra))
+            got = json.loads(path.read_text(encoding="utf-8")).get(self._tune_key(extra))
         except (OSError, ValueError):
             return None
         return got if isinstance(got, list) else None
@@ -198,7 +198,7 @@ class Entry:
         """Record the per-segment decisions `use` (see `load_tune`) under `extra`; best effort."""
         path = self.base.with_suffix(".tune.json")
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             data = {}
         data[self._tune_key(extra)] = use

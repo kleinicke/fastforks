@@ -1022,7 +1022,7 @@ def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
     if "kernels" not in card.modes:
         return "no kernels backend"
     if reason := planned_reason(variant, "kernels"):
-        return f"kernels planned for 0.2.1 ({reason})"
+        return f"kernels not available yet ({reason})"
     if fp32 and kernels_dtype != "float32":
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:

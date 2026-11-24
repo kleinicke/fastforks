@@ -57,7 +57,7 @@ def _variant(**planned: str) -> object:
 @pytest.mark.parametrize("feature", ["load", "kernels", "compile", "onnx", "tensorrt"])
 def test_message_names_release_and_reason(feature: str) -> None:
     v = _variant(**{feature: "the reason."})
-    with pytest.raises(BackendUnavailableError, match=r"not available in 0\.2\.0, planned for 0\.2\.1: the reason"):
+    with pytest.raises(BackendUnavailableError, match=r"not available in \S+ yet: the reason"):
         require_available(v, feature)
     require_available(_variant(), feature)  # nothing planned: no error
 
@@ -80,7 +80,7 @@ def test_auto_skips_planned_kernels() -> None:
     card = _parse(tomllib.loads(S2M2.read_text(encoding="utf-8")))
     reason = _no_auto_kernels(card, _variant(kernels="k"), torch.device("cuda"), fp32=False, want=None)
     assert reason is not None
-    assert "planned for 0.2.1" in reason
+    assert "kernels not available yet" in reason
 
 
 def test_shipped_planned_entries_are_valid() -> None:

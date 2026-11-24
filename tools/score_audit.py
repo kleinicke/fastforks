@@ -546,7 +546,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     Path(a.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     if a.csv:
         Path(a.csv).mkdir(parents=True, exist_ok=True)
-        with (Path(a.csv) / "problems.csv").open("w", newline="") as f:
+        with (Path(a.csv) / "problems.csv").open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, ["ref", "family", "kind", "mode", "issue"])
             w.writeheader()
             w.writerows(probs)

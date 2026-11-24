@@ -1,4 +1,25 @@
-# LF in every checkout: the kernel manifests hash build.toml and the kernel sources, and a Windows checkout with
-# core.autocrlf=true would otherwise hash CRLF copies (tests/test_kernels.py::test_manifest_is_current).
-# Files committed with CRLF (a few vendored sources) are left as they are.
+# LF in every checkout: the kernel manifests hash build.toml and the kernel sources (tools/build_kernels.py), and a
+# Windows checkout with core.autocrlf=true would otherwise hash CRLF copies (tests/test_kernels.py::test_manifest_is_current).
 * text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.exr binary
+*.npz binary
+*.npy binary
+*.pt binary
+*.pth binary
+*.onnx binary
+*.safetensors binary
+*.metallib binary
+
+# Vendored upstream files kept byte-for-byte with their CRLF line endings.
+src/fastforks/flow/models/gmflow/net/*.py -text
+src/fastforks/multiview/models/depthsplat/net/backbone.py -text
+src/fastforks/multiview/models/depthsplat/net/position.py -text
+src/fastforks/multiview/models/mvsplat/net/backbone/unimatch/*.py -text
+src/fastforks/multiview/models/patchmatchnet/net/net.py -text
+src/fastforks/stereo/models/monster/net/submodule.py -text
