@@ -39,7 +39,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-23 |
+| measured | 2026-11-06 to 2026-11-24 |
 | rows | 2250 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
@@ -75,11 +75,11 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 1762 | 513 | 402 | unsupported | – | – | 3962 | 3844 | – |
 | [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 1333 | 537 | 396 | unsupported | – | – | 4980 | 3819 | – |
 | [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 9528 | 3471 | 2477 | unsupported | – | – | 12528 | 8462 | – |
-| [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | OOM | OOM | 25647 | 24480 | – | 1.0x | – | 13761 | 13277 |
+| [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | OOM | 30919 | 25647 | 24480 | – | 1.0x | – | 13761 | 13277 |
 | [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | OOM | 22956 | 19059 | 19496 | – | 1.0x | – | 13094 | 12980 |
-| [`great-igev-eth3d`](../models/stereo.md#great_igev) | OOM | OOM | 11459 | 9636 | – | 1.2x | – | 10531 | 10133 |
+| [`great-igev-eth3d`](../models/stereo.md#great_igev) | OOM | 9113 | 11459 | 9636 | – | 0.9x | – | 11795 | 10133 |
 | [`great-igev-kitti`](../models/stereo.md#great_igev) | OOM | 31916 | 11076 | 9634 | – | 1.1x | – | 10538 | 10130 |
-| [`great-igev-middlebury`](../models/stereo.md#great_igev) | OOM | OOM | 26930 | 25368 | – | 1.1x | – | 11544 | 12420 |
+| [`great-igev-middlebury`](../models/stereo.md#great_igev) | OOM | 15640 | 18185 | 25368 | – | 0.6x | – | 12460 | 12420 |
 | [`great-igev-sceneflow`](../models/stereo.md#great_igev) | OOM | 10367 | 9090 | 9861 | – | 0.9x | – | 11106 | 10126 |
 | [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 6074 | 4340 | 2378 | unsupported | – | – | 10858 | 6522 | – |
 | [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | OOM | 3559 | 2759 | unsupported | – | – | – | 7601 | – |
@@ -113,7 +113,7 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`s2m2-l`](../models/stereo.md#s2m2) | unsupported | 8709 | 6590 | unsupported | – | – | – | 9213 | – |
 | [`s2m2-m`](../models/stereo.md#s2m2) | unsupported | 4714 | 3620 | unsupported | – | – | – | 7941 | – |
 | [`s2m2-s`](../models/stereo.md#s2m2) | unsupported | 1710 | 1606 | unsupported | – | – | – | 6017 | – |
-| [`s2m2-xl`](../models/stereo.md#s2m2) | unsupported | OOM | 13398 | unsupported | – | – | – | 12386 | – |
+| [`s2m2-xl`](../models/stereo.md#s2m2) | unsupported | 18956 | 13398 | unsupported | – | – | – | 12386 | – |
 | [`selective-igev-eth3d-finetune`](../models/stereo.md#selective_igev) | 8184 | 9066 | 6991 | 5708 | 1.4x | 1.2x | 7003 | 3854 | 3904 |
 | [`selective-igev-eth3d-train`](../models/stereo.md#selective_igev) | 8192 | 9010 | 6969 | 5710 | 1.4x | 1.2x | 7002 | 3862 | 3907 |
 | [`selective-igev-kitti12`](../models/stereo.md#selective_igev) | 8197 | 9019 | 6971 | 5709 | 1.4x | 1.2x | 6999 | 3853 | 3906 |
@@ -725,22 +725,22 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| [`flowformer-small-chairs`](../models/flow.md#flowformer) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`flowformer-small-sintel`](../models/flow.md#flowformer) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`flowformer-small-things`](../models/flow.md#flowformer) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`flowseek-t`](../models/flow.md#flowseek) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`flowseek-t-things`](../models/flow.md#flowseek) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | OOM | OOM | 3268 | unsupported | – | – | – | – | 12736 | – |
+| [`flowformer-small-chairs`](../models/flow.md#flowformer) | OOM | 25199 | 17028 | unsupported | – | – | – | – | 5818 | – |
+| [`flowformer-small-sintel`](../models/flow.md#flowformer) | OOM | 25087 | 18139 | unsupported | – | – | – | – | 4793 | – |
+| [`flowformer-small-things`](../models/flow.md#flowformer) | OOM | 26660 | 17596 | unsupported | – | – | – | – | 4793 | – |
+| [`flowseek-t`](../models/flow.md#flowseek) | OOM | 2787 | 2756 | unsupported | – | – | – | – | 8660 | – |
+| [`flowseek-t-things`](../models/flow.md#flowseek) | OOM | 2703 | 2757 | unsupported | – | – | – | – | 10686 | – |
+| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | OOM | 2694 | 2750 | unsupported | – | – | – | – | 10687 | – |
 | [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 4893 | 3845 | 2904 | unsupported | – | – | – | 12995 | 7113 | – |
 | [`gmflow-scale1-things`](../models/flow.md#gmflow) | 5143 | 3780 | 2756 | unsupported | – | – | – | 13106 | 7112 | – |
-| [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-regrefine6-sintelft`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`gmflow-scale2-things`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
-| [`megaflow`](../models/flow.md#megaflow) | OOM | OOM | 11196 | – | unsupported | – | – | – | 8969 | – |
+| [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | OOM | 8494 | 6039 | unsupported | – | – | – | – | 9667 | – |
+| [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | OOM | 14645 | 10998 | unsupported | – | – | – | – | 9696 | – |
+| [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | OOM | 14901 | 11156 | unsupported | – | – | – | – | 9694 | – |
+| [`gmflow-scale2-regrefine6-sintelft`](../models/flow.md#gmflow) | OOM | 14622 | 10867 | unsupported | – | – | – | – | 9689 | – |
+| [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | OOM | 14869 | 11300 | unsupported | – | – | – | – | 9692 | – |
+| [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | OOM | 8697 | 5725 | unsupported | – | – | – | – | 9669 | – |
+| [`gmflow-scale2-things`](../models/flow.md#gmflow) | OOM | 8489 | 5982 | unsupported | – | – | – | – | 9577 | – |
+| [`megaflow`](../models/flow.md#megaflow) | OOM | 16278 | 11141 | – | unsupported | – | – | – | 8832 | – |
 | [`memflow`](../models/flow.md#memflow) | OOM | 10016 | – | – | unsupported | – | – | – | 12659 | – |
 | [`memflow-kitti`](../models/flow.md#memflow) | OOM | 9826 | – | – | unsupported | – | – | – | 12656 | – |
 | [`memflow-sintel`](../models/flow.md#memflow) | OOM | 10075 | – | – | unsupported | – | – | – | 12787 | – |
@@ -830,9 +830,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`ema-vfi-small`](../models/interpolation.md#ema_vfi) | 1070 | 736 | 556 | unsupported | 5821 | 3587 |
 | [`ema-vfi-small-t`](../models/interpolation.md#ema_vfi) | 1058 | 792 | 513 | unsupported | 5814 | 3583 |
 | [`ema-vfi-t`](../models/interpolation.md#ema_vfi) | 5764 | 28800 | 2272 | unsupported | 11039 | 6882 |
-| [`film`](../models/interpolation.md#film) | 10448 | OOM | OOM | unsupported | 12794 | – |
-| [`gimm-vfi-r`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | failed | unsupported | – | – |
-| [`gimm-vfi-r-p`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | OOM | unsupported | – | – |
+| [`film`](../models/interpolation.md#film) | 10448 | 6339 | 4477 | unsupported | 12794 | 9219 |
+| [`gimm-vfi-r`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | 17906 | unsupported | – | 11886 |
+| [`gimm-vfi-r-p`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | 18002 | unsupported | – | 11881 |
 | [`rife-4.25`](../models/interpolation.md#rife) | 169 | 119 | 106 | unsupported | 3588 | 2482 |
 | [`rife-4.25-lite`](../models/interpolation.md#rife) | 145 | 91.0 | 80.0 | unsupported | 3576 | 2447 |
 | [`rife-4.26`](../models/interpolation.md#rife) | 170 | 118 | 103 | unsupported | 3586 | 2479 |
@@ -851,14 +851,14 @@ Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 | [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | – | 13698 | 10600 |
 | [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | – | 6317 | 6851 |
 | [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | – | 13512 | 10620 |
-| [`drct-l-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – | – |
-| [`drct-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`drct-l-x4`](../models/restoration.md#drct) | OOM | 16574 | 12431 | – | unsupported | – | – | 5367 |
+| [`drct-x4`](../models/restoration.md#drct) | OOM | 8592 | 6277 | – | unsupported | – | – | 5688 |
 | [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | – | 2871 | 1982 |
-| [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
-| [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`hat-s-x4`](../models/restoration.md#hat) | OOM | 15070 | 13687 | – | unsupported | – | – | 13390 |
+| [`hat-x4`](../models/restoration.md#hat) | OOM | 11505 | 8044 | – | unsupported | – | – | 6650 |
 | [`nafnet-gopro`](../models/restoration.md#nafnet) | 645 | 409 | 368 | – | unsupported | – | 3634 | 1715 |
 | [`nafnet-sidd`](../models/restoration.md#nafnet) | 802 | 423 | 442 | – | unsupported | – | 3427 | 3242 |
-| [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | 10894 | 7775 | – | unsupported | – | – | 6652 |
 | [`realesr-general-x4v3`](../models/restoration.md#compact) | 176 | 178 | 132 | – | unsupported | – | 1302 | 1289 |
 | [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | – | unsupported | – | 1696 | 1440 |
 | [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | – | 4713 | 2466 |

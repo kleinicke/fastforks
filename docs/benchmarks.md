@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2250 rows, measured 2026-11-06 to 2026-11-23.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2250 rows, measured 2026-11-06 to 2026-11-24.
 - [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 577 models, 1496 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -85,9 +85,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 2477 ms · portable fp16 | 2875 ms · portable fp16 | 201 ms · kernels fp16 | 70.2 ms · kernels fp16 | 170 ms · kernels fp16 | 85.3 ms · kernels fp16 | 36.8 ms · kernels fp16 |
 | [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | 1513 ms · kernels fp16 | 24480 ms · kernels fp16 | 25847 ms · portable fp16 | 2035 ms · kernels fp16 | 605 ms · kernels fp16 | 1674 ms · kernels fp16 | 680 ms · kernels fp16 | 337 ms · kernels fp16 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | 1120 ms · kernels fp16 | 19059 ms · portable fp16 | 17814 ms · kernels fp16 | 1713 ms · kernels fp16 | 487 ms · kernels fp16 | 1369 ms · kernels fp16 | 561 ms · kernels fp16 | 270 ms · kernels fp16 |
-| [`great-igev-eth3d`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9636 ms · kernels fp16 | 7613 ms · portable fp16 | – | – | – | – | 97.2 ms · kernels fp16 |
+| [`great-igev-eth3d`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9113 ms · portable fp32 | 7613 ms · portable fp16 | – | – | – | – | 97.2 ms · kernels fp16 |
 | [`great-igev-kitti`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9634 ms · kernels fp16 | 7588 ms · portable fp16 | – | – | – | – | 97.4 ms · kernels fp16 |
-| [`great-igev-middlebury`](models/stereo.md#great_igev) | 579 ms · kernels fp16 | 25368 ms · kernels fp16 | 14680 ms · portable fp16 | – | – | – | – | 143 ms · kernels fp16 |
+| [`great-igev-middlebury`](models/stereo.md#great_igev) | 579 ms · kernels fp16 | 15640 ms · portable fp32 | 14680 ms · portable fp16 | – | – | – | – | 143 ms · kernels fp16 |
 | [`great-igev-sceneflow`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9090 ms · portable fp16 | 8028 ms · portable fp16 | 579 ms · kernels fp16 | 176 ms · kernels fp16 | 477 ms · kernels fp16 | 196 ms · kernels fp16 | 98.3 ms · kernels fp16 |
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | 238 ms · kernels fp16 | 2378 ms · portable fp16 | 2450 ms · portable fp16 | – | – | – | – | 50.5 ms · kernels fp16 |
 | [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | 257 ms · kernels fp16 | 2759 ms · portable fp16 | 2933 ms · portable fp16 | 342 ms · kernels fp16 | 109 ms · kernels fp16 | 244 ms · kernels fp16 | 97.7 ms · kernels fp16 | 56.7 ms · kernels fp16 |
@@ -543,22 +543,22 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
 |---|---|---|
-| [`flowformer-small-chairs`](models/flow.md#flowformer) | OOM | 13009 ms · portable fp16 |
-| [`flowformer-small-sintel`](models/flow.md#flowformer) | OOM | 13044 ms · portable fp16 |
-| [`flowformer-small-things`](models/flow.md#flowformer) | OOM | 13011 ms · portable fp16 |
-| [`flowseek-t`](models/flow.md#flowseek) | OOM | 2160 ms · portable fp16 |
-| [`flowseek-t-things`](models/flow.md#flowseek) | OOM | 1760 ms · portable fp16 |
-| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 3268 ms · portable fp16 | 1760 ms · portable fp16 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer) | 17028 ms · portable fp16 | 13009 ms · portable fp16 |
+| [`flowformer-small-sintel`](models/flow.md#flowformer) | 18139 ms · portable fp16 | 13044 ms · portable fp16 |
+| [`flowformer-small-things`](models/flow.md#flowformer) | 17596 ms · portable fp16 | 13011 ms · portable fp16 |
+| [`flowseek-t`](models/flow.md#flowseek) | 2756 ms · portable fp16 | 2160 ms · portable fp16 |
+| [`flowseek-t-things`](models/flow.md#flowseek) | 2703 ms · portable fp32 | 1760 ms · portable fp16 |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 2694 ms · portable fp32 | 1760 ms · portable fp16 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | 2904 ms · portable fp16 | 4340 ms · portable fp16 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | 2756 ms · portable fp16 | 3871 ms · portable fp16 |
-| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | OOM | 8276 ms · portable fp16 |
-| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | OOM | 11251 ms · portable fp16 |
-| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | OOM | 11296 ms · portable fp16 |
-| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | OOM | 10975 ms · portable fp16 |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | OOM | 11280 ms · portable fp16 |
-| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | OOM | 8283 ms · portable fp16 |
-| [`gmflow-scale2-things`](models/flow.md#gmflow) | OOM | 8261 ms · portable fp16 |
-| [`megaflow`](models/flow.md#megaflow) | 11196 ms · portable fp16 | 8480 ms · portable fp16 |
+| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | 6039 ms · portable fp16 | 8276 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | 10998 ms · portable fp16 | 11251 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | 11156 ms · portable fp16 | 11296 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | 10867 ms · portable fp16 | 10975 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | 11300 ms · portable fp16 | 11280 ms · portable fp16 |
+| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | 5725 ms · portable fp16 | 8283 ms · portable fp16 |
+| [`gmflow-scale2-things`](models/flow.md#gmflow) | 5982 ms · portable fp16 | 8261 ms · portable fp16 |
+| [`megaflow`](models/flow.md#megaflow) | 11141 ms · portable fp16 | 8480 ms · portable fp16 |
 | [`memflow`](models/flow.md#memflow) | 10016 ms · portable fp32 | 6997 ms · portable fp16 |
 | [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 | 6988 ms · portable fp16 |
 | [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 | 6990 ms · portable fp16 |
@@ -634,9 +634,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`ema-vfi-small`](models/interpolation.md#ema_vfi) | 556 ms · portable fp16 | 666 ms · portable fp16 |
 | [`ema-vfi-small-t`](models/interpolation.md#ema_vfi) | 513 ms · portable fp16 | 876 ms · portable fp16 |
 | [`ema-vfi-t`](models/interpolation.md#ema_vfi) | 2272 ms · portable fp16 | 2222 ms · portable fp16 |
-| [`film`](models/interpolation.md#film) | OOM | 6590 ms · portable fp16 |
-| [`gimm-vfi-r`](models/interpolation.md#gimm_vfi) | OOM | 30451 ms · portable fp16 |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm_vfi) | OOM | 16157 ms · portable fp16 |
+| [`film`](models/interpolation.md#film) | 4477 ms · portable fp16 | 6590 ms · portable fp16 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm_vfi) | 17906 ms · portable fp16 | 30451 ms · portable fp16 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm_vfi) | 18002 ms · portable fp16 | 16157 ms · portable fp16 |
 | [`rife-4.25`](models/interpolation.md#rife) | 106 ms · portable fp16 | 180 ms · kernels fp16 |
 | [`rife-4.25-lite`](models/interpolation.md#rife) | 80.0 ms · portable fp16 | 200 ms · portable fp32 |
 | [`rife-4.26`](models/interpolation.md#rife) | 103 ms · portable fp16 | 137 ms · kernels fp16 |
@@ -650,14 +650,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 | 12210 ms · portable fp32 |
 | [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 | 1870 ms · portable fp16 |
 | [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 | 9358 ms · portable fp16 |
-| [`drct-l-x4`](models/restoration.md#drct) | OOM | 18644 ms · portable fp16 |
-| [`drct-x4`](models/restoration.md#drct) | OOM | 10754 ms · portable fp16 |
+| [`drct-l-x4`](models/restoration.md#drct) | 12431 ms · portable fp16 | 18644 ms · portable fp16 |
+| [`drct-x4`](models/restoration.md#drct) | 6277 ms · portable fp16 | 10754 ms · portable fp16 |
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 | 159 ms · portable fp16 |
-| [`hat-s-x4`](models/restoration.md#hat) | OOM | 10010 ms · portable fp16 |
-| [`hat-x4`](models/restoration.md#hat) | OOM | 11318 ms · portable fp16 |
+| [`hat-s-x4`](models/restoration.md#hat) | 13687 ms · portable fp16 | 10010 ms · portable fp16 |
+| [`hat-x4`](models/restoration.md#hat) | 8044 ms · portable fp16 | 11318 ms · portable fp16 |
 | [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 | 358 ms · kernels fp16 |
 | [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 | 277 ms · portable fp16 |
-| [`real-hat-gan-x4`](models/restoration.md#hat) | OOM | 15831 ms · portable fp16 |
+| [`real-hat-gan-x4`](models/restoration.md#hat) | 7775 ms · portable fp16 | 15831 ms · portable fp16 |
 | [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 | 104 ms · kernels fp16 |
 | [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 | 567 ms · kernels fp16 |
 | [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2184 ms · kernels fp16 |
