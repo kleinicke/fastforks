@@ -307,8 +307,8 @@ class MultiViewModel(core.Model):
         x = self._images(images)
         n = x.shape[0]
         if n < r.min_views or (r.max_views is not None and n > r.max_views):
-            most = "any number of" if r.max_views is None else f"at most {r.max_views}"
-            msg = f"{self.variant.ref} takes at least {r.min_views} and {most} views, got {n}"
+            most = "" if r.max_views is None else f" and at most {r.max_views}"
+            msg = f"{self.variant.ref} takes at least {r.min_views}{most} views, got {n}"
             raise InputError(msg)
         k = self._camera("intrinsics", r.intrinsics, intrinsics, n, (3, 3), size=(x.shape[-2], x.shape[-1]))
         c2w = self._camera("cam_to_world", r.cam_to_world, cam_to_world, n, (4, 4))
