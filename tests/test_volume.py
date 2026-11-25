@@ -52,6 +52,27 @@ def test_cuda_label_merge_maps_and_preserves_background() -> None:
     torch.testing.assert_close(merged, torch.where(expected != 0, expected, 6), atol=0, rtol=0)
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("stride", [(2, 2, 2), (1, 2, 2)])
+def test_cuda_decoder_transpose_bands_match_full_map(stride: tuple[int, int, int]) -> None:
+    """A band beginning between transpose phases reads exactly the same skip and upsampled planes."""
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    channels = 16
+    kwargs = {"device": "cuda", "dtype": torch.float16, "memory_format": torch.channels_last_3d}
+    stage = _nnunet._Stacked(1, 2 * channels, channels, (3, 3, 3), (1, 1, 1), plan).eval().to(**kwargs)
+    up = torch.nn.ConvTranspose3d(channels, channels, stride, stride).eval().to(**kwargs)
+    gen = torch.Generator("cuda").manual_seed(48)
+    source = torch.randn(2, channels, 8, 9, 11, device="cuda", dtype=torch.float16, generator=gen)
+    source = source.contiguous(memory_format=torch.channels_last_3d)
+    with torch.inference_mode():
+        full = up(source)
+        skip = torch.randn(full.shape, device=full.device, dtype=full.dtype, generator=gen)
+        skip = skip.contiguous(memory_format=torch.channels_last_3d)
+        want = _nnunet._decode_into_skip(stage, full, skip.clone(), 5)
+        actual = _nnunet._decode_into_skip(stage, source, skip, 5, up=up)
+    torch.testing.assert_close(actual, want, atol=0, rtol=0)
+
+
 def test_encoder_example_inputs_are_3d_volumes() -> None:
     """The export input has the encoder's channels and all three spatial dimensions."""
     from types import SimpleNamespace  # noqa: PLC0415

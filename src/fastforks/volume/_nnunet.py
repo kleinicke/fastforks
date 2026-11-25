@@ -36,6 +36,8 @@ __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_pla
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
 _DECODER_TILE_BYTES = 144 << 20  # FP16 concatenated input to the first decoder convolution
+_LARGE_DECODER_TILE_BYTES = 320 << 20  # fixed: larger bands amortize transposition at two-window resolution
+_BAND_TRANSPOSE_BYTES = 2 * _LARGE_DECODER_TILE_BYTES  # whole upsampled map size that benefits from banding
 _HEAD_TILE_BYTES = 128 << 20  # FP16 output budget per segmentation projection
 # fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
 # channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
@@ -519,8 +521,12 @@ class _Decoder(nn.Module):
             stage = cast("_Stacked", layer)
             depth = _decoder_tile_depth(stage, pending[-1]) if owned and self.tile_skip else 0
             if depth:
-                x = up(x)
-                x = _decode_into_skip(stage, x, pending.pop(), depth)
+                skip = pending.pop()
+                if skip.numel() * skip.element_size() >= _BAND_TRANSPOSE_BYTES:
+                    x = _decode_into_skip(stage, x, skip, depth, up=cast("nn.ConvTranspose3d", up))
+                else:
+                    x = _decode_into_skip(stage, up(x), skip, depth)
+                del skip
             else:
                 x = stage(_cat_consuming(up, x, pending.pop()))
         return x
@@ -542,11 +548,18 @@ def _decoder_tile_depth(stage: _Stacked, skip: torch.Tensor) -> int:
     ):
         return 0
     plane_bytes = 2 * skip[:, :, 0].numel() * skip.element_size()
-    depth = max(2, _DECODER_TILE_BYTES // plane_bytes)
+    budget = (
+        _LARGE_DECODER_TILE_BYTES
+        if skip.numel() * skip.element_size() >= _BAND_TRANSPOSE_BYTES
+        else _DECODER_TILE_BYTES
+    )
+    depth = max(2, budget // plane_bytes)
     return depth if depth * 4 <= skip.shape[2] else 0
 
 
-def _decode_into_skip(stage: _Stacked, upsampled: torch.Tensor, skip: torch.Tensor, tile: int) -> torch.Tensor:
+def _decode_into_skip(
+    stage: _Stacked, source: torch.Tensor, skip: torch.Tensor, tile: int, *, up: nn.ConvTranspose3d | None = None
+) -> torch.Tensor:
     """Convolve depth tiles from the upsampled features and write the output over the consumed skip."""
     first = cast("_ConvNormAct", stage.convs[0])
     conv = first.conv
@@ -557,9 +570,16 @@ def _decode_into_skip(stage: _Stacked, upsampled: torch.Tensor, skip: torch.Tens
     for start in range(0, depth, tile):
         stop = min(start + tile, depth)
         lo, hi = max(0, start - 1), min(depth, stop + 1)
-        joined = torch.cat((upsampled[:, :, lo:hi], skip[:, :, lo:hi]), dim=1).contiguous(
-            memory_format=torch.channels_last_3d
-        )
+        if up is None:
+            upsampled = source[:, :, lo:hi]
+        else:
+            # The transpose uses kernel=stride and zero padding. It needs only the low-res planes overlapping this tile.
+            stride = up.stride[0]
+            start_plane, stop_plane = lo // stride, (hi + stride - 1) // stride
+            offset = start_plane * stride
+            upsampled = up(source[:, :, start_plane:stop_plane])[:, :, lo - offset : hi - offset]
+        joined = torch.cat((upsampled, skip[:, :, lo:hi]), dim=1).contiguous(memory_format=torch.channels_last_3d)
+        del upsampled
         if start > 0 and stop < depth:
             part = F.conv3d(joined, conv.weight, None, padding=inner)
         else:
