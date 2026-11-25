@@ -16,14 +16,14 @@ union H8 {
     __half2 h[4];
 };
 
-template <bool Packed>
+template <bool Packed, typename Index>
 __device__ __forceinline__ void accumulate_h(__half* out, const __half* logits, const __half* gaussian,
                                              int channels, int d, int h, int w, int64_t oz, int64_t oy, int64_t ox) {
     const int units = Packed ? channels / 2 : channels;
-    const int64_t count = (int64_t)d * h * w * units;
-    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (int64_t)gridDim.x * blockDim.x) {
-        const int64_t r = i / units, c = i % units;
-        const int64_t row = r / w;
+    const Index count = (Index)d * h * w * units;
+    for (Index i = (Index)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (Index)gridDim.x * blockDim.x) {
+        const Index r = i / units, c = i % units;
+        const Index row = r / w;
         const int64_t offset = (row / h) * oz + (row % h) * oy + (r % w) * ox;
         const __half g = gaussian[r];
         if constexpr (Packed) {
@@ -39,10 +39,15 @@ __device__ __forceinline__ void accumulate_h(__half* out, const __half* logits, 
 extern "C" __global__ void vol_accum_h(__half* __restrict__ out, const __half* __restrict__ logits,
                                        const __half* __restrict__ gaussian, int channels, int d,
                                        int h, int w, int64_t oz, int64_t oy, int64_t ox, int packed) {
-    if (packed) {
-        accumulate_h<true>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+    const bool narrow = (int64_t)d * h * w * (packed ? channels / 2 : channels) <= INT32_MAX;
+    if (packed && narrow) {
+        accumulate_h<true, uint32_t>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+    } else if (packed) {
+        accumulate_h<true, int64_t>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+    } else if (narrow) {
+        accumulate_h<false, uint32_t>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
     } else {
-        accumulate_h<false>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+        accumulate_h<false, int64_t>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
     }
 }
 
@@ -67,19 +72,32 @@ static __device__ __forceinline__ float interpolate_plane(const __half* plane, i
          + y.w1 * (x.w0 * __half2float(r1[x.base * xs]) + x.w1 * __half2float(r1[x.next * xs]));
 }
 
+static __device__ __forceinline__ float2 interpolate_plane2(const __half* plane, int64_t ys, int64_t xs,
+                                                           SamplingAxis y, SamplingAxis x, int c) {
+    const __half* r0 = plane + y.base * ys + c;
+    const __half* r1 = plane + y.next * ys + c;
+    const auto a = __half22float2(*reinterpret_cast<const __half2*>(r0 + x.base * xs));
+    const auto b = __half22float2(*reinterpret_cast<const __half2*>(r0 + x.next * xs));
+    const auto d = __half22float2(*reinterpret_cast<const __half2*>(r1 + x.base * xs));
+    const auto e = __half22float2(*reinterpret_cast<const __half2*>(r1 + x.next * xs));
+    return {y.w0 * (x.w0 * a.x + x.w1 * b.x) + y.w1 * (x.w0 * d.x + x.w1 * e.x),
+            y.w0 * (x.w0 * a.y + x.w1 * b.y) + y.w1 * (x.w0 * d.y + x.w1 * e.y)};
+}
+
 static __device__ __forceinline__ bool larger(float v, int c, float best, int index) {
     return v > best || (v == best && c < index) || (isnan(v) && (!isnan(best) || c < index));
 }
 
-extern "C" __global__ void vol_resize_labels_h(
+template <bool Packed, typename Index>
+__device__ __forceinline__ void resize_labels_h(
     uint8_t* __restrict__ out, const __half* __restrict__ current, const __half* __restrict__ previous,
     int channels, int src_d, int src_h, int src_w, int first_src_z, int available_src,
     int out_h, int out_w, int out_depth, int first_out_z,
     int64_t zs, int64_t ys, int64_t xs, float zscale, float yscale, float xscale) {
     const int lane = threadIdx.x % 32, warp = threadIdx.x / 32, warps = blockDim.x / 32;
-    const int64_t points = (int64_t)out_depth * out_h * out_w;
-    for (int64_t i = (int64_t)blockIdx.x * warps + warp; i < points; i += (int64_t)gridDim.x * warps) {
-        const int64_t row = i / out_w;
+    const Index points = (Index)out_depth * out_h * out_w;
+    for (Index i = (Index)blockIdx.x * warps + warp; i < points; i += (Index)gridDim.x * warps) {
+        const Index row = i / out_w;
         const auto z = resample_axis(first_out_z + row / out_h, src_d, zscale);
         const auto y = resample_axis(row % out_h, src_h, yscale);
         const auto x = resample_axis(i % out_w, src_w, xscale);
@@ -91,12 +109,29 @@ extern "C" __global__ void vol_resize_labels_h(
         const int64_t y1 = d1 < 0 ? (int64_t)src_w * channels : ys, x1 = d1 < 0 ? channels : xs;
         float best = -INFINITY;
         int index = channels;
-        for (int c = lane; c < channels; c += 32) {
-            const auto v = z.w0 * interpolate_plane(a, y0, x0, y, x, c)
-                         + z.w1 * interpolate_plane(b, y1, x1, y, x, c);
-            if (larger(v, c, best, index)) {
-                best = v;
-                index = c;
+        if constexpr (Packed) {
+            for (int c = lane * 2; c < channels; c += 64) {
+                const auto v0 = interpolate_plane2(a, y0, x0, y, x, c);
+                const auto v1 = interpolate_plane2(b, y1, x1, y, x, c);
+                const auto lo = z.w0 * v0.x + z.w1 * v1.x;
+                const auto hi = z.w0 * v0.y + z.w1 * v1.y;
+                if (larger(lo, c, best, index)) {
+                    best = lo;
+                    index = c;
+                }
+                if (larger(hi, c + 1, best, index)) {
+                    best = hi;
+                    index = c + 1;
+                }
+            }
+        } else {
+            for (int c = lane; c < channels; c += 32) {
+                const auto v = z.w0 * interpolate_plane(a, y0, x0, y, x, c)
+                             + z.w1 * interpolate_plane(b, y1, x1, y, x, c);
+                if (larger(v, c, best, index)) {
+                    best = v;
+                    index = c;
+                }
             }
         }
         for (int delta = 16; delta > 0; delta /= 2) {
@@ -109,6 +144,29 @@ extern "C" __global__ void vol_resize_labels_h(
         }
         if (!lane) out[i] = (uint8_t)index;
     }
+}
+
+extern "C" __global__ void vol_resize_labels_h(
+    uint8_t* __restrict__ out, const __half* __restrict__ current, const __half* __restrict__ previous,
+    int channels, int src_d, int src_h, int src_w, int first_src_z, int available_src,
+    int out_h, int out_w, int out_depth, int first_out_z,
+    int64_t zs, int64_t ys, int64_t xs, float zscale, float yscale, float xscale) {
+    const bool packed = channels >= 64 && !((channels | zs | ys | xs) & 1)
+                        && !(((uintptr_t)current | (uintptr_t)previous) & 3);
+    const bool narrow = (int64_t)out_depth * out_h * out_w <= INT32_MAX;
+#define RESIZE(PACKED, INDEX) resize_labels_h<PACKED, INDEX>(out, current, previous, \
+    channels, src_d, src_h, src_w, first_src_z, available_src, out_h, out_w, out_depth, first_out_z, \
+    zs, ys, xs, zscale, yscale, xscale)
+    if (packed && narrow) {
+        RESIZE(true, uint32_t);
+    } else if (packed) {
+        RESIZE(true, int64_t);
+    } else if (narrow) {
+        RESIZE(false, uint32_t);
+    } else {
+        RESIZE(false, int64_t);
+    }
+#undef RESIZE
 }
 
 // grid (blocks, N), block (C / 8, rows); shared rows * C * 2 floats

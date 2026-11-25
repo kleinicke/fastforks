@@ -18,7 +18,7 @@ import itertools
 import math
 from bisect import bisect_right
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
+_DECODER_TILE_BYTES = 144 << 20  # FP16 concatenated input to the first decoder convolution
 _HEAD_TILE_BYTES = 128 << 20  # FP16 output budget per segmentation projection
 # fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
 # channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
@@ -311,6 +312,18 @@ class _ConvNormAct(nn.Module):
         return self.norm_act(_conv_slabs_(self.conv, y, self.conv.bias, depth))
 
 
+def _bias_norm_act(block: _ConvNormAct, y: torch.Tensor) -> torch.Tensor:
+    """CUDA epilogue for a convolution whose bias has yet to be added."""
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+    bias = block.conv.bias
+    if vol_norm.supported(y):
+        return vol_norm.norm_act_(y, block.norm.weight, block.norm.bias, block.norm.eps, block.slope, conv_bias=bias)
+    if bias is not None:
+        y.add_(bias.view(1, -1, 1, 1, 1))
+    return block.norm_act(y)
+
+
 def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
     """Depth slices per slab for `_ConvNormAct.forward_(y)`; 0 where it does not apply or `y` is under four slabs.
 
@@ -496,16 +509,74 @@ class _Decoder(nn.Module):
             for s in range(n - 1)
         )
         self.seg_layers = nn.ModuleList(nn.Conv3d(f[-(s + 2)], plan.n_outputs, 1) for s in range(n - 1))
+        self.tile_skip = False
 
     def features(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
-        pending = skips if consume and isinstance(skips, list) else list(skips)
+        owned = consume and isinstance(skips, list)
+        pending = skips if owned else list(skips)
         x = pending.pop()
-        for up, stage in zip(self.transpconvs, self.stages, strict=True):
-            x = stage(_cat_consuming(up, x, pending.pop()))
+        for up, layer in zip(self.transpconvs, self.stages, strict=True):
+            stage = cast("_Stacked", layer)
+            depth = _decoder_tile_depth(stage, pending[-1]) if owned and self.tile_skip else 0
+            if depth:
+                x = up(x)
+                x = _decode_into_skip(stage, x, pending.pop(), depth)
+            else:
+                x = stage(_cat_consuming(up, x, pending.pop()))
         return x
 
     def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
         return self.seg_layers[-1](self.features(skips, consume=consume))
+
+
+def _decoder_tile_depth(stage: _Stacked, skip: torch.Tensor) -> int:
+    """Number of full-resolution planes processed at once, where a skip can be safely reused."""
+    conv = cast("_ConvNormAct", stage.convs[0]).conv
+    if (
+        not skip.is_cuda
+        or skip.dtype != torch.float16
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or (conv.kernel_size[0], conv.padding[0]) != (3, 1)
+        or not skip.is_contiguous(memory_format=torch.channels_last_3d)
+    ):
+        return 0
+    plane_bytes = 2 * skip[:, :, 0].numel() * skip.element_size()
+    depth = max(2, _DECODER_TILE_BYTES // plane_bytes)
+    return depth if depth * 4 <= skip.shape[2] else 0
+
+
+def _decode_into_skip(stage: _Stacked, upsampled: torch.Tensor, skip: torch.Tensor, tile: int) -> torch.Tensor:
+    """Convolve depth tiles from the upsampled features and write the output over the consumed skip."""
+    first = cast("_ConvNormAct", stage.convs[0])
+    conv = first.conv
+    depth = skip.shape[2]
+    padding = cast("tuple[int, int, int]", conv.padding)
+    inner = (0, *padding[1:])
+    held = None
+    for start in range(0, depth, tile):
+        stop = min(start + tile, depth)
+        lo, hi = max(0, start - 1), min(depth, stop + 1)
+        joined = torch.cat((upsampled[:, :, lo:hi], skip[:, :, lo:hi]), dim=1).contiguous(
+            memory_format=torch.channels_last_3d
+        )
+        if start > 0 and stop < depth:
+            part = F.conv3d(joined, conv.weight, None, padding=inner)
+        else:
+            part = F.conv3d(joined, conv.weight, None, padding=padding)[:, :, start - lo : stop - lo]
+        if held is not None:
+            skip[:, :, start - 1].copy_(held)
+        if stop < depth:
+            # The next tile still needs this plane of the original skip as its low halo.
+            skip[:, :, start : stop - 1].copy_(part[:, :, :-1])
+            held = part[:, :, -1].clone()
+        else:
+            skip[:, :, start:stop].copy_(part)
+        del joined, part
+    x = _bias_norm_act(first, skip)
+    for conv_block in stage.convs[1:]:
+        x = conv_block(x)
+    return x
 
 
 def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
@@ -607,9 +678,11 @@ def _bbox(nz: torch.Tensor) -> tuple[slice, ...]:
     return tuple(slice(*e) if e else slice(0, n) for e, n in zip(nonzero_extent(nz), nz.shape, strict=True))
 
 
-def _normalise(x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None) -> torch.Tensor:
+def _normalise(
+    x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None, *, dtype: torch.dtype = torch.float32
+) -> torch.Tensor:
     """nnU-Net's normalisation schemes per channel, in float32 (`mask`: the hole-filled nonzero mask)."""
-    out = torch.empty_like(x, dtype=torch.float32)
+    out = torch.empty_like(x, dtype=dtype)
     for c, n in enumerate(norms):
         v = x[c].float()
         if n.scheme == "CTNormalization":
@@ -719,7 +792,6 @@ class Predictor:
         box = _bbox(nz)
         x = x[(slice(None), *box)]
         mask = _resample.fill_holes(nz[box]) if any(n.use_mask for n in p.norms) else None
-        x = _normalise(x, p.norms, mask)
         shape = tuple(x.shape[1:])
         target = self.target_spacing(sp)
         new = _resample.new_shape(shape, sp, target)
@@ -733,7 +805,11 @@ class Predictor:
             )
             raise InputError(msg)
         fn, kw = p.resample_data
-        return _resample.resample(x, new, sp, target, fn, kw), box, shape
+        dtype = (self.dtype or torch.float32) if self.cuda_kernels else torch.float32
+        same_grid = tuple(new) == shape or fn == "no_resampling_hack"
+        x = _normalise(x, p.norms, mask, dtype=dtype if same_grid else torch.float32)
+        x = _resample.resample(x, new, sp, target, fn, kw)
+        return x.to(dtype), box, shape
 
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
         """Labels `[D, H, W]` (uint8, int16 above 256 labels) of `volume` `[C, D, H, W]` with `spacing` (mm)."""
@@ -860,6 +936,16 @@ class Predictor:
     def _window_batch(self, x: torch.Tensor, starts: Sequence[tuple[int, int, int]]) -> torch.Tensor:
         """Stack windows and prepare the batch in the network's layout and dtype."""
         d, h, w = self.plan.patch_size
+        if self.cuda_kernels and self.channels_last and x.is_cuda:
+            batch = torch.empty(
+                (len(starts), x.shape[0], d, h, w),
+                dtype=self.dtype or x.dtype,
+                device=x.device,
+                memory_format=torch.channels_last_3d,
+            )
+            for i, (a, b, c) in enumerate(starts):
+                batch[i].copy_(x[:, a : a + d, b : b + h, c : c + w])
+            return batch
         batch = torch.stack([x[:, a : a + d, b : b + h, c : c + w] for a, b, c in starts])
         return batch.to(
             dtype=self.dtype or x.dtype,
