@@ -1404,6 +1404,108 @@ nothing exported:
 Left: the warm fp32 rows (and the fp16 ones, for a clean reading) on a quiet machine; the coarse attention still uses
 the head-mask GEMMs (two `[L, 256] x [256, 256]` products per layer, cheap at 15k tokens).
 
+## First calls over the auto budget (2026-11-25)
+
+`auto` takes MLX only when its first call is at most the MPS first call plus twice the MPS warm time
+(`tools/gen_auto_mode.py`, `cold=True`). 203 refs have an MLX row that wins warm (and on memory) against the MPS path
+`auto` would replace, but miss that budget (2026-11-25 rows, M1 Pro 16 GB). Per family: refs, the MLX / MPS warm ratio,
+the MLX first call, and how far over the budget it is:
+
+| family | refs | warm MLX / MPS | first call s | over budget s |
+|---|---|---|---|---|
+| clip | 10 | 0.84-1.03 | 0.68-1.81 | 0.60-1.23 |
+| coatnet | 10 | 0.37-0.57 | 0.86-2.86 | 0.51-2.38 |
+| dfine | 10 | 0.72-0.97 | 1.52-9.11 | 1.17-8.68 |
+| rfdetr | 10 | 0.57-0.74 | 1.82-2.56 | 1.57-1.91 |
+| rtmpose | 10 | 0.90-1.05 | 1.25-1.65 | 0.73-1.05 |
+| hgnetv2 | 7 | 0.45-0.70 | 0.73-1.76 | 0.59-1.53 |
+| focalnet | 6 | 0.52-0.55 | 0.80-1.48 | 0.29-1.21 |
+| siglip2 | 6 | 0.85-1.04 | 0.71-4.16 | 0.60-3.54 |
+| lwdetr | 5 | 0.61-1.01 | 1.89-2.71 | 1.63-2.23 |
+| rtdetrv2 | 5 | 0.84-1.03 | 1.54-2.12 | 1.18-1.58 |
+| tinyvit | 5 | 0.54-0.78 | 0.97-1.18 | 0.83-1.09 |
+| efficientformerv2 | 4 | 0.30-0.34 | 1.39-2.29 | 1.33-2.18 |
+| grounding_dino | 4 | 0.69-0.89 | 5.64-9.16 | 2.08-5.45 |
+| mmseg | 4 | 0.77-0.97 | 1.61-3.64 | 0.04-2.84 |
+| segformer | 4 | 0.54-0.91 | 1.05-5.57 | 0.33-5.10 |
+| shvit | 4 | 0.43-0.54 | 1.19-1.46 | 0.89-1.29 |
+| starnet | 4 | 0.35-0.38 | 0.53-0.55 | 0.39-0.45 |
+| wd_tagger | 4 | 0.85-0.89 | 0.68-2.24 | 0.48-1.49 |
+| davit | 3 | 0.56-0.59 | 1.10-1.88 | 0.53-1.66 |
+| efficientformer | 3 | 0.56-0.61 | 1.01-1.56 | 0.98-1.48 |
+| fastvit | 3 | 0.54-0.55 | 0.53-1.03 | 0.43-0.89 |
+| las2 | 3 | 0.82-0.91 | 1.86-5.41 | 0.81-3.31 |
+| perception_encoder | 3 | 0.64-0.72 | 0.86-1.79 | 0.81-1.71 |
+| restormer | 3 | 0.59-0.75 | 3.49-4.03 | 0.02-0.96 |
+| rtmo | 3 | 0.72-1.03 | 1.39-1.54 | 0.67-1.21 |
+| sam_hq | 3 | 0.76-0.81 | 2.36-7.57 | 0.29-0.47 |
+| u2net | 3 | 0.56-0.83 | 2.22-4.97 | 1.58-4.36 |
+| vitpose | 3 | 0.86-0.92 | 1.41-2.12 | 0.49-0.88 |
+| birefnet | 2 | 0.81-0.91 | 5.18-7.28 | 3.30-3.39 |
+| detr | 2 | 0.92-0.95 | 1.51-1.71 | 1.01-1.11 |
+| foundationstereo | 2 | 0.93-1.01 | 59.93-127.25 | 1.78-48.38 |
+| inspyrenet | 2 | 0.66-0.97 | 4.70-5.44 | 2.40-3.86 |
+| isnet | 2 | 0.94-0.94 | 4.95-6.01 | 4.13-5.28 |
+| loma | 2 | 0.90-1.02 | 4.82-5.86 | 1.83-2.43 |
+| nafnet | 2 | 0.52-0.79 | 2.38-3.10 | 0.92-1.64 |
+| parseq | 2 | 0.30-0.76 | 4.86-6.61 | 4.54-6.21 |
+| pointdit | 2 | 0.94-1.03 | 8.72-23.79 | 7.57-20.70 |
+| rtmdet | 2 | 0.91-0.98 | 1.50-1.93 | 1.17-1.22 |
+| sea_raft | 2 | 0.74-0.83 | 1.62-2.02 | 0.79-0.85 |
+| yunet | 2 | 0.91-1.03 | 1.30-1.54 | 1.12-1.35 |
+
+One ref each (over budget, s): bridgedepth 4.23, clipseg 1.96, compact 1.28, deit 0.57, depthsplat 4.34, efficientvit 1.19, eomt 3.92, eva02 1.40, flowseek 4.90, geocalib 4.35, hrnet 1.57, inception_v3 0.94, lineart_anime 2.36, mask2former 3.09, megaloc 7.16, mlsd 1.72, mobilenetv4 0.75, nsfw_vit 0.58, oneformer 4.42, patchmatchnet 20.51, pidinet 0.70, raft 0.19, realesrgan 4.77, recover 0.50, rfdetr_keypoint 2.60, romav1 2.40, rt_monster_plusplus 2.57, sam 0.35, sam2 1.04, siglip 0.80, span 1.08, swin 1.90, teed 1.67, unik3d 0.39, vggt_omega 1.30, vit 0.54, yolox 0.99.
+
+Owned elsewhere: dfine, detr, rtdetr (detection), oneformer, mask2former, geocalib. Not on the list: aliked-flexglue
+(MLX fp32 938 ms, 4.2 s first call) has no MPS row with a passing golden to compare against.
+
+Nearly in: mmseg deeplabv3 (0.04 s over), restormer-sidd (0.02 s), raft-small (0.19 s), the SAM / SAM-HQ ViTs
+(0.29-0.47 s), unik3d (0.39 s). Most of the rest are exported graphs whose translation and first compile take
+0.5-2 s on small classifiers; a hand-written network (no export) is the fix there.
+
+### Done: SEA-RAFT and RAFT (2026-11-25)
+
+M1 Pro, 1080x1920, all eleven MLX goldens pass; second of two surveys recorded (the two agreed within 3 %). `auto`
+now takes MLX float16 for every ref: new for raft-small, sea-raft-s-spring and sea-raft-m-spring, whose first calls
+were over the budget.
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| sea-raft-m (kitti, things alike) | MLX before, fp16 / fp32 | 1011 / 1330 | 2.72 / 2.99 | 2583 / 2719 | MLX fp16 |
+| | MLX now, fp16 / fp32 | 928 / 1296 | 0.97 / 1.31 | 2002 / 2383 | MLX fp16 |
+| | MPS kernels fp16 | 1221 | 1.31 | 4752 | |
+| sea-raft-m-spring | MLX before | 281 / 345 | 2.02 / 2.04 | 1484 / 1448 | – |
+| | MLX now | 265 / 319 | 0.30 / 0.36 | 1023 / 1203 | MLX fp16 |
+| | MPS kernels fp16 | 340 | 0.49 | 1621 | |
+| sea-raft-s (kitti alike) | MLX before | 665 / 957 | 2.10 / 2.42 | 2512 / 2716 | MLX fp16 |
+| | MLX now | 617 / 832 | 0.65 / 0.84 | 2019 / 2274 | MLX fp16 |
+| | MPS kernels fp16 | 833 | 0.91 | 4667 | |
+| sea-raft-s-spring | MLX before | 172 / 229 | 1.62 / 1.76 | 1401 / 1382 | – |
+| | MLX now | 167 / 218 | 0.20 / 0.24 | 985 / 1147 | MLX fp16 |
+| | MPS kernels fp16 | 234 | 0.37 | 1527 | |
+| raft-large (kitti, things alike) | MLX before | 996 / 1350 | 2.56 / 3.12 | 2004 / 2211 | MLX fp16 |
+| | MLX now | 916 / 1348 | 0.96 / 1.40 | 1829 / 2051 | MLX fp16 |
+| | MPS kernels fp16 | 1351 | 1.48 | 3647 | |
+| raft-small | MLX before | 332 / 450 | 1.90 / 2.87 | 1645 / 1861 | – |
+| | MLX now | 294 / 403 | 0.33 / 0.45 | 1092 / 1629 | MLX fp16 |
+| | MPS kernels fp16 | 386 | 0.95 | 2482 | |
+
+Before, both ports replayed an exported graph (`raft/mlx.py`, `sea_raft/mlx.py`, a PyTorch regroup for the export):
+its translation and compiles were 1.5-3 s of each first call. Now each network is written in `mlx.core`
+(`raft/mlx_net.py`, `sea_raft/mlx_net.py`), weights copied from the PyTorch twin built on the CPU, nothing exported:
+
+- encoders channels last, batch norm folded, instance norm from float32 statistics (`ops.channel_stats`, the
+  conv bias before it dropped). Evaluated block by block and one image at a time: built as one lazy graph over the
+  pair, the 1/2-resolution convs' transients piled up to 3.4-3.8 GB of MLX peak (footprint 3274 MB on sea-raft-m,
+  above the export's 2583); block by block the encoder peak is under 0.5 GB.
+- no correlation volume: `graph_mlx.ops.corr_windows` on fmap1 and the 2x2-pooled fmap2 levels.
+- one compiled update step. RAFT's GRUs convolve the unchanging context once per call (with the biases), z and r
+  as one convolution; motion features zero-padded to multiples of 32 with the flow last, the motion conv's outputs
+  padded to MLX's Winograd sizes. Float32: flow state, its 7x7 conv, the windows, the upsampling; SEA-RAFT's
+  128 -> 128 encoder convs (MLX's half Winograd misses the golden there).
+
+Left: the Spring variants' 512 MB buffer cache was tuned on the exported port; not re-tuned.
+
 ## 1x1 convs as a GEMM (2026-11-24)
 
 The Restormer lead as a translator rule: a dense 1x1 stride-1 unpadded conv on the channels-last data is

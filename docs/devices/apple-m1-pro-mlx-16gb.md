@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1568 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1572 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -683,20 +683,20 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`neuflow-v2`](../models/flow.md#neuflow_v2) | 781 | 790 | unsupported | 9253 |
 | [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 979 | 960 | unsupported | 9271 |
 | [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 941 | 951 | unsupported | 9267 |
-| [`raft-large`](../models/flow.md#raft) | 1350 | 996 | unsupported | 2004 |
-| [`raft-large-kitti`](../models/flow.md#raft) | 1443 | 1094 | unsupported | 2056 |
-| [`raft-large-things`](../models/flow.md#raft) | 1635 | 1127 | unsupported | 2036 |
-| [`raft-small`](../models/flow.md#raft) | 450 | 332 | unsupported | 1645 |
+| [`raft-large`](../models/flow.md#raft) | 1348 | 916 | unsupported | 1829 |
+| [`raft-large-kitti`](../models/flow.md#raft) | 1358 | 913 | unsupported | 1832 |
+| [`raft-large-things`](../models/flow.md#raft) | 1344 | 916 | unsupported | 1828 |
+| [`raft-small`](../models/flow.md#raft) | 403 | 294 | unsupported | 1092 |
 | [`recover-cx`](../models/flow.md#recover) | 1064 | 758 | unsupported | 1297 |
 | [`recover-mn`](../models/flow.md#recover) | 471 | 316 | unsupported | 1181 |
 | [`recover-rn`](../models/flow.md#recover) | 624 | 429 | unsupported | 1224 |
-| [`sea-raft-m`](../models/flow.md#sea_raft) | 1330 | 1011 | unsupported | 2583 |
-| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 1423 | 1043 | unsupported | 2545 |
-| [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 345 | 281 | – | 1484 |
-| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 1403 | 1041 | unsupported | 2506 |
-| [`sea-raft-s`](../models/flow.md#sea_raft) | 957 | 665 | – | 2512 |
-| [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 959 | 665 | – | 2509 |
-| [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 229 | 172 | – | 1401 |
+| [`sea-raft-m`](../models/flow.md#sea_raft) | 1296 | 928 | unsupported | 2002 |
+| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 1297 | 928 | unsupported | 2146 |
+| [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 319 | 265 | unsupported | 1023 |
+| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 1296 | 928 | unsupported | 2125 |
+| [`sea-raft-s`](../models/flow.md#sea_raft) | 832 | 617 | unsupported | 2019 |
+| [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 828 | 621 | unsupported | 2021 |
+| [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 218 | 167 | unsupported | 985 |
 | [`waft-a1`](../models/flow.md#waft) | 8587 | 6080 | unsupported | 2583 |
 | [`waft-a1-kitti`](../models/flow.md#waft) | 8585 | 6078 | unsupported | 2564 |
 | [`waft-a1-sintel`](../models/flow.md#waft) | 8590 | 6076 | unsupported | 2564 |
