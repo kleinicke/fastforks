@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from fastforks._core.mlx import metal_kernel, mx
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 _DW = metal_kernel(
     name="graph_dwconv",
@@ -205,6 +205,75 @@ def grid_sample(x: mx.array, grid: mx.array, *, align_corners: bool, border: boo
                   ("ALIGN", align_corners), ("BORDER", border)],
         grid=(-(-cv // tg) * tg, ho * wo, n), threadgroup=(tg, 1, 1),
         output_shapes=[(n, ho, wo, c)], output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
+_MSDA = metal_kernel(
+    name="graph_msda",
+    input_names=["value", "loc", "w", "shapes"],
+    output_names=["out"],
+    source="""
+        // multi-scale deformable attention: one thread is VEC channels of one (query, head); it walks the head's
+        // L * P sampling points (bilinear, zeros outside, half-pixel centres) and sums them by the attention weights
+        uint cv = thread_position_in_grid.x, qh = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (cv >= D / VEC) return;
+        uint hd = qh % NH;
+        size_t S = value_shape[1], Q = w_shape[1];
+        size_t base = (size_t(n) * Q * NH + qh) * (L * P);
+        const device vec<T, VEC>* v4 = (const device vec<T, VEC>*)value;
+        float4 acc = float4(0.0f);
+        for (int l = 0; l < L; ++l) {
+            int H = shapes[3 * l], W = shapes[3 * l + 1];
+            size_t s0 = size_t(n) * S + shapes[3 * l + 2];
+            for (int p = 0; p < P; ++p) {
+                size_t i = base + l * P + p;
+                float wt = float(w[i]);
+                float ix = float(loc[2 * i]) * float(W) - 0.5f, iy = float(loc[2 * i + 1]) * float(H) - 0.5f;
+                float fx = floor(ix), fy = floor(iy);
+                float ax = ix - fx, ay = iy - fy;
+                int x0 = int(fx), y0 = int(fy);
+                for (int dy = 0; dy < 2; ++dy) {
+                    int yy = y0 + dy;
+                    if (yy < 0 || yy >= H) continue;
+                    float wy = wt * (dy ? ay : 1.0f - ay);
+                    for (int dx = 0; dx < 2; ++dx) {
+                        int xx = x0 + dx;
+                        if (xx < 0 || xx >= W) continue;
+                        float wgt = wy * (dx ? ax : 1.0f - ax);
+                        vec<T, VEC> v = v4[((s0 + size_t(yy) * W + xx) * NH + hd) * (D / VEC) + cv];
+                        for (int k = 0; k < VEC; ++k) acc[k] += float(v[k]) * wgt;
+                    }
+                }
+            }
+        }
+        vec<T, VEC> o;
+        for (int k = 0; k < VEC; ++k) o[k] = T(acc[k]);
+        ((device vec<T, VEC>*)out)[(size_t(n) * Q * NH + qh) * (D / VEC) + cv] = o;
+    """,
+)
+
+
+def msda(value: mx.array, loc: mx.array, w: mx.array, shapes: Sequence[tuple[int, int]]) -> mx.array:
+    """Multi-scale deformable attention after its projections (Deformable DETR's `ms_deform_attn`), one kernel.
+
+    `value` `[B, S, heads, D]` (the levels' maps `shapes` = `(H, W)` flattened one after the other), `loc`
+    `[B, Q, heads, L, P, 2]` sampling locations as `(x, y)` in `[0, 1]`, `w` `[B, Q, heads, L, P]` attention weights.
+    Returns `[B, Q, heads * D]` in `value`'s dtype: `sum_lp w * bilinear(value_l, loc)` (zeros outside, as
+    `grid_sample(align_corners=False)`), float32 accumulation. The array form writes the `[B * heads, D, Q, L * P]`
+    samples three times (stack, product, sum).
+    """
+    b, _, nh, d = value.shape
+    q, levels, points = loc.shape[1], loc.shape[3], loc.shape[4]
+    vec = 4 if d % 4 == 0 else 2 if d % 2 == 0 else 1
+    cv = d // vec
+    tg = min(cv, 32)
+    starts = [sum(h * w for h, w in shapes[:i]) for i in range(len(shapes))]
+    meta = mx.array([v for (h, w), s in zip(shapes, starts, strict=True) for v in (h, w, s)], dtype=mx.int32)
+    return _MSDA(
+        inputs=[mx.contiguous(value), mx.contiguous(loc), mx.contiguous(w), meta],
+        template=[("T", value.dtype), ("D", d), ("NH", nh), ("L", levels), ("P", points), ("VEC", vec)],
+        grid=(-(-cv // tg) * tg, q * nh, b), threadgroup=(tg, 1, 1),
+        output_shapes=[(b, q, nh * d)], output_dtypes=[value.dtype],
     )[0]  # fmt: skip
 
 
