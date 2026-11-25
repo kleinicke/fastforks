@@ -45,6 +45,7 @@ CONTEXT = 16  # fixed: the processor's text max_length (OWL-ViT / OWLv2 position
 QUICK_GELU = 1.702  # fixed: QuickGELU(x) = x * sigmoid(1.702 x) = SiLU(1.702 x) / 1.702
 SILU = 3  # fixed: fused-GEMM epilogue code of SiLU (`fastforks._optimize.conv_ops`)
 _TEXT_CACHE = 8  # fixed: cache policy, query lists whose text embeddings are kept
+_DIRECT_CHECKPOINTS = frozenset(("owlv2-b16@1", "owlv2-l14@1"))
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,20 @@ def gaussian_resize(x: torch.Tensor, size: int) -> torch.Tensor:
     return F.interpolate(x, size=(size, size), mode="bilinear", align_corners=False, antialias=False)
 
 
+def _place(net: Any, device: torch.device, dtype: torch.dtype, *, direct: bool) -> None:  # noqa: ANN401 - transformers network
+    """Move the compute towers in their run dtype and keep final vision norms and heads in float32."""
+    owl = net.owlv2
+    vis = owl.vision_model
+    compute = (vis.embeddings, vis.pre_layernorm, vis.encoder, owl.text_model, owl.text_projection)
+    if not direct:
+        net.to(device)
+    for part in compute:
+        part.to(device=device if direct else None, dtype=dtype)
+    if direct:
+        # The already-moved towers are reused. Upload the remaining FP32 heads and buffers.
+        net.to(device)
+
+
 class Portable(Runner):
     """transformers' network; image tower layers in the compute dtype (merged qkv + SDPA), norms and heads float32."""
 
@@ -92,13 +107,15 @@ class Portable(Runner):
         self.dt = ctx.torch_dtype
         vc = net.config.vision_config
         self.size, self.patch = vc.image_size, vc.patch_size
-        net.to(ctx.device)
+        direct = (
+            ctx.device.type == "cuda"
+            and self.dt == torch.float16
+            and ctx.variant.ref in _DIRECT_CHECKPOINTS
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
+        _place(net, ctx.device, self.dt, direct=direct)
         vis = net.owlv2.vision_model
-        vis.embeddings.to(self.dt)
-        vis.pre_layernorm.to(self.dt)
-        vis.encoder.to(self.dt)
-        net.owlv2.text_model.to(self.dt)
-        net.owlv2.text_projection.to(self.dt)
         self.net = net
         self.layers = list(vis.encoder.layers)
         for lay in self.layers:
