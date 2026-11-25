@@ -65,7 +65,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        self.net = MaskFormer(pretrained(ctx), ctx.torch_dtype, kernels=self.kernels).to(ctx.device)
+        self.net = MaskFormer(pretrained(ctx), ctx.torch_dtype, kernels=self.kernels).to_device(ctx.device)
 
     def _scores(self, image: torch.Tensor) -> torch.Tensor:
         """Semantic scores of one image `[1, 150, rh, rw]` at the resized image size, in the network dtype."""

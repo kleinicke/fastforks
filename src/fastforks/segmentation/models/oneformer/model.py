@@ -72,7 +72,7 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = MaskFormer(
             pretrained(ctx), ctx.torch_dtype, kernels=self.kernels, task_inputs=ctx.params.task_tokens
-        ).to(ctx.device)
+        ).to_device(ctx.device)
 
     def _rows(self, image: torch.Tensor) -> Iterator[tuple[int, torch.Tensor]]:
         """Semantic scores of one image at its size, row chunk by row chunk: `(row, [1, 150, rows, W])`, net dtype.

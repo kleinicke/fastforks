@@ -433,6 +433,26 @@ class MaskFormer(torch.nn.Module):
         if self.oneformer:
             _patch_oneformer(model, dtype)
 
+    def to_device(self, device: torch.device) -> MaskFormer:
+        """Place the runner, sharing CUDA Swin QKV weights with its separate fallback projections."""
+        if not self.kernels or device.type != "cuda":
+            return self.to(device)
+        attentions = [m for m in self.model.modules() if hasattr(m, "ff_qkv_w")]
+        for a in attentions:
+            for projection in (a.q_proj, a.k_proj, a.v_proj):
+                projection.weight = None
+                if a.ff_qkv_b is not None:
+                    projection.bias = None
+        self.to(device)
+        for a in attentions:
+            projections = (a.q_proj, a.k_proj, a.v_proj)
+            for projection, weight in zip(projections, a.ff_qkv_w.chunk(3), strict=True):
+                projection.weight = torch.nn.Parameter(weight, requires_grad=False)
+            if a.ff_qkv_b is not None:
+                for projection, bias in zip(projections, a.ff_qkv_b.chunk(3), strict=True):
+                    projection.bias = torch.nn.Parameter(bias, requires_grad=False)
+        return self
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Normalised image `[1, 3, H, W]` (sides multiples of 32) -> mask and class logits (model dtype).
 
