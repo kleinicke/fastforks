@@ -793,9 +793,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 7548 | 5321 | – | 7380 | 2184 | 2.4x | 1390 | 2452 |
 | [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 2700 | 1617 | – | 2038 | 849 | 1.9x | 1319 | 2106 |
 | [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 2191 | 1500 | – | 2122 | 1020 | 1.5x | 1215 | 1923 |
-| [`restormer-deblur`](../models/restoration.md#restormer) | 1132 | 601 | – | unsupported | – | – | 2046 | – |
-| [`restormer-derain`](../models/restoration.md#restormer) | 1548 | 737 | – | unsupported | – | – | 2048 | – |
-| [`restormer-sidd`](../models/restoration.md#restormer) | 1236 | 665 | – | unsupported | – | – | 2136 | – |
+| [`restormer-deblur`](../models/restoration.md#restormer) | 809 | 554 | – | unsupported | – | – | 2195 | – |
+| [`restormer-derain`](../models/restoration.md#restormer) | 806 | 552 | – | unsupported | – | – | 2262 | – |
+| [`restormer-sidd`](../models/restoration.md#restormer) | 796 | 551 | – | unsupported | – | – | 2264 | – |
 | [`seedvr2-3b`](../models/restoration.md#seedvr2) | – | 14023 | 14307 | – | – | – | 5178 | – |
 | [`seedvr2-7b`](../models/restoration.md#seedvr2) | – | 32426 | 25365 | – | – | – | 6547 | – |
 | [`span-x2`](../models/restoration.md#span) | 180 | 134 | – | 171 | 76.5 | 1.7x | 753 | 1073 |
