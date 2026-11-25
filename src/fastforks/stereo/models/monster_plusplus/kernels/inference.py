@@ -147,7 +147,7 @@ def _conv_gru_fast(self: nn.Module, h: int, ctx: tuple[torch.Tensor, torch.Tenso
     return h
 
 
-def _ctx_block(c_list: list[torch.Tensor], blk: nn.Module) -> torch.Tensor:
+def _ctx_block(c_list: list[torch.Tensor], blk: nn.Module) -> list[tuple[torch.Tensor, torch.Tensor]]:
     """(czr, cq) per level for an update block from the shared context conv outputs (+ that block's GRU biases)."""
     out = []
     for c, g in zip(c_list, (blk.gru04, blk.gru08, blk.gru16), strict=True):
@@ -364,10 +364,10 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     net_list = [torch.tanh(x[0]).contiguous(memory_format=CL) for x in cnet_list]
     c_list = [conv_ep(conv, torch.relu(x[1])) for x, conv in zip(cnet_list, self.context_zqr_convs, strict=True)]
     del cnet_list
-    ctx = _ctx_block(c_list, self.update_block)
-    ctx_ms = _ctx_block(c_list, self.update_block_mix_stereo)
-    ctx_mm = _ctx_block(c_list, self.update_block_mix_mono)
-    del c_list
+    fit_at = iters - 7
+    mix_from = max(0, fit_at)
+    ctx = _ctx_block(c_list, self.update_block) if mix_from else []
+    mixed_contexts = None
     net_mono = [x.clone() for x in net_list]
 
     geo_fn = GeoLookup(match_left, match_right, geo_encoding_volume, self.args.corr_radius)
@@ -381,13 +381,21 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     dm_h = torch.empty_like(disp_h)
     mask_feat_4 = mask_mono = cs = cm = None
     for itr in range(iters):
+        if itr == mix_from:
+            # These are disjoint stages. The channel slices copied by _ctx_block leave the source intact.
+            ctx.clear()
+            mixed_contexts = (
+                _ctx_block(c_list, self.update_block_mix_stereo),
+                _ctx_block(c_list, self.update_block_mix_mono),
+            )
+            c_list.clear()
         geo_feat = geo_fn(disp)
         disp_h.copy_(disp)
         last = itr == iters - 1
-        if itr <= iters - 8:
+        if mixed_contexts is None:
             mask_feat_4, delta_disp = _update_fast(self.update_block, net_list, ctx, geo_feat, disp_h, last)
         else:
-            if itr == iters - 7:
+            if itr == fit_at:
                 for i in range(b):
                     scale, shift = compute_scale_shift(disp_mono_4x[i].clone().squeeze(1), disp[i].clone().squeeze(1))
                     disp_mono_4x[i] = scale * disp_mono_4x[i] + shift
@@ -395,17 +403,17 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
             cs = _corr_flaw(geo_feat, feature_right, feature_left, disp, cs)
             cm = _corr_flaw(geo_fn(disp_mono_4x), feature_right, feature_left, disp_mono_4x, cm)
             mask_feat_4, delta_disp = _update_mix_fast(
-                self.update_block_mix_stereo, net_list, ctx_ms, disp_h, cs, dm_h, cm, last
+                self.update_block_mix_stereo, net_list, mixed_contexts[0], disp_h, cs, dm_h, cm, last
             )
             mask_mono, delta_mono = _update_mix_fast(
-                self.update_block_mix_mono, net_mono, ctx_mm, dm_h, cm, disp_h, cs, last
+                self.update_block_mix_mono, net_mono, mixed_contexts[1], dm_h, cm, disp_h, cs, last
             )
             disp_mono_4x = disp_mono_4x + delta_mono.float()
             del delta_mono
         disp = disp + delta_disp.float()
         del geo_feat, delta_disp
 
-    del geo_fn, feature_left, feature_right, net_list, net_mono, ctx, ctx_ms, ctx_mm, cs, cm, init_disp, disp_h, dm_h
+    del geo_fn, feature_left, feature_right, net_list, net_mono, ctx, mixed_contexts, cs, cm, init_disp, disp_h, dm_h
 
     def up(dl: torch.Tensor, mask: torch.Tensor, stem: torch.Tensor) -> torch.Tensor:
         xspx = self.spx_2_gru(mask, stem)
