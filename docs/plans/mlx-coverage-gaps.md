@@ -1551,4 +1551,84 @@ base-plus 282 / 1099 -> 282 / 1099, large 597 / 1460 -> 598 / 1498. Routing is u
 float16; SAM 2.1 `auto` stays on MPS, MLX float16 is the default of `device="mlx"`).
 
 The same trap is possible wherever a portable runner marks its float32 part with `.float()` and has an MLX port
-through `mlx_wrap.port`: on the float32 twin the cast vanishes. Not audited across the other families here.
+through `mlx_wrap.port`: on the float32 twin the cast vanishes.
+
+### Audit across the MLX families (2026-11-25)
+
+**Method.** `tools/mlx_dtype_report.py --float32-casts REF` lists every literal float32 cast (`.float()`,
+`.to(torch.float32)`, `.type(torch.float32)`) that a module or function runs while the twin is being exported for
+MLX, with its source line: each one records nothing in the replay. Not all of them matter. A constant made in float32
+(`zeros`, `arange`, a coordinate grid) stays float32 in the replay and MLX promotes float16 with float32 to float32,
+so a `.float()` on an accumulator is often already float32; a cast right before the output only changes the output
+dtype. To screen, an A/B harness turned *every* vanishing cast into `fastforks::float32` (a monkeypatch, not
+committed) and compared the float16 golden error and warm time with and without it, on the families whose report
+listed casts (the float16 goldens of the 198 fastest MLX refs were swept first: all passed). A family was fixed when the strict run moved
+its error materially and its runner marks a stage as float32 on PyTorch; the fix uses the existing helpers
+(`to_float32`, `to_run_dtype`, `float32_call`) plus one new one, `mlx_cast.keep_float32(*modules)`, which runs
+whole modules on float32 inputs and weights during the MLX export (the module form of `float32_call`, for heads that
+are called from inside upstream code).
+
+**Fixed** (MLX portable float16 golden, mean before -> after, M1 Pro; float32 passes unchanged everywhere, the
+whole `test_mlx` golden set of each family passes float16 and float32):
+
+| ref | float32 stage | before | after |
+|---|---|---|---|
+| nnfoundation-vit (`auto` MLX float16) | Primus residual stream, layer norms, layer-scale adds, RoPE | 0.0189 | 0.0052 (limit 0.03) |
+| prompt-depth-anything-s / -l (-l `auto` MLX float16) | last DPT conv (`output_conv2[2]`) | 0.00049 | 0.00051 |
+| any2full-s / -b / -l | depth embedding, last DPT conv | 0.000126 | 0.000088 |
+| omni-dc | last DPT conv, the normal-equation solve, backbone and post stage | 0.000119 | 0.000087 |
+| detr-r50 / -r101 | class and box heads | 0.0112 | 0.0058 |
+| dfine-n..x | decoder heads, query selection, distribution projection | 0.0671 | 0.0623 |
+| deim-n..x (D-FINE runner) | same | 0.106 | 0.0702 |
+| rtdetrv2-s..x | encoder output projection and norm, decoder heads | 0.0371 | 0.0360 |
+| geocalib-pinhole | NMF in float32 | 0.0355 | 0.0304 |
+| anycalib-pinhole | tangent head, upsampling softmax | 0.050 | 0.071 (limit 0.094) |
+
+anycalib is the one that got worse in float16 (p99 0.26 -> 0.41, inside its limits). It is kept: the float32
+stages are what the PyTorch runner computes, the float16 replay is now the same computation, and anycalib's MLX
+default is float32 anyway (`device="mlx"` float16 is opt-in). prompt-depth moved within noise; the fix is kept for
+the same reason.
+
+**Video Depth Anything is not changed.** Its float16 runner keeps the DPT output head (`output_conv2`) in float32,
+and the replay does not. Keeping it float32 in the replay (`keep_float32`, tried) costs 12-14% warm time at the
+standard 994x1482: metric-s 893 -> 1018 ms and s 900 -> 1009 ms, at the same peak (2978 MB). The error does not
+improve consistently: metric-s 0.00204 -> 0.00159, s 0.00030 -> 0.00056, limits 0.0042 and 0.0055. Keeping only the
+last conv in float32, as the other DPT heads do, gave 0.00181 at the same cost as the whole head. Neither ref is
+routed to MLX on `auto`.
+
+**Screened and left alone** (strict run vs. current, float16 mean / warm ms): raft-large 0.00082 / 125 -> 0.00074 /
+148 and memflow-kitti 0.00102 / 488 -> 0.00096 / 543 (their `.float()` are on coordinate accumulators that are float32
+in the replay already; the rest only costs time), sea-raft-s 0.00089 -> 0.00087, gimm-vfi-r-p 0.000144 -> 0.000142,
+dedode-v2-g identical (3445 -> 3798 ms), monster-mix-all 0.00115 -> 0.00089 (limit 0.02), monster-plusplus-mix-all
+0.0232 -> 0.0261 (worse), loftr-outdoor 0.00233 -> 0.00220 (a cast after a mean, not a float32 stage),
+retinaface-mobilenet0.25 identical, gmflow-scale1-things 0.00245 -> 0.00241. lwdetr and rfdetr only cast their
+outputs.
+
+**Cost** (`tools/speed_survey.py` re-run of the changed refs on apple-m1-pro-mlx-16gb, MLX portable float16, warm
+ms / first call s / peak MB). The baseline is the 2026-11-19 rows at an older commit, so the deltas also include
+other work since then; the like-for-like A/B runs above showed no slowdown beyond noise for the fixed families.
+
+| ref | 2026-11-19 | now |
+|---|---|---|
+| nnfoundation-vit | 13037 / 29.5 / 2469 | 13240 / 17.7 / 2519 |
+| prompt-depth-anything-l | 1022 / 3.2 / 2862 | 1008 / 3.3 / 2710 |
+| any2full-s | 160 / 3.4 / 1012 | 113 / 2.4 / 819 |
+| omni-dc | 3873 / 11.9 / 5387 | 3352 / 9.5 / 5336 |
+| detr-r50-coco | 97 / 1.5 / 1414 | 91 / 1.9 / 1397 |
+| dfine-n-coco | 22.3 / 9.1 / 624 | 21.6 / 2.0 / 578 |
+| deim-n-coco | 21.0 / 1.5 / 602 | 21.7 / 2.0 / 575 |
+| rtdetrv2-s-coco | 37.1 / 1.8 / 751 | 37.1 / 1.8 / 768 |
+| geocalib-pinhole | 352 / 6.0 / 1013 | 276 / 5.0 / 961 |
+| anycalib-pinhole | 439 / 5.3 / 1495 | 295 / 2.4 / 1287 |
+
+prompt-depth-anything-s and both Video Depth Anything refs had rows only at older standard inputs (756x1008,
+480x640). Those rows were replaced by rows at today's 994x1482: prompt-depth-s 148 ms / 971 MB. `auto` routing is
+unchanged: `tools/gen_auto_mode.py` keeps nnfoundation-vit and prompt-depth-anything-l on MLX float16. Two
+secondary routes moved with the new rows. anycalib-pinhole's `device="mlx"` default is float16 now: 295 ms against
+310 ms for float32, with the float16 golden passing at 0.071 of 0.094. geocalib-pinhole's explicit `dtype="float32"`
+on `auto` now goes to MLX float32 (314 ms).
+
+**Left**: the strict screen covered the families the report flagged, not every ref with an MLX port (the slow
+ones beyond the 198 were only checked where flagged); monster-plusplus sits at 0.023 of 0.03 in float16 and
+strict float32 did not help, so its margin comes from elsewhere. The report flag stays the way to check a new port:
+`tools/mlx_dtype_report.py --float32-casts REF` should list nothing that the runner means as a float32 stage.

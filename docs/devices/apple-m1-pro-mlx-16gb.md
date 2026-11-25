@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1558 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1568 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -99,26 +99,13 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ## Depth
 
-### Depth, synthetic, 480x640
-
-| model | time (ms): portable fp32 | portable fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | 1246 | 872 | 2021 |
-| [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | 1300 | 896 | 2027 |
-
-### Depth, synthetic, 756x1008
-
-| model | time (ms): portable fp32 | portable fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`prompt-depth-anything-s`](../models/depth.md#prompt_depth_anything) | 250 | 244 | 1168 |
-
 ### Depth, synthetic, 994x1482
 
 | model | time (ms): portable fp32 | portable fp16 | portable bf16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|---|
 | [`any2full-b`](../models/depth.md#any2full) | 379 | 379 | – | – | – | – | 1583 | – |
 | [`any2full-l`](../models/depth.md#any2full) | 864 | 909 | – | – | – | – | 3827 | – |
-| [`any2full-s`](../models/depth.md#any2full) | 169 | 160 | – | – | – | – | 1012 | – |
+| [`any2full-s`](../models/depth.md#any2full) | 138 | 113 | – | unsupported | – | – | 819 | – |
 | [`da3-giant-1.1`](../models/depth.md#depth_anything_3) | 751 | 606 | – | unsupported | – | – | 3231 | – |
 | [`da3-large-1.1`](../models/depth.md#depth_anything_3) | 273 | 226 | – | unsupported | – | – | 1594 | – |
 | [`da3metric-large`](../models/depth.md#depth_anything_3) | 275 | 227 | – | unsupported | – | – | 1561 | – |
@@ -151,13 +138,16 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`moge-2-vitl-normal`](../models/depth.md#moge) | 1339 | 1036 | – | unsupported | – | – | 1950 | – |
 | [`moge-2-vits-normal`](../models/depth.md#moge) | 372 | 282 | – | unsupported | – | – | 1250 | – |
 | [`moge-3-vitl`](../models/depth.md#moge) | 2879 | 2543 | – | unsupported | – | – | 2566 | – |
-| [`omni-dc`](../models/depth.md#omni_dc) | 4033 | 3873 | – | – | – | – | 5387 | – |
+| [`omni-dc`](../models/depth.md#omni_dc) | 3609 | 3352 | – | unsupported | – | – | 5336 | – |
 | [`pointdit-b-512`](../models/depth.md#pointdit) | 343 | 356 | – | – | – | – | 1695 | – |
 | [`pointdit-l-512`](../models/depth.md#pointdit) | 1047 | 1231 | – | – | – | – | 4003 | – |
-| [`prompt-depth-anything-l`](../models/depth.md#prompt_depth_anything) | 1345 | 1022 | – | – | – | – | 2862 | – |
+| [`prompt-depth-anything-l`](../models/depth.md#prompt_depth_anything) | 1340 | 1008 | – | unsupported | – | – | 2710 | – |
+| [`prompt-depth-anything-s`](../models/depth.md#prompt_depth_anything) | 189 | 148 | – | unsupported | – | – | 971 | – |
 | [`stablenormal-turbo`](../models/depth.md#stablenormal) | 3589 | 2299 | – | unsupported | – | – | 8683 | – |
 | [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1254 | 1173 | – | – | – | – | 1825 | – |
 | [`unik3d-vitl`](../models/depth.md#unik3d) | 1230 | 947 | – | – | – | – | 1830 | – |
+| [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | 1474 | 893 | – | unsupported | – | – | 2978 | – |
+| [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | 1472 | 900 | – | unsupported | – | – | 2980 | – |
 | [`zoedepth-nk`](../models/depth.md#zoedepth) | 1009 | 837 | – | unsupported | – | – | 1919 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
@@ -405,14 +395,14 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|---|---|---|
 | [`deim-l-coco`](../models/detection.md#dfine) | 73.6 | 59.7 | – | – | – | 872 | – |
 | [`deim-m-coco`](../models/detection.md#dfine) | 58.4 | 46.9 | – | – | – | 809 | – |
-| [`deim-n-coco`](../models/detection.md#dfine) | 23.3 | 21.0 | – | – | – | 602 | – |
+| [`deim-n-coco`](../models/detection.md#dfine) | 25.7 | 21.7 | unsupported | – | – | 575 | – |
 | [`deim-s-coco`](../models/detection.md#dfine) | 35.8 | 30.8 | – | – | – | 674 | – |
 | [`deim-x-coco`](../models/detection.md#dfine) | 120 | 94.8 | – | – | – | 1117 | – |
 | [`detr-r101-coco`](../models/detection.md#detr) | 181 | 144 | – | – | – | 1397 | – |
-| [`detr-r50-coco`](../models/detection.md#detr) | 118 | 97.2 | unsupported | – | – | 1414 | – |
+| [`detr-r50-coco`](../models/detection.md#detr) | 108 | 90.6 | unsupported | – | – | 1397 | – |
 | [`dfine-l-coco`](../models/detection.md#dfine) | 74.4 | 59.9 | – | – | – | 881 | – |
 | [`dfine-m-coco`](../models/detection.md#dfine) | 58.4 | 46.6 | – | – | – | 821 | – |
-| [`dfine-n-coco`](../models/detection.md#dfine) | 25.7 | 22.3 | unsupported | – | – | 624 | – |
+| [`dfine-n-coco`](../models/detection.md#dfine) | 23.9 | 21.6 | unsupported | – | – | 578 | – |
 | [`dfine-s-coco`](../models/detection.md#dfine) | 34.6 | 29.5 | unsupported | – | – | 652 | – |
 | [`dfine-x-coco`](../models/detection.md#dfine) | 120 | 94.6 | – | – | – | 1133 | – |
 | [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 156 | 126 | unsupported | – | – | 1156 | – |
@@ -441,7 +431,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`rtdetrv2-l-coco`](../models/detection.md#rtdetrv2) | 88.9 | 67.8 | – | – | – | 815 | – |
 | [`rtdetrv2-m-coco`](../models/detection.md#rtdetrv2) | 64.8 | 50.0 | – | – | – | 811 | – |
 | [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 71.8 | 57.4 | – | – | – | 791 | – |
-| [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 46.4 | 37.1 | unsupported | – | – | 751 | – |
+| [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 46.1 | 37.1 | unsupported | – | – | 768 | – |
 | [`rtdetrv2-x-coco`](../models/detection.md#rtdetrv2) | 139 | 118 | – | – | – | 953 | – |
 | [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 98.7 | 74.9 | – | – | – | 928 | – |
 | [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 60.2 | 50.1 | – | – | – | 921 | – |
@@ -610,10 +600,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Calibration, synthetic, 1080x1920
 
-| model | time (ms): portable fp32 | portable fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`anycalib-pinhole`](../models/calibration.md#anycalib) | 342 | 439 | 2089 |
-| [`geocalib-pinhole`](../models/calibration.md#geocalib) | 416 | 352 | 1013 |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`anycalib-pinhole`](../models/calibration.md#anycalib) | 310 | 295 | unsupported | 1287 |
+| [`geocalib-pinhole`](../models/calibration.md#geocalib) | 314 | 276 | unsupported | 961 |
+
+Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ## Multiview
 
@@ -822,9 +814,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Volume, synthetic, 192x192
 
-| model | time (ms): portable fp32 | portable fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`nnfoundation-vit`](../models/volume.md#nnfoundation) | 18038 | 13037 | 2469 |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`nnfoundation-vit`](../models/volume.md#nnfoundation) | 17526 | 13240 | unsupported | 2519 |
+
+Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Volume, synthetic, 200x200
 
