@@ -779,12 +779,15 @@ class Predictor:
             assert seg is not None  # noqa: S101 - at least one head
             return seg
         best, idx = part(0).max(0)
+        labels = idx.to(_labels_dtype(self.plan.n_labels))
+        del idx
         for c0 in range(chunk, logits.shape[0], chunk):
-            m, i = part(c0).max(0)
-            better = m > best
-            best = torch.where(better, m, best)
-            idx = torch.where(better, i + c0, idx)
-        return idx
+            values, idx = part(c0).max(0)
+            better = values > best
+            torch.where(better, values, best, out=best)
+            torch.where(better, idx.add_(c0).to(labels.dtype), labels, out=labels)
+            del values, idx, better
+        return labels
 
     def _windows(self, x: torch.Tensor, starts: Sequence[tuple[int, ...]], nets: Sequence[nn.Module]) -> torch.Tensor:
         """Gaussian-weighted logits `[folds, B, heads, *patch]` at `starts` (nnU-Net: `prediction *= gaussian`)."""
@@ -815,12 +818,14 @@ class Predictor:
         steps = sliding_steps(x.shape[1:], p.patch_size, self.step)
         d, h, w = x.shape[1:]
         dt = self._gauss.dtype
+        # Match the window logits so accumulation reads and writes adjacent channels together on CUDA.
+        layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
         if full:
             starts = [(a, b, c) for a in steps[0] for b in steps[1] for c in steps[2]]
             n = torch.zeros((d, h, w), dtype=dt, device=x.device)
             out = None
             for f, net in enumerate(self.nets):
-                acc = torch.zeros((1, p.n_outputs, d, h, w), dtype=dt, device=x.device)
+                acc = torch.empty((1, p.n_outputs, d, h, w), dtype=dt, device=x.device, memory_format=layout).zero_()
                 self._sweep(x, acc, n if f == 0 else None, starts, [net])
                 y = acc[0].div_(n)
                 out = y if out is None else out.add_(y)
@@ -829,7 +834,9 @@ class Predictor:
             if len(self.nets) > 1:
                 out /= len(self.nets)
             return out
-        acc = torch.zeros((len(self.nets), p.n_outputs, k0, h, w), dtype=dt, device=x.device)
+        acc = torch.empty(
+            (len(self.nets), p.n_outputs, k0, h, w), dtype=dt, device=x.device, memory_format=layout
+        ).zero_()
         ensemble = len(self.nets) > 1  # one network: argmax and sign do not need the division by `n`
         n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if ensemble else None
         labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)

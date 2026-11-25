@@ -93,8 +93,14 @@ def _init_args(path: Path) -> dict[str, Any]:
 
 def _mirror_axes(path: Path, plan: Plan) -> tuple[int, ...]:
     """The checkpoint's `inference_allowed_mirroring_axes` as axes of the 3D window (2D: + 1)."""
-    ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
-    axes = tuple(ckpt.get("inference_allowed_mirroring_axes") or ()) if isinstance(ckpt, dict) else ()
+    if path.suffix.lower() == ".safetensors":
+        from safetensors import safe_open  # noqa: PLC0415 - only for nnU-Net's safetensors checkpoints
+
+        with safe_open(path, framework="pt", device="cpu") as file:
+            axes = json.loads((file.metadata() or {}).get("inference_allowed_mirroring_axes", "null")) or ()
+    else:
+        ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
+        axes = ckpt.get("inference_allowed_mirroring_axes") or () if isinstance(ckpt, dict) else ()
     return tuple(int(a) + (3 - plan.dims) for a in axes)
 
 
@@ -140,6 +146,7 @@ class Portable(Runner):
             labels.append(plan.labels)
         self.class_names = self._names(labels)
         index = {n: k for k, n in self.class_names.items()}
+        self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
         self._luts: list[torch.Tensor | None] = []
         for part, lab in zip(self.parts, labels, strict=True):
             lut = torch.zeros(part.plan.n_labels, dtype=torch.int16)
@@ -149,8 +156,7 @@ class Portable(Runner):
                     raise WeightsError(msg)
                 lut[k] = index[n]
             identity = torch.equal(lut, torch.arange(lut.numel(), dtype=lut.dtype))
-            self._luts.append(None if identity else lut.to(ctx.device))
-        self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
+            self._luts.append(None if identity else lut.to(device=ctx.device, dtype=self._dtype))
 
     def _names(self, labels: Sequence[Mapping[int, str]]) -> dict[int, str]:
         """The merged map's label -> name: every part's names, numbered in order of appearance (one part: its own)."""
@@ -166,7 +172,12 @@ class Portable(Runner):
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         """The network of weight file `index` (a fold checkpoint)."""
         net = UNet(plan, channels)
-        sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
+        if self.ctx.params.checkpoint.lower().endswith(".safetensors"):
+            sd = self.ctx.state_dict(index, strip="")
+            # nnU-Net 2.9 stores training state separately from the flat network tensors.
+            sd.pop("__nnunet_checkpoint_state__", None)
+        else:
+            sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
         load_strict(net, UNet.state_dict_of(sd, plan.dims), f"{self.ctx.variant.ref} checkpoint")
         device = torch.device("cpu") if self.ctx.params.stream else self.ctx.device
         net.eval().requires_grad_(requires_grad=False).to(device, self._dtype_of())
@@ -208,7 +219,11 @@ class Portable(Runner):
                 nets = [copy.deepcopy(net).to(volume.device) for net in part.nets]
             predictor = replace(part, nets=nets, forward=self._forward_patch)
             labels = predictor(volume, spacing)
-            return (labels if lut is None else lut[labels.long()]).to(self._dtype)
+            if lut is None:
+                return labels.to(self._dtype)
+            # index_select accepts 32-bit indices, halving the full-volume indexing temporary.
+            indices = labels.to(torch.int32, memory_format=torch.contiguous_format).view(-1)
+            return lut.index_select(0, indices).view(labels.shape)
 
         out = predict(self.parts[0], self._luts[0])
         for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):

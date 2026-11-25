@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -175,6 +176,41 @@ def test_sliding_window_slabs_equal_full_logits() -> None:
     inner = (slice(None), *(slice(3, -3),) * 3)  # weights cancel (float16 logits); not near the corners, whose
     # float16 weights are near the smallest subnormal (nnU-Net's rounding, kept)
     torch.testing.assert_close(one.float()[inner], direct[inner], rtol=2e-3, atol=2e-3)
+
+
+@pytest.mark.parametrize("heads", [19, 260])
+def test_resampled_labels_keep_first_tie_and_compact_dtype(heads: int) -> None:
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    plan = replace(plan, labels={i: str(i) for i in range(1, heads)})
+    predictor = _nnunet.Predictor(plan, [])
+    logits = torch.zeros(heads, 2, 3, 4)
+    logits[3, 0] = logits[12, 0] = 5
+    logits[-1, 1] = 7
+    shape = (3, 6, 8)
+    source, target = (1.5, 1.5, 1.5), (1.0, 1.0, 1.0)
+    fn, kw = plan.resample_logits
+    expected = _resample.resample(logits, shape, source, target, fn, kw).argmax(0)
+    got = predictor._decide_resampled(logits.half(), shape, source, target)
+    assert torch.equal(got.long(), expected)
+    assert got.dtype == (torch.uint8 if heads < 256 else torch.int16)
+
+
+def test_nnunet_folder_with_safetensors(folder: Path, tmp_path: Path) -> None:
+    from safetensors.torch import save_file  # noqa: PLC0415 - only the safetensors fixture needs the writer
+
+    path = tmp_path / "Dataset002_Tiny" / folder.name
+    fold = path / "fold_0"
+    fold.mkdir(parents=True)
+    for name in ("plans.json", "dataset.json"):
+        (path / name).write_bytes((folder / name).read_bytes())
+    state = dict(_net().state_dict()) | {"__nnunet_checkpoint_state__": torch.zeros(1, dtype=torch.uint8)}
+    save_file(state, fold / "checkpoint_final.safetensors", metadata={"inference_allowed_mirroring_axes": "[0,1,2]"})
+    model = volume.load(path, mode="portable", device="cpu", checkpoint="checkpoint_final.safetensors")
+    reference = volume.load(folder, mode="portable", device="cpu", folds=(0,))
+    ct = torch.arange(16**3, dtype=torch.float32).view(16, 16, 16)
+    opts = {"spacing": (2.0, 1.5, 1.5)}
+    assert model._runner.parts[0].mirror_axes == (0, 1, 2)
+    assert torch.equal(model(ct, **opts).labels, reference(ct, **opts).labels)
 
 
 def test_zoom_matches_scipy() -> None:
