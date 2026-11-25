@@ -154,7 +154,9 @@ class Kernels(Runner):
         self._forward = forward_kernels
         after = cudnn_hacc.capture_after()
         self.graphs = (
-            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False) if p.cuda_graphs else None
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=cudnn_hacc.BUILD_AFTER > 0)
+            if p.cuda_graphs
+            else None
         )
 
     pad = Portable.pad

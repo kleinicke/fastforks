@@ -115,7 +115,7 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
         self.graphs = (
-            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False)
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=cudnn_hacc.BUILD_AFTER > 0)
             if ctx.params.cuda_graphs
             else None
         )
