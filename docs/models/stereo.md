@@ -330,7 +330,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/alibaba/cascade-stereo/blob/2ae7da65515c82025383a0fbee8d6fe063dc7101/CasStereoNet/README.md#L17-L19>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `cfnet_volume`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow`
 - Public TensorRT export is unavailable for `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow` (TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime).
 - Outputs: disparity
@@ -367,8 +367,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `cas-gwcnet-gc-sceneflow` | 0.00441 / 0.07446 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `cas-gwcnet-c-sceneflow` | 0.00354 / 0.02642 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `cas-gwcnet-gc-sceneflow` | 0.00452 / 0.05932 | RTX 5060 Ti, torch 2.14.1+cu130 | `cfnet_volume@705cd0d85dc1:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `cas-gwcnet-c-sceneflow` | 0.00372 / 0.02768 | RTX 5060 Ti, torch 2.14.1+cu130 | `cfnet_volume@705cd0d85dc1:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -421,7 +421,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `cfnet-sceneflow` | 0.00191 / 0.01436 | RTX 5060 Ti, torch 2.10.0+cu130 | `cfnet_volume@b9c5fed4f6e6:sm_120`, `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `cfnet-sceneflow` | 0.00177 / 0.01519 | RTX 5060 Ti, torch 2.14.1+cu130 | `cfnet_volume@705cd0d85dc1:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 

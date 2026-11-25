@@ -111,7 +111,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 |---|---|
 | `acv_volume` | fast_acvnet |
 | `box_nms` | retinaface, rtmo, yunet |
-| `cfnet_volume` | cfnet |
+| `cfnet_volume` | cas_gwcnet, cfnet |
 | `cfs` | c_foundationstereo |
 | `cotracker_corr` | cotracker |
 | `crestereo` | crestereo |
