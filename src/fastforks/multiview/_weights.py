@@ -6,7 +6,7 @@ import torch
 def assign_inference_weights(
     net: torch.nn.Module, state: dict[str, torch.Tensor], device: torch.device, half_prefixes: tuple[str, ...]
 ) -> None:
-    """Fill a meta network without building an intermediate float32 copy of its half layers."""
+    """Assign checkpoint tensors in their inference dtypes without copying into the constructor's tensors."""
     expected = net.state_dict()
     for name, source in state.items():
         target = expected.get(name)

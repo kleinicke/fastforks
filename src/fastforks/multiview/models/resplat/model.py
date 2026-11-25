@@ -33,11 +33,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels import depthsplat_corr, knn_attention
 from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.multiview.models.depthsplat.model import (
     _chunked_cost_volume,
     _fused_cost_volume,
@@ -396,6 +398,15 @@ class Net(nn.Module):
 
 def _net(ctx: Context) -> Net:
     sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict(key="state_dict").items()}
+    if ctx.device.type == "cuda" and ctx.dtype == "float16":
+        # The strict checkpoint fills the whole network. Transfer each tensor directly to its final layout and dtype.
+        with skipped_init():
+            net = Net(ctx.params)
+        assign_inference_weights(net, sd, torch.device("cpu"), ())
+        net.eval().requires_grad_(requires_grad=False)
+        return net.to(  # ty: ignore[no-matching-overload] - Module.to accepts the combined dtype and memory format.
+            device=ctx.device, dtype=torch.float16, memory_format=torch.channels_last
+        )
     net = Net(ctx.params)
     net.load_state_dict(sd, strict=True)
     return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
@@ -455,7 +466,7 @@ class _Base(Runner):
             if isinstance(m, MLP):
                 override(m, _point_mlp)
         self.half = ctx.dtype == "float16"
-        if self.half:
+        if self.half and ctx.device.type != "cuda":
             self.net.half().to(memory_format=torch.channels_last)
 
     def _amp(self) -> contextlib.AbstractContextManager[Any]:
