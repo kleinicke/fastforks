@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1706 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1707 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -186,7 +186,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 11.8 | 9.05 | 12.8 | 8.87 | 1.0x | 498 | 498 |
 | [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.7 | 14.5 | 18.3 | 15.0 | 1.0x | 592 | 587 |
 | [`densenet121.tv_in1k`](../models/classification.md#densenet) | 11.3 | 9.71 | unsupported | – | – | 416 | – |
-| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 66.7 | 57.3 | unsupported | – | – | 1151 | – |
+| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 65.0 | 56.1 | unsupported | – | – | 1108 | – |
 | [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 6.90 | 6.87 | 4.92 | 5.89 | 1.4x | 444 | 477 |
 | [`efficientformer_l3.snap_dist_in1k`](../models/classification.md#efficientformer) | 9.25 | 8.64 | 9.85 | 8.33 | 1.0x | 543 | 541 |
 | [`efficientformer_l7.snap_dist_in1k`](../models/classification.md#efficientformer) | 18.6 | 15.1 | 18.5 | 14.9 | 1.0x | 750 | 748 |
@@ -298,9 +298,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|---|---|---|
 | [`deeplabv3-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 622 | 445 | 601 | 444 | 1.0x | 1550 | 1542 |
 | [`deeplabv3plus-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 479 | 361 | 478 | 359 | 1.0x | 1533 | 1552 |
-| [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 312 | 256 | unsupported | – | – | 1372 | – |
-| [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 937 | 761 | unsupported | – | – | 2223 | – |
-| [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 132 | 112 | unsupported | – | – | 1002 | – |
+| [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 313 | 256 | unsupported | – | – | 1356 | – |
+| [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 941 | 760 | unsupported | – | – | 2178 | – |
+| [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 135 | 115 | unsupported | – | – | 1201 | – |
 | [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 667 | 574 | – | – | – | 3661 | – |
 | [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 510 | 382 | 528 | 366 | 1.0x | 1332 | 1391 |
@@ -379,11 +379,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 409 | 352 | – | 1069 |
 | [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 1968 | 1589 | unsupported | 2350 |
 | [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1051 | 864 | – | 1639 |
-| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 352 | 281 | unsupported | 1119 |
-| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 699 | 598 | unsupported | 1495 |
-| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 201 | 167 | unsupported | 982 |
-| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 174 | 147 | unsupported | 973 |
-| [`sam3`](../models/promptable_segmentation.md#sam3) | 2062 | 1657 | unsupported | 2768 |
+| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 298 | 263 | unsupported | 1112 |
+| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 643 | 584 | unsupported | 1512 |
+| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 182 | 159 | unsupported | 998 |
+| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 156 | 137 | unsupported | 1023 |
+| [`sam3`](../models/promptable_segmentation.md#sam3) | 1961 | 1573 | unsupported | 2775 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -526,12 +526,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`c-radio-v3-b`](../models/features.md#c_radio) | 16.8 | 15.4 | unsupported | – | – | 759 | – |
-| [`c-radio-v3-g`](../models/features.md#c_radio) | 185 | 154 | unsupported | – | – | 4964 | – |
-| [`c-radio-v3-h`](../models/features.md#c_radio) | 106 | 90.0 | unsupported | – | – | 2975 | – |
-| [`c-radio-v3-l`](../models/features.md#c_radio) | 53.5 | 46.1 | unsupported | – | – | 1651 | – |
-| [`c-radio-v4-h`](../models/features.md#c_radio) | 107 | 89.9 | unsupported | – | – | 2961 | – |
-| [`c-radio-v4-so400m`](../models/features.md#c_radio) | 73.1 | 64.0 | unsupported | – | – | 2091 | – |
+| [`c-radio-v3-b`](../models/features.md#c_radio) | 16.7 | 15.0 | unsupported | – | – | 518 | – |
+| [`c-radio-v3-g`](../models/features.md#c_radio) | 180 | 151 | unsupported | – | – | 2590 | – |
+| [`c-radio-v3-h`](../models/features.md#c_radio) | 104 | 88.6 | unsupported | – | – | 1617 | – |
+| [`c-radio-v3-l`](../models/features.md#c_radio) | 52.6 | 45.6 | unsupported | – | – | 932 | – |
+| [`c-radio-v4-h`](../models/features.md#c_radio) | 104 | 88.6 | unsupported | – | – | 1619 | – |
+| [`c-radio-v4-so400m`](../models/features.md#c_radio) | 71.6 | 62.5 | unsupported | – | – | 1166 | – |
 | [`clip-b16-laion2b`](../models/features.md#clip) | 17.2 | 15.0 | unsupported | – | – | 680 | – |
 | [`clip-b16-openai`](../models/features.md#clip) | 16.9 | 15.3 | unsupported | – | – | 673 | – |
 | [`clip-h14-378-dfn5b`](../models/features.md#clip) | 141 | 108 | unsupported | – | – | 1707 | – |
@@ -546,22 +546,22 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`convnext_large.fb_in22k`](../models/features.md#convnext_features) | 35.0 | 30.2 | 34.0 | 28.5 | 1.1x | 1711 | 1710 |
 | [`convnext_small.fb_in22k`](../models/features.md#convnext_features) | 14.7 | 12.1 | 14.1 | 12.1 | 1.0x | 691 | 691 |
 | [`convnext_tiny.fb_in22k`](../models/features.md#convnext_features) | 8.47 | 7.59 | 9.87 | 8.62 | 0.9x | 605 | 605 |
-| [`dinov2-vitb14`](../models/features.md#dinov2) | 20.5 | 18.6 | unsupported | – | – | 607 | – |
-| [`dinov2-vitb14-reg`](../models/features.md#dinov2) | 20.6 | 18.0 | unsupported | – | – | 601 | – |
-| [`dinov2-vitg14`](../models/features.md#dinov2) | 227 | 193 | unsupported | – | – | 2634 | – |
-| [`dinov2-vitg14-reg`](../models/features.md#dinov2) | 234 | 203 | unsupported | – | – | 2630 | – |
-| [`dinov2-vitl14`](../models/features.md#dinov2) | 64.3 | 55.5 | unsupported | – | – | 1011 | – |
-| [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 75.2 | 58.2 | unsupported | – | – | 1029 | – |
-| [`dinov2-vits14`](../models/features.md#dinov2) | 8.24 | 7.21 | unsupported | – | – | 398 | – |
-| [`dinov2-vits14-reg`](../models/features.md#dinov2) | 8.29 | 7.22 | unsupported | – | – | 398 | – |
+| [`dinov2-vitb14`](../models/features.md#dinov2) | 20.6 | 18.0 | unsupported | – | – | 439 | – |
+| [`dinov2-vitb14-reg`](../models/features.md#dinov2) | 20.7 | 17.9 | unsupported | – | – | 442 | – |
+| [`dinov2-vitg14`](../models/features.md#dinov2) | 225 | 189 | unsupported | – | – | 2527 | – |
+| [`dinov2-vitg14-reg`](../models/features.md#dinov2) | 225 | 189 | unsupported | – | – | 2529 | – |
+| [`dinov2-vitl14`](../models/features.md#dinov2) | 64.6 | 55.6 | unsupported | – | – | 889 | – |
+| [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 64.8 | 55.5 | unsupported | – | – | 876 | – |
+| [`dinov2-vits14`](../models/features.md#dinov2) | 8.21 | 7.01 | unsupported | – | – | 268 | – |
+| [`dinov2-vits14-reg`](../models/features.md#dinov2) | 8.27 | 7.15 | unsupported | – | – | 269 | – |
 | [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | 19.3 | 15.7 | 19.3 | 15.7 | 1.0x | 530 | 529 |
 | [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | 34.2 | 28.2 | 33.2 | 28.2 | 1.0x | 841 | 842 |
 | [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 13.8 | 11.8 | 14.4 | 11.9 | 1.0x | 407 | 408 |
 | [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | 9.13 | 7.23 | 8.38 | 7.71 | 0.9x | 333 | 331 |
-| [`dinov3-vitb16`](../models/features.md#dinov3) | 17.1 | 15.0 | unsupported | – | – | 576 | – |
-| [`dinov3-vith16plus`](../models/features.md#dinov3) | 155 | 120 | unsupported | – | – | 2174 | – |
-| [`dinov3-vitl16`](../models/features.md#dinov3) | 53.3 | 45.8 | unsupported | – | – | 1017 | – |
-| [`dinov3-vits16`](../models/features.md#dinov3) | 7.32 | 6.53 | unsupported | – | – | 385 | – |
+| [`dinov3-vitb16`](../models/features.md#dinov3) | 17.6 | 15.1 | unsupported | – | – | 438 | – |
+| [`dinov3-vith16plus`](../models/features.md#dinov3) | 139 | 116 | unsupported | – | – | 1949 | – |
+| [`dinov3-vitl16`](../models/features.md#dinov3) | 54.7 | 46.4 | unsupported | – | – | 909 | – |
+| [`dinov3-vits16`](../models/features.md#dinov3) | 7.33 | 6.41 | unsupported | – | – | 261 | – |
 | [`pe-core-b16-224`](../models/features.md#perception_encoder) | 18.6 | 23.3 | unsupported | – | – | 901 | – |
 | [`pe-core-g14-448`](../models/features.md#perception_encoder) | 3316 | 379 | unsupported | – | – | 4584 | – |
 | [`pe-core-l14-336`](../models/features.md#perception_encoder) | 68.7 | 86.5 | unsupported | – | – | 2067 | – |
@@ -582,8 +582,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`siglip2-so400m14-378`](../models/features.md#siglip2) | 75.9 | 65.1 | unsupported | – | – | 1365 | – |
 | [`siglip2-so400m16-256`](../models/features.md#siglip2) | 74.2 | 64.3 | unsupported | – | – | 1324 | – |
 | [`siglip2-so400m16-512`](../models/features.md#siglip2) | 75.0 | 64.6 | unsupported | – | – | 1320 | – |
-| [`tipsv2-b14`](../models/features.md#tipsv2) | 20.6 | 17.8 | unsupported | – | – | 598 | – |
-| [`tipsv2-l14`](../models/features.md#tipsv2) | 68.5 | 72.9 | – | – | – | 1665 | – |
+| [`tipsv2-b14`](../models/features.md#tipsv2) | 20.6 | 18.0 | unsupported | – | – | 433 | – |
+| [`tipsv2-l14`](../models/features.md#tipsv2) | 64.5 | 55.4 | unsupported | – | – | 877 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

@@ -2078,6 +2078,106 @@ siglip2-g16-256 / 384 and siglip2-so400m16-256 / 512, where MPS kernels are fast
   maybe noise: its siblings read 131). The first call and peak make up for it in `auto`, but the rule "warm not
   worse" is not met there; the graph port's fused attention / GEMM layout is the place to look.
 
+### Done: C-RADIO, DINOv2, DINOv3, TIPSv2, SAM 2.1 and SAM 3 tuning (2026-11-25)
+
+M1 Pro, second of two surveys recorded; every MLX golden of these families passes in float16 and float32, and
+`tests/test_mlx.py` holds a match test against PyTorch for each network (DINOv2 engine and linear probe, DINOv3,
+C-RADIO, the SAM 2 Hiera encoder with and without head padding, the SAM 3 geometry encoder with its RoIAlign
+exemplars). The tables give MLX warm ms fp16 / fp32, the float16 first call and the float16 / float32 peak,
+before -> now, then the best MPS row (warm ms / peak MB).
+
+**ViTs (`shared/mlx_vit.py`, `features/models/dinov3/mlx_net.py`, `features/models/c_radio`).** The forward is
+no longer one `mx.compile`d graph: the blocks are built and evaluated one by one, layer N started
+(`mx.async_eval`) before layer N-1 is waited for. One graph kept every block's temporaries alive until the end
+(ViT-L at 1370 tokens: 614 MB of transients, 75 MB bounded) and the compile step cost up to a second on the first
+call. C-RADIO additionally converts its checkpoint once and keeps the MLX weights in the conversion cache, which
+is what moved its float32 first call (v3-g 1.47 -> 0.81 s).
+
+| ref | warm before | warm now | first call s | peak MB fp16 / fp32 | best MPS |
+|---|---|---|---|---|---|
+| c-radio-v3-b | 15.4 / 16.8 | 15.0 / 16.7 | 0.04 -> 0.05 | 759 -> 518 / 826 -> 657 | 18 / 1908 |
+| c-radio-v3-l | 46.1 / 53.5 | 45.6 / 52.6 | 0.07 -> 0.07 | 1651 -> 932 / 1698 -> 1523 | 50 / 2477 |
+| c-radio-v3-h | 90.0 / 106.4 | 88.6 / 103.6 | 0.12 -> 0.11 | 2975 -> 1617 / 3012 -> 2817 | 93 / 4607 |
+| c-radio-v3-g | 154.1 / 185.5 | 151.0 / 180.5 | 0.28 -> 0.43 | 4964 -> 2590 / 4996 -> 4786 | 155 / 7659 |
+| c-radio-v4-h | 89.9 / 106.8 | 88.6 / 104.0 | 0.12 -> 0.12 | 2961 -> 1619 / 3015 -> 2815 | 91 / 4600 |
+| c-radio-v4-so400m | 64.0 / 73.1 | 62.5 / 71.6 | 0.09 -> 0.09 | 2091 -> 1166 / 2127 -> 1960 | 62 / 2793 |
+| dinov2-vits14 (reg) | 7.2 / 8.2 | 7.0 / 8.2 | 0.03 -> 0.03 | 398 -> 268 / 367 -> 305 | 13 (24) |
+| dinov2-vitb14 (reg) | 18.6 / 20.5 | 18.0 / 20.6 | 0.04 -> 0.05 | 607 -> 439 / 700 -> 580 | 25 (46) |
+| dinov2-vitl14 | 55.5 / 64.3 | 55.6 / 64.6 | 0.08 -> 0.08 | 1011 -> 889 / 1485 -> 1415 | 65 |
+| dinov2-vitl14-reg | 58.2 / 75.2 | 55.5 / 64.8 | 0.08 -> 0.08 | -> 876 / -> 1416 | 96 |
+| dinov2-vitg14 | 192.8 / 226.6 | 188.6 / 224.9 | 0.56 -> 0.58 | 2634 -> 2527 / 4692 -> 4636 | 218 / 4504 |
+| dinov2-vitg14-reg | 203.4 / 233.6 | 189.0 / 224.8 | -> 0.34 | -> 2529 / -> 4646 | 261 |
+| dinov2_vitl14_lc | 57.3 / 66.7 | 56.1 / 65.0 | 0.13 -> 0.08 | 1151 -> 1108 / 1697 -> 1660 | 63 / 3268 |
+| dinov2-s-linear-ade20k | 111.7 / 131.5 | 115.5 / 135.1 | 0.13 -> 0.14 | 1002 -> 1201 / 1114 -> 1025 | 195 |
+| dinov2-b-linear-ade20k | 256.2 / 311.9 | 255.8 / 313.4 | | 1372 -> 1356 / 1651 -> 1659 | 361 |
+| dinov2-l-linear-ade20k | 760.7 / 936.8 | 760.3 / 940.7 | | 2223 -> 2178 / 2890 -> 2848 | 927 |
+| dinov3-vits16 | 6.5 / 7.3 | 6.4 / 7.3 | | 385 -> 261 / 354 -> 296 | 14 |
+| dinov3-vitb16 | 15.0 / 17.1 | 15.1 / 17.6 | | 576 -> 438 / 670 -> 564 | 23 |
+| dinov3-vitl16 | 45.8 / 53.3 | 46.4 / 54.7 | | 1017 -> 909 / 1493 -> 1398 | 61 |
+| dinov3-vith16plus | 119.9 / 154.7 | 115.9 / 139.3 | 0.14 -> 0.15 | 2174 -> 1949 / 3527 -> 3485 | 143 |
+| tipsv2-b14 | 17.8 / 20.6 | 18.0 / 20.6 | | 598 -> 433 / 828 -> 572 | |
+| tipsv2-l14 | 72.9 / 68.5 | 55.4 / 64.5 | | 1038 -> 877 / 1665 -> 1403 | |
+
+Known small losses, kept: dinov2-s-linear-ade20k is 3 % slower in both runs (111.7 -> 115.5 ms; the backbone is a
+tenth of that call, the rest is the 518-pixel sliding window, and the bounded evaluation adds one wait per block
+and window). Its float16 peak moved 1002 -> 920 (run 1) -> 1201 MB (run 2), so that figure is process noise, not
+the network. DINOv3 B/L are 1-3 % slower in float32 at 100-140 MB less peak. C-RADIO v3-g's float16 first call
+rose 0.28 -> 0.43 s (still far inside the budget; MPS takes 3.84 s).
+
+Tried on the ViT block and dropped, none faster than what is there: compiling one block and reusing it, a manual
+`softmax(q @ k^T)` attention, three separate q/k/v projections instead of one qkv GEMM, `x @ w + b` instead of
+`mx.addmm`, the raw erf GELU instead of `nn.gelu`, and a float32 residual stream under float16 blocks. The
+`rotate(...).astype(qkv.dtype)` cast suggested for `mlx_vit.attention` is a no-op for DINOv3, whose RoPE tables
+are already cast to the run dtype when they are built; it is left to the PE round (the PE work-in-progress patch
+still applies on top of this).
+
+**SAM 2.1 (`promptable_segmentation/models/sam2/mlx_net.py`, new).** The Hiera trunk and the folded neck are
+written in `mlx.core`; the exported graph is gone, and with it 1.5-3.2 s of first call.
+
+| ref | warm before | warm now | first call s | peak MB fp16 / fp32 | best MPS (ms / first / peak) |
+|---|---|---|---|---|---|
+| sam2.1-hiera-tiny | 147.0 / 173.9 | 137.4 / 156.3 | 1.63 -> 0.16 | 973 -> 1023 / 1069 -> 1180 | 129 / 0.27 / 1514 |
+| sam2.1-hiera-small | 166.9 / 201.5 | 159.0 / 182.3 | 1.87 -> 0.17 | 982 -> 998 / 1062 -> 1206 | 148 / 0.26 / 1550 |
+| sam2.1-hiera-base-plus | 281.1 / 352.4 | 263.3 / 297.7 | 2.34 -> 0.28 | 1119 -> 1112 / 1461 -> 1398 | 394 / 0.51 / 3988 |
+| sam2.1-hiera-large | 598.0 / 698.5 | 583.9 / 643.3 | 3.80 -> 0.59 | 1495 -> 1512 / 1939 -> 2084 | 544 / 0.65 / 2206 |
+
+`auto` now takes MLX float16 for base-plus (new); tiny, small and large stay on MPS float16, which is still
+6-8 % faster warm, and MLX is their route for an explicit float32.
+
+- Head padding. Hiera's head widths are 96 (tiny, small), 56 (base-plus) and 72 (large); the fused attention
+  kernel exists only at 64, 80 and 128. Zero-padding q/k/v into the weights to a fused width, encoder ms float16
+  padded / unpadded: tiny 129.6 / 113.7, small 153.6 / 134.0, base-plus 250.6 / 261.6, large 620.3 / 555.9. Only
+  56 -> 64 wins, so `PAD_TO = {56: 64}`; accuracy against CPU float32 is the same either way.
+- Evaluation. Pipelining every block is 3-5 % faster but keeps two 256x256-token stage-1 blocks in flight: MLX
+  peak 695 -> 422 MB (tiny fp16), 1004 -> 712 (base-plus), 1623 -> 1227 (large), 2456 -> 1952 (large fp32) with
+  those blocks evaluated alone, for 137.7 -> 141.9, 259 -> 272, 572 -> 588 and 633 -> 651 ms. Blocks at or above
+  `SYNC_TOKENS` are evaluated alone. Doing the same for stage 2, or evaluating inside a block, was slower for
+  almost no further saving.
+- Chunked global attention (score chunks of 256, 64 or 16 MB): no peak change until 16 MB (-100 MB) at 3-15 %
+  more time. Dropped.
+- Remaining peak increase: tiny float16 +50 MB, float32 +111 (tiny), +144 (small), +145 (large). The survey
+  figure is the process peak, which also holds the PyTorch twin whose weights are read while the MLX encoder is
+  built and the float32 residual stream the float16 mode keeps; which of the two it is was not measured. The
+  rows are 300-900 MB under MPS, so it was not followed further.
+
+**SAM 3 (`promptable_segmentation/models/sam3/net/mlx_net.py`).** Already hand-written. Stage profile float16,
+one call 1693 ms: trunk 1328 (32 layers at 5184 tokens, GEMM-bound), neck 41, text 11, geometry 3, DETR encoder
+115, decoder 35, masks 54.
+
+| ref | warm before | warm now | first call s | peak MB fp16 / fp32 | best MPS (ms / first / peak) |
+|---|---|---|---|---|---|
+| sam3 | 1656.6 / 2062.0 | 1573.2 / 1961.3 | 1.70 -> 1.60 | 2768 -> 2775 / 4705 -> 4699 | 2203 / 3.58 / 4842 |
+
+- Pipelined evaluation everywhere: 1705 -> 1565 ms, but MLX peak 2316 -> 2591 MB (float32 4308 -> 4726). The
+  increase comes from the global trunk layers (+180 MB), the neck (+117) and the mask levels (+275); those are
+  evaluated alone and everything else pipelined, which keeps the peak and most of the time.
+- DETR attention (head width 32, zero-padded to 64 for the fused kernel) against a manual unpadded attention:
+  encoder 125 ms padded, 241 ms manual with the native softmax, 634 ms with a float32 softmax. Padding stays.
+
+**Left.** SAM 2's mask decoder and the video memory attention still run in PyTorch on the CPU. SAM 3's FPN makes
+a PyTorch round trip of about 10 ms per prompt, and its tracker heads are on the CPU. The bounded evaluation was
+not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2). No DINOv3 ViT-7B weights on this machine.
+
 ## 1x1 convs as a GEMM (2026-11-24)
 
 The Restormer lead as a translator rule: a dense 1x1 stride-1 unpadded conv on the channels-last data is
