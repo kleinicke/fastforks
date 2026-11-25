@@ -963,7 +963,7 @@ def _same_note(dups: dict[str, str]) -> list[str]:
 
 
 def _ratio(slow: dict | None, fast: dict | None) -> str:
-    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast else DASH
+    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast and _scene_compatible(slow, fast) else DASH
 
 
 def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str]:
@@ -1024,6 +1024,32 @@ def _stream_table(card: ModelCard) -> list[str]:
             ["Model", "Mode", "Input", "GPU", "PyTorch", "Resident (`stream=False`)", "Streamed (`stream=True`)"], rows
         ),
     ]
+
+
+def _speed_scene(row: dict) -> dict[str, str]:
+    """Normalize labels known to use the same default synthetic fixture."""
+    label = " ".join((row.get("scene") or "").split())
+    if not label:
+        return {}
+    key = label.casefold()
+    if key in {
+        "synthetic (fastforks bench)",
+        "synthetic (fastforks bench), one point prompt",
+        "synthetic (fastforks bench), two frames",
+    }:
+        key = "synthetic"
+    if match := re.fullmatch(r"synthetic \(fastforks bench\), (\d+) views", key):
+        # The reference speed harness uses eight views, except for these two checkpoints.
+        views = {"mapanything-apache": 9, "patchmatchnet": 5}.get(row.get("ref"), 8)
+        if int(match[1]) == row.get("views", views) == views:
+            key = "synthetic"
+    return {"scene": label, "scene_key": key}
+
+
+def _scene_compatible(a: dict | None, b: dict | None) -> bool:
+    """Keep legacy comparisons with unrecorded provenance and reject an explicit scene conflict."""
+    left, right = (_speed_scene(row).get("scene_key") if row else None for row in (a, b))
+    return not (left and right and left != right)
 
 
 def _scene(scene: str) -> str:
@@ -1531,8 +1557,11 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             ms, mem = cell[0], cell[2]
         else:
             ms, mem = (_NOK, _NOK) if "kernels" not in card.modes or planned_reason(v, "kernels") else (_DASH, _DASH)
-        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
-        mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
+        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig and _scene_compatible(orig, mx) else ""
+        original_peaks = (
+            row for mode in ("upstream", "upstream-default") if _scene_compatible(mx, row := by.get(mode))
+        )
+        mem = f"{mem}{_mem_ratio(mem, *original_peaks)}"
         cells = [
             f"[`{_name(v)}`](#{card.family})"
             + (f" ({setting(card.variants, v)})" if setting(card.variants, v) else ""),
@@ -1893,9 +1922,13 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             osz = at if size == _OWN else orig_size
             orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
             max_o = mine.get(("kernels", osz))
-            if orig and max_o:
+            if orig and max_o and _scene_compatible(orig, max_o):
                 speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")
-            elif isinstance(mx, tuple) and isinstance(pt, tuple):
+            elif (
+                isinstance(mx, tuple)
+                and isinstance(pt, tuple)
+                and _scene_compatible(mine.get(("portable", at)), mine.get(("kernels", at)))
+            ):
                 speedup = (pt[0] / mx[0], "portable")
             else:
                 speedup = None

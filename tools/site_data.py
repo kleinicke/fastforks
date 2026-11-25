@@ -36,6 +36,8 @@ _PI3_LEGACY_SIZE = "336x518"
 _PI3_LEGACY_VIEWS = 8
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from fastforks._core.cards import ModelCard, Variant
     from fastforks._core.files import FileSpec
 
@@ -73,7 +75,6 @@ _KEEP_SPEED = (
     "load_s",
     "first_call_s",
     "import_s",
-    "scene",
     "date",
     "torch",
     "protocol",
@@ -134,8 +135,17 @@ def _licence(card: ModelCard, v: Variant) -> dict[str, Any]:
     }
 
 
+def _profile_scene(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Label a profile from its selected timings, retaining explicit scene conflicts."""
+    labels = {row["scene_key"]: row["scene"] for row in rows if "scene_key" in row}
+    if len(labels) > 1:
+        return {"scene": "Mixed scenes", "mixed_scenes": True}
+    label = next(iter(labels.values()), "")
+    return {"scene": g._scene(label)}  # noqa: SLF001
+
+
 def _speed_row(r: dict[str, Any]) -> dict[str, Any]:
-    out = {k: r[k] for k in _KEEP_SPEED if k in r}
+    out = {k: r[k] for k in _KEEP_SPEED if k in r} | g._speed_scene(r)  # noqa: SLF001 - shared docs scene metadata
     dtype = _devices.dtype_of(r)
     out["dtype"] = "float16" if r["mode"] == "upstream" and dtype == "default" else dtype
     if note := g._note(r):  # noqa: SLF001 - shared docs helper
@@ -223,7 +233,6 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
     out = []
     for size in inputs:
         profile_rows = [r for r in rows if r["input"] == size]
-        scene = next((r.get("scene", "") for r in profile_rows), "")
         by = {}
         for r in profile_rows:
             if r["mode"] not in _SPEED_KEY:
@@ -264,16 +273,22 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "first_call_s": c.get("engine_first_call_s", c.get("first_call_s")) if mode == "tensorrt" else None,
                 "date": c.get("date"),
                 "torch": c.get("torch"),
+                **g._speed_scene(c),  # noqa: SLF001
                 **({"compare_to_original": False} if c.get("compare_to_original") is False else {}),
             }
             if task == "volume" and mode == "tensorrt" and c.get("net_input"):
                 extra[mode]["engine_input"] = c["net_input"]
         extra |= _pose_parts(v, size)
+        shown = (
+            *by.values(),
+            *(extra.get(mode, {}) for mode in ("compile", "tensorrt")),
+            *extra.get("original_network", {}).values(),
+        )
         workload = _speed_workload(v.id, task, size, profile_rows)
         out.append(
             {
                 "input": size,
-                "scene": g._scene(scene),  # noqa: SLF001 - shared docs helper
+                **_profile_scene(shown),
                 "standard": size == std,
                 "native": size == native,
                 "modes": by,

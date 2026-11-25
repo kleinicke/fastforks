@@ -3,6 +3,7 @@
 import json
 from types import SimpleNamespace
 
+import gen_docs as g
 import site_data
 from fastforks._core import registry
 
@@ -465,3 +466,65 @@ def test_stream_rows_preserve_explicit_settings_and_oom(tmp_path, monkeypatch):
     (data / "speed_options.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     monkeypatch.setattr(site_data.g, "ROOT", tmp_path)
     assert site_data.g.stream_rows.__wrapped__() == {"large": rows[:2]}
+
+
+def test_speed_scene_normalizes_only_known_synthetic_fixtures():
+    def key(scene, **kw):
+        return g._speed_scene({"scene": scene, **kw}).get("scene_key")
+
+    for alias in (
+        " synthetic ",
+        "Synthetic (fastforks bench)",
+        "synthetic (fastforks bench), one point prompt",
+        "synthetic (fastforks bench), two frames",
+        "synthetic (fastforks bench), 8 views",
+    ):
+        assert key(alias) == "synthetic"
+    assert key("synthetic (fastforks bench), 9 views", ref="mapanything-apache") == "synthetic"
+    assert key("synthetic (fastforks bench), 9 views", ref="pi3") != "synthetic"
+    assert key("synthetic (fastforks bench), 8 views", ref="pi3", views=4) != "synthetic"
+    assert key("synthetic randn, seed 0") != "synthetic"
+    assert key(None) is None
+    slow = {"scene": "synthetic (fastforks bench)", "ms": 10}
+    fast = {"scene": "synthetic", "ms": 2}
+    assert g._ratio(slow, fast) == "5.0x"
+    assert g._ratio(slow, fast | {"scene": "Middlebury 2014 trainingH Motorcycle"}) == g.DASH
+    assert g._ratio(slow, {"ms": 2}) == "5.0x"
+
+
+def test_speed_scene_uses_visible_rows_and_retains_conflicting_timings(monkeypatch):
+    card, variant = registry.resolve_any("pi3")
+    size = "8x336x518"
+    bench = "synthetic (fastforks bench)"
+    scene = "Middlebury 2014 trainingH Motorcycle"
+    compiled = {"ref": variant.id, "mode": "compile", "input": size, "scene": bench, "ms": 752}
+    engine = {"ref": variant.id, "mode": "tensorrt", "input": size, "scene": scene, "ms": 691}
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    monkeypatch.setattr(
+        site_data.g,
+        "_compile_rows",
+        lambda: {
+            (variant.id, "compile", size): compiled,
+            (variant.id, "tensorrt", size): engine,
+        },
+    )
+    source = {
+        variant.id: [
+            {"input": size, "mode": "portable", "scene": scene, "ms": 820},
+            {"input": size, "mode": "portable", "scene": "synthetic", "ms": 826},
+            {"input": size, "mode": "upstream", "scene": bench, "dtype": "bfloat16", "ms": 1057},
+        ]
+    }
+    (profile,) = site_data._speed(variant, card.task, source)["inputs"]
+    assert profile["scene"] == "Mixed scenes"
+    assert profile["mixed_scenes"]
+    assert profile["modes"]["original16"]["scene_key"] == profile["modes"]["portable"]["scene_key"] == "synthetic"
+    assert profile["modes"]["portable"]["ms"] == 826
+    assert profile["compile"]["scene_key"] == "synthetic"
+    assert profile["tensorrt"]["scene"] == scene
+    assert profile["tensorrt"]["ms"] == engine["ms"]
+
+    monkeypatch.setattr(site_data.g, "_compile_rows", lambda: {(variant.id, "compile", size): compiled})
+    (profile,) = site_data._speed(variant, card.task, source)["inputs"]
+    assert "mixed_scenes" not in profile
+    assert profile["scene"] == "synthetic"
