@@ -13,6 +13,7 @@ logits 99th percentile |diff| was 0.071 against a 0.069 bound).
 
 from __future__ import annotations
 
+import copy
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
@@ -77,16 +78,11 @@ def _identity_plus(conv: nn.Conv2d, dtype: mx.Dtype) -> Callable:
     the update's own digits once split off (folded, t8's logits mean |diff| 0.029 against a 0.023 bound).
     """
     with torch.no_grad():
-        delta = nn.Conv2d(
-            conv.in_channels, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, groups=conv.groups
-        )
-        weight = conv.weight.detach().clone()
+        delta = copy.deepcopy(conv)  # same geometry and bias, the identity taken out of the kernel
+        weight = delta.weight
         kh, kw = weight.shape[-2:]
-        per_group = weight.shape[1]
         rows = torch.arange(weight.shape[0])
-        weight[rows, rows % per_group, kh // 2, kw // 2] -= 1
-        delta.weight.copy_(weight)
-        delta.bias.copy_(conv.bias.detach())
+        weight[rows, rows % weight.shape[1], kh // 2, kw // 2] -= 1
     apply = _conv(delta, None, dtype)
     return lambda x: x + apply(x)
 
