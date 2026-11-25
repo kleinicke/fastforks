@@ -1,5 +1,96 @@
-// FP16 row LayerNorm for Swin-style restoration models, with FP32 moments and affine coefficients.
+// FP16 row LayerNorm for Swin-style restoration models, with FP32 moments.
 #include <cuda_fp16.h>
+
+// SPDX-License-Identifier: BSD-3-Clause
+// Reduction order follows PyTorch at 5c4886908584 (aten/src/ATen/native/cuda/layer_norm_kernel.cu).
+// PyTorch copyright and licence are reproduced in THIRD_PARTY_NOTICES.md.
+// `float3` stores the mean, sum of squared deviations and count, in that order.
+__device__ __forceinline__ float3 torch_moments(uint2 values) {
+    const __half* p = reinterpret_cast<const __half*>(&values);
+    float3 m{0.f, 0.f, 0.f};
+#pragma unroll
+    for (int k = 0; k < 4; ++k) {
+        const float x = __half2float(p[k]);
+        const float old_delta = x - m.x;
+        const float total = m.z + 1.f;
+        const float next_avg = m.x + old_delta * (1.f / total);
+        m = {next_avg, m.y + old_delta * (x - next_avg), total};
+    }
+    return m;
+}
+
+// The tree gives the left and right inputs the same roles as Torch's shuffle reduction.
+__device__ __forceinline__ float3 torch_merge(float3 left, float3 right) {
+    const float count = left.z + right.z;
+    if (count == 0.f)
+        return {0.f, 0.f, 0.f};
+    const float inverse = 1.f / count;
+    const float right_fraction = right.z * inverse;
+    const float left_fraction = left.z * inverse;
+    const float delta = left.x - right.x;
+    return {
+        right_fraction * right.x + left_fraction * left.x,
+        right.y + left.y + delta * delta * right.z * left_fraction,
+        count,
+    };
+}
+
+__device__ __forceinline__ float3 torch_warp_moments(float3 m) {
+#pragma unroll
+    for (int distance = 16; distance > 0; distance /= 2) {
+        const float3 other{
+            __shfl_down_sync(0xffffffff, m.x, distance),
+            __shfl_down_sync(0xffffffff, m.y, distance),
+            __shfl_down_sync(0xffffffff, m.z, distance),
+        };
+        m = torch_merge(m, other);
+    }
+    return m;
+}
+
+__device__ __forceinline__ void torch_output(uint2* out, uint2 values, const uint2* weight, const uint2* bias,
+                                           int i, float avg, float inv_std) {
+    const uint2 alpha4 = weight[i], beta4 = bias[i];
+    const __half* x = reinterpret_cast<const __half*>(&values);
+    const __half* alpha = reinterpret_cast<const __half*>(&alpha4);
+    const __half* beta = reinterpret_cast<const __half*>(&beta4);
+    uint2 packed;
+    __half* p = reinterpret_cast<__half*>(&packed);
+#pragma unroll
+    for (int v = 0; v < 4; ++v) {
+        const float normalized = inv_std * (__half2float(x[v]) - avg);
+        p[v] = __float2half_rn(__half2float(alpha[v]) * normalized + __half2float(beta[v]));
+    }
+    out[i] = packed;
+}
+
+__device__ __forceinline__ float torch_inverse_std(float3 m, float eps) {
+    // PyTorch's channel count is dynamic and its division rounds to FP32.
+    return rsqrtf(__fdiv_rn(m.y, 240.0f) + eps);
+}
+
+extern "C" __global__ __launch_bounds__(256) void
+sr_norm_torch_240(const uint2* __restrict__ x, const uint2* __restrict__ alpha, const uint2* __restrict__ beta,
+                  uint2* __restrict__ y, long long rows, float eps) {
+    constexpr int vectors = 240 / 4;
+    __shared__ float3 parts[8];
+    const int warp = threadIdx.x / 32;
+    const int lane = threadIdx.x % 32;
+    const int index = (warp % 2) * 32 + lane;
+    const long long row = blockIdx.x * 4LL + warp / 2;
+    const bool valid = row < rows && index < vectors;
+    const uint2 values = valid ? x[row * vectors + index] : uint2{};
+    const float3 part = torch_warp_moments(valid ? torch_moments(values) : float3{});
+    // Two Torch warps are empty at 240 channels. Preserve their merges before combining the occupied pair.
+    if (lane == 0)
+        parts[warp] = torch_merge(part, {});
+    __syncthreads();
+    if (!valid)
+        return;
+    const float3 total = torch_merge(parts[warp & ~1], parts[warp | 1]);
+    const float inv = torch_inverse_std(total, eps);
+    torch_output(y + row * vectors, values, alpha, beta, index, total.x, inv);
+}
 
 template <int VPT, int VW, typename Vec>
 __device__ __forceinline__ void norm_impl(const __half* __restrict__ x, const float* __restrict__ w, const float* __restrict__ b,
