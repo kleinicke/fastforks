@@ -596,8 +596,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dedode-v2-b`](models/matching.md#dedode) | 1464 ms · portable fp32 | 1814 ms · portable fp16 |
 | [`dedode-v2-g`](models/matching.md#dedode) | 3767 ms · portable fp32 | 3222 ms · portable fp16 |
 | [`disk-lightglue`](models/matching.md#lightglue) | 1994 ms · portable fp32 | 697 ms · portable fp16 |
-| [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 | 1549 ms · portable fp16 |
-| [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 | 1526 ms · portable fp16 |
+| [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 | 442 ms · portable fp16 |
+| [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 | 483 ms · portable fp16 |
 | [`loma-b`](models/matching.md#loma) | 3041 ms · portable fp32 | 2760 ms · portable fp16 |
 | [`loma-b128`](models/matching.md#loma) | 1065 ms · portable fp32 | 1085 ms · portable fp16 |
 | [`loma-b64`](models/matching.md#loma) | 917 ms · portable fp32 | 828 ms · portable fp16 |

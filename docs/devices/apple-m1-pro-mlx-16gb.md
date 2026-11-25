@@ -722,8 +722,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dedode-v2-b`](../models/matching.md#dedode) | 2389 | 1814 | unsupported | – | – | 3622 | – |
 | [`dedode-v2-g`](../models/matching.md#dedode) | 4240 | 3222 | – | – | – | 4226 | – |
 | [`disk-lightglue`](../models/matching.md#lightglue) | 775 | 697 | unsupported | – | – | 1729 | – |
-| [`loftr-indoor`](../models/matching.md#loftr) | 1806 | 1549 | unsupported | – | – | 3675 | – |
-| [`loftr-outdoor`](../models/matching.md#loftr) | 1788 | 1526 | unsupported | – | – | 3703 | – |
+| [`loftr-indoor`](../models/matching.md#loftr) | 1101 | 442 | unsupported | – | – | 2129 | – |
+| [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 483 | unsupported | – | – | 2228 | – |
 | [`loma-b`](../models/matching.md#loma) | 3617 | 2760 | – | – | – | 4561 | – |
 | [`loma-b128`](../models/matching.md#loma) | 1546 | 1085 | – | – | – | 1902 | – |
 | [`loma-b64`](../models/matching.md#loma) | 1228 | 828 | – | – | – | 1630 | – |
