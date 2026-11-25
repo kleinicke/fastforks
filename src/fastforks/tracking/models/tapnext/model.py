@@ -24,7 +24,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.checkpoint import check_fits
+from fastforks._core.checkpoint import check_fits, load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.model import eager_in_compile
 from fastforks._core.upload import device_tensor
@@ -141,14 +142,23 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        net = TAPNext()
-        sd = load_weights(ctx)
-        check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
-        net.load_state_dict(sd)
+        self.amp = torch.float16 if ctx.dtype == "float16" else None
+        assign = ctx.device.type == "cuda" and self.amp is not None and ctx.user_weights is None
+        if assign:
+            # Keep the large matrix weights off CUDA until they have their inference dtype.
+            with skipped_init():
+                net = TAPNext()
+            sd = {name: weight.contiguous() for name, weight in load_weights(ctx).items()}
+            load_strict(net, sd, f"{ctx.variant.ref} checkpoint", assign=True)
+            cast_gemm_weights(net, torch.float16)
+        else:
+            net = TAPNext()
+            sd = load_weights(ctx)
+            check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+            net.load_state_dict(sd)
         net.eval().requires_grad_(requires_grad=False)
         net.to_inference_device(ctx.device)
-        self.amp = torch.float16 if ctx.dtype == "float16" else None
-        if self.amp is not None:
+        if self.amp is not None and not assign:
             cast_gemm_weights(net, self.amp)
         self.net = net
 
