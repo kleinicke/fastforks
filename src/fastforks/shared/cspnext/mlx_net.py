@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from fastforks._core.mlx import mx
+from fastforks._core.patch import base_type
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared import mlx_graph as mg
 
@@ -261,7 +262,7 @@ def spp(layer: Any, dtype: mx.Dtype, graph: str | None = None) -> Layer:
 def _stage(stage: Any, dtype: mx.Dtype, graph: str | None) -> Layer:
     """The stride-2 conv, the SPP (last stage), the `CSPLayer`."""
     build = {"CSPLayer": csp_layer, "SPP": spp}
-    return chain(*(build.get(type(layer).__name__, module)(layer, dtype, graph) for layer in stage))
+    return chain(*(build.get(base_type(layer).__name__, module)(layer, dtype, graph) for layer in stage))
 
 
 def backbone(
