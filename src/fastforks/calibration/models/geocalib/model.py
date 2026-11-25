@@ -27,6 +27,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
@@ -217,7 +218,7 @@ class Portable(_GeoCalib):
 
 def _nmf_fp32(self: NMF2D, x: torch.Tensor) -> torch.Tensor:
     """The NMF in float32 (returned in the input dtype)."""
-    return NMF2D.forward(self, x.float()).to(x.dtype)
+    return to_run_dtype(NMF2D.forward(self, to_float32(x)), x.dtype)
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:

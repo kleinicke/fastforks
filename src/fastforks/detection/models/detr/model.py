@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import keep_float32
 from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._runner import Forward, Runner
@@ -105,6 +106,8 @@ class Portable(Runner):
         self.net = net.to(ctx.device, self.dt).to(memory_format=self.mf)
         self.net.class_embed.float()
         self.net.bbox_embed.float()
+        if mlx_wrap.twin_dtype() == "float16":  # the twin of a float16 MLX replay: the same heads stay float32
+            keep_float32(self.net.class_embed, self.net.bbox_embed)
         self.ids = class_map(ctx.params.num_classes).to(ctx.device)
 
     def _logits(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

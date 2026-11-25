@@ -12,10 +12,12 @@ summed over the iterations, softmax weights of an upsampling) runs in the replay
 
 from __future__ import annotations
 
+import contextvars
 from typing import Any
 
 import torch
 
+from fastforks._core.patch import base_type, override
 from fastforks._core.tracing import exporting_for_mlx
 
 
@@ -71,3 +73,37 @@ def float32_call(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - 
         return module(*args)
     state = {k: to_float32(v) if v.is_floating_point() else v for k, v in module.state_dict(keep_vars=True).items()}
     return torch.func.functional_call(module, state, args)
+
+
+_KEPT: contextvars.ContextVar[bool] = contextvars.ContextVar("mlx_keep_float32", default=False)
+
+
+def _kept_forward(self: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - the module's own arguments and result
+    """The module's own `forward`; a `float32_call` of it while exporting for MLX (once: not inside itself)."""
+    if not exporting_for_mlx() or _KEPT.get():
+        return base_type(self).forward(self, *args)
+    token = _KEPT.set(True)
+    try:
+        return float32_call(self, *args)
+    finally:
+        _KEPT.reset(token)
+
+
+def keep_float32(*modules: torch.nn.Module) -> None:
+    """Make every call of each module a `float32_call` in an MLX replay; for the float32 twin of an MLX runner.
+
+    A float16 PyTorch runner keeps a submodule float32 by converting it (`module.float()`, `pure_half(fp32=...)`, a
+    cast to the module's weight dtype in the forward). The MLX runner's twin is float32 throughout, so none of that
+    leaves a trace in the export and the submodule would run in the replay's float16. Call this on the twin's
+    submodules (`mlx_wrap.twin_dtype() == "float16"`), on the modules the forward calls: a `ModuleList` stands for its
+    entries. Outside an MLX export the modules are unchanged. The result is float32: where the float16 runner casts
+    it back (`.to(x.dtype)`, a no-op on the twin), the forward needs `to_run_dtype`.
+    """
+    for module in modules:
+        if isinstance(module, torch.nn.ModuleList):
+            keep_float32(*module)
+            continue
+        if "forward" in dict(getattr(type(module), "_fastforks_methods", ())):
+            msg = f"{type(module).__name__}: its forward is already overridden"
+            raise ValueError(msg)
+        override(module, _kept_forward)

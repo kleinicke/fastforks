@@ -55,18 +55,18 @@ class Portable(base.Portable):
         net.load_state_dict(fold_bn(ctx.state_dict(key=("ema", "module"), strip="")))
         return net.eval()
 
-    def float_heads(self) -> None:
-        """Keep query selection, box refinement and the heads in float32."""
+    def float_heads(self) -> tuple[torch.nn.Module, ...]:
+        """The modules kept in float32 (query selection, box refinement, the heads), as the forward calls them."""
         dec: Any = self.net.decoder
-        for m in (
-            dec.enc_output,
+        return (
+            dec.enc_output.proj,
+            dec.enc_output.norm,
             dec.enc_score_head,
             dec.enc_bbox_head,
             dec.query_pos_head,
             dec.dec_score_head,
             dec.dec_bbox_head,
-        ):
-            m.float()
+        )
 
 
 class Kernels(base.Kernels, Portable):
