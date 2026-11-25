@@ -329,7 +329,7 @@ class Kernels(Portable):
                 m.forward = _encoder(m)  # ty: ignore[invalid-assignment]  # per-instance override
         # One graph per query count updates the state in place. When it exists, the first frame resets those same
         # buffers, skipping the eager first frame's separate state allocation. `_lock` isolates each clip.
-        self.steps = GraphCache(self._graph_step, graphs=2) if ctx.params.cuda_graphs else None
+        self.steps = GraphCache(self._graph_step, graphs=2, capture_warmup=False) if ctx.params.cuda_graphs else None
         self._lock = threading.Lock()
         self._ring_origin = 0  # the first replayed frame in the current clip
 
