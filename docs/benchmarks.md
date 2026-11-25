@@ -664,9 +664,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2184 ms · kernels fp16 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 | 849 ms · kernels fp16 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 | 1020 ms · kernels fp16 |
-| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 601 ms · portable fp16 |
-| [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 737 ms · portable fp16 |
-| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 665 ms · portable fp16 |
+| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 554 ms · portable fp16 |
+| [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 552 ms · portable fp16 |
+| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 551 ms · portable fp16 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported | 14023 ms · portable fp16 |
 | [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported | 25365 ms · portable bf16 |
 | [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 | 76.5 ms · kernels fp16 |

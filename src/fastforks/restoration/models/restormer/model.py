@@ -92,57 +92,6 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
 
 
-# The attention statistics and the GDFN gate as single ops of the MLX export (`.mlx_ops` lowers them to Metal kernels
-# of `fastforks.kernels.graph_mlx`). A custom op's body only runs when the exported program is executed in PyTorch.
-@torch.library.custom_op("fastforks::restormer_token_gram", mutates_args=())
-def token_gram_op(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
-    """Of `[B, N, 3 C]` tokens (q | k | v): float32 `q^T k` `[B, C, C]` and the squared q / k norms `[B, 2 C]`."""
-    qk = t[..., : 2 * c].float()
-    return torch.bmm(qk[..., :c].mT, qk[..., c:]), qk.square().sum(1)
-
-
-@token_gram_op.register_fake
-def _(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
-    b = t.shape[0]
-    return t.new_empty((b, c, c), dtype=torch.float32), t.new_empty((b, 2 * c), dtype=torch.float32)
-
-
-@torch.library.custom_op("fastforks::restormer_dw_gate", mutates_args=())
-def dw_gate_op(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-    """`gelu(d1) * d2` of the halves of the bias-free 3 x 3 depthwise conv of `x` `[B, 2 C, H, W]`: `[B, C, H, W]`."""
-    d1, d2 = F.conv2d(x, weight.to(x.dtype), padding=1, groups=x.shape[1]).chunk(2, 1)
-    return F.gelu(d1) * d2
-
-
-@dw_gate_op.register_fake
-def _(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
-    b, c2, h, w = x.shape
-    return x.new_empty((b, c2 // 2, h, w))
-
-
-def _mlx_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
-    """`_attention` for the MLX export: `q^T k` and the norms are one op on the stored tokens.
-
-    The graph form (float32 copies of q and k, a GEMM, a norm over the pixel axis of the transposed view) took 37 of
-    the 125 ms of a 96-channel block at 512 x 512 on an M1 Pro.
-    """
-    b, c, h, w = x.shape
-    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
-    gram, sq = token_gram_op(t, c)
-    nq, nk = sq.sqrt().clamp_min(1e-12).split(c, -1)
-    scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
-    block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
-    proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
-    g = gram * (scale / nq)[:, :, None] / nk[:, None, :] + block
-    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]; .to: a no-op in the float32 twin
-    return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
-
-
-def _fold_mlx_attention(m: Attention, device: torch.device | str) -> None:
-    _fold_attention(m, device)
-    override(m, _mlx_attention)
-
-
 def _fold_attention(m: Attention, device: torch.device | str) -> None:
     """Per-channel temperature, head-block mask and `project_out` weight for `_attention`, float32 on `device`.
 
@@ -265,18 +214,6 @@ def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
     return m.project_out(g.mul_(m.dw2(m.in2(x))))  # ty: ignore[call-non-callable]
 
 
-def _mlx_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
-    """`FeedForward.forward` for the MLX export: the depthwise conv, the gelu and the product are one op."""
-    return m.project_out(dw_gate_op(m.project_in(x), m.dwconv.weight))
-
-
-def _mlx_gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
-    if m.dwconv.bias is not None:
-        msg = "the MLX gate kernel has no depthwise bias (upstream's models are bias-free)"
-        raise NotImplementedError(msg)
-    override(m, _mlx_ffn)
-
-
 def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
     """Pack the depthwise filters before casting the network. dwgate reads fp32 weights in kernel-position order."""
     dw = m.dwconv
@@ -360,6 +297,17 @@ def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
     return net.output(x).add_(image)
 
 
+def _network(ctx: Context) -> Restormer:
+    """The upstream network with the checkpoint loaded (float32, CPU)."""
+    p = ctx.params
+    net = Restormer(
+        dim=p.dim, num_blocks=list(p.blocks), num_refinement_blocks=p.refinement, heads=list(p.heads),
+        ffn_expansion_factor=p.ffn, bias=False, LayerNorm_type=p.norm,
+    )  # fmt: skip
+    load_strict(net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+    return net.eval()
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype, channels-last on CUDA and MPS.
 
@@ -376,12 +324,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network, fold the norms."""
         super().__init__(ctx)
-        p = ctx.params
-        self.net = Restormer(
-            dim=p.dim, num_blocks=list(p.blocks), num_refinement_blocks=p.refinement, heads=list(p.heads),
-            ffn_expansion_factor=p.ffn, bias=False, LayerNorm_type=p.norm,
-        )  # fmt: skip
-        load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+        self.net = _network(ctx)
         for m in self.net.modules():
             if isinstance(m, TransformerBlock):
                 m.norm1 = _fold_norm(m.norm1, m.attn.qkv)  # ty: ignore[invalid-assignment]
@@ -464,16 +407,25 @@ class Kernels(Portable):
         self._graphs.release()
 
 
-class _Mlx(Portable):
-    """Portable for the MLX port: the attention statistics and the GDFN gate export as single ops (`mlx_ops`)."""
+class _MlxPortable(Portable):
+    """Apple MLX: the upstream network written in `mlx.core` operations (`mlx_net`), the padding as `Portable`."""
 
-    _prepare_attention = staticmethod(_fold_mlx_attention)
-    _prepare_ffn = staticmethod(_mlx_gate_ffn)
+    net: Any  # mlx_net.MlxRestormer
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network; `mlx_ops` lowers its two ops to Metal kernels."""
-        super().__init__(ctx)
-        from . import mlx_ops  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
+        """Build the network on MLX; the PyTorch one is not kept."""
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxRestormer(_network(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The restored batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.net(to_mx(image.float())))}
+
+    module = Runner.module
 
 
 RUNNERS = {
@@ -481,7 +433,7 @@ RUNNERS = {
     "kernels": Kernels,
     # 134-268 MB activations at 512 x 512: at the default 128 MB buffer cache every one is a fresh zero-filled
     # allocation (M1 Pro, deblur fp16 warm: 1062 ms; 512 MB 858, 1024 MB 732, 2048 MB 699)
-    "portable_mlx": mlx_wrap.port(_Mlx, cache_mb=1024),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
 }
 
 
