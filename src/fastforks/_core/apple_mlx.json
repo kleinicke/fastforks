@@ -8881,6 +8881,14 @@
    }
   },
   "rf-detr-l-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8898,6 +8906,14 @@
    }
   },
   "rf-detr-m-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8915,6 +8931,14 @@
    }
   },
   "rf-detr-n-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8931,6 +8955,14 @@
    }
   },
   "rf-detr-s-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8948,6 +8980,14 @@
    }
   },
   "rf-detr-seg-2xl-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8965,6 +9005,13 @@
    }
   },
   "rf-detr-seg-l-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8981,6 +9028,14 @@
    }
   },
   "rf-detr-seg-m-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8998,6 +9053,14 @@
    }
   },
   "rf-detr-seg-n-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -9015,6 +9078,14 @@
    }
   },
   "rf-detr-seg-s-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -9032,6 +9103,14 @@
    }
   },
   "rf-detr-seg-xl-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
