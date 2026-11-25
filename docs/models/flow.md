@@ -88,7 +88,7 @@ Commercial use: yes.
   - `flowformer-small-things`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `flowformer-small-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark
 - Options: `cuda_graphs` = True (speed only), `iters` = 32 (>= 1)
-- Kernel libraries: `flow_upsample`, `raft_flow`
+- Kernel libraries: `flow_upsample`, `raft_flow`, `fastbb`
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
@@ -130,9 +130,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float32 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `flowformer-small-chairs` | 0.0005 / 0.00206 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
-| `flowformer-small-things` | 0.0004 / 0.00199 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
-| `flowformer-small-sintel` | 0.00037 / 0.00166 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `flowformer-small-chairs` | 0.00043 / 0.00178 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `flowformer-small-things` | 0.00046 / 0.00241 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `flowformer-small-sintel` | 0.00031 / 0.00128 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
