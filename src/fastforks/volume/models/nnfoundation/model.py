@@ -28,6 +28,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
 from fastforks._core.tracing import in_onnx_export
+from fastforks.kernels import vol_norm
 from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet, _ConvNormAct
@@ -142,6 +143,7 @@ class _Attention(nn.Module):
     def __init__(self, dim: int, heads: int) -> None:
         super().__init__()
         self.heads = heads
+        self.fused_rotary = False
         self.q_proj = nn.Linear(dim, dim)
         self.k_proj = nn.Linear(dim, dim, bias=False)
         self.v_proj = nn.Linear(dim, dim)
@@ -157,7 +159,11 @@ class _Attention(nn.Module):
 
         def project(layer: nn.Linear) -> torch.Tensor:
             t = layer(x).view(b, n, h, d).transpose(1, 2)
-            return _rotate_padded(t, sin, cos, pad) if bounded else _rotate(t, sin, cos).to(x.dtype)
+            if bounded:
+                if self.fused_rotary and d == vol_norm.ROTARY_WIDTH:
+                    return vol_norm.rotary_padded66(t, sin, cos)
+                return _rotate_padded(t, sin, cos, pad)
+            return _rotate(t, sin, cos).to(x.dtype)
 
         q, k = project(self.q_proj), project(self.k_proj)
         v = self.v_proj(x).view(b, n, h, d).transpose(1, 2)
@@ -314,9 +320,11 @@ class Portable(EncoderRunner):
 
     def _prepare(self, net: nn.Module) -> nn.Module:
         """Install inference methods before the host packer moves stage shells to meta."""
-        if self.fused and isinstance(net, Encoder):
+        if self.fused:
             for module in net.modules():
-                if isinstance(module, _ConvNormAct):
+                if isinstance(module, _Attention):
+                    module.fused_rotary = True
+                elif isinstance(module, _ConvNormAct):
                     override(module, fused_norm_act, "norm_act")
                     if module.conv.bias is not None:
                         override(module, _biased_conv_norm)
@@ -376,16 +384,13 @@ class Portable(EncoderRunner):
 
 
 class Kernels(Portable):
-    """Portable + CNN: InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`); ViT: fp16-accumulate GEMMs."""
+    """In-place convolution normalization for CNN and fused rotary writes and FP16 GEMMs for ViT."""
 
     fused = True
 
     def __init__(self, ctx: Context) -> None:
         """Load the kernels first, then the encoder."""
-        if ctx.params.arch == "cnn":
-            from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
-
-            vol_norm.load(ctx.device)
+        vol_norm.load(ctx.device)
         super().__init__(ctx)
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:

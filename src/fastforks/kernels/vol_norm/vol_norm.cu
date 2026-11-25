@@ -354,3 +354,34 @@ extern "C" __global__ void vol_merge_u8(const uint8_t* __restrict__ src, const u
             out[z * od + y * oh + x * ow] = mapped;
     }
 }
+
+__device__ __forceinline__ __half2 vol_rotary_pair_h(__half2 value, float2 sin, float2 cos) {
+    const float2 x = __half22float2(value);
+    // Eager rounds both FP32 products before adding, then rounds once to FP16.
+    const float even = __fadd_rn(__fmul_rn(x.x, cos.x), __fmul_rn(-x.y, sin.x));
+    const float odd = __fadd_rn(__fmul_rn(x.y, cos.y), __fmul_rn(x.x, sin.y));
+    return __floats2half2_rn(even, odd);
+}
+
+extern "C" __global__ void vol_rotary_padded66_h(const __half2* __restrict__ x, const float2* __restrict__ sin,
+        const float2* __restrict__ cos, __half2* __restrict__ out, int tokens, int heads,
+        int64_t batch_stride, int64_t head_stride, int64_t token_stride) {
+    constexpr int lanes = 32;
+    constexpr int pairs = 33, padded_pairs = 36;
+    const int lane = threadIdx.x % lanes;
+    const unsigned token = blockIdx.x * (blockDim.x / lanes) + threadIdx.x / lanes;
+    if (token >= static_cast<unsigned>(tokens))
+        return;
+    const unsigned head = blockIdx.y, batch = blockIdx.z;
+    const int64_t row = (int64_t(batch) * heads + head) * tokens + token;
+    const auto* src = x + batch * batch_stride + head * head_stride + token * token_stride;
+    const auto* angles_s = sin + int64_t(token) * pairs;
+    const auto* angles_c = cos + int64_t(token) * pairs;
+    auto* dst = out + row * padded_pairs;
+    dst[lane] = vol_rotary_pair_h(src[lane], angles_s[lane], angles_c[lane]);
+    if (lane < padded_pairs - lanes) {
+        dst[lane + lanes] = lane == 0
+            ? vol_rotary_pair_h(src[lanes], angles_s[lanes], angles_c[lanes])
+            : __float2half2_rn(0.f);
+    }
+}

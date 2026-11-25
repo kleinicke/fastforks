@@ -31,12 +31,51 @@ SIGNATURES = {
     "vol_gaussian_fix_h": "ppl",
     "vol_accum_h": "pppiiiillli",
     "vol_resize_labels_h": "pppiiiiiiiiiilllfff",
+    "vol_rotary_padded66_h": "ppppiilll",
 }
 _ROWS = 256  # threads per stats block
 _GAUSSIAN_BLOCKS = 512  # fixed: bound the number of block minima
 _VECTOR_BYTES = 16
 _V8 = 8
+ROTARY_WIDTH = 66
+_ROTARY_PADDED = 72
+_ROTARY_WARPS = 8
+_WARP_SIZE = 32
+_CUDA_GRID_YZ_MAX = 65535
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
+
+
+def rotary_padded66(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+    """Rotate aligned CUDA FP16 BHTD projections with FP32 TD tables and zero-pad 66 channels to 72."""
+    if (
+        x.ndim != 4  # noqa: PLR2004 - BHTD
+        or not x.is_cuda
+        or x.dtype != torch.float16
+        or x.shape[-1] != ROTARY_WIDTH
+        or x.stride(-1) != 1
+        or x.data_ptr() % 4
+        or any(stride % 2 for stride in x.stride()[:3])
+        or any(
+            t.shape != (x.shape[2], ROTARY_WIDTH)
+            or t.dtype != torch.float32
+            or t.device != x.device
+            or not t.is_contiguous()
+            or t.data_ptr() % 8
+            for t in (sin, cos)
+        )
+        or max(x.shape[:2]) > _CUDA_GRID_YZ_MAX
+        or x.shape[2] >= 2**31
+    ):
+        msg = "Padded rotary needs aligned CUDA FP16 BHT66 projections and contiguous FP32 T66 angles"
+        raise ValueError(msg)
+    batch, heads, tokens, _ = x.shape
+    out = torch.empty((batch, heads, tokens, _ROTARY_PADDED), device=x.device, dtype=x.dtype)
+    if out.numel():
+        pair_strides = tuple(stride // 2 for stride in x.stride()[:3])
+        grid = ((tokens + _ROTARY_WARPS - 1) // _ROTARY_WARPS, heads, batch)
+        block = (_ROTARY_WARPS * _WARP_SIZE, 1, 1)
+        load(x.device).launch("vol_rotary_padded66_h", grid, block, x, sin, cos, out, tokens, heads, *pair_strides)
+    return out
 
 
 def normalize_ct_(

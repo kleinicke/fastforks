@@ -428,6 +428,18 @@ def test_vol_norm(dev, seed, record_property):
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
 
 
+def test_volume_padded_rotary_rounding(dev):
+    """The fused ViT kernel writes both rotary channels and zero padding with the eager FP16 rounding."""
+    g = _gen(497)
+    x = _randn(g, 2, 257, 3, 66).to(device=dev, dtype=torch.float16).transpose(1, 2)
+    sin, cos = (_randn(g, 257, 66).to(dev) for _ in range(2))
+    rot = torch.stack((-x[..., 1::2], x[..., ::2]), dim=-1).reshape(x.shape)
+    expected = F.pad((x * cos + rot * sin).half(), (0, 6))
+    got = vol_norm.rotary_padded66(x, sin, cos)
+    assert got.is_contiguous()
+    assert torch.equal(got.view(torch.int16), expected.view(torch.int16))
+
+
 @pytest.mark.parametrize("seed", SEEDS)
 def test_restoration_row_layer_norm(dev, seed, record_property):
     """Four- and eight-element vectors agree with an FP32 tokenwise normalization rounded to FP16."""
