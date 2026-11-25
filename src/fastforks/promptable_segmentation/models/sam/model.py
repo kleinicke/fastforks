@@ -243,8 +243,29 @@ class Kernels(_Sam):
             self.cache.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the image encoder written in MLX operations (`shared.mlx_sam`), the prompt side as portable."""
+
+    module = Runner.module  # the MLX encoder is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network; the image encoder's weights copied to MLX (and dropped from the twin)."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_sam  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_sam.MlxSamEncoder(self.sam.image_encoder, self.rel, mlx_wrap.run_dtype(ctx))
+        del self.sam.image_encoder
+        self.rel = []
+
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        y = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
+        return to_torch(y).permute(0, 3, 1, 2).contiguous()
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="sam"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
