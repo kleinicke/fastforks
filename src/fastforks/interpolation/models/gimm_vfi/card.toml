@@ -40,7 +40,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["raft_flow", "cudnn_hacc", "ema_warp"]  # on-the-fly correlation windows, half-accumulating decoder convolutions, and fused decoder feature warps
+kernels = ["raft_flow", "cudnn_hacc", "ema_warp", "gimm_splat"]  # correlation windows, half-accumulating convolutions, decoder warps and packed linear splats
 
 [[papers]]
 title = "Generalizable Implicit Motion Modeling for Video Frame Interpolation"

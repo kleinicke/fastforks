@@ -29,7 +29,7 @@ from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 from fastforks.interpolation._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc, ema_warp
+from fastforks.kernels import cudnn_hacc, ema_warp, gimm_splat
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -64,6 +64,7 @@ HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (it
 # fixed: kernels inputs up to this many pixels (batch x H x W) replay a CUDA graph. They are launch-bound (Windows
 # 480 x 854 308 -> 271 ms); 720 x 1280 gains under 2 % while its capture holds about three eager peaks reserved
 GRAPH_PIXELS = 1 << 19
+_MAX_SPLAT_PIXELS = 1 << 24  # fixed: exact range of the original FP32 flattened pixel indices
 
 
 @dataclass(frozen=True)
@@ -338,11 +339,22 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
     mode = net.fwarp_type + "-zeroeps"
     lat0, lat1 = net.cnn_encoder(f[:, :, 0]), net.cnn_encoder(f[:, :, 1])
     tt = t.reshape(-1, 1, 1, 1)
-    s0 = softsplat(tenIn=lat0, tenFlow=flow01 * tt, tenMetric=weights1, strMode=mode)
-    s1 = softsplat(tenIn=lat1, tenFlow=flow10 * (1 - tt), tenMetric=weights2, strMode=mode)
-    del weights1, weights2
-    lat = torch.cat([s0, s1], dim=1)
-    del s0, s1
+    if (
+        not portable
+        and lat0.is_cuda
+        and mode == "linear-zeroeps"
+        and tt.dtype == torch.float32
+        and lat0.shape[-2] * lat0.shape[-1] <= _MAX_SPLAT_PIXELS
+        and not (torch.is_grad_enabled() or torch.are_deterministic_algorithms_enabled())
+    ):
+        lat = gimm_splat.pair((lat0, lat1), (flow01, flow10), (weights1, weights2), tt)
+        del weights1, weights2
+    else:
+        s0 = softsplat(tenIn=lat0, tenFlow=flow01 * tt, tenMetric=weights1, strMode=mode)
+        s1 = softsplat(tenIn=lat1, tenFlow=flow10 * (1 - tt), tenMetric=weights2, strMode=mode)
+        del weights1, weights2
+        lat = torch.cat([s0, s1], dim=1)
+        del s0, s1
     release(lat)
     dt = _compute_dtype(lat)
     res = torch.cat([lat0.to(dt), lat1.to(dt), lat.to(dt)], dim=1)
@@ -614,6 +626,7 @@ class Kernels(Portable):
         self.make = lambda f1, f2: _kernel_corr(k, f1, f2)
         cudnn_hacc.load(ctx.device)
         ema_warp.load(ctx.device)
+        gimm_splat.load(ctx.device)
         for m in self.net.amt_final_decoder.modules():
             if isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d:
                 m.w16 = m.weight.detach().half().contiguous(memory_format=torch.channels_last)
@@ -629,9 +642,17 @@ class Kernels(Portable):
             self._forward,
             pixels=GRAPH_PIXELS,
             graphs=1,
+            size=_graph_size,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
         )
+
+
+def _graph_size(image: torch.Tensor, *_: torch.Tensor) -> int:
+    # A previously captured nondeterministic splat must not replay after the PyTorch flag changes.
+    if torch.are_deterministic_algorithms_enabled():
+        return GRAPH_PIXELS + 1
+    return image.shape[0] * image.shape[-2] * image.shape[-1]
 
 
 RUNNERS = {

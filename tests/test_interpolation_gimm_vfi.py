@@ -23,6 +23,8 @@ from fastforks.interpolation.models.gimm_vfi.model import (
 )
 from fastforks.interpolation.models.gimm_vfi.net import GIMMVFI_R
 from fastforks.interpolation.models.gimm_vfi.net.modules.fi_components import NewMultiFlowDecoder
+from fastforks.interpolation.models.gimm_vfi.net.modules.softsplat import softsplat
+from fastforks.kernels import gimm_splat
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -99,6 +101,28 @@ def test_half_volume_sampling_is_grid_sample() -> None:
     want = F.grid_sample(vol.float(), g[:, None], align_corners=True)[:, 0, 0]
     torch.testing.assert_close(_sample(vol, xy), want, rtol=0, atol=1e-5)
     torch.testing.assert_close(_sample(vol.float(), xy), want, rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.bfloat16])
+def test_packed_splats_match_torch(dtype: torch.dtype) -> None:
+    """Both branches keep their own divisor and handle strided inputs and invalid flow."""
+    generator = torch.Generator(device="cuda").manual_seed(7)
+    left, right = (
+        torch.randn(2, 16, 5, 14, device="cuda", dtype=dtype, generator=generator)[..., 1::2] for _ in range(2)
+    )
+    f01, f10 = (torch.randn(2, 2, 5, 7, device="cuda", generator=generator) * 2 for _ in range(2))
+    m0, m1 = (torch.rand(2, 1, 5, 7, device="cuda", generator=generator) for _ in range(2))
+    f01[0, 0, 0, 0] = torch.nan
+    m1[0].zero_()
+    time = torch.tensor([0.23, 0.81], device="cuda")[:, None, None, None]
+    expected = torch.cat(
+        (softsplat(left, f01 * time, m0, "linear-zeroeps"), softsplat(right, f10 * (1 - time), m1, "linear-zeroeps")),
+        dim=1,
+    )
+    got = gimm_splat.pair((left, right), (f01, f10), (m0, m1), time)
+    assert got.is_contiguous(memory_format=torch.channels_last)
+    torch.testing.assert_close(got, expected, rtol=2e-5, atol=4e-6)
 
 
 @pytest.mark.gpu
