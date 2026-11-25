@@ -122,7 +122,7 @@ class Mlx(Portable):
         from fastforks.shared.maskformer import mlx_net  # noqa: PLC0415 - imports mlx
 
         self.mlx = mlx_net.MlxMaskFormer(pretrained(ctx), ctx.dtype)
-        request_cache(self, mlx_net.CACHE_MB)
+        request_cache(self, mlx_net.cache_mb(ctx.dtype))
 
     def _scores_mlx(self, image: torch.Tensor) -> mx.array:
         """`_scores` on MLX: `[1, rh, rw, 150]` float32 (computed in the run dtype, as `mask_semantic`)."""
