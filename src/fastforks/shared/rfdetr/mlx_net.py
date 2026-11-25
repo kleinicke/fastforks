@@ -20,6 +20,10 @@ were 1.8-2.6 s of each first call.
   position embedding and the locations' scale are made once per call.
 - Segmentation head (in the run dtype): the depthwise 3x3 convs are the shared `depthwise` kernel; the mask logits one
   matrix product.
+- Keypoints (GroupPose, RF-DETR Keypoint; float32): the keypoint queries depend only on the learned query features,
+  so their conditional initializer runs once at load. Per layer: the instance-keypoint self-attention over each
+  query's 1 + K tokens, the keypoint deformable cross-attention on the second projector's map at the box reference,
+  the keypoint FFN. The encoder's keypoint proposals feed no output and are skipped.
 """
 
 from __future__ import annotations
@@ -43,6 +47,7 @@ __all__ = ["MlxRFDETR"]
 _Wb = tuple[mx.array, mx.array]
 _ENC = "backbone.0.encoder.encoder."
 _PROJ = "backbone.0.projector.stages.0."
+_XPROJ = "backbone.0.cross_attn_projector.stages.0."  # the dual projector (keypoint cross-attention memory)
 _DEC = "transformer.decoder."
 _EPS_VIT = 1e-6  # the DINOv2 LayerNorms, the projector's and the segmentation blocks' channel LayerNorms
 _VALID = (0.01, 0.99)  # a proposal inside these bounds is valid (`gen_encoder_output_proposals`)
@@ -142,12 +147,18 @@ class MlxRFDETR:
         self.sa_heads = dec.layers[0].self_attn.num_heads
         wt, wq = _Weights(net, self.dtype), _Weights(net, mx.float32)
         self._load_backbone(wt, mean, std)
-        self.cv1, self.cv2 = wq.convx(_PROJ + "0.cv1"), wq.convx(_PROJ + "0.cv2")
         nb = len(a.backbone[0].projector.stages[0][0].m)
-        self.bottlenecks = [(wq.convx(f"{_PROJ}0.m.{j}.cv1"), wq.convx(f"{_PROJ}0.m.{j}.cv2")) for j in range(nb)]
-        self.proj_norm = wq.norm(_PROJ + "1")
+        self.proj = self._load_projector(wq, _PROJ, nb)
+        cross = a.backbone[0].cross_attn_projector is not None
+        self.xproj = self._load_projector(wq, _XPROJ, nb) if cross else None
+        self.kp = bool(a.use_grouppose_keypoints)
+        # `Transformer.forward`: the keypoint-only dual projector feeds the keypoint cross-attention alone
+        self.kp_memory_cross = cross and a.transformer.dual_projector_kp_only
+        self.dec_memory_cross = cross and not self.kp_memory_cross
         self._load_queries(wq)
         self.layers = [self._layer(wq, f"{_DEC}layers.{i}.") for i in range(len(dec.layers))]
+        if self.kp:
+            self._load_keypoints(a, wq)
         self.dec_norm = wq.norm(_DEC + "norm")
         self.bbox, self.cls = wq.mlp("bbox_embed", 3), wq.lin("class_embed")
         self.seg = a.segmentation_head is not None
@@ -187,6 +198,59 @@ class MlxRFDETR:
             for n in ("norm1", "norm2"):
                 vit[o + n + ".weight"], vit[o + n + ".bias"] = wt.norm(k + n)
         self.vit, self.vit_norm = vit, wt.norm(_ENC + "layernorm")
+
+    @staticmethod
+    def _load_projector(wq: _Weights, k: str, nb: int) -> dict[str, Any]:
+        """One projector level: the C2f stage's ConvX layers and the closing channel LayerNorm (float32)."""
+        return {
+            "cv1": wq.convx(k + "0.cv1"),
+            "cv2": wq.convx(k + "0.cv2"),
+            "m": [(wq.convx(f"{k}0.m.{j}.cv1"), wq.convx(f"{k}0.m.{j}.cv2")) for j in range(nb)],
+            "norm": wq.norm(k + "1"),
+        }
+
+    def _load_keypoints(self, a: Any, wq: _Weights) -> None:  # noqa: ANN401 - the vendored LWDETR
+        """GroupPose keypoints: the initial keypoint queries (made once), the per-layer keypoint weights, the head."""
+        import torch  # noqa: PLC0415 - loaded with the PyTorch twin
+
+        t, dec, layer = a.transformer, a.transformer.decoder, a.transformer.decoder.layers[0]
+        if a.grouppose_keypoint_dim_downscale != 1 or layer.inter_instance_kp_attn or not layer.keypoint_cross_attn:
+            msg = "MlxRFDETR: keypoints at full width, keypoint cross-attention, no inter-instance attention only"
+            raise NotImplementedError(msg)
+        if t.num_registers or not self.kp_memory_cross:
+            msg = "MlxRFDETR: keypoints without decoder registers, with the keypoint-only dual projector only"
+            raise NotImplementedError(msg)
+        self.schema = [int(n) for n in a.num_keypoints_per_class]
+        self.detection_classes = int(a.class_embed.out_features)
+        with torch.no_grad():  # the decoder's tgt is the learned query features: the initial queries are fixed
+            init = t.keypoint_query_initializer(a.query_feat.weight[: self.num_queries].float())
+        self.kp_init = wq.arr(_np(init))  # [Q, K, C]
+        pos = _np(dec.keypoint_pos_embed)
+        self.kp_pos = wq.arr(np.concatenate([np.zeros_like(pos[:1]), pos]))  # the instance token: no position
+        mask = dec.keypoint_class_mask.detach().cpu().numpy()
+        self.kp_mask = wq.arr(np.where(mask, -np.inf, 0.0)) if mask.any() else None  # blocks cross-class pairs
+        self.kp_heads, self.kp_ca_heads = layer.kp_inst_self_attn.num_heads, layer.kp_cross_attn.n_heads
+        self.kp_points = layer.kp_cross_attn.n_points
+        for i, p in enumerate(self.layers):
+            k = f"{_DEC}layers.{i}."
+            iw, ib = wq.get(k + "kp_inst_self_attn.in_proj_weight"), wq.get(k + "kp_inst_self_attn.in_proj_bias")
+            e = iw.shape[1]
+            ca = k + "kp_cross_attn."
+            ow = np.concatenate([wq.get(ca + "sampling_offsets.weight"), wq.get(ca + "attention_weights.weight")])
+            ob = np.concatenate([wq.get(ca + "sampling_offsets.bias"), wq.get(ca + "attention_weights.bias")])
+            p.update({
+                "kp_qk": (wq.arr(iw[: 2 * e].T), wq.arr(ib[: 2 * e])),
+                "kp_v": (wq.arr(iw[2 * e :].T), wq.arr(ib[2 * e :])),
+                "kp_out": wq.lin(k + "kp_inst_self_attn.out_proj"),
+                "kp_scale": wq.arr(wq.get(k + "instance_kp_layer_scale")),
+                "kp_value": wq.lin(ca + "value_proj"),
+                "kp_offw": (wq.arr(ow.T), wq.arr(ob)),
+                "kp_ca_out": wq.lin(ca + "output_proj"),
+                "kp_fc1": wq.lin(k + "kp_linear1"),
+                "kp_fc3": wq.lin(k + "kp_linear3"),
+                **{n: wq.norm(k + n) for n in ("kp_inst_norm", "kp_norm", "kp_cross_attn_norm", "kp_norm5")},
+            })  # fmt: skip
+        self.kp_embed = wq.mlp("keypoint_embed", 3)
 
     def _load_queries(self, wt: _Weights) -> None:
         """Two-stage selection (group 0): its heads, the fixed proposals, the learned queries, the sine constants."""
@@ -260,16 +324,21 @@ class MlxRFDETR:
         r = self.resolution
         h, w = image.shape[-2:]
         x = ops.bilinear(image, (r, r), (h / r, w / r), align=False)
-        feat = self._projector(self._backbone(x).astype(mx.float32))  # projector on: float32 (module docstring)
+        raw = self._backbone(x).astype(mx.float32)  # projector on: float32 (module docstring)
+        feat = self._projector(raw, self.proj)
         b, c = feat.shape[0], feat.shape[-1]
         memory = feat.reshape(b, -1, c)
+        cross = None if self.xproj is None else self._projector(raw, self.xproj).reshape(b, -1, c)
         ref = self._two_stage(memory)
-        hs = self._decoder(memory, ref)
+        hs, kt = self._decoder(cross if self.dec_memory_cross else memory, ref, cross)
         delta = _mlp(hs, self.bbox)
         boxes = mx.concatenate(
             [delta[..., :2] * ref[..., 2:] + ref[..., :2], mx.exp(delta[..., 2:]) * ref[..., 2:]], -1
         )
         out = {"pred_boxes": boxes, "pred_logits": _linear(hs, self.cls)}
+        if kt is not None:
+            out["pred_keypoints"], boost = self._keypoints(kt, ref)
+            out["pred_logits"] = out["pred_logits"] + boost
         if self.seg:
             out["pred_masks"] = self._masks(feat.astype(self.dtype), hs).astype(mx.float32)
         return out
@@ -301,7 +370,8 @@ class MlxRFDETR:
             prev = t
         return mx.concatenate(feats, axis=-1)
 
-    def _projector(self, x: mx.array) -> mx.array:
+    @staticmethod
+    def _projector(x: mx.array, p: dict[str, Any]) -> mx.array:
         """`[B, n, n, 4 C]` -> the projector's `[B, n, n, 256]` (C2f with 1x1 / 3x3 ConvX: conv, LayerNorm, SiLU)."""
 
         def convx(x: mx.array, wn: tuple[mx.array, _Wb]) -> mx.array:
@@ -309,12 +379,12 @@ class MlxRFDETR:
             y = mx.conv2d(x, w, padding=1) if w.ndim == 4 else x @ w  # noqa: PLR2004 - OHWI
             return _silu(_ln(y, ln, _EPS_VIT))
 
-        y = convx(x, self.cv1)
+        y = convx(x, p["cv1"])
         half = y.shape[-1] // 2
         ys = [y[..., :half], y[..., half:]]
-        for c1, c2 in self.bottlenecks:
+        for c1, c2 in p["m"]:
             ys.append(convx(convx(ys[-1], c1), c2))
-        return _ln(convx(mx.concatenate(ys, axis=-1), self.cv2), self.proj_norm, _EPS_VIT)
+        return _ln(convx(mx.concatenate(ys, axis=-1), p["cv2"]), p["norm"], _EPS_VIT)
 
     def _two_stage(self, memory: mx.array) -> mx.array:
         """Memory `[B, HW, D]` -> the decoder's reference boxes `[B, Q, 4]` (centre, size; float32)."""
@@ -334,8 +404,11 @@ class MlxRFDETR:
             ref = mx.concatenate([ref, mx.broadcast_to(self.refpoint[k:], (ref.shape[0], self.num_queries - k, 4))], 1)
         return ref
 
-    def _decoder(self, memory: mx.array, ref: mx.array) -> mx.array:
-        """Memory `[B, HW, D]`, reference boxes `[B, Q, 4]` -> the normed last decoder output `[B, Q, D]`."""
+    def _decoder(self, memory: mx.array, ref: mx.array, kp_memory: mx.array | None) -> tuple[mx.array, mx.array | None]:
+        """Memory `[B, HW, D]`, reference boxes `[B, Q, 4]` -> the normed last decoder output `[B, Q, D]`.
+
+        With keypoints also the last layer's keypoint queries `[B, Q, K, D]` (`kp_memory`: their cross-attention's).
+        """
         b, q = ref.shape[:2]
         e = mx.concatenate([ref[..., 1::-1], ref[..., 2:]], -1)[..., None] * self.sine_scale  # y, x, w, h
         sine = mx.where(self.sine_odd, mx.cos(e), mx.sin(e)).reshape(b, q, -1)
@@ -346,6 +419,7 @@ class MlxRFDETR:
         shapes = [(self.side, self.side)]
         x = mx.broadcast_to(self.query_feat, (b, q, self.query_feat.shape[-1]))
         d = x.shape[-1]
+        kt = mx.broadcast_to(self.kp_init, (b, *self.kp_init.shape)) if self.kp else None
         for p in self.layers:
             qk = _linear(x + qpos, p["qk"])
             v = _linear(x, p["v"])
@@ -363,20 +437,58 @@ class MlxRFDETR:
             ca = ops.msda(value, xy + off * scale, aw, shapes)
             x = _ln(x + _linear(ca, p["ca_out"]), p["norm2"], _EPS)
             x = _ln(x + _linear(mx.maximum(_linear(x, p["fc1"]), 0), p["fc2"]), p["norm3"], _EPS)
-        return _ln(x, self.dec_norm, _EPS)
+            if kt is not None and kp_memory is not None:
+                x, kt = self._keypoint_layer(p, (x, kt), (qpos, ref), kp_memory)
+        return _ln(x, self.dec_norm, _EPS), kt
 
-    def _masks(self, feat: mx.array, hs: mx.array) -> mx.array:
-        """Projector map `[B, n, n, D]`, decoder output `[B, Q, D]` -> mask logits `[B, Q, R/4, R/4]`."""
-        b, n, _, d = feat.shape
-        m = self.mask_side
-        x = ops.bilinear_nhwc(feat, (m, m), (n / m, n / m), align=False)
-        for dw, db, ln, pw in self.seg_blocks:
-            y = ops.depthwise(x, dw, db, (1, 1), (1, 1), (1, 1))
-            x = x + mlx_vit.gelu(_linear(_ln(y, ln, _EPS_VIT), pw))
-            mx.eval(x)  # block by block: lazy, the R/4 maps piled up (seg-xl float32 +190 MB of MLX peak, +70-95)
-        spatial = _linear(x.reshape(b, m * m, d), self.spatial_proj)
-        mx.eval(spatial)
-        hs = hs.astype(self.dtype)
-        qf = hs + _linear(mlx_vit.gelu(_linear(_ln(hs, self.qf_norm, _EPS), self.qf_fc1)), self.qf_fc2)
-        qf = _linear(qf, self.qf_proj)
-        return (qf @ spatial.transpose(0, 2, 1) + self.mask_bias).reshape(b, -1, m, m)
+    def _keypoint_layer(
+        self, p: dict[str, Any], state: tuple[mx.array, mx.array], query: tuple[mx.array, mx.array], memory: mx.array
+    ) -> tuple[mx.array, mx.array]:
+        """`TransformerDecoderLayer.forward_post`'s keypoint part: instance-keypoint attention, cross-attention, FFN.
+
+        `state`: the queries `[B, Q, D]` and keypoint queries `[B, Q, K, D]`; `query`: the position and reference boxes.
+        """
+        x, kt = state
+        qpos, ref = query
+        b, q, k, d = kt.shape
+        comb = mx.concatenate([x[:, :, None], kt], axis=2).reshape(b * q, 1 + k, d)
+        qk = _linear(comb + self.kp_pos, p["kp_qk"])
+        v = _linear(comb, p["kp_v"])
+        nh = self.kp_heads
+        att = mx.fast.scaled_dot_product_attention(
+            _heads(qk[..., :d], nh), _heads(qk[..., d:], nh), _heads(v, nh), scale=(d // nh) ** -0.5,
+            mask=self.kp_mask,
+        ).transpose(0, 2, 1, 3).reshape(b * q, 1 + k, d)  # fmt: skip
+        out = _linear(att, p["kp_out"]).reshape(b, q, 1 + k, d)
+        x = _ln(x + out[:, :, 0] * p["kp_scale"], p["kp_inst_norm"], _EPS)
+        kt = _ln(kt + out[:, :, 1:], p["kp_norm"], _EPS)
+        nh, pts = self.kp_ca_heads, self.kp_points
+        ow = _linear((kt + qpos[:, :, None]).reshape(b, q * k, d), p["kp_offw"])
+        no = nh * pts * 2
+        off = ow[..., :no].reshape(b, q, k, nh, 1, pts, 2)
+        aw = mx.softmax(ow[..., no:].reshape(b, q * k, nh, pts), axis=-1).reshape(b, q * k, nh, 1, pts)
+        loc = ref[:, :, None, None, None, None, :2] + off * (ref[:, :, None, None, None, None, 2:] * (0.5 / pts))
+        value = _linear(memory, p["kp_value"]).reshape(b, memory.shape[1], nh, -1)
+        ca = ops.msda(value, loc.reshape(b, q * k, nh, 1, pts, 2), aw, [(self.side, self.side)])
+        kt = _ln(kt + _linear(ca, p["kp_ca_out"]).reshape(b, q, k, d), p["kp_cross_attn_norm"], _EPS)
+        kt = _ln(kt + _linear(mx.maximum(_linear(kt, p["kp_fc1"]), 0), p["kp_fc3"]), p["kp_norm5"], _EPS)
+        return x, kt
+
+    def _keypoints(self, kt: mx.array, ref: mx.array) -> tuple[mx.array, mx.array]:
+        """Keypoint queries `[B, Q, K, D]` -> class-padded `pred_keypoints` `[B, Q, classes * max K, 8]`, logit boost.
+
+        `LWDETR.forward`: `_format_keypoint_output` and the class boost `[B, Q, detection classes]` from channel 7.
+        """
+        delta = mx.nan_to_num(_mlp(kt, self.kp_embed), nan=0.0, posinf=0.0, neginf=0.0)
+        kp = mx.concatenate([delta[..., :2] * ref[:, :, None, 2:] + ref[:, :, None, :2], delta[..., 2:]], axis=-1)
+        b, q, _, c = kp.shape
+        width, start, slots, boost = max(self.schema), 0, [], []
+        for n in self.schema:
+            part = kp[:, :, start : start + n]
+            start += n
+            boost.append(part[..., 7].sum(-1))
+            slots.append(
+                mx.concatenate([part, mx.zeros((b, q, width - n, c), mx.float32)], axis=2) if n < width else part
+            )
+        boost += [mx.zeros((b, q), mx.float32)] * (self.detection_classes - len(boost))
+        return mx.concatenate(slots, axis=2), mx.stack(boost[: self.detection_classes], axis=-1)

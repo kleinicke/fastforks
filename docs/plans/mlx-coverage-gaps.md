@@ -1557,6 +1557,26 @@ Left: rf-detr-seg-2xl's peak is 58 / 104 MB (6-10 %) above the exported port's, 
 slower warm (within a busy machine's noise, but consistently on that side); the load footprint is 80-170 MB higher
 (the MLX weights now exist at load). `pose/models/rfdetr_keypoint` (2.60 s over the budget) still uses the export.
 
+### Done: RF-DETR Keypoint (2026-11-25)
+
+M1 Pro, 1080x1920, MLX goldens pass (fp16 and fp32). `auto` now takes MLX float16 (it was 2.60 s over the budget).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| rf-detr-keypoint-preview | MLX before, fp16 / fp32 | 67.0 / 81.4 | 3.61 / 3.67 | 915 / 971 | MPS |
+| | MLX now, fp16 / fp32 | 65.9 / 79.0 | 0.11 / 0.25 | 975 / 1028 | MLX fp16 |
+| | MPS portable fp32 | 147.8 | 0.72 | 1830 | |
+
+`shared/rfdetr/mlx_net.py` gained the GroupPose keypoint branch: the keypoint-only cross-attention projector,
+per decoder layer the instance-keypoint self-attention (`mx.fast.scaled_dot_product_attention` over `1 + K` tokens
+per query, the class mask additive), the keypoint deformable cross-attention (`msda` on the keypoint projector's
+memory) and FFN, then the keypoint head and the visibility boost of the class logits, all float32 like the
+decoder. The keypoint query initializer runs once at load (it only depends on the query weights).
+
+Left: the peak is 57-60 MB (6 %) above the exported port's, the load footprint 120-165 MB higher (the MLX weights
+exist at load, as for RF-DETR; the PyTorch twin is freed, checked). Only the paths this checkpoint uses are written
+(downscale 1, no inter-instance attention, no registers); others raise `NotImplementedError`.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /
