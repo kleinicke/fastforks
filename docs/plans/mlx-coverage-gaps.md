@@ -1412,18 +1412,13 @@ the head-mask GEMMs (two `[L, 256] x [256, 256]` products per layer, cheap at 15
 `auto` takes MLX only when its first call is at most the MPS first call plus twice the MPS warm time
 (`tools/gen_auto_mode.py`, `cold=True`). 203 refs had an MLX row that wins warm (and on memory) against the MPS path
 `auto` would replace, but miss that budget (2026-11-25 rows, M1 Pro 16 GB). Per family: refs, the MLX / MPS warm ratio,
-the MLX first call, and how far over the budget it is (185 left: coatnet, efficientformerv2 and starnet are
-now in, see below):
+the MLX first call, and how far over the budget it is (142 left: coatnet, efficientformerv2 and starnet are
+now in, and so are the families under "Done" below):
 
 | family | refs | warm MLX / MPS | first call s | over budget s |
 |---|---|---|---|---|
-| clip | 10 | 0.84-1.03 | 0.68-1.81 | 0.60-1.23 |
 | dfine | 10 | 0.72-0.97 | 1.52-9.11 | 1.17-8.68 |
 | rfdetr | 10 | 0.57-0.74 | 1.82-2.56 | 1.57-1.91 |
-| rtmpose | 10 | 0.90-1.05 | 1.25-1.65 | 0.73-1.05 |
-| hgnetv2 | 7 | 0.45-0.70 | 0.73-1.76 | 0.59-1.53 |
-| focalnet | 6 | 0.52-0.55 | 0.80-1.48 | 0.29-1.21 |
-| siglip2 | 6 | 0.85-1.04 | 0.71-4.16 | 0.60-3.54 |
 | lwdetr | 5 | 0.61-1.01 | 1.89-2.71 | 1.63-2.23 |
 | rtdetrv2 | 5 | 0.84-1.03 | 1.54-2.12 | 1.18-1.58 |
 | tinyvit | 5 | 0.54-0.78 | 0.97-1.18 | 0.83-1.09 |
@@ -1439,7 +1434,6 @@ now in, see below):
 | perception_encoder | 3 | 0.64-0.72 | 0.86-1.79 | 0.81-1.71 |
 | restormer | 3 | 0.59-0.75 | 3.49-4.03 | 0.02-0.96 |
 | rtmo | 3 | 0.72-1.03 | 1.39-1.54 | 0.67-1.21 |
-| sam_hq | 3 | 0.76-0.81 | 2.36-7.57 | 0.29-0.47 |
 | u2net | 3 | 0.56-0.83 | 2.22-4.97 | 1.58-4.36 |
 | vitpose | 3 | 0.86-0.92 | 1.41-2.12 | 0.49-0.88 |
 | birefnet | 2 | 0.81-0.91 | 5.18-7.28 | 3.30-3.39 |
@@ -1455,13 +1449,12 @@ now in, see below):
 | sea_raft | 2 | 0.74-0.83 | 1.62-2.02 | 0.79-0.85 |
 | yunet | 2 | 0.91-1.03 | 1.30-1.54 | 1.12-1.35 |
 
-One ref each (over budget, s): bridgedepth 4.23, clipseg 1.96, compact 1.28, deit 0.57, depthsplat 4.34, efficientvit 1.19, eomt 3.92, eva02 1.40, flowseek 4.90, geocalib 4.35, hrnet 1.57, inception_v3 0.94, lineart_anime 2.36, mask2former 3.09, megaloc 7.16, mlsd 1.72, mobilenetv4 0.75, nsfw_vit 0.58, oneformer 4.42, patchmatchnet 20.51, pidinet 0.70, raft 0.19, realesrgan 4.77, recover 0.50, rfdetr_keypoint 2.60, romav1 2.40, rt_monster_plusplus 2.57, sam 0.35, sam2 1.04, siglip 0.80, span 1.08, swin 1.90, teed 1.67, unik3d 0.39, vggt_omega 1.30, vit 0.54, yolox 0.99.
+One ref each (over budget, s): bridgedepth 4.23, clipseg 1.96, compact 1.28, deit 0.57, depthsplat 4.34, efficientvit 1.19, eomt 3.92, eva02 1.40, flowseek 4.90, geocalib 4.35, hrnet 1.57, inception_v3 0.94, lineart_anime 2.36, mask2former 3.09, megaloc 7.16, mlsd 1.72, mobilenetv4 0.75, nsfw_vit 0.58, oneformer 4.42, patchmatchnet 20.51, pidinet 0.70, raft 0.19, realesrgan 4.77, recover 0.50, rfdetr_keypoint 2.60, romav1 2.40, rt_monster_plusplus 2.57, sam2 1.04, siglip 0.80, span 1.08, swin 1.90, teed 1.67, unik3d 0.39, vggt_omega 1.30, vit 0.54, yolox 0.99.
 
 Owned elsewhere: dfine, detr, rtdetr (detection), oneformer, mask2former, geocalib. Not on the list: aliked-flexglue
 (MLX fp32 938 ms, 4.2 s first call) has no MPS row with a passing golden to compare against.
 
-Nearly in: mmseg deeplabv3 (0.04 s over), restormer-sidd (0.02 s), raft-small (0.19 s), the SAM / SAM-HQ ViTs
-(0.29-0.47 s), unik3d (0.39 s). Most of the rest are exported graphs whose translation and first compile take
+Nearly in: mmseg deeplabv3 (0.04 s over), restormer-sidd (0.02 s), unik3d (0.39 s). Most of the rest are exported graphs whose translation and first compile take
 0.5-2 s on small classifiers; a hand-written network (no export) is the fix there.
 
 ### Done: SEA-RAFT and RAFT (2026-11-25)
@@ -1715,6 +1708,96 @@ built from the nnU-Net plan, weights in the conversion cache (layout `unet-v1`),
 Left: the accumulate still costs about 4 s of the 20 s `total` call (slice updates on the 1.2 GB accumulator); an
 unlimited cache would give about 255 ms per window but holds 6 GB, past the cap policy; the 3mm first call; the
 other TotalSegmentator refs need weights and goldens.
+
+### Done: HGNetV2, FocalNet, SAM / SAM-HQ, RTMPose, CLIP and SigLIP 2 (2026-11-25)
+
+M1 Pro, second of two surveys recorded; every MLX golden of these families passes. Each network is now written in
+`mlx.core` under `mx.compile` (no exported graph, no translation). The tables give warm ms fp16 / fp32 and the
+float16 first call and peak, MLX before -> now, then the best MPS row (ms, dtype, first call) and what `auto` picks.
+
+HGNetV2 / FocalNet (`libnet/mlx_hgnetv2.py`, `libnet/mlx_focalnet.py` in `mlx_cnn.Network`, each at its
+card's input size): `auto` now takes MLX float16 for all 13 (none before). Peaks fall 5-17 %.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| hgnetv2_b0 | 3 / 3 | 2 / 3 | 0.75 -> 0.05 | 456 -> 416 | 6 fp32 / 0.10 | MLX portable |
+| hgnetv2_b1 | 3 / 4 | 3 / 3 | 0.73 -> 0.05 | 463 -> 426 | 7 fp16 / 0.13 | MLX kernels |
+| hgnetv2_b2 | 4 / 5 | 5 / 4 | 0.93 -> 0.08 | 553 -> 510 | 9 fp16 / 0.12 | MLX kernels |
+| hgnetv2_b3 | 8 / 7 | 5 / 5 | 8.09 -> 0.06 | 649 -> 591 | 11 fp16 / 0.13 | MLX kernels |
+| hgnetv2_b4 | 6 / 8 | 6 / 6 | 1.03 -> 0.03 | 710 -> 644 | 12 fp16 / 0.13 | MLX portable |
+| hgnetv2_b5 | 11 / 13 | 11 / 12 | 1.45 -> 0.06 | 1063 -> 926 | 18 fp16 / 0.14 | MLX kernels |
+| hgnetv2_b6 | 22 / 27 | 21 / 23 | 1.76 -> 0.04 | 1542 -> 1289 | 31 fp16 / 0.17 | MLX portable |
+| focalnet_tiny_srf / lrf | 10 / 11-12 | 8-10 / 9-11 | 0.80-0.84 -> 0.04 | 720-732 -> 686-691 | 18-19 / 0.16-0.48 | MLX |
+| focalnet_small_srf / lrf | 17-18 / 20-21 | 16 / 17-18 | 1.35-1.45 -> 0.05 | 967-977 -> 854-859 | 31-34 / 0.16-0.18 | MLX |
+| focalnet_base_srf / lrf | 22-23 / 28-31 | 20-21 / 23-24 | 1.37-1.48 -> 0.05 | 1381-1395 -> 1217-1222 | 40-43 / 0.18-0.22 | MLX |
+
+SAM / SAM-HQ (`shared/mlx_sam.py`: the ViTDet image encoder with decomposed relative positions, plus
+SAM-HQ's early-feature path; the prompt decoder is unchanged), 1024x1024: `auto` now takes MLX float16 for all six
+(before: only sam-vit-l and sam-vit-h). Warm, first call and peak all improve.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| sam-vit-b | 441 / 600 | 352 / 409 | 2.35 -> 0.35 | 1150 -> 1069 | 600 fp16 / 0.80 | MLX fp16 |
+| sam-vit-l | 1010 / 1282 | 864 / 1051 | 3.69 -> 0.92 | 1644 -> 1639 | 1279 fp16 / 1.44 | MLX fp16 |
+| sam-vit-h | 1884 / 2413 | 1589 / 1968 | 5.52 -> 1.69 | 2387 -> 2350 | 2333 fp16 / 2.50 | MLX fp16 |
+| sam-hq-vit-b | 493 / 648 | 398 / 500 | 2.36 -> 0.42 | 1464 -> 1374 | 645 fp32 / 0.78 | MLX fp16 |
+| sam-hq-vit-l | 1051 / 1350 | 899 / 1091 | 4.53 -> 1.03 | 1900 -> 1884 | 1292 fp16 / 1.47 | MLX fp16 |
+| sam-hq-vit-h | 1901 / 2462 | 1919 / 2318 | 7.57 -> 2.08 | 2602 -> 2466 | 2347 fp16 / 2.53 | MLX fp16 |
+
+RTMPose / RTMW / DWPose (`pose/models/rtmpose/mlx_net.py`: CSPNeXt and RTMW's PAFPN neck channels last, batch norms
+folded, SiLU in float32, the SimCC head float32), 28 refs: first calls 1.1-2.1 s -> 0.04-0.43 s, warm 0-25 % faster.
+`auto` now takes MLX float16 for 19; it stays on MPS (kernels) where MLX is still slower warm: dwpose-t,
+rtmpose-t(-face6, -halpe26), rtmpose-s-face6, rtmpose-m-hand5, rtmpose-x-halpe26-384, rtmw-x(-384).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| rtmpose-t | 25 / 30 | 23 / 28 | 1.14 -> 0.06 | 709 -> 521 | 20 fp32 / 0.19 | MPS |
+| rtmpose-s | 30 / 34 | 24 / 25 | 1.14 -> 0.05 | 730 -> 580 | 25 fp32 / 0.17 | MLX fp16 |
+| rtmpose-m | 51 / 64 | 46 / 51 | 1.23 -> 0.06 | 933 -> 810 | 45 fp32 / 0.19 | MLX fp16 |
+| rtmpose-m-384 | 108 / 142 | 90 / 106 | 1.77 -> 0.11 | 1047 -> 870 | 84 fp32 / 0.23 | MLX fp16 |
+| rtmpose-l | 75 / 98 | 62 / 71 | 1.36 -> 0.20 | 1094 -> 1054 | 70 fp16 / 0.23 | MLX fp16 |
+| rtmpose-l-384 | 150 / 205 | 118 / 138 | 1.44 -> 0.13 | 1157 -> 1159 | 136 fp16 / 0.30 | MLX fp16 |
+| rtmpose-x-halpe26-384 | 257 / 367 | 230 / 283 | 1.91 -> 0.26 | 1675 -> 1414 | 213 fp16 / 0.33 | MPS |
+| dwpose-l | 81 / 105 | 72 / 83 | 1.40 -> 0.09 | 1157 -> 1144 | 76 fp16 / 0.23 | MLX fp16 |
+| dwpose-l-384 | 165 / 217 | 137 / 156 | 1.52 -> 0.15 | 1207 -> 1232 | 155 fp32 / 0.30 | MLX fp16 |
+| rtmw-m | 87 / 110 | 89 / 99 | 1.53 -> 0.11 | 1037 -> 983 | 90 fp16 / 0.30 | MLX fp16 |
+| rtmw-l | 128 / 157 | 126 / 134 | 1.65 -> 0.16 | 1331 -> 1258 | 125 fp16 / 0.41 | MLX fp16 |
+| rtmw-l-384 | 280 / 348 | 246 / 283 | 1.83 -> 0.25 | 1379 -> 1343 | 248 fp16 / 0.50 | MLX fp16 |
+| rtmw-x | 236 / 293 | 205 / 235 | 2.04 -> 0.22 | 1736 -> 1605 | 184 fp16 / 0.35 | MPS |
+| rtmw-x-384 | 472 / 613 | 418 / 531 | 2.14 -> 0.43 | 2040 -> 1713 | 363 fp16 / 0.51 | MPS |
+
+(The other 14 refs follow their sizes: the halpe26 / face6 / hand5 / ap10k heads change little.)
+
+- SiLU in float32: with a float16 SiLU, rtmw-l-384 float16 keypoints are p99 1.30 px against tol 1.2 (0.79 px with
+  it, as the exported port had). `mx.compile` fuses the casts into the conv epilogue.
+- Left: some float32 peaks rose 2-10 % (dwpose-l, rtmpose-l(-halpe26)(-384), rtmw-l(-384)) and dwpose-l-384 float16
+  1207 -> 1232 MB; `auto` routes float16, whose peaks are lower except dwpose-l-384.
+
+CLIP / SigLIP 2 (`libnet/mlx_features.py` on `shared/mlx_vit.py`: patch embedding, QuickGELU or GELU blocks, cls
+token or attention-pool head): first calls 0.7-4.2 s -> 0.03-0.73 s, peaks 45-70 % lower (the float32 graph-port
+weights are gone). `auto` now takes MLX float16 for 15 of 20 (before: none); it stays on MPS for clip-h14-laion2b,
+siglip2-g16-256 / 384 and siglip2-so400m16-256 / 512, where MPS kernels are faster warm.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| clip-b16-laion2b / openai | 14-15 / 16-19 | 15 / 17 | 0.68-1.20 -> 0.03-0.05 | 1245-1478 -> 673-680 | 15-16 fp16 / 0.05-0.06 | MLX fp16 |
+| clip-l14 (openai, 336, laion2b, datacompxl, dfn2b) | 54-55 / 63 | 56-57 / 65 | 1.09-1.18 -> 0.08-0.09 | 2958-3425 -> 1112-1151 | 57-60 fp16 / 0.09-0.10 | MLX fp16 |
+| clip-h14-dfn5b / 378-dfn5b | 105 / 126 | 108 / 131-141 | 1.55-1.81 -> 0.25-0.32 | 5248-5255 -> 1704-1707 | 108-109 fp16 / 0.36-0.37 | MLX fp16 |
+| clip-h14-laion2b | 105 / 125 | 108 / 130 | 1.60 -> 0.14 | 5245 -> 1736 | 102 fp16 / 0.17 | MPS |
+| siglip2-b16-256 / 512 | 15-17 / 17-20 | 15 / 17 | 0.71-1.25 -> 0.04 | 1306-1322 -> 707-713 | 16 fp16 / 0.06-0.08 | MLX fp16 |
+| siglip2-l16-256 / 512 | 44-45 / 52 | 46 / 53-54 | 1.13-1.16 -> 0.07 | 3010-3017 -> 1133-1148 | 46 fp16 / 0.09-0.10 | MLX fp16 |
+| siglip2-so400m14-224 / 378 | 66 / 72-75 | 65 / 76-79 | 1.42-1.55 -> 0.09 | 3796-3825 -> 1337-1365 | 69-70 fp16 / 0.12-0.13 | MLX fp16 |
+| siglip2-so400m16-256 / 512 | 64-65 / 75-79 | 64-65 / 74-75 | 1.45-1.48 -> 0.15-0.22 | 3801-3806 -> 1320-1324 | 57-58 fp16 / 0.10-0.13 | MPS |
+| siglip2-g16-256 / 384 | 150-154 / 183-191 | 154 / 187 | 3.63-4.16 -> 0.67-0.73 | 9161-9166 -> 2791-2794 | 142-143 fp16 / 0.33-0.36 | MPS |
+
+- clip-l14-dfn2b runs its residual stream in float32 under float16 (`mlx_features.STREAM_F32`): the DFN L/14 carries
+  a channel near 120, where float16 steps are 0.06, and `last_hidden_state` came to mean 0.0209 against tol 0.02
+  (0.0103 with it). The norms' outputs are cast to the weights' dtype (`mlx_vit.block`), so the GEMMs stay float16.
+  For every ref it cost 5-8 % warm on the L / H towers, hence the one ref.
+- Left: warm is 2-5 % slower than the graph port on the L / H CLIPs and siglip2-l16 / g16-256 float16 (clip-l14 54
+  -> 56-57 ms, clip-h14 105 -> 108, siglip2-g16-256 150 -> 154), and up to 12 % in float32 (clip-h14-378 126 -> 141,
+  maybe noise: its siblings read 131). The first call and peak make up for it in `auto`, but the rule "warm not
+  worse" is not met there; the graph port's fused attention / GEMM layout is the place to look.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
