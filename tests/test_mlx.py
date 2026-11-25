@@ -1115,6 +1115,114 @@ def test_mlx_fast_acvnet_matches_torch(plus):
     torch.testing.assert_close(got.median(), want.median(), atol=2e-3, rtol=2e-3)
 
 
+def _random_batch_norms(net: torch.nn.Module, g: torch.Generator) -> None:
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+                m.weight.uniform_(0.5, 1.5, generator=g)
+                m.bias.normal_(0, 0.1, generator=g)
+                m.running_mean.normal_(0, 0.1, generator=g)
+                m.running_var.uniform_(0.5, 1.5, generator=g)
+
+
+def test_mlx_igev_stereo_matches_torch():
+    """`igev_stereo.mlx_net.MlxIGEV` against the folded `forward_fast` (random weights and batch norms, float32)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    import copy  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.stereo.models.igev_stereo import mlx_net  # noqa: PLC0415
+    from fastforks.stereo.models.igev_stereo.net.igev_stereo import IGEVStereo  # noqa: PLC0415
+    from fastforks.stereo.models.igev_stereo.net.inference import fold_for_inference  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    args = types.SimpleNamespace(
+        hidden_dims=[128] * 3, corr_levels=2, corr_radius=4, n_downsample=2, n_gru_layers=3, max_disp=192,
+        mixed_precision=False, precision_dtype="float32",
+    )  # fmt: skip
+    net = IGEVStereo(args).eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(net, g)
+    left = torch.rand(1, 3, 128, 192, generator=g) * 255
+    right = (torch.roll(left, -5, 3) + 5 * torch.randn(1, 3, 128, 192, generator=g)).clamp(0, 255)
+    ref = copy.deepcopy(net)
+    fold_for_inference(ref, half=False, channels_last=False)
+    with torch.no_grad():
+        want = ref.forward_fast(left, right, iters=3)[:, 0]
+    got = to_torch(mlx_net.MlxIGEV(net, "float32", 3)(to_mx(left), to_mx(right)))
+    assert got.shape == want.shape
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
+def test_mlx_selective_igev_matches_torch():
+    """`selective_igev.mlx_net.MlxSelectiveIGEV` against the folded `forward_fast` (random weights and batch norms)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    import copy  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.stereo.models.selective_igev import mlx_net, portable  # noqa: PLC0415
+    from fastforks.stereo.models.selective_igev.net.igev_stereo import IGEVStereo  # noqa: PLC0415
+    from fastforks.stereo.models.selective_igev.net.inference import fold_for_inference  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    args = types.SimpleNamespace(
+        hidden_dims=[128] * 3, corr_levels=2, corr_radius=4, n_downsample=2, n_gru_layers=3, max_disp=192,
+        mixed_precision=False, precision_dtype="float32",
+    )  # fmt: skip
+    net = IGEVStereo(args).eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(net, g)
+    left = torch.rand(1, 3, 128, 192, generator=g) * 255
+    right = (torch.roll(left, -5, 3) + 5 * torch.randn(1, 3, 128, 192, generator=g)).clamp(0, 255)
+    ref = copy.deepcopy(net)
+    fold_for_inference(ref, half=False, channels_last=False)
+    with torch.no_grad():
+        want = portable.forward_fast(ref, left, right, 3)[:, 0]
+    got = to_torch(mlx_net.MlxSelectiveIGEV(net, "float32", 3)(to_mx(left), to_mx(right)))
+    assert got.shape == want.shape
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
+def test_mlx_igev_plusplus_matches_torch():
+    """`igev_plusplus.mlx_net.MlxIGEVPlusPlus` against the folded `forward_fast` (random weights and batch norms).
+
+    max_disp 384: three ranges of 24 bins (1/16 at 1, 1/8 at 2, 1/4 at 4), each halving evenly in the hourglass.
+    """
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    import copy  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.stereo.models.igev_plusplus import mlx_net, portable  # noqa: PLC0415
+    from fastforks.stereo.models.igev_plusplus.net.igev_stereo import IGEVStereo  # noqa: PLC0415
+    from fastforks.stereo.models.igev_plusplus.net.inference import fold_for_inference  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    md = 384
+    args = types.SimpleNamespace(
+        hidden_dims=[128] * 3, corr_levels=2, corr_radius=4, n_downsample=2, n_gru_layers=3, max_disp=md,
+        s_disp_range=md // 16, m_disp_range=md // 8, l_disp_range=md // 4,
+        s_disp_interval=1, m_disp_interval=2, l_disp_interval=4, mixed_precision=False, precision_dtype="float32",
+    )  # fmt: skip
+    net = IGEVStereo(args).eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(net, g)
+    left = torch.rand(1, 3, 128, 192, generator=g) * 255
+    right = (torch.roll(left, -5, 3) + 5 * torch.randn(1, 3, 128, 192, generator=g)).clamp(0, 255)
+    ref = copy.deepcopy(net)
+    fold_for_inference(ref, half=False, channels_last=False)
+    with torch.no_grad():
+        want = portable.forward_fast(ref, left, right, 3)[:, 0]
+    got = to_torch(mlx_net.MlxIGEVPlusPlus(net, "float32", 3)(to_mx(left), to_mx(right)))
+    assert got.shape == want.shape
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
 @pytest.mark.parametrize(
     ("arch", "kernels"),
     [

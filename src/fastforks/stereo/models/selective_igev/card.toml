@@ -37,7 +37,7 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
-mlx_kernels = ["conv_mlx"]
+mlx_kernels = ["graph_mlx"]  # the network written in MLX (`mlx_net`); volume and lookups Metal kernels
 mlx_dtypes = ["float32", "float16"]
 
 # Upstream also publishes Selective-RAFT weights (another architecture): not part of this family.

@@ -126,9 +126,30 @@ class MetalKernels(Portable):
         patch_igev(self.net, FastGeoEncodingVolume, ConvGRU, stereo_metal.load(ctx.device))
 
 
+class _MlxPortable(Runner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
+
+    batch = 1
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxIGEV(_net(ctx), mlx_wrap.run_dtype(ctx), ctx.params.iters)
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=2048),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=2048),
 }
