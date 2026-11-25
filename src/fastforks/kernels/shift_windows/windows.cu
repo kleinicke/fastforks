@@ -78,3 +78,41 @@ extern "C" __global__ void stream_window2(
         else dst[i] = src[raster];
     }
 }
+
+__device__ __forceinline__ int64_t window_token(
+    int64_t token, int h, int w, int win, int shift, int y0, int x0, int region_cols, int first) {
+    int tile = first + token / (win * win);
+    int y = (y0 + tile / region_cols) * win + (token / win) % win + shift;
+    int x = (x0 + tile % region_cols) * win + token % win + shift;
+    y = y >= h ? y - h : y;
+    x = x >= w ? x - w : x;
+    return int64_t(y) * w + x;
+}
+
+extern "C" __global__ void pack_dense_windows2(
+    const __half2* base, const __half2* g1, const __half2* g2, const __half2* g3, const __half2* g4, __half2* dst,
+    int base_ch, int grow_ch, int h, int w, int ch, int win, int shift, int y0, int x0, int region_cols,
+    int first, int64_t count) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        int c = i % ch;
+        int64_t raster = window_token(i / ch, h, w, win, shift, y0, x0, region_cols, first);
+        if (c < base_ch) {
+            dst[i] = base[raster * base_ch + c];
+        } else {
+            const __half2* growths[] = {g1, g2, g3, g4};
+            int off = c - base_ch;
+            dst[i] = growths[off / grow_ch][raster * grow_ch + off % grow_ch];
+        }
+    }
+}
+
+extern "C" __global__ void scatter_windows2(
+    const __half2* src, __half2* dst, int h, int w, int ch, int win, int shift, int y0, int x0, int region_cols,
+    int first, int64_t count) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        int64_t raster = window_token(i / ch, h, w, win, shift, y0, x0, region_cols, first);
+        dst[raster * ch + i % ch] = src[i];
+    }
+}

@@ -163,3 +163,48 @@ def test_window_groups_write_the_same_raster(height: int, width: int, window: in
                     )
     expected = x + rearrange(updates.flatten(0, 2), grid, window, shift, reverse=True)
     torch.testing.assert_close(out, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("growths", "shift"), [(1, 0), (4, 2)])
+def test_dense_window_groups_preserve_packing(growths: int, shift: int) -> None:
+    from fastforks._core.kernels import linear  # noqa: PLC0415 - CUDA kernel only
+    from fastforks.kernels.shift_windows import load, rearrange  # noqa: PLC0415 - CUDA kernel only
+
+    g = torch.Generator("cuda").manual_seed(83)
+    height, width, window = 12, 16, 4
+    channels = 8
+    size = height, width
+    growth_channels = 6
+    feats = [
+        torch.randn(2, height * width, c, device="cuda", dtype=torch.float16, generator=g)
+        for c in (channels, *([growth_channels] * growths))
+    ]
+    combined = torch.cat(feats, -1)
+    output = torch.empty_like(combined)
+    rows, cols = height // window, width // window
+    total = combined.shape[-1]
+    expected = rearrange(combined, size, window, shift).view(2, rows, cols, window**2, total)
+    k = load(combined.device)
+    for b in range(combined.shape[0]):
+        inputs = [part[b] for part in feats] + [None] * (4 - growths)
+        for y0, nr in ((0, rows - 1), (rows - 1, 1)):
+            for x0, nc in ((0, cols - 1), (cols - 1, 1)):
+                group = expected[b, y0 : y0 + nr, x0 : x0 + nc].reshape(-1, window**2, total)
+                for first in range(0, len(group), 3):
+                    reference = group[first : first + 3]
+                    packed = torch.empty(reference.shape, dtype=reference.dtype, device=reference.device)
+                    threads = packed.numel() // 2
+                    args = height, width, total // 2, window, shift, y0, x0, nc, first, threads
+                    k.launch(
+                        "pack_dense_windows2",
+                        *linear(threads),
+                        *inputs,
+                        packed,
+                        channels // 2,
+                        growth_channels // 2,
+                        *args,
+                    )
+                    torch.testing.assert_close(packed, reference, atol=0, rtol=0)
+                    k.launch("scatter_windows2", *linear(threads), packed, output[b], *args)
+    torch.testing.assert_close(combined, output, atol=0, rtol=0)

@@ -18,7 +18,7 @@ import math
 import re
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -29,7 +29,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.kernels import linear
 from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc, shift_windows, sr_norm
+from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.sr_layer_norm import fast_layer_norm
@@ -42,6 +42,7 @@ from fastforks.shared.swin_sr import (
     shift_mask,
     window_attention,
 )
+from fastforks.shared.swin_sr.window_tiles import QKV_TILE_BYTES, WINDOW_STREAM_BYTES, can_stream, raster_regions
 
 from .net import DRCT
 from .net.drct_arch import RDG, PatchEmbed, SwinTransformerBlock, WindowAttention
@@ -74,8 +75,6 @@ class _NoMask:
 _NO_MASK = _NoMask()
 _LARGE_IMAGE_PIXELS = 256**2
 _WORKSPACE_BYTES = 64 * 1024**2
-_WINDOW_BYTES = 64 << 20
-_WINDOW_STREAM_THRESHOLD = 256 << 20
 _MLP_BYTES = 192 << 20
 
 
@@ -167,9 +166,9 @@ def _forward(m: DRCT, image: torch.Tensor) -> torch.Tensor:
         return DRCT.forward(m, image)
     mean = m.mean.type_as(image)
     x = m.conv_first((image - mean) * m.img_range)
-    x = m.conv_after_body(m.forward_features(x)) + x
+    x = m.conv_after_body(m.forward_features(x)).add_(x)
     x = m.conv_before_upsample(x)
-    return _strip_reconstruction(m, x, rows) / m.img_range + mean
+    return _strip_reconstruction(m, x, rows).div_(m.img_range).add_(mean)
 
 
 def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int], *, reuse_outputs: bool = False) -> torch.Tensor:
@@ -185,6 +184,15 @@ def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int], *, reuse_outputs: bool
 
 
 def _cuda_rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+    growth = cast("torch.nn.Conv2d", m.get_submodule("adjust1")).out_channels
+    width = x.shape[-1] + 4 * growth
+    largest = x.shape[0] * x.shape[1] * width * x.element_size()
+    if largest >= WINDOW_STREAM_BYTES and growth % 2 == 0 and can_stream(x, xsize, m.swin1.window_size):
+        feats = [x]
+        for layer in range(1, 5):
+            feats.append(_stream_whole_adjust(m, layer, feats, xsize))
+        result = _stream_whole_adjust(m, 5, feats, xsize)
+        return result.mul_(0.2).add_(x)
     return _rdg(m, x, xsize, reuse_outputs=True)
 
 
@@ -296,64 +304,86 @@ def _boundary_attention(
     return out.reshape_as(windows)
 
 
-def _stream_window_residual(m: SwinTransformerBlock, x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
-    """Pack, normalize and attend to each group of windows before writing its updated shortcut."""
+def _stream_whole_adjust(m: RDG, layer: int, feats: list[torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
+    """Project each window before it returns to the raster of dense features."""
+    sw = cast("SwinTransformerBlock", m.get_submodule(f"swin{layer}"))
+    conv = cast("torch.nn.Conv2d", m.get_submodule(f"adjust{layer}"))
+    x = feats[0]
     h, w = size
-    width = x.shape[-1]
-    win, shift = m.window_size, m.shift_size
-    nr, nc = h // win, w // win
-    regions = ((0, 0, nr, nc),)
-    masks = None
-    if shift:
-        masks = shift_mask(2 * win, 2 * win, win, shift, x.device, dtype=x.dtype)
-        regions = ((0, 0, nr - 1, nc - 1), (0, nc - 1, nr - 1, 1), (nr - 1, 0, 1, nc - 1), (nr - 1, nc - 1, 1, 1))
+    grow = cast("torch.nn.Conv2d", m.get_submodule("adjust1")).out_channels
+    width = x.shape[-1] + grow * (len(feats) - 1)
+    out_width = conv.out_channels
+    ow = conv.weight.flatten(1)
+    win, shift = sw.window_size, sw.shift_size
+    regions, masks = raster_regions(size, win, shift, x)
     k = shift_windows.load(x.device)
-    out = torch.empty_like(x)
-    step = max(1, _WINDOW_BYTES // (win * win * m.attn.qkv.out_features * x.element_size()))
-    nw, nb = m.norm1.get_buffer("_sr_weight"), m.norm1.get_buffer("_sr_bias")
+    out = x.new_empty((x.shape[0], x.shape[1], out_width))
+    step = max(1, QKV_TILE_BYTES // (win * win * sw.attn.qkv.out_features * x.element_size()))
+    mm = sw.mlp
+    inputs = (*feats, *(None for _ in range(5 - len(feats))))
     for kind, (r0, c0, rows, cols) in enumerate(regions):
-        bias: torch.Tensor = m.attn.bias  # ty: ignore[invalid-assignment]
+        bias: torch.Tensor = sw.attn.bias  # ty: ignore[invalid-assignment]
         if masks is not None and kind:
             bias = bias + masks[kind]
         for b in range(x.shape[0]):
+            group = tuple(t[b] if t is not None else None for t in inputs)
             for first in range(0, rows * cols, step):
                 count = min(step, rows * cols - first)
-                windows = x.new_empty((count, win * win, width))
-                threads = windows.numel() // 2
-                geometry = (h, w, width // 2, win, shift, r0, c0, cols, first, threads)
-                k.launch("stream_window2", *linear(threads), x[b], None, windows, *geometry)
-                windows = sr_norm.layer_norm(windows, nw, nb, m.norm1.eps)
+                raw = x.new_empty((count, win * win, width))
+                threads = raw.numel() // 2
+                region = win, shift, r0, c0, cols, first
+                if len(feats) == 1:
+                    k.launch(
+                        "stream_window2", *linear(threads), group[0], None, raw, h, w, width // 2, *region, threads
+                    )
+                else:
+                    k.launch(
+                        "pack_dense_windows2",
+                        *linear(threads),
+                        *group,
+                        raw,
+                        x.shape[-1] // 2,
+                        grow // 2,
+                        h,
+                        w,
+                        width // 2,
+                        *region,
+                        threads,
+                    )
+                win_input = sw.norm1(raw)
                 result = window_attention(
-                    windows, m.attn.qkv, m.attn.proj, heads=m.attn.num_heads, scale=m.attn.scale, bias=bias, mask=None
+                    win_input,
+                    sw.attn.qkv,
+                    sw.attn.proj,
+                    heads=sw.attn.num_heads,
+                    scale=sw.attn.scale,
+                    bias=bias,
+                    mask=None,
                 )
-                del windows
-                k.launch("stream_window2", *linear(threads), result, x[b], out[b], *geometry)
-                del result
+                raw.add_(sw.drop_path(result))
+                del win_input, result
+                z = torch.ops.aten.gelu_(mm.fc1(sw.norm2(raw)), approximate=mm.act.approximate)
+                raw.add_(sw.drop_path(mm.drop(mm.fc2(mm.drop(z)))))
+                del z
+                adjusted = F.linear(raw, ow, conv.bias)
+                del raw
+                if layer < 5:  # noqa: PLR2004 - only the four growth layers have LeakyReLU
+                    F.leaky_relu(adjusted, 0.2, inplace=True)
+                threads = adjusted.numel() // 2
+                k.launch("scatter_windows2", *linear(threads), adjusted, out[b], h, w, out_width // 2, *region, threads)
+                del adjusted
     return out
 
 
 def _window_block(m: SwinTransformerBlock, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
     """Keep wide shifted-window temporaries bounded on large inputs."""
-    large = x.numel() * x.element_size() >= _WINDOW_STREAM_THRESHOLD
-    if (
-        large
-        and x.is_contiguous()
-        and x.data_ptr() % 4 == 0
-        and x.shape[1] == math.prod(xsize)
-        and all(side % m.window_size == 0 for side in xsize)
-        and hasattr(m.norm1, "_sr_weight")
-    ):
-        x = _stream_window_residual(m, x, xsize)
-    else:
-        windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
-        attended = (
-            _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size)
-            if m.shift_size
-            else m.attn(windows)
-        )
-        del windows
-        x = shift_windows.reverse_residual(attended, x, None, xsize, window=m.window_size, shift=m.shift_size)
-        del attended
+    windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
+    attended = (
+        _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size) if m.shift_size else m.attn(windows)
+    )
+    del windows
+    x = shift_windows.reverse_residual(attended, x, None, xsize, window=m.window_size, shift=m.shift_size)
+    del attended
     mm = m.mlp
     rows = max(1, _MLP_BYTES // (mm.fc1.out_features * x.element_size()))
     for part in x.flatten(0, 1).split(rows):
