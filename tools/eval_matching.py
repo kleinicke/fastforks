@@ -247,13 +247,14 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:  # noqa: C901 - one
 
             note = "upstream XFeat" + (", torch.autocast float16" if fp16 else "")
             return matched, "float16" if fp16 else "float32", {"note": note}
-        if family in {"flexglue", "loma"}:  # own adapters, float32 only
-            if fp16:
+        if family in {"flexglue", "loma"}:
+            if family == "flexglue" and fp16:
                 msg = f"upstream {family} has no fp16 option: use --mode upstream"
                 raise SystemExit(msg)
             from _original import _flexglue, _loma  # noqa: PLC0415  # tools/
 
-            call = (_flexglue if family == "flexglue" else _loma)(types.SimpleNamespace(), ref)
+            info = types.SimpleNamespace(dtype="float32", note=f"upstream {family}")
+            call = _loma(info, ref, mixed=fp16) if family == "loma" else _flexglue(types.SimpleNamespace(), ref)
 
             def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
                 r = call(a, b)
@@ -263,7 +264,7 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:  # noqa: C901 - one
                 idx = torch.nonzero(m0 > -1)[:, 0]
                 return (r["keypoints0"][0][idx] - 0.5).float(), (r["keypoints1"][0][m0[idx]] - 0.5).float()
 
-            return matched, "float32", {"note": f"upstream {family}"}
+            return matched, info.dtype, {"note": info.note}
         return _original_lightglue(ref, mode)
     card, variant = registry.resolve("matching", ref)
     g = _golden("romav2")

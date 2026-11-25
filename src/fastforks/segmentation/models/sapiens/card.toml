@@ -45,6 +45,7 @@ kernels = [
   "dpt_fused",  # feed-forward projections with GELU and residual epilogues
   "fastbb",  # flash attention (head_dim 64)
   "cudnn_hacc",  # fp16-accumulating convolutions and deconvolutions
+  "affine_silu",  # decoder instance affine and activation
   "seg_up",  # logits resize / labels in one pass
 ]
 

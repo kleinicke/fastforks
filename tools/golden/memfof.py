@@ -27,7 +27,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from _common import reference_tree, write
-from raft_flow import CROP, IMAGE_SHA256, warp
 
 from fastforks._core import registry
 from fastforks._core.checkpoint import load_state_dict
@@ -54,6 +53,7 @@ def main() -> None:
     ap.add_argument("variants", nargs="*", help="variant ids (default: all)")
     a = ap.parse_args()
     import skimage  # noqa: PLC0415
+    from raft_flow import CROP, IMAGE_SHA256, warp  # noqa: PLC0415 - only the golden image generation needs these
 
     png = Path(skimage.data.__file__).parent / "astronaut.png"
     if hashlib.sha256(png.read_bytes()).hexdigest() != IMAGE_SHA256:

@@ -85,10 +85,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `ema-vfi` | 0.00018 / 0.00062 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
-| `ema-vfi-small` | 0.00018 / 0.00058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
-| `ema-vfi-t` | 0.0002 / 0.00082 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
-| `ema-vfi-small-t` | 0.00019 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
+| `ema-vfi` | 0.00019 / 0.00066 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120` |
+| `ema-vfi-small` | 0.00018 / 0.00058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120` |
+| `ema-vfi-t` | 0.00019 / 0.00073 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120` |
+| `ema-vfi-small-t` | 0.00018 / 0.0006 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120` |
 
 ### Limitations
 
@@ -144,7 +144,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `film` | 0.00034 / 0.00154 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `film` | 0.00024 / 0.00099 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120` |
 
 </details>
 
@@ -171,7 +171,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/LICENSE ; https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/README.md (weights: https://huggingface.co/GSean/GIMM-VFI)
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D).)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `raft_flow`, `cudnn_hacc`
+- Kernel libraries: `raft_flow`, `cudnn_hacc`, `ema_warp`
 - Variants: `gimm-vfi-r`, `gimm-vfi-r-p`
 - Public TensorRT export is unavailable for `gimm-vfi-r` (the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets).
 - Outputs: frame
@@ -210,8 +210,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gimm-vfi-r` | 6e-05 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
-| `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
+| `gimm-vfi-r` | 6e-05 / 0.00046 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@4974d6834555:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 

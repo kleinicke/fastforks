@@ -432,29 +432,49 @@ class _KernelsNet:
         return encs, fz
 
     def _decode(self, encs: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
-        """Encodings -> (decoder features `[1, 768, 768, 256]`, the level-4 features `[1, 48, 48, 256]`), NHWC."""
+        """Encodings -> canonical inverse depth and the lowest-resolution feature for the field-of-view head."""
         k = self.k
         r = torch.empty((1, 48, 48, DEC), device=self.device, dtype=torch.float16)
         feat = k.conv(encs.pop(), self.convs[4][0], padding=1, y2=r)  # ty: ignore[not-subscriptable]
         lowres = feat
         feat = k.gemm(self._resblock(feat, [r], self.res[4][1])[0], *self.fdec[3], shuffle=(48, 48, 2, 2))
-        for i in (3, 2, 1, 0):  # references dropped early: the 768x768 maps are 302 MB each
-            if i:
-                r = torch.empty_like(feat)
-                v = k.conv(encs.pop(), self.convs[i][0], padding=1, y2=r)  # ty: ignore[not-subscriptable]
-            else:  # convs[0] = identity
-                v = self.up_l0(k, encs.pop(), 96, 96)
-                r = torch.relu(v)
+        for i in (3, 2, 1):
+            r = torch.empty_like(feat)
+            v = k.conv(encs.pop(), self.convs[i][0], padding=1, y2=r)  # ty: ignore[not-subscriptable]
             rr = [r]
             del r
-            s, rr = self._resblock(v, rr, self.res[i][0], res2=feat, relu_out=True, inplace=True)
-            del v, feat
-            x, _ = self._resblock(s, rr, self.res[i][1], inplace=True)
-            del s
-            hh, ww = x.shape[1:3]
-            feat = k.gemm(x, *self.fdec[i - 1], shuffle=(hh, ww, 2, 2)) if i else k.gemm(x, *self.out0)
-            del x
-        return feat, lowres
+            v, rr = self._resblock(v, rr, self.res[i][0], res2=feat, relu_out=True, inplace=True)
+            del feat
+            v, _ = self._resblock(v, rr, self.res[i][1], inplace=True)
+            h, w = v.shape[1:3]
+            feat = k.gemm(v, *self.fdec[i - 1], shuffle=(h, w, 2, 2))
+            del v
+        return self._decode_tail(encs.pop(), feat), lowres
+
+    def _decode_tail(self, latent: torch.Tensor, feat: torch.Tensor) -> torch.Tensor:
+        """Run the largest decoder level and its depth head by row band, sharing the input feature map."""
+        k = self.k
+        _, height, width, _ = feat.shape
+        latent_size = SIZE // 16
+        up = height // latent_size
+        latent = latent.view(latent_size, latent_size, -1)
+        out = torch.empty((1, 1, height * 2, width * 2), device=feat.device, dtype=torch.float32)
+        halo = 6  # Two residual blocks and the head each apply two 3x3 convolutions.
+        rows = 128
+        for start in range(0, height, rows):
+            end = min(height, start + rows)
+            lo = max(0, (start - halo) // up)
+            hi = min(latent_size, (end + halo + up - 1) // up)
+            local = self.up_l0(k, latent[lo:hi].flatten(0, 1), hi - lo, latent_size)
+            x, r = self._resblock(
+                local, [torch.relu(local)], self.res[0][0], res2=feat[:, lo * up : hi * up], relu_out=True, inplace=True
+            )
+            del local
+            x, _ = self._resblock(x, r, self.res[0][1], inplace=True)
+            decoded = self._head(k.gemm(x, *self.out0))
+            out[:, :, 2 * start : 2 * end].copy_(decoded[:, :, 2 * (start - lo * up) : 2 * (end - lo * up)])
+            del x, decoded
+        return out
 
     def _head(self, feat: torch.Tensor) -> torch.Tensor:
         """Decoder features -> canonical inverse depth `[1, 1, 1536, 1536]` float32."""
@@ -470,9 +490,7 @@ class _KernelsNet:
     def __call__(self, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tensor, torch.Tensor | None]:
         """`[1, 3, 1536, 1536]` in [0, 1] -> (canonical inverse depth `[1, 1, 1536, 1536]` fp32, FOV or None)."""
         encs, fz = self._encode(x, with_fov=with_fov)
-        feat, lowres = self._decode(encs)
-        cid = self._head(feat)
-        del feat
+        cid, lowres = self._decode(encs)
         fov = None
         if fz is not None:
             lr = self.fov_down(lowres.permute(0, 3, 1, 2).float())

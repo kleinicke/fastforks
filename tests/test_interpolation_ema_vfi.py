@@ -11,7 +11,15 @@ from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks._core.half import fp16_accumulate
-from fastforks.interpolation.models.ema_vfi.model import Kernels, Params, _config, _frame, _interpolate, _warp_pair
+from fastforks.interpolation.models.ema_vfi.model import (
+    Kernels,
+    Params,
+    _config,
+    _frame,
+    _interpolate,
+    _warp,
+    _warp_pair,
+)
 from fastforks.interpolation.models.ema_vfi.net import MotionFormer, MultiScaleFlow
 from fastforks.kernels import ema_warp
 
@@ -94,6 +102,31 @@ def test_paired_warps_match_grid_sample(dtype: torch.dtype, channels: int, width
     for a, r in zip(actual, reference, strict=True):
         assert a.is_contiguous(memory_format=torch.channels_last)
         torch.testing.assert_close(a, r.to(dtype), atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    ("dtype", "channels", "offset"),
+    [
+        (torch.float16, 32, 4),
+        (torch.float16, 16, 2),
+        (torch.float32, 7, 1),
+    ],
+)
+def test_warp_into_output_rows(dtype: torch.dtype, channels: int, offset: int) -> None:
+    """Check packed and scalar writes into a channel slice, including the neighbouring channels."""
+    rng = torch.Generator("cuda").manual_seed(65)
+    image = torch.randn(2, channels, 77, 91, device="cuda", dtype=dtype, generator=rng)
+    image = image.contiguous(memory_format=torch.channels_last)
+    flow = torch.randn(2, 2, 77, 91, device="cuda", generator=rng).mul_(10)
+    out = torch.full((2, channels + 8, 23, 91), 11, device="cuda", dtype=torch.float16)
+    out = out.contiguous(memory_format=torch.channels_last)
+    destination = out[:, offset : offset + channels]
+    ema_warp.write_rows(image, flow, destination, 13)
+    expected = _warp(image, flow)[:, :, 13:36].half()
+    torch.testing.assert_close(destination, expected, atol=0, rtol=0)
+    assert (out[:, :offset] == 11).all()
+    assert (out[:, offset + channels :] == 11).all()
 
 
 @pytest.mark.gpu

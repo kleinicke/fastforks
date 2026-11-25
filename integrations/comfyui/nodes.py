@@ -364,6 +364,13 @@ def _locked(fn: Callable[_P, _R]) -> Callable[_P, _R]:
     return locked
 
 
+def _release_graphs(model: fastforks.Model) -> None:
+    try:
+        model.release_graphs()
+    except RuntimeError as exc:
+        log.warning("fastforks: CUDA graph release failed during memory cleanup: %s", exc)
+
+
 @_locked
 def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
@@ -378,7 +385,9 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         _cache.move_to_end(key)
         return _cache[key]
     while len(_cache) >= _MAX_CACHED:
-        _cache.popitem(last=False)
+        _, evicted = _cache.popitem(last=False)
+        _release_graphs(evicted)
+        del evicted
         gc.collect()
         mm.soft_empty_cache()
         _empty_mlx_cache()
@@ -469,6 +478,8 @@ def unload_all() -> None:
     """Drop every cached model and return their memory to the device."""
     if _cache:
         log.info("fastforks: unloading %d cached model(s)", len(_cache))
+    for key in _cache:
+        _release_graphs(_cache[key])
     _cache.clear()
     gc.collect()
     _mm().soft_empty_cache()
@@ -548,7 +559,7 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
     if not held or _device_free(device) >= memory_required:
         return
     for key in held:
-        _cache[key].release_graphs()
+        _release_graphs(_cache[key])
     gc.collect()
     mm.soft_empty_cache()
     if not short():  # with the graphs gone, PyTorch's cached blocks are free for anyone

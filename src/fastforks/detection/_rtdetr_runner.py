@@ -134,7 +134,12 @@ class Kernels(Portable):
         self.classes = ctx.params.num_classes
         self._capture_at = self.cudnn_hacc.capture_after() + 1  # the call of a shape that captures its graph
         self._graphs = (
-            self.GraphCache(self._eager, graphs=1, capture_after=self._capture_at - 1)
+            self.GraphCache(
+                self._eager,
+                graphs=1,
+                capture_after=self._capture_at - 1,
+                capture_warmup=self.cudnn_hacc.BUILD_AFTER > 0,
+            )
             if ctx.params.cuda_graphs
             else None
         )

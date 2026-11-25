@@ -15,14 +15,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`nnfoundation-cnn`](#nnfoundation) | yes | 232, 1.2x | 3330, 0.72x |
 | [`nnfoundation-vit`](#nnfoundation) | yes | 1699, 1.1x (192x192) | 1564, 0.36x |
 | [`nninteractive`](#nninteractive) | no | 193, 2.4x | 2772, 0.6x |
-| [`totalsegmentator-total`](#totalsegmentator) | yes | 1647, 27.7x | 1638, 0.57x |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 71.8, 101.2x | 1376, 0.51x |
-| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | no kernels | no kernels |
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1437, 1.8x | 1606, 0.69x |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 39.6 | 1376 |
+| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | 11.4 | 286 |
+| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | 1434, 1.9x | 1606, 0.69x |
+| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | 40.1 | 1376 |
+| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | 12.7 | 286 |
+| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | 1634, 2.1x | 1872, 1.2x |
+| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | 30.2 | 1218 |
 
 <a id="nnfoundation"></a>
 
@@ -79,8 +79,8 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
-| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
 
 ### Limitations
 
@@ -138,7 +138,7 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
 
 ### Limitations
 
@@ -156,8 +156,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1647<br>1595<br>1582 (five nnU-Net patch networks with eager volume processing) | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1219 / 1638<br>1697 / 1984<br>6646 / 7136 |
-| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>70.3<br>71.8<br>63.1<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>962 / 1050<br>913 / 1376<br>907 / 1030<br>2909 / 2970 |
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4888<br>2614<br>2050<br>1437<br>1504 (compiled patch network inside the full sliding-window call)<br>1582 (five nnU-Net patch networks with eager volume processing) | 2873 / 3624<br>1902 / 2312<br>1851 / 2650<br>1194 / 1606<br>1712 / 2004<br>6646 / 7136 |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>149<br>87.4<br>39.6<br>52.7 (compiled patch network inside the full sliding-window call)<br>74.4 (patch network, standalone build) | 1743 / 2332<br>1000 / 1332<br>904 / 1404<br>900 / 1376<br>901 / 1030<br>2909 / 2970 |
+| `totalsegmentator-total-6mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 108<br>102<br>16.0<br>11.4<br>8.00 (compiled patch network inside the full sliding-window call)<br>26.3 (one fixed FP32 patch engine, eager volume processing) | 398 / 528<br>276 / 352<br>201 / 286<br>200 / 286<br>220 / 252<br>810.0 process |
+| `totalsegmentator-v3-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5104<br>2673<br>2054<br>1434<br>1500 (compiled patch network inside the full sliding-window call)<br>2326 (five fixed nnU-Net patch engines with eager full-volume processing) | 2873 / 3624<br>1902 / 2312<br>1851 / 2650<br>1194 / 1606<br>1712 / 2004<br>3032.0 process |
+| `totalsegmentator-v3-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 192<br>150<br>87.2<br>40.1<br>52.3 (compiled patch network inside the full sliding-window call)<br>205 (one fixed nnU-Net patch engine with eager full-volume preprocessing and labels) | 1743 / 2332<br>1000 / 1332<br>904 / 1404<br>900 / 1376<br>901 / 1030<br>3122.0 process |
+| `totalsegmentator-v3-total-6mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 107<br>103<br>16.9<br>12.7<br>8.02 (compiled patch network inside the full sliding-window call)<br>26.3 (one fixed FP32 patch engine, eager volume processing) | 398 / 528<br>276 / 352<br>201 / 286<br>200 / 286<br>220 / 252<br>810.0 process |
+| `totalsegmentator-v3-total-small` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5229<br>3370<br>3398<br>1634<br>2100 (compiled patch network inside the full sliding-window call)<br>4478 (five fixed nnU-Net patch engines with eager full-volume processing) | 2146 / 2482<br>1328 / 1508<br>1624 / 3174<br>1093 / 1872<br>1759 / 2144<br>3764.0 process |
+| `totalsegmentator-v3-total-small-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 143<br>127<br>91.4<br>30.2<br>46.0 (compiled patch network inside the full sliding-window call)<br>111 (one fixed FP32 patch engine, eager volume processing) | 666 / 826<br>424 / 490<br>1054 / 1218<br>1050 / 1218<br>1054 / 1130<br>2238.0 process |
 
 ### Weight streaming
 
@@ -182,18 +188,51 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `totalsegmentator-total`, `totalsegmentator-total-3mm`, `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm`
-- Public kernels is unavailable for `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm` (CUDA kernel parity has not yet been validated for this checkpoint).
 - Outputs: labels
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved); `totalsegmentator-total-6mm` not measured yet; `totalsegmentator-v3-total` not measured yet; `totalsegmentator-v3-total-3mm` not measured yet; `totalsegmentator-v3-total-6mm` not measured yet; `totalsegmentator-v3-total-small` not measured yet; `totalsegmentator-v3-total-small-3mm` not measured yet
-- `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
-- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
-- `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
-- `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
-- `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
-- `totalsegmentator-total-3mm` load / first call: original 0.06 s / 12.48 s, portable 1.18 s / 0.259 s, kernels 1.19 s / 0.209 s
-- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm`.
+- `totalsegmentator-total` 200x200, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
+- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
+- `totalsegmentator-total-6mm` 200x200, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp32 17 s (ONNX + engine).
+- `totalsegmentator-v3-total` 200x200, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 90 s (ONNX + engine).
+- `totalsegmentator-v3-total-3mm` 200x200, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp32 32 s (ONNX + engine).
+- `totalsegmentator-v3-total-6mm` 200x200, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp32 16 s (ONNX + engine).
+- `totalsegmentator-v3-total-small` 200x200, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 165 s (ONNX + engine).
+- `totalsegmentator-v3-total-small-3mm` 200x200, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp32 34 s (ONNX + engine).
+- `totalsegmentator-total` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-total` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-total` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-total-3mm` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-total-3mm` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-total-3mm` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-total-6mm` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-total-6mm` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-total-6mm` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-v3-total` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-v3-total` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-v3-total` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-v3-total-3mm` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-v3-total-3mm` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-v3-total-3mm` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-v3-total-6mm` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-v3-total-6mm` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-v3-total-6mm` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-v3-total-small` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-v3-total-small` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-v3-total-small` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-v3-total-small-3mm` original (fp32) 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. FP32 network with the original accumulator.
+- `totalsegmentator-v3-total-small-3mm` original 200x200: Persistent upstream predictor on a synthetic 200 × 200 × 200 CT at 1.5 mm. CPU NIfTI input and labels out. Native CUDA autocast.
+- `totalsegmentator-v3-total-small-3mm` portable 200x200, kernels 200x200: Full volume API with CPU input and CPU labels on the same synthetic 200³ CT at 1.5 mm as the persistent original.
+- `totalsegmentator-total` load / first call: original 0.2723 s / 8.5418 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
+- `totalsegmentator-total-3mm` load / first call: original 0.0479 s / 2.6365 s, portable 1.18 s / 0.259 s, kernels 1.19 s / 0.209 s
+- `totalsegmentator-total-6mm` load / first call: original 0.2932 s / 3.5302 s, portable 1.3522 s / 0.2457 s, kernels 1.2047 s / 0.1379 s
+- `totalsegmentator-v3-total` load / first call: original 0.0721 s / 8.5855 s, portable 1.3485 s / 2.2892 s, kernels 0.9767 s / 1.5509 s
+- `totalsegmentator-v3-total-3mm` load / first call: original 0.0466 s / 2.513 s, portable 1.33 s / 0.3217 s, kernels 1.1878 s / 0.1813 s
+- `totalsegmentator-v3-total-6mm` load / first call: original 0.0462 s / 2.99 s, portable 1.3922 s / 0.2535 s, kernels 1.1907 s / 0.1584 s
+- `totalsegmentator-v3-total-small` load / first call: original 0.0526 s / 7.7623 s, portable 1.1706 s / 3.5478 s, kernels 0.9574 s / 1.726 s
+- `totalsegmentator-v3-total-small-3mm` load / first call: original 0.046 s / 2.7979 s, portable 1.2817 s / 0.3416 s, kernels 1.2589 s / 0.1829 s
+- Protocol, `totalsegmentator-total`, `totalsegmentator-total-3mm`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm`: Separate process for each mode. Synchronized first call and median of the last 3 warm calls.
 
 ### Measured
 
@@ -214,14 +253,14 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
-| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
-| `totalsegmentator-total-6mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-3mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-6mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-small` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-small-3mm` | no kernels backend | - | - |
+| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-total-6mm` | 0.00045 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-v3-total` | 0.00014 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-v3-total-3mm` | 0.00046 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-v3-total-6mm` | 0.00058 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-v3-total-small` | 0.00038 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
+| `totalsegmentator-v3-total-small-3mm` | 0.00125 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@df04e32a8fea:sm_120` |
 
 ### Limitations
 
@@ -243,12 +282,12 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`nninteractive`](#nninteractive) | portable, kernels | Apache-2.0 | CC-BY-NC-SA-4.0 | unstated | **no** (weights: CC-BY-NC-SA-4.0) | mask |
 | [`totalsegmentator-total`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
 | [`totalsegmentator-total-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
-| [`totalsegmentator-total-6mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
-| [`totalsegmentator-v3-total`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-small`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-total-6mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
+| [`totalsegmentator-v3-total`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-small`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
 
 </details>
 

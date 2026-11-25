@@ -5,21 +5,23 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+import torch
 
-from fastforks._core.checkpoint import Inert, latin1_encode, numeric_scalar
+from fastforks._core.checkpoint import Inert, latin1_encode, load_strict, numeric_scalar
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.core.foundation_stereo import FoundationStereo
+from .net.core.submodule import PositionalEmbedding
 from .net.inference import Opts, forward_fast, prepare_inference
 
 if TYPE_CHECKING:
-    import torch
-
     from fastforks.stereo._runner import Context
+
+    from .net.core.submodule import CostVolumeDisparityAttention
 
 
 def _extra() -> dict[tuple[str, str], object]:
@@ -59,7 +61,7 @@ class Params:
     iters: int
 
 
-def _net(ctx: Context) -> FoundationStereo:
+def _net(ctx: Context, *, assign: bool = False) -> FoundationStereo:
     args = _Args(  # the released cfg.yaml of both checkpoints
         vit_size=ctx.params.encoder,
         max_disp=ctx.params.max_disp,
@@ -70,8 +72,25 @@ def _net(ctx: Context) -> FoundationStereo:
         n_gru_layers=3,
         mixed_precision=False,  # autocast is handled by `Opts`, not by the network
     )
-    net = FoundationStereo(args)
-    net.load_state_dict(ctx.state_dict(key="model", strip="", extra=_extra()))
+    if assign:
+        with torch.device("meta"):
+            net = FoundationStereo(args)
+        # These two upstream constants are ordinary tensor attributes outside the state dict.
+        with torch.device("cpu"):
+            r = args["corr_radius"]
+            net.dx = torch.linspace(-r, r, 2 * r + 1, requires_grad=False).reshape(net.dx.shape)
+            attention = cast("CostVolumeDisparityAttention", net.cost_agg.atts["4"])
+            position = attention.pos_embed0
+            _, length, dim = position.pe.shape
+            position.pe = PositionalEmbedding(dim, max_len=length).pe
+    else:
+        net = FoundationStereo(args)
+    state = ctx.state_dict(key="model", strip="", extra=_extra())
+    if assign:
+        load_strict(net, state, ctx.variant.ref, assign=True)
+    else:
+        net.load_state_dict(state)
+    del state
     return net.eval().to(ctx.device)
 
 
@@ -133,7 +152,14 @@ class Kernels(Runner):
         super().__init__(ctx)
         from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
 
-        self.net = _net(ctx)
+        # Assigning the published ViT-L checkpoint avoids a second large CPU allocation.
+        assign = (
+            ctx.device.type == "cuda"
+            and ctx.params.encoder == "vitl"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
+        self.net = _net(ctx, assign=assign)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
 

@@ -18,7 +18,7 @@ import math
 import re
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -26,11 +26,13 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.kernels import linear
 from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.sr_layer_norm import fast_layer_norm
 from fastforks.shared.swin_sr import (
     attention,
     checkpoint_upsampler,
@@ -40,6 +42,7 @@ from fastforks.shared.swin_sr import (
     shift_mask,
     window_attention,
 )
+from fastforks.shared.swin_sr.window_tiles import QKV_TILE_BYTES, WINDOW_STREAM_BYTES, can_stream, raster_regions
 
 from .net import DRCT
 from .net.drct_arch import RDG, PatchEmbed, SwinTransformerBlock, WindowAttention
@@ -72,6 +75,7 @@ class _NoMask:
 _NO_MASK = _NoMask()
 _LARGE_IMAGE_PIXELS = 256**2
 _WORKSPACE_BYTES = 64 * 1024**2
+_MLP_BYTES = 192 << 20
 
 
 @dataclass(frozen=True)
@@ -162,17 +166,34 @@ def _forward(m: DRCT, image: torch.Tensor) -> torch.Tensor:
         return DRCT.forward(m, image)
     mean = m.mean.type_as(image)
     x = m.conv_first((image - mean) * m.img_range)
-    x = m.conv_after_body(m.forward_features(x)) + x
+    x = m.conv_after_body(m.forward_features(x)).add_(x)
     x = m.conv_before_upsample(x)
-    return _strip_reconstruction(m, x, rows) / m.img_range + mean
+    return _strip_reconstruction(m, x, rows).div_(m.img_range).add_(mean)
 
 
-def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int], *, reuse_outputs: bool = False) -> torch.Tensor:
     """`RDG.forward` with the 1 x 1 `adjust` convs as `F.linear` on the tokens (upstream: on an unembedded map)."""
     feats = [x]
     for k in range(1, 5):
-        feats.append(F.leaky_relu(_adjust(m, k, torch.cat(feats, -1) if k > 1 else x, xsize), 0.2))
-    return _adjust(m, 5, torch.cat(feats, -1), xsize) * 0.2 + x  # the last `adjust` has no LeakyReLU
+        part = _adjust(m, k, torch.cat(feats, -1) if k > 1 else x, xsize)
+        feats.append(F.leaky_relu(part, 0.2, inplace=reuse_outputs))
+    dense = torch.cat(feats, -1)
+    del feats, part
+    result = _adjust(m, 5, dense, xsize)  # the last `adjust` has no LeakyReLU
+    return result.mul_(0.2).add_(x) if reuse_outputs else result * 0.2 + x
+
+
+def _cuda_rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+    growth = cast("torch.nn.Conv2d", m.get_submodule("adjust1")).out_channels
+    width = x.shape[-1] + 4 * growth
+    largest = x.shape[0] * x.shape[1] * width * x.element_size()
+    if largest >= WINDOW_STREAM_BYTES and growth % 2 == 0 and can_stream(x, xsize, m.swin1.window_size):
+        feats = [x]
+        for layer in range(1, 5):
+            feats.append(_stream_whole_adjust(m, layer, feats, xsize))
+        result = _stream_whole_adjust(m, 5, feats, xsize)
+        return result.mul_(0.2).add_(x)
+    return _rdg(m, x, xsize, reuse_outputs=True)
 
 
 def _adjust(m: RDG, k: int, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
@@ -283,15 +304,93 @@ def _boundary_attention(
     return out.reshape_as(windows)
 
 
+def _stream_whole_adjust(m: RDG, layer: int, feats: list[torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
+    """Project each window before it returns to the raster of dense features."""
+    sw = cast("SwinTransformerBlock", m.get_submodule(f"swin{layer}"))
+    conv = cast("torch.nn.Conv2d", m.get_submodule(f"adjust{layer}"))
+    x = feats[0]
+    h, w = size
+    grow = cast("torch.nn.Conv2d", m.get_submodule("adjust1")).out_channels
+    width = x.shape[-1] + grow * (len(feats) - 1)
+    out_width = conv.out_channels
+    ow = conv.weight.flatten(1)
+    win, shift = sw.window_size, sw.shift_size
+    regions, masks = raster_regions(size, win, shift, x)
+    k = shift_windows.load(x.device)
+    out = x.new_empty((x.shape[0], x.shape[1], out_width))
+    step = max(1, QKV_TILE_BYTES // (win * win * sw.attn.qkv.out_features * x.element_size()))
+    mm = sw.mlp
+    inputs = (*feats, *(None for _ in range(5 - len(feats))))
+    for kind, (r0, c0, rows, cols) in enumerate(regions):
+        bias: torch.Tensor = sw.attn.bias  # ty: ignore[invalid-assignment]
+        if masks is not None and kind:
+            bias = bias + masks[kind]
+        for b in range(x.shape[0]):
+            group = tuple(t[b] if t is not None else None for t in inputs)
+            for first in range(0, rows * cols, step):
+                count = min(step, rows * cols - first)
+                raw = x.new_empty((count, win * win, width))
+                threads = raw.numel() // 2
+                region = win, shift, r0, c0, cols, first
+                if len(feats) == 1:
+                    k.launch(
+                        "stream_window2", *linear(threads), group[0], None, raw, h, w, width // 2, *region, threads
+                    )
+                else:
+                    k.launch(
+                        "pack_dense_windows2",
+                        *linear(threads),
+                        *group,
+                        raw,
+                        x.shape[-1] // 2,
+                        grow // 2,
+                        h,
+                        w,
+                        width // 2,
+                        *region,
+                        threads,
+                    )
+                win_input = sw.norm1(raw)
+                result = window_attention(
+                    win_input,
+                    sw.attn.qkv,
+                    sw.attn.proj,
+                    heads=sw.attn.num_heads,
+                    scale=sw.attn.scale,
+                    bias=bias,
+                    mask=None,
+                )
+                raw.add_(sw.drop_path(result))
+                del win_input, result
+                z = torch.ops.aten.gelu_(mm.fc1(sw.norm2(raw)), approximate=mm.act.approximate)
+                raw.add_(sw.drop_path(mm.drop(mm.fc2(mm.drop(z)))))
+                del z
+                adjusted = F.linear(raw, ow, conv.bias)
+                del raw
+                if layer < 5:  # noqa: PLR2004 - only the four growth layers have LeakyReLU
+                    F.leaky_relu(adjusted, 0.2, inplace=True)
+                threads = adjusted.numel() // 2
+                k.launch("scatter_windows2", *linear(threads), adjusted, out[b], h, w, out_width // 2, *region, threads)
+                del adjusted
+    return out
+
+
 def _window_block(m: SwinTransformerBlock, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
-    """Pack shifted windows and reverse them directly; keep the checkpoint's exact shifted-window mask."""
+    """Keep wide shifted-window temporaries bounded on large inputs."""
     windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
     attended = (
         _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size) if m.shift_size else m.attn(windows)
     )
-    tokens = shift_windows.rearrange(attended, xsize, m.window_size, m.shift_size, reverse=True)
-    x = x + m.drop_path(tokens)
-    return x + m.drop_path(m.mlp(m.norm2(x)))
+    del windows
+    x = shift_windows.reverse_residual(attended, x, None, xsize, window=m.window_size, shift=m.shift_size)
+    del attended
+    mm = m.mlp
+    rows = max(1, _MLP_BYTES // (mm.fc1.out_features * x.element_size()))
+    for part in x.flatten(0, 1).split(rows):
+        z = torch.ops.aten.gelu_(mm.fc1(m.norm2(part)), approximate=mm.act.approximate)
+        part.add_(m.drop_path(mm.drop(mm.fc2(mm.drop(z)))))
+        del z
+    return x
 
 
 class Kernels(Portable):
@@ -303,8 +402,11 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fast_layer_norm(self.net, ctx.device)
         shift_windows.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, RDG):
+                override(m, _cuda_rdg)
             if isinstance(m, SwinTransformerBlock):
                 del m.attn_mask
                 override(m, _window_block)

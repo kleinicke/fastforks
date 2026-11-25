@@ -28,7 +28,7 @@ from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.tracing import exporting_for_mlx
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import flow_upsample
+from fastforks.kernels import flow_upsample, gmflow
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -42,6 +42,7 @@ from .net.utils import feature_add_position, upsample_flow_with_mask
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
 
+    from .net.attention import SelfAttnPropagation
     from .net.reg_refine import BasicUpdateBlock
 
 SCALES = {  # card `scales` -> per scale (attn_splits, corr_radius, prop_radius), upstream scripts/gmflow_evaluate.sh
@@ -81,10 +82,13 @@ def _headed(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tenso
     return F.scaled_dot_product_attention(q, k, v, attn_mask=bias).squeeze(1)[..., :channels]
 
 
+_FUSED_EXPECTATION_TOKENS = 16_384  # fixed: global CUDA matching starts to benefit from fusion at this row length
 _MATCH_SCORES = 128 << 20  # fixed: bytes of one chunk of float32 matching scores (61 vs 80 ms fused at 1080p)
 
 
-def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+def _chunked(
+    query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, *, fused_expectation: bool = False
+) -> torch.Tensor:
     """`attend` as float32 GEMMs and a softmax over chunks of query rows (CUDA global matching and propagation).
 
     The fused float32 SDPA kernel is slow for the 2-channel values of the match and the flow; a chunk of the scores
@@ -92,6 +96,9 @@ def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> tor
     3.5e-4 px against float64 at 1080p).
     """
     b, n, m = query.shape[0], query.shape[1], key.shape[1]
+    library = gmflow.load(query.device) if fused_expectation and m >= _FUSED_EXPECTATION_TOKENS else None
+    if library is not None:
+        value = value.contiguous()
     step = max(256, _MATCH_SCORES // (4 * b * m) // 256 * 256)
     key_t = (key * key.shape[-1] ** -0.5).transpose(1, 2)
     out = value.new_empty((b, n, value.shape[-1]))
@@ -102,8 +109,15 @@ def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> tor
             scores = torch.bmm(rows, key_t)
         else:
             torch.bmm(rows, key_t, out=scores)
-        torch.bmm(scores.softmax(-1), value, out=out[:, start : start + step])
+        if library is None:
+            torch.bmm(scores.softmax(-1), value, out=out[:, start : start + step])
+        else:
+            count = rows.shape[1]
+            library.launch("expectation2", (count, b, 1), (256, 1, 1), scores, value, out[:, start:], count, m, n)
     return out
+
+
+_PROPAGATION_BYTES = 96 << 20  # fixed: CUDA workspace budget for local feature windows
 
 
 _CORR_GATHER = 24 << 20  # fixed: bytes of gathered feature rows per chunk, L2-resident (25.9 vs 28.2 ms at 256 MiB)
@@ -158,19 +172,53 @@ class _FlowCorrelation:
         return (corr.reshape(b, h, w, -1) / c**0.5).permute(0, 3, 1, 2)  # channels-last, as the refinement block runs
 
 
-def forward(  # noqa: PLR0913 - network, image pair and inference options
+def _propagate_strips(
+    attn: SelfAttnPropagation, feature: torch.Tensor, flow: torch.Tensor, radius: int
+) -> torch.Tensor:
+    """Keep only a few rows of the 3x3 feature and flow windows live."""
+    batch, channels, height, width = feature.shape
+    side = 2 * radius + 1
+    window = side**2
+    row_bytes = batch * channels * width * window * feature.element_size()
+    rows = max(1, _PROPAGATION_BYTES // row_bytes - 2 * radius)
+    if rows >= height:
+        return attn(feature, flow, local_window_attn=True, local_window_radius=radius)
+    tokens = feature.flatten(2).transpose(1, 2)
+    query = attn.q_proj(tokens).view(batch, height, width, channels)
+    key = attn.k_proj(tokens).transpose(1, 2).view(batch, channels, height, width)
+    out = torch.empty_like(flow, memory_format=torch.contiguous_format)
+    for start in range(0, height, rows):
+        end = min(start + rows, height)
+        lo, hi = max(start - radius, 0), min(end + radius, height)
+        keep = slice(start - lo, end - lo)
+        q_part = query[:, start:end].reshape(-1, 1, channels)
+        keys = F.unfold(key[..., lo:hi, :], (side, side), padding=radius)
+        keys = keys.view(batch, channels, window, hi - lo, width)[:, :, :, keep]
+        keys = keys.permute(0, 3, 4, 1, 2).reshape(-1, channels, window)
+        probs = (torch.bmm(q_part, keys) / channels**0.5).softmax(-1)
+        del keys, q_part
+        values = F.unfold(flow[..., lo:hi, :], (side, side), padding=radius)
+        values = values.view(batch, 2, window, hi - lo, width)[:, :, :, keep]
+        values = values.permute(0, 3, 4, 2, 1).reshape(-1, window, 2)
+        stripe = torch.bmm(probs, values).view(batch, end - start, width, 2)
+        out[:, :, start:end].copy_(stripe.permute(0, 3, 1, 2))
+    return out
+
+
+def forward(  # noqa: PLR0913, PLR0915 - network, image pair and its per-scale inference pipeline
     net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool, fused: bool = False
 ) -> torch.Tensor:
     """Flow `[B, 2, H, W]` of an ImageNet-normalised pair (H, W multiples of the card's padding)."""
-    attention = _chunked if fused else attend
+    attention = functools.partial(_chunked, fused_expectation=params.scales == 1) if fused else attend
     upsample = flow_upsample.convex if fused else upsample_flow_with_mask
     amp = torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
     with amp:
         features1, features2 = net.extract_feature(image1, image2)  # low to high resolution
     flow = raw1 = raw2 = feature1 = image1.new_zeros(())  # set per scale
     for index, (splits, corr_radius, prop_radius) in enumerate(SCALES[params.scales]):
-        raw1, raw2 = features1[index].float(), features2[index].float()
-        feature1, feature2 = raw1, raw2
+        feature1, feature2 = features1[index].float(), features2[index].float()
+        if params.refine and not fused:
+            raw1, raw2 = feature1, feature2
         if index > 0:
             flow = F.interpolate(flow, scale_factor=2, mode="bilinear", align_corners=True) * 2
             feature2 = flow_warp(feature2, flow)
@@ -186,10 +234,15 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
             predicted = match.transpose(1, 2).reshape(b, 2, h, w) - grid
         else:
             predicted = local_correlation_softmax(feature1, feature2, corr_radius)[0]
+        del feature2
         flow = flow + predicted if index > 0 else predicted
         attn = net.feature_flow_attn
         if prop_radius > 0:
-            flow = attn(feature1, flow, local_window_attn=True, local_window_radius=prop_radius)
+            flow = (
+                _propagate_strips(attn, feature1, flow, prop_radius)
+                if fused
+                else attn(feature1, flow, local_window_attn=True, local_window_radius=prop_radius)
+            )
         else:  # global propagation; upstream projects the key from the projected query (its own note)
             query = attn.q_proj(tokens1)
             flow = (
@@ -197,6 +250,8 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
                 .transpose(1, 2)
                 .reshape(b, 2, h, w)
             )
+            del query
+        del tokens1
     if not params.refine:
         with amp:
             mask = net.upsampler(torch.cat((flow, feature1), dim=1))
@@ -480,6 +535,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Select the CUDA attention layout for this model instance."""
         super().__init__(ctx)
+        gmflow.load(ctx.device)
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}

@@ -229,7 +229,11 @@ class Kernels(Portable):
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=cudnn_hacc.BUILD_AFTER > 0)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _eager(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Normalisation, network and top-k selection of `square`'s `x`, the graph's forward.

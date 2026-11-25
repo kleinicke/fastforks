@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
+from torch.nn import functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
@@ -221,8 +222,16 @@ class Kernels(Portable):
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
+
+        def resized(t: int) -> torch.Tensor:
+            return F.interpolate(frames(t), self.net.size, mode="bilinear", align_corners=False)
+
+        # Reduce each large frame before concatenating the encoder batch. Track coordinates still use the input size.
+        h, w = size
+        hn, wn = self.net.size
+        source = resized if h > hn or w > wn else frames
         with fp16_accumulate():
-            return super().__call__(frames, n, size, queries)
+            return super().__call__(source, n, size, queries)
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the blocks run kernel launches."""

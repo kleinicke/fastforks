@@ -43,6 +43,12 @@ __all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "timm", "torchvision
 
 # torchvision's DenseNet checkpoints predate its module names (`norm.1` -> `norm1`); torchvision renames on load too.
 _TIMM_INITS = ("trunc_normal_", "trunc_normal_tf_", "lecun_normal_", "variance_scaling_")  # timm.layers
+_MAPPED_TIMM = {
+    "perception_encoder": "eva",
+    "siglip2": "vision_transformer",
+    "clip": "vision_transformer",
+}
+_MAPPED_WEIGHT_BYTES = 1 << 30
 _DENSENET_KEY = re.compile(
     r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
 )
@@ -134,6 +140,21 @@ def torchvision() -> ModuleType:
     return torchvision
 
 
+def _mapped_timm(
+    ctx: Context, lib: ModuleType, implementation: str, checkpoint: dict[str, torch.Tensor], options: dict[str, Any]
+) -> torch.nn.Module:
+    """Assign a verified native timm checkpoint without a duplicate CPU weight allocation."""
+    net = lib.create_model(ctx.params.arch, pretrained=False, device="meta", **options)
+    if implementation == "eva":
+        # RoPE bands are derived by timm and deliberately absent from its state dict.
+        rope = net.get_submodule("rope")
+        rope.to_empty(device="cpu")
+        rope.reset_parameters()
+    filter_checkpoint = getattr(lib.models, implementation).checkpoint_filter_fn
+    load_strict(net, filter_checkpoint(checkpoint, net), f"{ctx.variant.ref} checkpoint", assign=True)
+    return net.eval()
+
+
 def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # noqa: ANN401 - library keyword args
     """The library's network for `ctx.params` with the variant's weight file `index`, in eval mode on the CPU.
 
@@ -151,6 +172,17 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
         if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
             overlay["num_classes"] = kwargs["num_classes"]
         lib = timm()
+        if (
+            getattr(ctx, "mode", None) == "kernels"
+            and ctx.device.type == "cuda"
+            and (implementation := _MAPPED_TIMM.get(ctx.card.family)) is not None
+            and ctx.user_weights is None
+            and ctx.user_state is None
+            and (ctx.variant.weights[index].size or 0) >= _MAPPED_WEIGHT_BYTES
+            and not getattr(p, "stream", False)
+            and "num_classes" not in kwargs
+        ):
+            return _mapped_timm(ctx, lib, implementation, overlay["state_dict"], kwargs)
         # timm's ViT-style initialisers bypass torch.nn.init: deferred as well, every tensor the checkpoint loads skips
         # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)
         timm_modules = [m for n, m in tuple(sys.modules.items()) if n == "timm" or n.startswith("timm.")]
@@ -196,6 +228,7 @@ class _LibRunner(Runner):
             fp16=ctx.dtype == "float16",
             family=self.family,
             fuse_convs=self.fuse_convs,
+            cast_cpu_weights=True,
         )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()

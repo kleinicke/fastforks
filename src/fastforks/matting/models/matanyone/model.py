@@ -32,7 +32,7 @@ from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import to_device
-from fastforks.kernels import image_normalize
+from fastforks.kernels import image_normalize, seg_up
 from fastforks.matting._runner import Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -442,6 +442,33 @@ def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tens
     """
     b, k = in_g.shape[:2]
     x = _canonical(in_g.flatten(0, 1))
+    low, base = x.permute(0, 2, 3, 1), skip_f.permute(0, 2, 3, 1)
+    height, width = skip_f.shape[2:]
+    if (
+        x.is_cuda
+        and x.dtype == skip_f.dtype == torch.float16
+        and low.is_contiguous()
+        and base.is_contiguous()
+        and m.scale_factor == 2  # noqa: PLR2004 - one exact 2x bilinear step
+        and (height, width) == (2 * x.shape[2], 2 * x.shape[3])
+        and x.shape[1] % 2 == 0
+    ):
+        # Keep the addition's FP16 rounding, without materializing the upsampled group before adding.
+        out = torch.empty((b * k, height, width, x.shape[1]), device=x.device, dtype=x.dtype)
+        if k == 1:
+            seg_up.up_add(low, base, out, (height, width), relu=False)
+        else:
+            for batch_idx in range(b):
+                for obj in range(batch_idx * k, (batch_idx + 1) * k):
+                    seg_up.up_add(
+                        low[obj : obj + 1],
+                        base[batch_idx : batch_idx + 1],
+                        out[obj : obj + 1],
+                        (height, width),
+                        relu=False,
+                    )
+        g = out.permute(0, 3, 1, 2)
+        return m.out_conv(g.view(b, k, *g.shape[1:]), consume_input=True)
     with torch.autocast(x.device.type, enabled=False):
         g = F.interpolate(x, scale_factor=m.scale_factor, mode="bilinear", align_corners=False)
     in_place = k == 1 and skip_f.dtype == g.dtype

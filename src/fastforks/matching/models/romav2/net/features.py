@@ -1,6 +1,8 @@
 # fastforks: the fine features of upstream `romav2/features.py`: `torchvision.models.vgg19_bn().features[:27]` built
 # from plain layers (same indices, so the checkpoint keys `refiner_features.layers.N` load unchanged). The DINOv3
 # descriptor is in `dinov3.py`.
+from collections.abc import Callable
+
 import torch
 from torch import nn
 
@@ -30,7 +32,7 @@ class VGG19BN(nn.Module):
         super().__init__()
         self.layers = nn.ModuleList(_vgg19bn_layers())
 
-    def forward(self, x: torch.Tensor) -> dict[int, torch.Tensor]:
+    def forward(self, x: torch.Tensor, project: Callable[[int, torch.Tensor], torch.Tensor] | None = None) -> dict[int, torch.Tensor]:
         x = imagenet(x)
         if self.channels_last:
             x = x.contiguous(memory_format=torch.channels_last)
@@ -39,7 +41,12 @@ class VGG19BN(nn.Module):
             scale = 1
             for layer in self.layers:
                 if isinstance(layer, nn.MaxPool2d):
-                    feats[scale] = x.permute(0, 2, 3, 1)
+                    value = x.permute(0, 2, 3, 1)
+                    if project is not None and scale < 4:
+                        with torch.autocast(x.device.type, enabled=False):
+                            value = project(scale, value)
+                    feats[scale] = value
+                    del value
                     scale = scale * 2
                     if scale > 4:  # the last pooled map is not used
                         break

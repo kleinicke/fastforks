@@ -26,7 +26,7 @@ from fastforks._core import mps
 from fastforks._core.errors import BackendUnavailableError, OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
-from fastforks.kernels import cudnn_hacc, dpt_fused, fastbb
+from fastforks.kernels import affine_silu, cudnn_hacc, dpt_fused, fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.sapiens.net import IN_EPS, LN_EPS, PATCH, Arch, Layer, Sapiens
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -65,12 +65,17 @@ def _load(ctx: Context) -> Sapiens:
     return net.eval().requires_grad_(requires_grad=False)
 
 
-def _inorm_silu_(x: torch.Tensor) -> torch.Tensor:
-    """InstanceNorm (no affine) + SiLU in place on a fresh map (memory format kept); statistics in float32."""
+def _affine(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Scale and bias of instance normalization, in the feature map's dtype."""
     v, m = torch.var_mean(x, dim=(2, 3), keepdim=True, unbiased=False)
     a = (v.float() + IN_EPS).rsqrt()
-    b = (-m.float() * a).to(x.dtype)
-    return F.silu(torch.addcmul(b, x, a.to(x.dtype), out=x), inplace=True)
+    return a.to(x.dtype), (-m.float() * a).to(x.dtype)
+
+
+def _inorm_silu_(x: torch.Tensor) -> torch.Tensor:
+    """InstanceNorm (no affine) + SiLU in place on a fresh map."""
+    a, b = _affine(x)
+    return F.silu(torch.addcmul(b, x, a, out=x), inplace=True)
 
 
 class _Functional(Runner):
@@ -79,6 +84,7 @@ class _Functional(Runner):
     batch = None
     Params = Params
     fused = False  # `seg_up` resizing (kernels)
+    _normalize = staticmethod(_inorm_silu_)
 
     def __init__(self, ctx: Context, dtype: torch.dtype) -> None:
         """Weights on the device in `dtype` (convolutions channels-last)."""
@@ -151,11 +157,11 @@ class _Functional(Runner):
         del t
         for w in self.deconv:
             f = self._deconv(f, w)
-            f = _inorm_silu_(f)
+            f = self._normalize(f)
         # Drop the previous feature map before InstanceNorm allocates its reduction workspace.
         for w, bias in self.convs:
             f = self._conv(f, w, bias, 1)
-            f = _inorm_silu_(f)
+            f = self._normalize(f)
         return self._conv(f, self.seg_w, self.net.decode_head.conv_seg.bias, 1)
 
     def _scores(self, image: torch.Tensor) -> torch.Tensor:
@@ -217,9 +223,15 @@ class Kernels(_Functional):
             raise BackendUnavailableError(msg)  # mode="auto" falls back to portable
         super().__init__(ctx, torch.float16)
         fastbb.load(ctx.device)
+        affine_silu.load(ctx.device)
         self.flash = fastbb.Flash64("fh")
         self.cv = cudnn_hacc.load(ctx.device)
         self.gemm = dpt_fused.load(ctx.device)
+
+    @staticmethod
+    def _normalize(x: torch.Tensor) -> torch.Tensor:
+        a, b = _affine(x)
+        return affine_silu.apply_(x, a, b)
 
     def _conv(self, x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, stride: int) -> torch.Tensor:
         return self.cv.conv(x, w, b, (0, 0), (stride, stride))

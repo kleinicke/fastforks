@@ -119,15 +119,17 @@ def fold_batch_norms(net: RoMaV2) -> None:
             m.conv_depthwise, m.norm = fuse_conv_bn_eval(m.conv_depthwise, m.norm), nn.Identity()
 
 
-def cast_autocast_weights(net: RoMaV2, dtype: torch.dtype) -> None:
+def cast_autocast_weights(net: RoMaV2, dtype: torch.dtype, *, fold_pending: bool = False) -> None:
     """Linear / conv weights inside the autocast regions in `dtype`; norms stay float32.
 
     The multi-view ViT, the DPT head up to its float32 output conv, the VGG and the refiner blocks: autocast casts
     these weights to `dtype` on every call anyway, so the outputs are the same, without the float32 copies (-220 MB of
     weights, no cast per call).
     """
-    regions: list[nn.Module] = [net.matcher.mv_vit, net.matcher.head, net.refiner_features]
-    regions += [m for m in net.modules() if isinstance(m, Block)]
+    regions: list[nn.Module] = [net.matcher.mv_vit, net.matcher.head]
+    if not fold_pending:
+        regions.append(net.refiner_features)
+        regions.extend(m for m in net.modules() if isinstance(m, Block))
     out_conv = cast("nn.Module", net.matcher.head.scratch.output_conv2)
     skip = set(out_conv.modules())  # after upstream's `out.float()`
     for region in regions:
@@ -154,6 +156,23 @@ def _checkpoint(net: RoMaV2, ctx: Context) -> dict[str, torch.Tensor]:
     return sd
 
 
+def _load_cuda_bf16(ctx: Context) -> RoMaV2:
+    """Place the descriptor and matcher weights directly in their inference dtype."""
+    with torch.device("meta"):
+        net = RoMaV2()
+    state = _checkpoint(net, ctx)
+    original_dtypes = {key: tensor.dtype for key, tensor in net.state_dict().items()}
+    net.f.bfloat16()
+    cast_autocast_weights(net, torch.bfloat16, fold_pending=True)
+    for key, target in net.state_dict().items():
+        source = state[key]
+        if source.dtype not in (target.dtype, original_dtypes[key]):
+            source = source.to(original_dtypes[key])
+        state[key] = source.to(device=ctx.device, dtype=target.dtype)
+    net.load_state_dict(state, assign=True)
+    return net
+
+
 class Portable(Runner):
     """Plain PyTorch; see the module docstring for the bf16 regions on CUDA."""
 
@@ -164,9 +183,11 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         _validate_sizes(ctx)
-        net = RoMaV2()
-        sd = _checkpoint(net, ctx)
-        net.load_state_dict(sd)
+        if ctx.device.type == "cuda" and ctx.dtype == "bfloat16":
+            net = _load_cuda_bf16(ctx)
+        else:
+            net = RoMaV2()
+            net.load_state_dict(_checkpoint(net, ctx))
         net.eval().requires_grad_(requires_grad=False).to(ctx.device)
         if ctx.dtype == "bfloat16":
             amp = torch.bfloat16
@@ -264,6 +285,7 @@ class Kernels(Portable):
             if isinstance(m, ConvRefiner) and m.cfg.local_corr_radius is not None:  # (C, r): (192, 3), (48, 1)
                 m.correlate = functools.partial(_kernel_correlate, k)
         if ctx.device.type == "cuda" and ctx.dtype == "bfloat16":
+            self.net.project_vgg_features = True
             for m in self.net.modules():
                 if isinstance(m, ConvRefiner):
                     m.cfg = replace(m.cfg, channels_last=True)

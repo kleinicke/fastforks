@@ -15,11 +15,11 @@ upstream = "https://github.com/sczhou/CodeFormer@b33cc7d639d6545bfcccc7e0bc6ae51
 settings = "CPU float32, inference_codeformer.py on an aligned face: [-1, 1], net(x, w=0.5, adain=True)[0], back to [0, 1], clamped, no uint8 rounding; inputs/cropped_faces/0143.png; torch 2.14.1+cu130"
 
 [validated."codeformer@1"]
-kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "group_silu@fbe0379e0a19:sm_120", "igev@f075827d68c6:sm_120"]
-symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "group_silu" = {"group_moments" = "33164430b0e6aa04", "normalize_silu" = "00bf556520cb0b3c", "tile_moments" = "004b655dce23e325"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "group_silu@a8f4e21c9df2:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "group_silu" = {"affine_silu_h" = "6b0062bd5ca58f7f", "group_moments" = "4486b5af81ed266e", "normalize_silu" = "4237a4a818e67496", "tile_moments" = "ea425000ecd6e3f7"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 0.00161
 p99_px = 0.01737
 

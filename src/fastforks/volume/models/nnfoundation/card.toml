@@ -35,7 +35,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["vol_norm"]  # CNN: portable + InstanceNorm + LeakyReLU as one in-place kernel; ViT: fp16-accumulate GEMMs
+kernels = ["vol_norm"]  # CNN: in-place InstanceNorm and LeakyReLU; ViT: fused padded rotary and fp16-accumulate GEMMs
 
 [[papers]]
 title = "nnFoundation: 3D Foundation Models for Radiology"

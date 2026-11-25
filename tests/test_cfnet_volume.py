@@ -3,6 +3,8 @@
 import pytest
 import torch
 
+from fastforks.kernels import cfnet_volume
+from fastforks.stereo.models.cas_gwcnet.model import VOL_SCALE, cost_volume
 from fastforks.stereo.models.cfnet import model as cfnet_model
 from fastforks.stereo.models.cfnet.model import _cuda_coarse, _cuda_stage, _volume, stage_volume
 from fastforks.stereo.models.cfnet.net.cfnet import cfnet
@@ -40,6 +42,29 @@ def test_cfnet_portable_stage_matches_export_path(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(cfnet_model, "in_onnx_export", lambda: True)
     expected = stage_volume(net, (left, right), samples, level=4, a=2, groups=4)
     torch.testing.assert_close(portable, expected, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("groups", "sample_size"), [(20, (1, 9, 1, 1)), (0, (2, 9, 17, 43))])
+def test_cascade_cost_volume(groups: int, sample_size: tuple[int, int, int, int]) -> None:
+    generator = torch.Generator(device="cuda").manual_seed(33)
+
+    def features(channels: int) -> torch.Tensor:
+        return torch.randn(2, channels, 17, 43, device="cuda", dtype=torch.float16, generator=generator)
+
+    left, right = features(6), features(6)
+    left_ref: torch.Tensor | dict[str, torch.Tensor] = left
+    right_ref: torch.Tensor | dict[str, torch.Tensor] = right
+    lg = rg = None
+    if groups:
+        lg, rg = features(groups * 8), features(groups * 8)
+        left_ref = {"gwc_feature": lg, "concat_feature": left}
+        right_ref = {"gwc_feature": rg, "concat_feature": right}
+    samples = torch.rand(sample_size, device="cuda", generator=generator).mul_(60).sub_(7)
+    expected = cost_volume(left_ref, right_ref, samples, groups)
+    actual = cfnet_volume.cascade((lg, rg, left, right), samples, groups, VOL_SCALE)
+    assert actual.is_contiguous(memory_format=torch.channels_last_3d)
+    torch.testing.assert_close(actual, expected, atol=1e-4, rtol=1e-3)
 
 
 @pytest.mark.gpu

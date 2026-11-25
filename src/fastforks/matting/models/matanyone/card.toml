@@ -35,7 +35,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["image_normalize"]
+kernels = ["image_normalize", "seg_up"]
 
 [[papers]]
 title = "MatAnyone: Stable Video Matting with Consistent Memory Propagation"

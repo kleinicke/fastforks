@@ -73,6 +73,8 @@ def _replicate_pad(kh: int, kw: int) -> tuple[int, int, int, int]:
 
 
 _BOX_BUFFER_BYTES = 16 * 1024**2
+_FFN_TILE_BYTES = 128 << 20  # fixed: bound the CUDA gate projection of large feature maps
+_FFN_TILE_ROWS = 256  # fixed: cap the number of rows in a CUDA gate tile
 
 
 def _box_mean(x: torch.Tensor, k1: int, k2: int) -> torch.Tensor:
@@ -235,12 +237,17 @@ def _gated_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
 
 
 def _pointwise(
-    conv: torch.nn.Conv2d, x: torch.Tensor, fused: dpt_fused.DptFused, residual: torch.Tensor | None = None
+    conv: torch.nn.Conv2d,
+    x: torch.Tensor,
+    fused: dpt_fused.DptFused,
+    residual: torch.Tensor | None = None,
+    *,
+    overwrite_residual: bool = False,
 ) -> torch.Tensor:
     """Pointwise NHWC convolution with its bias and optional residual in the GEMM epilogue."""
     x = x.permute(0, 2, 3, 1).contiguous()
     res = None if residual is None else residual.permute(0, 2, 3, 1).contiguous()
-    y = fused.gemm(x, conv.weight.flatten(1), conv.bias, res=res)
+    y = fused.gemm(x, conv.weight.flatten(1), conv.bias, res=res, out=res if overwrite_residual else None)
     return y.permute(0, 3, 1, 2)
 
 
@@ -252,8 +259,8 @@ def _scale_features(m: NAFBlock, x: torch.Tensor) -> torch.Tensor:
         # window once before replicating its boundary scores.
         kh, kw = min(h, pool.window), min(w, pool.window)
         means = _box_mean(x, kh, kw).to(dtype=x.dtype, memory_format=torch.channels_last)
-        scores = m.sca[1](means)
-        return x.mul_(F.pad(scores, _replicate_pad(kh, kw), mode="replicate"))
+        scores = m.sca[1](means).contiguous(memory_format=torch.channels_last)
+        return nafnet_gate.scale_replicate_(x, scores)
     return x.mul_(m.sca(x))
 
 
@@ -268,8 +275,27 @@ def _fused_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
     x = _pointwise(m.conv1, _kernel_norm(inp, m.norm1.eps), fused)
     x = nafnet_gate.depthwise_gate(x, m.gate_weight, m.conv2.bias)  # ty: ignore[invalid-argument-type]
     y = _pointwise(m.conv3, _scale_features(m, x), fused, inp)
+    del x
+    height, width = y.shape[-2:]
+    row_bytes = y.shape[0] * width * m.conv4.out_channels * y.element_size()
+    rows = max(1, _FFN_TILE_BYTES // row_bytes)
+    if rows >= height:
+        return _finish_fused_gate(m, y, fused)
+    rows = min(rows, _FFN_TILE_ROWS)
+    for start in range(0, height, rows):
+        dest = y[:, :, start : start + rows]
+        result = _finish_fused_gate(m, dest, fused)
+        if result.data_ptr() != dest.data_ptr():
+            dest.copy_(result)  # interleaved batches need a packed tile for the GEMMs
+    return y
+
+
+def _finish_fused_gate(m: NAFBlock, y: torch.Tensor, fused: dpt_fused.DptFused) -> torch.Tensor:
+    """Finish the pointwise gate and reuse its freshly computed residual as the destination."""
     a, b = _pointwise(m.conv4, _kernel_norm(y, m.norm2.eps), fused).chunk(2, 1)
-    return _pointwise(m.conv5, a * b, fused, y)
+    gated = a * b
+    del a, b
+    return _pointwise(m.conv5, gated, fused, y, overwrite_residual=True)
 
 
 class _Shuffle(torch.nn.Module):

@@ -44,7 +44,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused", "stereo_warp"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 600k (up to KITTI
 # 375x1242 and 544x960) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2
 # shapes per model (Windows WAFT-Stereo-S KITTI 114 -> 64 ms, 544x960 76 -> 66 ms). The graph pool stays reserved (KITTI

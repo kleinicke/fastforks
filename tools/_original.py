@@ -2534,8 +2534,8 @@ def _flexglue(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return call
 
 
-def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
-    """Upstream `LoMa(LoMaB(mp=False))` as `tools/golden/loma.py` (`build` on CUDA), float32.
+def _loma(a: Any, full: str, *, mixed: bool = False) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream LoMa on CUDA, with its native mixed-precision option available for evaluation.
 
     Needs `FF_LOMA_REPO` (a checkout with the pinned commit) and the torch hub cache with dad.pth and DINOv2.
     """
@@ -2545,8 +2545,10 @@ def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     card, variant = registry.resolve("matching", full)
     sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOMA_REPO"]), g.REF_COMMIT) / "src"))
     params = dict(card.params) | dict(variant.params) | dict(card.options)
-    a.note = f"upstream {variant.id} (mp=False), float32, {params['max_keypoints']} keypoints"
-    run = g.build(registry.weights(card, variant, allow_download=False), params, device="cuda")
+    amp_dtype = importlib.import_module("loma.device").amp_dtype if mixed else None
+    a.dtype = str(amp_dtype).removeprefix("torch.") if mixed else "float32"
+    a.note = f"upstream {variant.id} (mp={mixed}), {a.dtype}, {params['max_keypoints']} keypoints"
+    run = g.build(registry.weights(card, variant, allow_download=False), params, device="cuda", mixed=mixed)
 
     def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
         return run(img1.float() / 255, img2.float() / 255)

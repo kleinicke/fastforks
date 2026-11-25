@@ -113,7 +113,7 @@ def test_kernels_chunked_encoder_matches_upstream(monkeypatch: pytest.MonkeyPatc
 
 
 def test_kernels_gma_matrix_rows_and_fused_attention(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Beyond `GMA_MATRIX_BYTES` the matrix keeps its first rows and fused attention adds the rest: the same output."""
+    """Cached and fused CUDA attention rows agree with caching the complete matrix."""
     from fastforks.flow.models.flowformer import model  # noqa: PLC0415
     from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer import gma  # noqa: PLC0415
 
@@ -125,7 +125,7 @@ def test_kernels_gma_matrix_rows_and_fused_attention(monkeypatch: pytest.MonkeyP
     fmap = torch.randn(2, 16, 5, 6)
     with torch.inference_mode():
         whole = model._gma_attention(att, fmap)
-        monkeypatch.setattr(model, "GMA_MATRIX_BYTES", 2 * 30 * 2 * 7)  # 7 of 30 rows per image
+        monkeypatch.setattr(model, "GMA_CUDA_MATRIX_BYTES", 2 * 30 * 2 * 7)  # 7 of 30 rows per image
         split = model._gma_attention(att, fmap)
         assert len(whole) == 1
         assert len(split) == 3

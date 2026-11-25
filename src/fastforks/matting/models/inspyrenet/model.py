@@ -13,8 +13,9 @@ on them in float32; those convs are never cast to float16 (their batch-norm runn
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import torch
 import torch.nn.functional as F
@@ -39,13 +40,17 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Params:
-    """Card `[params]` + variant `params`.
+    """Card `[params]`, variant `params` and model options.
 
     Attributes:
         size: Network input side (square; transparent-background's `base_size`).
+        cuda_graph_policy: CUDA graph capture for repeated network inputs.
+        cuda_graph_on_linux: Whether auto captures on Linux for this variant.
     """
 
     size: int
+    cuda_graph_policy: Literal["auto", "on", "off"]
+    cuda_graph_on_linux: bool
 
 
 def _sica(
@@ -225,7 +230,9 @@ class Kernels(Portable):
                     override(m, _sica_nhwc)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
-        self.graphs = SmallShapeGraphs(super()._net, pixels=2**21)
+        policy = ctx.params.cuda_graph_policy
+        enabled = policy == "on" or (policy == "auto" and (sys.platform != "linux" or ctx.params.cuda_graph_on_linux))
+        self.graphs = SmallShapeGraphs(super()._net, pixels=2**21, enabled=enabled)
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         return image_normalize.normalize(x, self.mean, self.std)

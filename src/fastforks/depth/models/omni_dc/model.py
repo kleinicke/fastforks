@@ -27,14 +27,18 @@ from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, free_captured
+from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, empty_graph_cache, free_captured
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
     MULTIPLE,
+    NUM,
+    PROP,
+    Backbone,
     CBAMBlock,
     CGState,
     OmniDCNet,
+    _cat,
     mono_size,
     quantile_normalise,
     solve,
@@ -48,6 +52,35 @@ if TYPE_CHECKING:
 _LAYERS = (4, 11, 17, 23)  # fixed: Depth Anything V2 Large's intermediate layers
 _CBAM_BAND_ROWS = 192  # fixed: CBAM convolution band height for large CUDA inputs (memory bound, not numerics)
 _CBAM_MIN_ROWS, _CBAM_MIN_PIXELS = 800, 900_000
+_GUIDE_MIN_PIXELS = 750_000  # fixed: below this, the full-image head's working set is smaller
+_GUIDE_TILE_BYTES = 96 << 20  # fixed: target bytes of one two-branch head input stripe
+
+
+def _banded_guidance(net: Backbone, rgb: torch.Tensor, depth: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """Assemble the full-resolution guidance heads' inputs a stripe at a time."""
+    b, _, h, w = rgb.shape
+    if b * h * w < _GUIDE_MIN_PIXELS:
+        return Backbone.forward(net, rgb, depth)
+    fe1, fe2, fd2, fd4, fe4 = net.decoder_features(rgb, depth)
+    if fd2.shape[-2:] != fe2.shape[-2:]:
+        fd2 = F.interpolate(fd2, fe2.shape[-2:], mode="bilinear", align_corners=True)
+    guide = fe1.new_empty((b, NUM * PROP, h, w))
+    confidence = fe1.new_empty((b, 1, h, w))
+    rows = max(1, _GUIDE_TILE_BYTES // (b * (fd2.shape[1] + fe2.shape[1]) * fe2.element_size() * w))
+    for start in range(0, h, rows):
+        end = min(start + rows, h)
+        # Each head has two padded 3 x 3 convolutions, giving a two-row input radius.
+        lo, hi = max(start - 2, 0), min(end + 2, h)
+        f2 = torch.cat((fd2[..., lo:hi, :], fe2[..., lo:hi, :]), 1)
+        f1 = fe1[..., lo:hi, :]
+        gd = net.gd_dec0(torch.cat((net.gd_dec1(f2), f1), 1))
+        cf = net.cf_dec0(torch.cat((net.cf_dec1(f2), f1), 1))
+        guide[..., start:end, :].copy_(gd[..., start - lo : end - lo, :])
+        confidence[..., start:end, :].copy_(cf[..., start - lo : end - lo, :])
+        del f2, f1, gd, cf
+    del fe1, fe2, fd2
+    f4 = _cat(fd4, fe4)
+    return guide, confidence, net.ctx_dec0(net.ctx_dec1(f4)), net.cfi_dec0(net.cfi_dec1(f4))
 
 
 @dataclass(frozen=True)
@@ -291,6 +324,10 @@ class Kernels(Runner):
         self.head = FusedHead(net.depth_module.depth_head, dev, k)
         del net.depth_module
         net.to(dev)
+        override(net.backbone, _banded_guidance)
+        for m in net.backbone.modules():
+            if isinstance(m, torch.nn.ReLU):
+                m.inplace = True
         pure_half(net.update_block)  # the RGB-D backbone stays fp32: its PVT features reach ~1e6
         self.net = net
         self.cg: GraphCG | None = None
@@ -309,6 +346,7 @@ class Kernels(Runner):
                 else:
                     self._cg_done.synchronize()
                     self.cg = None
+                    empty_graph_cache(b.device, released=True)
             if self.cg is None:
                 if self._cg_seen != b.shape:
                     self._cg_seen = b.shape
@@ -326,6 +364,7 @@ class Kernels(Runner):
             if self.cg is not None:
                 self._cg_done.synchronize()
                 self.cg = None
+                empty_graph_cache(self.ctx.device, released=True)
 
     def _mono(self, image01: torch.Tensor) -> torch.Tensor:
         h, w = image01.shape[-2:]
@@ -355,7 +394,10 @@ class Kernels(Runner):
             d, b = system(grad.float(), small, mask, conf_in.float())
             log_depth = self._solve(d, b)
             depth = torch.exp(net.upsample(log_depth, up))
-            out = net.spn(depth, guide, dep, conf_spn)
+            offsets = net.prop_layer.conv_offset_aff(guide.float())
+            del guide
+            carry = torch.sigmoid(conf_spn.float()) * dep.sign()
+            out = omni_cg.propagate(depth, offsets, 1 - carry, carry * dep)
         return {"depth": out[:, 0, :h, :w]}
 
 
