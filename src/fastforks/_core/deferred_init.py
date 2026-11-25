@@ -178,8 +178,9 @@ def deferred_library_inits(modules: Iterable[ModuleType], names: Sequence[str]) 
 
     For a library's own initialisers, which bypass `torch.nn.init` (timm's `trunc_normal_`, imported by name into each
     model module). Each wraps the whole public function, so a tensor it scales or shifts after its random fill is
-    recorded once, after all of it. Outside a `deferred_init` block, or for a module already patched by another
-    thread's block, nothing changes (that build only initialises at once).
+    recorded once, after all of it. Inside `skipped_init` they do nothing at all, like `torch.nn.init`'s (no memset
+    either: for a ViT the zero fill alone touches as much memory as the weights). Outside a `deferred_init` block, or
+    for a module already patched by another thread's block, nothing changes (that build only initialises at once).
     """
     if getattr(_local, "pending", None) is None:
         yield
@@ -190,7 +191,7 @@ def deferred_library_inits(modules: Iterable[ModuleType], names: Sequence[str]) 
             for name in names:
                 fn = getattr(module, name, None)
                 if callable(fn) and fn not in _library_wrappers:
-                    wrapper = _deferring(name, fn)
+                    wrapper = _deferring(name, fn, skippable=True)
                     _library_wrappers.add(wrapper)
                     setattr(module, name, wrapper)
                     saved.append((module, name, fn))

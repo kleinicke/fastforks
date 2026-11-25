@@ -58,9 +58,10 @@ class Mlx(Runner):
     def __init__(self, ctx: Context) -> None:
         """Convert the same verified backbone and head as the portable model."""
         from fastforks.shared.mlx_vit import DinoLinearProbe  # noqa: PLC0415 - optional MLX dependency
+        from fastforks.shared.mlx_wrap import lazy_build  # noqa: PLC0415 - with the MLX runner only
 
         super().__init__(ctx)
-        net = _network(ctx)
+        net = lazy_build(lambda: _network(ctx))  # the weights stay the memory-mapped checkpoint until converted
         self.probe = DinoLinearProbe(net.vit, net.head.weight, net.head.bias, ctx.dtype, image_logits=True)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:

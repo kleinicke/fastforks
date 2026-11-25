@@ -2176,14 +2176,18 @@
   },
   "deit_base_patch16_224.fb_in1k@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -11736,12 +11740,12 @@
   },
   "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": {
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
