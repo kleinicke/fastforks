@@ -208,3 +208,49 @@ def test_dense_window_groups_preserve_packing(growths: int, shift: int) -> None:
                     torch.testing.assert_close(packed, reference, atol=0, rtol=0)
                     k.launch("scatter_windows2", *linear(threads), packed, output[b], *args)
     torch.testing.assert_close(combined, output, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("shift", [0, 2])
+def test_hat_window_channel_gate_preserves_half_rounding(shift: int) -> None:
+    from fastforks._core.kernels import linear  # noqa: PLC0415 - CUDA kernel only
+    from fastforks.kernels.shift_windows import load, rearrange  # noqa: PLC0415 - CUDA kernel only
+
+    h, w, window, channels, padded = 16, 20, 4, 12, 16
+    rng = torch.Generator(device="cuda").manual_seed(95)
+    opts = {"device": "cuda", "dtype": torch.float16, "generator": rng}
+    skip = torch.randn((1, h * w, channels), **opts)
+    convolution = torch.randn((1, h * w, padded), **opts)
+    gate = torch.randn((1, padded), **opts).sigmoid()
+    scale = 0.01
+    row, col, cols, first = 1, 2, 2, 1
+
+    def region(tensor: torch.Tensor) -> torch.Tensor:
+        windows = rearrange(tensor, (h, w), window, shift).view(h // window, w // window, window**2, channels)
+        return windows[row : row + 2, col : col + cols].reshape(-1, window**2, channels)[first : first + 2]
+
+    delta = torch.randn((2, window**2, channels), **opts)
+    corrected = (convolution * gate[:, None])[..., :channels]
+    expected = region(skip) + delta + region(corrected) * scale
+    threads = delta.numel() // 2
+    load(skip.device).launch(
+        "window_cab_residual2",
+        *linear(threads),
+        delta,
+        skip[0],
+        convolution[0],
+        gate[0],
+        h,
+        w,
+        channels // 2,
+        padded // 2,
+        window,
+        shift,
+        row,
+        col,
+        cols,
+        first,
+        scale,
+        threads,
+    )
+    torch.testing.assert_close(delta, expected, rtol=0, atol=0)

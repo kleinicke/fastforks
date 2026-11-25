@@ -116,3 +116,19 @@ extern "C" __global__ void scatter_windows2(
         dst[raster * ch + i % ch] = src[i];
     }
 }
+
+extern "C" __global__ void window_cab_residual2(
+    __half2* windows, const __half2* shortcut, const __half2* conv, const __half2* weights,
+    int h, int w, int channels, int conv_channels, int win, int shift,
+    int y0, int x0, int region_cols, int first, float scale, int64_t count) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        int64_t raster = window_token(i / channels, h, w, win, shift, y0, x0, region_cols, first);
+        int c = i % channels;
+        __half2 joined = __hadd2(shortcut[raster * channels + c], windows[i]);
+        __half2 branch = __hmul2(conv[raster * conv_channels + c], weights[c]);
+        float2 value = __half22float2(branch);
+        __half2 scaled = __floats2half2_rn(value.x * scale, value.y * scale);
+        windows[i] = __hadd2(joined, scaled);
+    }
+}

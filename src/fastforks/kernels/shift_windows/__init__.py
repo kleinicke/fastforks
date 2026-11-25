@@ -11,6 +11,7 @@ SIGNATURES.update(dict.fromkeys(("reverse_add2", "reverse_add4"), "ppppiiiiiifi"
 SIGNATURES["stream_window2"] = "ppp" + "i" * 9 + "l"
 SIGNATURES["pack_dense_windows2"] = "p" * 6 + "i" * 11 + "l"
 SIGNATURES["scatter_windows2"] = "pp" + "i" * 9 + "l"
+SIGNATURES["window_cab_residual2"] = "pppp" + "i" * 10 + "fl"
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 

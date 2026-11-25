@@ -27,10 +27,11 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.kernels import linear
 from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
 from fastforks._core.tracing import in_onnx_export
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.kernels.shift_windows import rearrange, reverse_residual
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -46,6 +47,12 @@ from fastforks.shared.swin_sr import (
     shifted_window_regions,
     stripe_pixelshuffle,
     window_attention,
+)
+from fastforks.shared.swin_sr.window_tiles import (
+    QKV_TILE_BYTES,
+    WINDOW_STREAM_BYTES,
+    can_stream,
+    raster_regions,
 )
 
 from .net import HAT
@@ -171,6 +178,45 @@ def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) 
     x = window_reverse(out.reshape(-1, ws, ws, c), ws, h, w).view(b, h * w, c)
     x = m.proj(x) + shortcut
     return x + m.mlp(m.norm2(x))
+
+
+def _ocab_stripes(m: OCAB, x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Bound overlapping attention QKV by rows, including the neighboring keys and values."""
+    height, width = size
+    batch, _, dim = x.shape
+    c = m.qkv.out_features // 3
+    ws, ow, heads = m.window_size, m.overlap_win_size, m.num_heads
+    p = (ow - ws) // 2
+    image = x.view(batch, height, width, dim)
+    out = torch.empty_like(image)
+    budget = 192 << 20
+    step = ws * max(1, budget // (ws * width * 3 * c * x.element_size()))
+    for n in range(batch):
+        for start in range(0, height, step):
+            stop = min(start + step, height)
+            lo, hi = max(0, start - p), min(height, stop + p)
+            base = image[n : n + 1, lo:hi]
+            qkv = m.qkv(m.norm1(base))
+            q = qkv[:, start - lo : stop - lo, :, :c]
+            q = window_partition(q, ws).reshape(-1, ws * ws, heads, c // heads).transpose(1, 2)
+            kv = qkv[..., c:].permute(0, 3, 1, 2)
+            padded = F.pad(kv, (p, p, max(0, p - start), max(0, stop + p - height)))
+            del qkv, kv
+            attended = _overlap_attention(m, q, padded, (stop - start, width))
+            del q, padded
+            tile = window_reverse(attended.view(-1, ws, ws, c), ws, stop - start, width).view(1, stop - start, width, c)
+            del attended
+            tile = m.proj(tile).add_(image[n : n + 1, start:stop])
+            updated = m.mlp(m.norm2(tile)).add_(tile)
+            out[n : n + 1, start:stop].copy_(updated)
+            del tile, updated
+    return out.view_as(x)
+
+
+def _cuda_ocab(m: OCAB, x: torch.Tensor, size: tuple[int, int], rpi: torch.Tensor) -> torch.Tensor:
+    if x.numel() * x.element_size() >= WINDOW_STREAM_BYTES and can_stream(x, size, m.window_size):
+        return _ocab_stripes(m, x, size)
+    return _ocab(m, x, size, rpi)
 
 
 def _prepare(net: HAT) -> None:
@@ -302,10 +348,97 @@ def _cab(m: CAB, x: torch.Tensor) -> torch.Tensor:
     return m.cab(x)[:, : m.channels]
 
 
+def _cab_parts(m: CAB, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Return the convolution and its channel gate separately for the window residual kernel."""
+    up, activation, down, squeeze = m.cab
+    expanded = down(torch.ops.aten.gelu_(up(x), approximate=activation.approximate))
+    return expanded, squeeze.get_submodule("attention")(expanded)
+
+
+def _hat_window_epilogue(m: HAB, x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Apply attention, the channel gate and the pointwise MLP in bounded window batches."""
+    h, w = size
+    win, shift = m.window_size, m.shift_size
+    c = x.shape[-1]
+    normalized = m.norm1(x)
+    pixels = normalized.unflatten(1, (h, w)).permute(0, 3, 1, 2)
+    conv, weights = _cab_parts(m.conv_block, pixels)
+    weights = weights.flatten(1).contiguous()
+    conv = conv.flatten(2).transpose(1, 2)
+    if conv.stride(-1) != 1 or conv.stride(1) % 2:
+        conv = conv.contiguous()
+    a = m.attn
+    bias = a.get_buffer("bias")
+    regions, masks = raster_regions(size, win, shift, x)
+    library = shift_windows.load(x.device)
+    output = torch.empty_like(x)
+    step = max(1, QKV_TILE_BYTES // (win**2 * a.qkv.out_features * x.element_size()))
+    for kind, (r0, c0, rows, cols) in enumerate(regions):
+        tile_bias = bias if masks is None or not kind else bias + masks[kind]
+        for b in range(x.shape[0]):
+            for first in range(0, rows * cols, step):
+                raw = x.new_empty((min(step, rows * cols - first), win**2, c))
+                count = raw.numel() // 2
+                args = win, shift, r0, c0, cols, first
+                library.launch(
+                    "stream_window2",
+                    *linear(count),
+                    normalized[b],
+                    None,
+                    raw,
+                    h,
+                    w,
+                    c // 2,
+                    *args,
+                    count,
+                )
+                out = window_attention(
+                    raw,
+                    a.qkv,
+                    a.proj,
+                    heads=a.num_heads,
+                    scale=a.scale,
+                    bias=tile_bias,
+                    mask=None,
+                )
+                del raw
+                library.launch(
+                    "window_cab_residual2",
+                    *linear(count),
+                    out,
+                    x[b],
+                    conv[b],
+                    weights[b],
+                    h,
+                    w,
+                    c // 2,
+                    conv.stride(1) // 2,
+                    *args,
+                    m.conv_scale,
+                    count,
+                )
+                out.add_(m.mlp(m.norm2(out)))
+                library.launch(
+                    "scatter_windows2",
+                    *linear(count),
+                    out,
+                    output[b],
+                    h,
+                    w,
+                    c // 2,
+                    *args,
+                    count,
+                )
+                del out
+    return output
+
+
 def _shifted_block(
     m: HAB, x: torch.Tensor, x_size: tuple[int, int], rpi_sa: torch.Tensor, attn_mask: torch.Tensor
 ) -> torch.Tensor:
     """Partition the hybrid-attention windows and reverse them while adding the residuals."""
+    if x.numel() * x.element_size() >= WINDOW_STREAM_BYTES and can_stream(x, x_size, m.window_size):
+        return _hat_window_epilogue(m, x, x_size)
     h, w = x_size
     normalized = m.norm1(x)
     att = m.attn(
@@ -331,6 +464,8 @@ class Kernels(Portable):
         for m in list(self.net.modules()):
             if isinstance(m, HAB):
                 override(m, _shifted_block)
+            elif isinstance(m, OCAB):
+                override(m, _cuda_ocab)
             if isinstance(m, CAB):
                 _pad_cab(m)
             if is_base(m, torch.nn.Conv2d):
