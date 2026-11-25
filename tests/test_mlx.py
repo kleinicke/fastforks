@@ -1243,3 +1243,171 @@ def test_mlx_rtmo_matches_torch(dtype):
     tol = 1e-4 if dtype == "float32" else 2e-2
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g), w, atol=tol * w.abs().max().item(), rtol=tol * 10)
+
+
+def _randomise(net: torch.nn.Module) -> torch.nn.Module:
+    """Random parameters that exercise every term: unit-gain maps, norms and layer scales away from identity."""
+    torch.manual_seed(0)
+    with torch.no_grad():
+        for name, p in net.named_parameters():
+            if p.ndim >= 2:
+                p.normal_(0, p[0].numel() ** -0.5)
+            elif name.endswith(("gamma", "lambda1")) or ("norm" in name and name.endswith("weight")):
+                p.uniform_(0.5, 1.5)
+            else:
+                p.normal_(0, 0.1)
+    return net.eval()
+
+
+@pytest.mark.parametrize(("registers", "ffn"), [(0, "mlp"), (4, "swiglufused")])
+def test_mlx_dinov2_engine_matches_torch(registers, ffn):
+    """`mlx_vit.DinoFeatureEngine` (the shared blocks, evaluated one by one) against the vendored DINOv2 ViT."""
+    pytest.importorskip("mlx.core")
+    from fastforks.features.models.dinov2 import model  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.shared import mlx_vit  # noqa: PLC0415
+    from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer  # noqa: PLC0415
+
+    vit = DinoVisionTransformer(
+        img_size=56, patch_size=14, embed_dim=48, depth=3, num_heads=4, mlp_ratio=4, init_values=1.0, ffn_layer=ffn,
+        block_chunks=0, num_register_tokens=registers, interpolate_antialias=bool(registers),
+        interpolate_offset=0.0 if registers else 0.1,
+    )  # fmt: skip
+    vit.__class__ = model._Vit
+    _randomise(vit)
+    params = mlx_vit.dinov2_params(dict(vit.state_dict()), 14)
+    engine = mlx_vit.DinoFeatureEngine(params, "float32", 4, functools.partial(model._pos_embed, vit))
+    x = torch.randn(2, 3, 42, 70)  # not the table's grid: the positions are interpolated
+    with torch.no_grad():
+        t = vit.prepare_tokens_with_masks(x)
+        want = []
+        for blk in vit.blocks:
+            t = blk(t)
+            want.append(t)
+        last = vit.norm(t)
+    got_last, got = engine(x, (1, 3))
+    assert (engine.depth, engine.registers, engine.hidden_size) == (3, registers, 48)
+    torch.testing.assert_close(got_last, last, atol=2e-3, rtol=2e-3)
+    for g, w in zip(got, (want[0], want[2]), strict=True):
+        torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize("image_logits", [True, False])
+def test_mlx_dino_linear_probe_matches_torch(image_logits):
+    """`mlx_vit.DinoLinearProbe`: the image head reads `[cls, mean of patches]`, the patch head every patch token."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_vit  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer  # noqa: PLC0415
+
+    vit = _randomise(
+        DinoVisionTransformer(
+            img_size=56, patch_size=14, embed_dim=48, depth=2, num_heads=4, mlp_ratio=4, init_values=1.0, block_chunks=0
+        )
+    )
+    weight, bias = torch.randn(5, 96 if image_logits else 48) / 7, torch.randn(5)
+    probe = mlx_vit.DinoLinearProbe(vit, weight, bias, "float32", image_logits=image_logits)
+    x = torch.randn(2, 3, 56, 56)
+    with torch.no_grad():
+        t = vit.prepare_tokens_with_masks(x)
+        for blk in vit.blocks:
+            t = blk(t)
+        t = vit.norm(t)
+        tokens = torch.cat([t[:, 0], t[:, 1:].mean(1)], -1) if image_logits else t[:, 1:]
+        want = tokens @ weight.T + bias
+    torch.testing.assert_close(probe(x), want, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize("gated", [False, True])
+def test_mlx_dinov3_matches_torch(gated):
+    """`dinov3.mlx_net` (packed q / k / v, folded LayerScale, RoPE with identity prefix rows) against `DINOv3ViT`."""
+    pytest.importorskip("mlx.core")
+    from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.features.models.dinov3 import mlx_net, net  # noqa: PLC0415
+    from fastforks.shared.mlx_vit import rope_tables  # noqa: PLC0415
+
+    cfg = net.Config(48, 4, 3, 96, gated=gated)
+    vit = _randomise(net.DINOv3ViT(cfg))
+    params = mlx_net.prepare(dict(vit.state_dict()))
+    x = torch.randn(2, 3, 48, 80)
+    cos, sin = net.rope_table(3, 5, cfg.hidden_size // cfg.num_heads, cfg.rope_theta, torch.device("cpu"))
+    cos, sin = rope_tables(to_mx(cos), to_mx(sin), 1 + net.REGISTERS)
+    out = mlx_net.forward(params, cfg, (0, 2, 3), 1.0, to_mx(x), cos, sin)
+    mx.eval(*out)
+    with torch.no_grad():
+        want, hidden = vit.run(x, (0, 2, 3))
+    torch.testing.assert_close(torch.from_numpy(np.array(out[0])), want, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(
+        torch.from_numpy(np.stack([np.array(a) for a in out[1:]], 1)), hidden, atol=2e-3, rtol=2e-3
+    )
+
+
+@pytest.mark.parametrize("layer_scale", [False, True])
+def test_mlx_c_radio_engine_matches_torch(layer_scale):
+    """`c_radio.mlx_net.Engine` from `params` against the timm ViT with the checkpoint's position resampling."""
+    pytest.importorskip("mlx.core")
+    from fastforks.features.models.c_radio import mlx_net, model  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.shared.libnet import timm  # noqa: PLC0415
+
+    dim, heads, patch, grid = 48, 4, model._PATCH, model._GRID
+    vit = _randomise(
+        timm().models.vision_transformer.VisionTransformer(
+            img_size=grid * patch, patch_size=patch, num_classes=0, global_pool="", embed_dim=dim, depth=3,
+            num_heads=heads, mlp_ratio=4, init_values=1.0 if layer_scale else None, class_token=False,
+            pos_embed="none", no_embed_class=True, final_norm=False, dynamic_img_size=True,
+        )
+    )  # fmt: skip
+    with torch.no_grad():
+        vit.patch_embed.proj.bias.zero_()  # the checkpoint's embedder has none
+    pos, tok, summary = torch.randn(1, grid * grid, dim) / 4, torch.randn(5, dim) / 4, [0, 2]
+    state = dict(vit.state_dict())
+    del state["patch_embed.proj.bias"]
+    params = mlx_net.params(state, pos, tok, summary)
+    assert not state
+    engine = mlx_net.Engine(params, heads, "float32", align=False)
+    x = torch.randn(2, 3, 3 * patch, 5 * patch)
+    with torch.no_grad():
+        t = vit.patch_embed.proj(x).flatten(2).transpose(1, 2) + model._resample(pos, 3, 5, align_corners=False)
+        t = torch.cat([tok.expand(2, -1, -1), t], 1)
+        want = []
+        for blk in vit.blocks:
+            t = blk(t)
+            want.append(t)
+    got = engine(x, (1, 2))
+    assert (engine.prefix_tokens, engine.summaries) == (5, 2)
+    torch.testing.assert_close(got["last_hidden_state"], t, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(got["pooler_output"], t[:, summary].flatten(1), atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(got["hidden_states"], torch.stack(want[:2], 1), atol=2e-3, rtol=2e-3)
+    assert set(engine(x, ())) == {"last_hidden_state", "pooler_output"}
+
+
+@pytest.mark.parametrize("pad_to", [{}, {16: 64, 32: 64}])
+@pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
+def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):
+    """`sam2.mlx_net.MlxEncoder` against upstream Hiera and the folded neck.
+
+    The small trunk has every block kind: windows that divide the map and windows that need padding, a global block,
+    and the three stage transitions with pooled queries (the last one from padded windows). `pad_to` runs the
+    stages with head dim 16 and 32 through the fused attention kernel, as Base Plus's 56 is.
+    """
+    pytest.importorskip("mlx.core")
+    from fastforks.promptable_segmentation.models.sam2 import fast, mlx_net  # noqa: PLC0415 - optional (mlx extra)
+    from fastforks.promptable_segmentation.models.sam2.net.hieradet import Hiera  # noqa: PLC0415
+
+    trunk = _randomise(
+        Hiera(
+            embed_dim=16, num_heads=1, stages=(1, 2, 3, 2), global_att_blocks=(4,),
+            window_pos_embed_bkg_spatial_size=(7, 7), window_spec=(8, 4, 6, 3),
+        )
+    )  # fmt: skip
+
+    def lin(cout: int, cin: int) -> tuple[torch.Tensor, torch.Tensor]:
+        return torch.randn(cout, cin) * cin**-0.5, torch.randn(cout) / 10
+
+    neck = fast.Neck(lin(24, 128), lin(24, 64), lin(8, 32), lin(4, 16), torch.randn(24) / 10)
+    pos = fast.pos_embed(trunk, 32)
+    x = torch.randn(1, 3, 128, 128)
+    with torch.no_grad():
+        want = fast.neck(neck, fast.trunk(trunk, x, pos))
+    got = mlx_net.MlxEncoder(trunk, neck, pos, dtype, pad_to=pad_to)(x)
+    assert set(got) == set(want)
+    for k, w in want.items():
+        torch.testing.assert_close(got[k], w, atol=tol, rtol=tol)
