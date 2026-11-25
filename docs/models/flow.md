@@ -88,7 +88,7 @@ Commercial use: yes.
   - `flowformer-small-things`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `flowformer-small-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark
 - Options: `cuda_graphs` = True (speed only), `iters` = 32 (>= 1)
-- Kernel libraries: `flow_upsample`
+- Kernel libraries: `flow_upsample`, `raft_flow`
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
@@ -130,9 +130,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float32 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `flowformer-small-chairs` | 0.00039 / 0.00146 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `flowformer-small-things` | 0.00037 / 0.00168 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `flowformer-small-sintel` | 0.00031 / 0.00148 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `flowformer-small-chairs` | 0.0005 / 0.00206 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `flowformer-small-things` | 0.0004 / 0.00199 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `flowformer-small-sintel` | 0.00037 / 0.00166 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
@@ -416,7 +416,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `megaflow` | 0.00199 / 0.00579 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `megaflow` | 0.00199 / 0.00579 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
@@ -495,9 +495,9 @@ CPU, float32: max |diff| <= 4.2e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `memflow` | 0.00089 / 0.00347 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `memflow-sintel` | 0.00072 / 0.00354 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `memflow-kitti` | 0.00106 / 0.00435 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `memflow` | 0.00076 / 0.00307 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
+| `memflow-sintel` | 0.00056 / 0.00266 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
+| `memflow-kitti` | 0.00069 / 0.00322 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
@@ -586,10 +586,10 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `memfof` | 0.00065 / 0.00304 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `memfof-kitti` | 0.00035 / 0.00157 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `memfof-sintel` | 0.00041 / 0.00206 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `memfof-spring` | 0.00066 / 0.00442 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `memfof` | 0.00057 / 0.00266 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `memfof-kitti` | 0.00037 / 0.0016 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `memfof-sintel` | 0.00042 / 0.00214 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `memfof-spring` | 0.00071 / 0.00445 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
@@ -661,9 +661,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `neuflow-v2` | 0.00075 / 0.00425 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `neuflow-v2-sintel` | 0.00084 / 0.0046 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `neuflow-v2-things` | 0.00094 / 0.00429 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `neuflow-v2` | 0.00075 / 0.00409 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
+| `neuflow-v2-sintel` | 0.00084 / 0.00438 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
+| `neuflow-v2-things` | 0.00093 / 0.0044 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 
@@ -762,10 +762,10 @@ CPU, float32: max |diff| <= 0.00012 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `raft-large` | 0.00098 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `raft-large-things` | 0.00105 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `raft-large-kitti` | 0.00096 / 0.00441 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `raft-small` | 0.00228 / 0.00957 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `raft-large` | 0.00098 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `raft-large-things` | 0.00105 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `raft-large-kitti` | 0.00096 / 0.00441 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `raft-small` | 0.00228 / 0.00957 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 </details>
 
@@ -922,13 +922,13 @@ CPU, float32: max |diff| <= 0.00025 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sea-raft-m` | 0.00103 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-m-kitti` | 0.00085 / 0.00411 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-m-spring` | 0.00149 / 0.00741 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-m-things` | 0.00083 / 0.00347 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-s` | 0.00149 / 0.00788 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-s-kitti` | 0.00141 / 0.00847 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
-| `sea-raft-s-spring` | 0.0027 / 0.01574 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `sea-raft-m` | 0.00103 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-m-kitti` | 0.00085 / 0.00411 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-m-spring` | 0.00149 / 0.00741 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-m-things` | 0.00083 / 0.00347 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-s` | 0.00149 / 0.00788 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-s-kitti` | 0.00141 / 0.00847 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `sea-raft-s-spring` | 0.0027 / 0.01574 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
 
 </details>
 

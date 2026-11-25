@@ -13,7 +13,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import base_type, override
 from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import flow_upsample
+from fastforks.kernels import flow_upsample, raft_flow
 from fastforks.shared import libnet, mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.cuda_softmax import softmax_rows_
@@ -174,6 +174,17 @@ class _Volume:
         self.f2 = fmap2
         self.windows: tuple[torch.Tensor, torch.Tensor] | None = None  # the lookup's float16 copies, made once
 
+    def window_features(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """The two contiguous feature maps read by every correlation lookup."""
+        if self.windows is None:
+            b, c, h, w = self.f2.shape
+            dtype = torch.float16 if self.f2.is_cuda else self.f2.dtype
+            self.windows = (
+                self.f1.to(dtype).contiguous(),
+                self.f2.to(dtype).permute(0, 2, 3, 1).reshape(b, h * w, c).contiguous(),
+            )
+        return self.windows
+
 
 def _corr(enc: MemoryEncoder, fmap1: torch.Tensor, fmap2: torch.Tensor) -> _Volume:
     """`MemoryEncoder.corr`, deferred (`_Volume`)."""
@@ -330,10 +341,7 @@ def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> tor
     interpolated; the window index is x offset major, as upstream's grid.
     """
     b, c, h, w = vol.f2.shape
-    if vol.windows is None:
-        dt = torch.float16 if vol.f2.is_cuda else vol.f2.dtype
-        vol.windows = vol.f1.to(dt).contiguous(), vol.f2.to(dt).permute(0, 2, 3, 1).reshape(b, h * w, c).contiguous()
-    f1, f2 = vol.windows
+    f1, f2 = vol.window_features()
     side = 2 * RADIUS + 2
     xy = coords.float().flatten(2)
     out = torch.empty(b, h * w, (side - 1) ** 2, device=coords.device)
@@ -354,6 +362,29 @@ def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> tor
             )
             out[i, s : s + p] = v.transpose(1, 2).reshape(p, -1)
     return out.view(b, h, w, -1).permute(0, 3, 1, 2)
+
+
+def _windows_cuda(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
+    """Build the local costs from the two feature maps without materializing a neighbourhood tensor."""
+    b, _, h, w = vol.f2.shape
+    f1, f2 = vol.window_features()
+    xy = coords.float().permute(0, 2, 3, 1).contiguous()
+    out = torch.empty((b, h, w, (2 * RADIUS + 1) ** 2), device=coords.device, dtype=torch.float32)
+    cuda = raft_flow.load(coords.device)
+    warps = 8  # each CUDA block computes eight complete windows
+    for i in range(b):
+        cuda.launch(
+            "corr_lookup_flowformer",
+            ((h * w + warps - 1) // warps, 1, 1),
+            (warps * 32, 1, 1),
+            f1[i],
+            f2[i],
+            h,
+            w,
+            xy[i],
+            out[i],
+        )
+    return out.permute(0, 3, 1, 2)
 
 
 def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ...]:
@@ -422,7 +453,8 @@ class Kernels(Portable):
         override(self.net.memory_encoder, _corr, "corr")
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
         _prepare_patch_embed(self.net.memory_encoder.cost_perceiver_encoder.patch_embed)
-        override(self.net.memory_decoder, _windows, "encode_flow_token")
+        lookup = _windows_cuda if ctx.params.encoder_latent_dim == 256 else _windows  # noqa: PLR2004 - kernel width
+        override(self.net.memory_decoder, lookup, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
         from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm

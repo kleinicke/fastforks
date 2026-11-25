@@ -25,13 +25,13 @@ upstream = "https://github.com/drinkingcoder/FlowFormer-Official@6ba7ea82b45394d
 settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."flowformer-small-chairs@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_flowformer" = "94d41a7cc1fee2d9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
-date = "2026-11-17"
-mean_px = 0.00039
-p99_px = 0.00146
+torch = "2.14.1+cu130"
+date = "2026-11-25"
+mean_px = 0.0005
+p99_px = 0.00206
 
 [validated."flowformer-small-chairs@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
@@ -43,13 +43,13 @@ mean_px = 0.00081
 p99_px = 0.00403
 
 [validated."flowformer-small-sintel@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_flowformer" = "94d41a7cc1fee2d9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
-date = "2026-11-17"
-mean_px = 0.00031
-p99_px = 0.00148
+torch = "2.14.1+cu130"
+date = "2026-11-25"
+mean_px = 0.00037
+p99_px = 0.00166
 
 [validated."flowformer-small-sintel@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
@@ -61,13 +61,13 @@ mean_px = 0.00148
 p99_px = 0.00827
 
 [validated."flowformer-small-things@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_flowformer" = "94d41a7cc1fee2d9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
-date = "2026-11-17"
-mean_px = 0.00037
-p99_px = 0.00168
+torch = "2.14.1+cu130"
+date = "2026-11-25"
+mean_px = 0.0004
+p99_px = 0.00199
 
 [validated."flowformer-small-things@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]

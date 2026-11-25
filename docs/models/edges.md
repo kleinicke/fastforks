@@ -194,8 +194,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lineart` | 0.00011 / 0.00079 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@c55f9fff92d3:sm_120` |
-| `lineart-coarse` | 0.00014 / 0.00102 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@c55f9fff92d3:sm_120` |
+| `lineart` | 0.00011 / 0.00079 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@bdc5777f8d79:sm_120` |
+| `lineart-coarse` | 0.00014 / 0.00102 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@bdc5777f8d79:sm_120` |
 
 </details>
 

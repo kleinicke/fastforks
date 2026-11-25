@@ -210,8 +210,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gimm-vfi-r` | 6e-05 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
-| `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
+| `gimm-vfi-r` | 6e-05 / 0.00046 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@639b3b16ea48:sm_120` |
+| `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@639b3b16ea48:sm_120` |
 
 ### Limitations
 

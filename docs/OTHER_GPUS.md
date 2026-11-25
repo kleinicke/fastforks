@@ -162,7 +162,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `pointdit_norm` | pointdit |
 | `pose_warp` | hrnet, rtmo, rtmpose |
 | `raft` | dlnr, raft_stereo |
-| `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
+| `raft_flow` | flowformer, gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
 | `recover_motion` | recover |
 | `resize_cat` | u2net |
 | `rfdetr_input` | rfdetr, rfdetr_keypoint |
