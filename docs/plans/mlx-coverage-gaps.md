@@ -1664,6 +1664,47 @@ Left: peaks +130-220 MB fp16 and +370-540 MB fp32 above the exported port's (sid
 2443-2500 MB in one process): the level-1 transients (qkv, its depthwise output, the 2.66x FFN hidden) of two halves
 in flight; still 1.6-2.7 GB under MPS. Warm -8 to -48 %. 3 refs, hand-written.
 
+### Done: RTMDet (2026-11-25)
+
+M1 Pro, 800x1344, MLX goldens pass (fp16 and fp32). `auto` now also takes MLX portable float16 for rtmdet-m-person,
+rtmdet-tiny-coco and rtmdet-x-coco (MPS before: the exported port's 1.5-2.3 s first call was over budget); the other
+four stay MLX portable float16.
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| rtmdet-tiny-coco | MLX before, portable fp16 / fp32 | 24.4 / 32.4 | 1.93 / 1.78 | 618 / 703 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 19.0 / 20.1) | 19.7 / 20.7 | 0.59 / 0.79 | 518 / 570 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 27.0 / 28.6 | 0.65 / 0.71 | 1545 / 1551 | |
+| rtmdet-nano-person | MLX before, portable fp16 / fp32 | 8.9 / 9.3 | 2.31 / 2.22 | 417 / 437 | MLX portable fp16 |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 6.4 / 6.9) | 6.7 / 7.4 | 0.57 / 0.59 | 367 / 373 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 17.8 / 19.3 | 2.46 / 2.46 | 1426 / 1426 | |
+| rtmdet-s-coco | MLX before, portable fp16 / fp32 | 25.9 / 33.0 | 1.30 / 1.28 | 721 / 800 | MLX portable fp16 |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 19.9 / 23.5) | 22.3 / 24.3 | 0.59 / 0.61 | 635 / 737 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 31.0 / 33.6 | 2.43 / 2.49 | 1636 / 1648 | |
+| rtmdet-m-coco | MLX before, portable fp16 / fp32 | 50.1 / 60.2 | 1.62 / 1.60 | 921 / 1077 | MLX portable fp16 |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 40.2 / 48.5) | 43.7 / 51.2 | 0.61 / 0.57 | 958 / 1089 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 51.4 / 56.0 | 2.37 / 2.39 | 1869 / 1945 | |
+| rtmdet-m-person | MLX before, portable fp16 / fp32 | 47.7 / 60.1 | 1.50 / 1.41 | 880 / 982 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 39.2 / 48.3) | 41.5 / 51.1 | 0.07 / 0.09 | 830 / 997 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 48.8 / 53.4 | 0.24 / 0.23 | 1753 / 1825 | |
+| rtmdet-l-coco | MLX before, portable fp16 / fp32 | 74.9 / 98.7 | 1.85 / 1.79 | 928 / 1060 | MLX portable fp16 |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 61.6 / 72.6) | 63.9 / 77.2 | 0.63 / 0.74 | 1096 / 1434 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 75.8 / 85.1 | 2.45 / 2.55 | 1941 / 1915 | |
+| rtmdet-x-coco | MLX before, portable fp16 / fp32 | 126.5 / 162.5 | 2.14 / 2.15 | 1219 / 1516 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 111.7 / 125.5) | 113.5 / 137.9 | 0.75 / 0.71 | 1478 / 1899 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 115.7 / 128.0 | 2.45 / 2.56 | 2124 / 2166 | |
+
+`detection/models/rtmdet/mlx_net.py` writes CSPNeXt, the PAFPN and the shared-conv head in `mlx.core` from the new
+`shared/cspnext/mlx_net.py` layers (RTMPose / RTMW's port moved onto them too): convs `mx.conv2d` (the translator's
+`_conv2d` dispatch raised rtmdet-x fp32 to 2182 MB), the 5 x 5 depthwise convs the shared depthwise kernel, SiLU in
+float32, the SPP's 9 / 13 pools as repeated 5 x 5 ones. Each stage, neck block and head level is a depth-1 step
+(`csp.stepped`): one compiled graph of the whole detector held all its transients (rtmdet-x fp32 call footprint
+1860 MB, stepped ~1800 MB). Warm -10 to -36 %, first call 1.3-2.3 -> 0.07-0.79 s.
+
+Left: peaks of l / x +170-380 MB above the exported port's (x fp32 1899 vs 1516 MB; the load peak alone 1269 vs
+1163 MB, the stepped call's transients the rest); s / tiny / nano 50-130 MB lower, m about level; all 0.4-1.1 GB under
+MPS. 7 refs, hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /

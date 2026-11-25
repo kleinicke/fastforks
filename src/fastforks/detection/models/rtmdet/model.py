@@ -258,6 +258,28 @@ class Kernels(Portable):
                 cache.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), canvases, decoding and NMS as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network (BatchNorm folded), its weights copied to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_net.MlxRTMDet(self.net, mlx_wrap.run_dtype(ctx))
+        self.net = None  # the MLX copy replaces it
+
+    def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The float32 NCHW head maps of a normalised float32 input."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        maps = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
+        mx.eval(*maps)
+        return tuple(to_torch(m).permute(0, 3, 1, 2) for m in maps)
+
+
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
     """`Attention.forward` with the spatial mean over one flattened axis (MPS: `mean((2, 3))` is ~30x slower)."""
     return x * F.hardsigmoid(self.fc(x.flatten(2).mean(-1)[..., None, None]))
@@ -277,5 +299,5 @@ def extra() -> dict[tuple[str, str], object]:
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
