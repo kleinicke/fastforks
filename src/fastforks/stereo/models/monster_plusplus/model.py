@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import types
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import torch
+
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
@@ -13,8 +18,6 @@ from .net.inference import fold_for_inference, forward_fast
 from .net.monster import Monster
 
 if TYPE_CHECKING:
-    import torch
-
     from fastforks.stereo._runner import Context
 
 
@@ -38,8 +41,32 @@ def _net(ctx: Context) -> Monster:
         max_disp=ctx.params.max_disp,
         mixed_precision=False,  # the CUDA paths run in pure fp16 / fp32 weights instead of autocast
     )
-    net = Monster(args)
-    net.load_state_dict(ctx.state_dict(key="state_dict"))  # {"state_dict": ...} checkpoint
+    assign = (
+        ctx.device.type == "cuda"
+        and ctx.variant.ref == "monster-plusplus-mix-all@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+    with torch.device("meta") if assign else nullcontext():
+        net = Monster(args)
+    state = ctx.state_dict(key="state_dict")
+    if assign:
+        # The vendored constructor keeps these tensors outside the checkpoint.
+        net.mean = torch.tensor(IMAGENET_MEAN, device="cpu")
+        net.std = torch.tensor(IMAGENET_STD, device="cpu")
+        load_strict(net, state, f"{ctx.variant.ref} checkpoint", assign=True)
+        if ctx.dtype == "float16":
+            # FastViT prepares its interpolation cache from the unrounded checkpoint table.
+            encoder = net.mono_encoder
+            position = encoder.pos_embed
+            encoder.register_parameter("pos_embed", None)
+            encoder.to(device=ctx.device, dtype=torch.float16)
+            encoder.register_parameter(
+                "pos_embed", torch.nn.Parameter(position.to(ctx.device), requires_grad=position.requires_grad)
+            )
+    else:
+        net.load_state_dict(state)
+    del state
     return net.eval().to(ctx.device)
 
 
