@@ -1574,14 +1574,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1816 | 1699 | 1.1x | 1.1x | 3930 / 4298 | 1510 / 1564 | 1510 / 1564 |
 | nninteractive | 200x200 | 705 | 460 | 209 | 193 | 2.4x | 1.1x | 4076 / 4636 | 2423 / 2772 | 2423 / 2772 |
-| totalsegmentator-total | 200x200 | 47779 | 45630 | 2053 | 1429 | – | 1.4x | 2640 / 2874 | 1851 / 2650 | 1194 / 1606 |
-| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 83.6 | 35.9 | – | 2.3x | 2010 / 2684 | 904 / 1404 | 900 / 1376 |
-| totalsegmentator-total-6mm | 200x200 | 108 | 102 | 12.0 | 7.01 | – | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
-| totalsegmentator-v3-total | 200x200 | 5104 | 2673 | 2051 | 1429 | – | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
-| totalsegmentator-v3-total-3mm | 200x200 | 192 | 150 | 83.1 | 35.3 | – | 2.4x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
-| totalsegmentator-v3-total-6mm | 200x200 | 107 | 103 | 11.7 | 7.01 | – | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
-| totalsegmentator-v3-total-small | 200x200 | 5229 | 3370 | 3354 | 1628 | – | 2.1x | 1328 / 1508 | 1624 / 3174 | 1093 / 1872 |
-| totalsegmentator-v3-total-small-3mm | 200x200 | 143 | 127 | 84.5 | 26.7 | – | 3.2x | 424 / 490 | 1054 / 1218 | 1050 / 1218 |
+| totalsegmentator-total | 200x200 | 4888 | 2614 | 2050 | 1437 | 1.8x | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-total-3mm | 200x200 | 192 | 149 | 87.4 | 39.6 | – | 2.2x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-total-6mm | 200x200 | 108 | 102 | 16.0 | 11.4 | – | 1.4x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total | 200x200 | 5104 | 2673 | 2054 | 1434 | 1.9x | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-v3-total-3mm | 200x200 | 192 | 150 | 87.2 | 40.1 | – | 2.2x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-v3-total-6mm | 200x200 | 107 | 103 | 16.9 | 12.7 | – | 1.3x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total-small | 200x200 | 5229 | 3370 | 3398 | 1634 | 2.1x | 2.1x | 1328 / 1508 | 1624 / 3174 | 1093 / 1872 |
+| totalsegmentator-v3-total-small-3mm | 200x200 | 143 | 127 | 91.4 | 30.2 | – | 3.0x | 424 / 490 | 1054 / 1218 | 1050 / 1218 |
 
 ### Startup and first call
 
@@ -2165,8 +2165,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | nnfoundation-cnn | 1.18 | 0.56 | 0.39 | 0.69 | 0.27 | 0.29 |
 | nnfoundation-vit | 9.54 (192x192) | 1.24 (192x192) | 1.27 (192x192) | 2.37 (192x192) | 1.87 (192x192) | 1.76 (192x192) |
 | nninteractive | 3.23 | 1.09 | 0.65 | 1.04 | 0.48 | 0.40 |
-| totalsegmentator-total | 0.07 | 0.77 | 0.77 | 54.51 | 2.10 | 1.88 |
-| totalsegmentator-total-3mm | 0.06 | 1.18 | 1.19 | 12.48 | 0.26 | 0.21 |
+| totalsegmentator-total | 0.27 | 0.77 | 0.77 | 8.54 | 2.10 | 1.88 |
+| totalsegmentator-total-3mm | 0.05 | 1.18 | 1.19 | 2.64 | 0.26 | 0.21 |
 | totalsegmentator-total-6mm | 0.29 | 1.35 | 1.20 | 3.53 | 0.25 | 0.14 |
 | totalsegmentator-v3-total | 0.07 | 1.35 | 0.98 | 8.59 | 2.29 | 1.55 |
 | totalsegmentator-v3-total-3mm | 0.05 | 1.33 | 1.19 | 2.51 | 0.32 | 0.18 |
@@ -2317,11 +2317,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | unik3d-vitl | 994x1482 | 107 ms | 94.4 ms | 58.0 ms | 62.8 ms | 32.8 s | 105 s | 1063 / 1152 | 1258 / 1312 | 985 / 1066 | 1609 / 1678 |
 | video-depth-anything-metric-s | 480x640 | 147 ms | 101 ms (single image) | 60.2 ms (single image) | 59.5 ms | 32.5 s | 82.1 s | 953 / 1146 | 1143 / 1464 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-metric-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 61.8 ms | 34.2 s | 92.5 s | 1083 / 1764 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
+| video-depth-anything-metric-s | 32x994x1482 | 822 ms | 721 ms (32-frame clip, decoded CPU RGB to CPU depth) | – | 627 ms | 65.9 s | – | 1368 / 1666 | 1513 / 1992 | 1259 / 1636 | – |
 | video-depth-anything-s | 88x1080x1920 | 1423 ms | 1314 ms (full 88-frame clip) | – | 1233 ms | 82.7 s | – | 6207 / 6524 | 7762 / 8530 | 6288 / 6486 | – |
 | video-depth-anything-s | 480x640 | 147 ms | 100 ms (single image) | 60.3 ms (single image) | 58.4 ms | 34.8 s | 103 s | 953 / 1146 | 1143 / 1344 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-s | 88x480x640 | 954 ms | 762 ms (full 88-frame clip) | 524 ms (full 88-frame clip) | 835 ms | 51.8 s | 181 s | 1730 / 1946 | 2587 / 3260 | 1796 / 1946 | 2753 / 3148 |
 | video-depth-anything-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 62.2 ms | 33.6 s | 100 s | 1083 / 1766 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
-| video-depth-anything-s | 32x994x1482 | 824 ms | 719 ms (32-frame clip, decoded CPU RGB to CPU depth) | – | 629 ms | 62.9 s | – | 1368 / 1666 | 1513 / 1990 | 1259 / 1636 | – |
+| video-depth-anything-s | 32x994x1482 | 824 ms | 719 ms (32-frame clip, decoded CPU RGB to CPU depth) | 253 ms (32-frame clip, CUDA tensors in and out) | 629 ms | 62.9 s | 104 s | 1368 / 1666 | 1513 / 1990 | 1259 / 1636 | 1995 / 2370 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 1843 / 1944 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | 1.74 ms | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | 100 / 144 | 158 / 170 |
@@ -2846,14 +2847,14 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nnfoundation-vit | 192x192 | 1816 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1699 ms | 69.5 s | 127 s | 1510 / 1564 | 1406 / 1484 | 1510 / 1564 | 8452 / 8452 |
 | nninteractive | 200x200 | 209 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 193 ms | 18.0 s | – | 2423 / 2772 | 3643 / 3832 | 2423 / 2772 | – |
 | nninteractive | 192x192 | 204 ms | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | 2145 / 2608 | – | – | 2738 / 2740 |
-| totalsegmentator-total | 200x200 | 2053 ms | 1504 ms (compiled patch network inside the full sliding-window call) | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1429 ms | 28.6 s | 152 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 6646 / 7136 |
-| totalsegmentator-total-3mm | 200x200 | 83.6 ms | 52.7 ms (compiled patch network inside the full sliding-window call) | 74.4 ms (patch network, standalone build) | 35.9 ms | 8.63 s | 31.3 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 2909 / 2970 |
-| totalsegmentator-total-6mm | 200x200 | 12.0 ms | 8.00 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 7.01 ms | 7.58 s | 17.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
-| totalsegmentator-v3-total | 200x200 | 2051 ms | 1500 ms (compiled patch network inside the full sliding-window call) | 2326 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1429 ms | 27.4 s | 89.8 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 3032.0 process |
-| totalsegmentator-v3-total-3mm | 200x200 | 83.1 ms | 52.3 ms (compiled patch network inside the full sliding-window call) | 205 ms, fp32 engine (one fixed nnU-Net patch engine with eager full-volume preprocessing and labels) | 35.3 ms | 8.59 s | 31.9 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 3122.0 process |
-| totalsegmentator-v3-total-6mm | 200x200 | 11.7 ms | 8.02 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 7.01 ms | 7.46 s | 16.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
-| totalsegmentator-v3-total-small | 200x200 | 3354 ms | 2100 ms (compiled patch network inside the full sliding-window call) | 4478 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1628 ms | 74.1 s | 165 s | 1624 / 3174 | 1759 / 2144 | 1093 / 1872 | 3764.0 process |
-| totalsegmentator-v3-total-small-3mm | 200x200 | 84.5 ms | 46.0 ms (compiled patch network inside the full sliding-window call) | 111 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 26.7 ms | 19.7 s | 34.2 s | 1054 / 1218 | 1054 / 1130 | 1050 / 1218 | 2238.0 process |
+| totalsegmentator-total | 200x200 | 2050 ms | 1504 ms (compiled patch network inside the full sliding-window call) | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1437 ms | 28.6 s | 152 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 6646 / 7136 |
+| totalsegmentator-total-3mm | 200x200 | 87.4 ms | 52.7 ms (compiled patch network inside the full sliding-window call) | 74.4 ms (patch network, standalone build) | 39.6 ms | 8.63 s | 31.3 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 2909 / 2970 |
+| totalsegmentator-total-6mm | 200x200 | 16.0 ms | 8.00 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 11.4 ms | 7.58 s | 17.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
+| totalsegmentator-v3-total | 200x200 | 2054 ms | 1500 ms (compiled patch network inside the full sliding-window call) | 2326 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1434 ms | 27.4 s | 89.8 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 3032.0 process |
+| totalsegmentator-v3-total-3mm | 200x200 | 87.2 ms | 52.3 ms (compiled patch network inside the full sliding-window call) | 205 ms, fp32 engine (one fixed nnU-Net patch engine with eager full-volume preprocessing and labels) | 40.1 ms | 8.59 s | 31.9 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 3122.0 process |
+| totalsegmentator-v3-total-6mm | 200x200 | 16.9 ms | 8.02 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 12.7 ms | 7.46 s | 16.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
+| totalsegmentator-v3-total-small | 200x200 | 3398 ms | 2100 ms (compiled patch network inside the full sliding-window call) | 4478 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1634 ms | 74.1 s | 165 s | 1624 / 3174 | 1759 / 2144 | 1093 / 1872 | 3764.0 process |
+| totalsegmentator-v3-total-small-3mm | 200x200 | 91.4 ms | 46.0 ms (compiled patch network inside the full sliding-window call) | 111 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 30.2 ms | 19.7 s | 34.2 s | 1054 / 1218 | 1054 / 1130 | 1050 / 1218 | 2238.0 process |
 <!-- compile:end -->
 
 ## Original code

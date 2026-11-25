@@ -798,19 +798,19 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 11 models; size 200x200.
 
-- Fastest: [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) (7.0 ms).
-- Fastest commercially usable: [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) (7.0 ms).
+- Fastest: [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) (11.4 ms).
+- Fastest commercially usable: [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) (11.4 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.8 (200x200) | 11.7 | 7.0 | 1.7x vs portable | 200 |
-| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.5 (200x200) | 12.0 | 7.0 | 1.7x vs portable | 200 |
-| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | 126.9 (200x200) | 84.5 | 26.7 | 3.2x vs portable | 1050 |
-| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | 149.8 (200x200) | 83.1 | 35.3 | 2.4x vs portable | 900 |
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 83.6 | 35.9 | 2.3x vs portable | 900 |
+| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.5 (200x200) | 16.0 | 11.4 | 1.4x vs portable | 200 |
+| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.8 (200x200) | 16.9 | 12.7 | 1.3x vs portable | 200 |
+| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | 126.9 (200x200) | 91.4 | 30.2 | 3.0x vs portable | 1050 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 148.8 (200x200) | 87.4 | 39.6 | 2.2x vs portable | 900 |
+| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | 149.8 (200x200) | 87.2 | 40.1 | 2.2x vs portable | 900 |
 | [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 208.7 | 193.5 | 2.4x vs original (200x200) | 2423 |
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 247.6 | 231.9 | 1.2x vs original (200x200) | 2325 |
-| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | 2673.1 (200x200) | 2051.0 | 1429.0 | 1.4x vs portable | 1194 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 2052.7 | 1429.2 | 1.4x vs portable | 1194 |
-| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | 3369.8 (200x200) | 3353.9 | 1627.9 | 2.1x vs portable | 1093 |
+| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | 2673.1 (200x200) | 2054.4 | 1434.2 | 1.9x vs original (200x200) | 1194 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 2614.3 (200x200) | 2049.9 | 1437.1 | 1.8x vs original (200x200) | 1194 |
+| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | 3369.8 (200x200) | 3398.1 | 1634.1 | 2.1x vs original (200x200) | 1093 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1816.2 | 1699.4 (192x192) | 1.1x vs portable | 1510 |

@@ -1065,6 +1065,7 @@ _SCOPE_LABELS = {
     "decoded-cpu-rgb-to-cpu-depth": "Decoded CPU RGB to CPU depth",
     "decoded-cpu-rgb-clip-to-cpu-depth": "Decoded CPU RGB clip to CPU depth",
     "cuda-rgb-to-cuda-depth": "CUDA RGB to CUDA depth",
+    "cuda-rgb-float32-clip-to-cuda-depth": "CUDA RGB clip to CUDA depth",
 }
 
 
