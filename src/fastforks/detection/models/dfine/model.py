@@ -13,6 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from torch.nn import functional as F
+
+from fastforks._core.half import fp32_accumulate
+from fastforks._core.patch import override
 from fastforks.detection import _rtdetr_runner as base
 from fastforks.detection._convs import DepthwiseConvs
 from fastforks.kernels import cudnn_hacc
@@ -66,12 +70,24 @@ class Portable(base.Portable):
         )
 
 
+def _aifi_linear_float_accumulate(self: torch.nn.Linear, x: torch.Tensor) -> torch.Tensor:
+    with fp32_accumulate():
+        return F.linear(x, self.weight, self.bias)
+
+
 class Kernels(base.Kernels, Portable):
     """The RT-DETR runner's kernels (`cudnn_hacc`, fp16-accumulate GEMMs, CUDA graph); depthwise convs by fvm_conv."""
 
     cudnn_hacc = cudnn_hacc
     GraphCache = GraphCache
     convs = DepthwiseConvs
+
+    def __init__(self, ctx: Context) -> None:
+        """Use wider accumulation at the Nano checkpoint's sensitive encoder projection."""
+        super().__init__(ctx)
+        if ctx.variant.ref == "dfine-n-coco@1":
+            net: Any = self.net
+            override(net.encoder.aifi.linear1, _aifi_linear_float_accumulate)
 
 
 RUNNERS = {
