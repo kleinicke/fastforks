@@ -222,6 +222,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "peak_alloc_mb": alloc,
                 "peak_reserved_mb": reserved,
                 "device_mb": c.get("device_mb"),
+                "process_peak_mb": c.get("nvml_peak_mb"),
                 "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
                 "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
                 "standalone": bool(c.get("standalone_build")),

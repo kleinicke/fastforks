@@ -781,11 +781,13 @@ def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
 
 
 def _trt_peak(row: dict | None) -> str:
-    """`alloc / reserved` of `_trt_peaks`; `unknown` where the engine memory was not recorded; a dash without a row."""
+    """Report estimated allocator peaks or a measured process peak, whichever the run recorded."""
     if row is None or "fails" in row:
         return DASH
     peaks = _trt_peaks(row)
-    return "unknown" if peaks is None else f"{peaks[0]} / {peaks[1]}"
+    if peaks is not None:
+        return f"{peaks[0]} / {peaks[1]}"
+    return f"{row['nvml_peak_mb']} process" if row.get("nvml_peak_mb") is not None else "unknown"
 
 
 def _ms_str(ms: object) -> str:

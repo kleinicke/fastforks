@@ -151,6 +151,8 @@ misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error aga
 `compare_to_original: false` suppresses a site speed ratio when the timed scope differs from the original call.
 `standalone_build: true` identifies a test outside the public TensorRT exporter. Its failure can coexist with a
 card that marks the public exporter unavailable.
+`nvml_peak_mb` is device telemetry for the full measured process. Use it when the engine's memory and PyTorch's
+memory cannot be separated, and state which models are resident in the measurement notes.
 `export_and_build_s` records the combined setup time when it was measured through the public TensorRT exporter.
 
 Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-like extra that the docs tables do not

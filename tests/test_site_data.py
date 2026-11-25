@@ -257,6 +257,14 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
         {
             "ref": "model",
             "mode": "tensorrt",
+            "input": "128x128",
+            "ms": 25,
+            "standalone_build": True,
+            "nvml_peak_mb": 140,
+        },
+        {
+            "ref": "model",
+            "mode": "tensorrt",
             "input": "96x96",
             "standalone_build": True,
             "fails": "TensorRT: label validation failed",
@@ -276,6 +284,10 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     assert engine["part"] == "standalone build"
     assert (engine["peak_alloc_mb"], engine["peak_reserved_mb"]) == (50, 60)
     assert sizes["64x64"]["compile"]["part"] == "VAE only"
+    process = sizes["128x128"]["tensorrt"]
+    assert process["process_peak_mb"] == 140
+    assert process["peak_alloc_mb"] is None
+    assert g._trt_peak(compiled["model", "tensorrt", "128x128"]) == "140 process"
     assert "32x32" not in sizes
     with_portable = {"model": [{"input": "32x32", "mode": "portable", "ms": 20}]}
     failed = site_data._speed(variant, "depth", with_portable)["inputs"][0]
