@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1695 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1700 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -433,13 +433,13 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 71.8 | 57.4 | – | – | – | 791 | – |
 | [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 46.1 | 37.1 | unsupported | – | – | 768 | – |
 | [`rtdetrv2-x-coco`](../models/detection.md#rtdetrv2) | 139 | 118 | – | – | – | 953 | – |
-| [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 98.7 | 74.9 | – | – | – | 928 | – |
-| [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 60.2 | 50.1 | – | – | – | 921 | – |
-| [`rtmdet-m-person`](../models/detection.md#rtmdet) | 60.1 | 47.7 | – | – | – | 880 | – |
-| [`rtmdet-nano-person`](../models/detection.md#rtmdet) | 9.26 | 8.87 | – | – | – | 417 | – |
-| [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 33.0 | 25.9 | unsupported | – | – | 721 | – |
-| [`rtmdet-tiny-coco`](../models/detection.md#rtmdet) | 32.4 | 24.4 | unsupported | – | – | 618 | – |
-| [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 163 | 126 | – | – | – | 1219 | – |
+| [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 77.2 | 63.9 | unsupported | – | – | 1096 | – |
+| [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 51.2 | 43.7 | unsupported | – | – | 958 | – |
+| [`rtmdet-m-person`](../models/detection.md#rtmdet) | 51.1 | 41.5 | unsupported | – | – | 830 | – |
+| [`rtmdet-nano-person`](../models/detection.md#rtmdet) | 7.44 | 6.69 | unsupported | – | – | 367 | – |
+| [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 24.3 | 22.3 | unsupported | – | – | 635 | – |
+| [`rtmdet-tiny-coco`](../models/detection.md#rtmdet) | 20.7 | 19.7 | unsupported | – | – | 518 | – |
+| [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 138 | 113 | unsupported | – | – | 1478 | – |
 | [`yolox-l`](../models/detection.md#yolox) | 92.9 | 69.6 | – | – | – | 851 | – |
 | [`yolox-m`](../models/detection.md#yolox) | 51.8 | 44.6 | – | – | – | 736 | – |
 | [`yolox-s`](../models/detection.md#yolox) | 28.6 | 22.4 | 28.8 | 20.8 | 1.1x | 607 | 618 |

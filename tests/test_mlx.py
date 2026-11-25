@@ -1166,3 +1166,31 @@ def test_mlx_restormer_matches_torch(norm):
         want = net(x)
     got = to_torch(mlx_net.MlxRestormer(net, "float32")(to_mx(x)))
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"deepen": 0.167, "widen": 0.375, "neck_blocks": 1, "depthwise": False},  # tiny
+        {"deepen": 0.33, "widen": 0.25, "neck_blocks": 1, "depthwise": True},  # nano (separable convs)
+    ],
+)
+def test_mlx_rtmdet_matches_torch(params):
+    """The hand-written RTMDet (`rtmdet/mlx_net.py`, the shared CSPNeXt layers) against the network, float32."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection.models.rtmdet import mlx_net  # noqa: PLC0415
+    from fastforks.detection.models.rtmdet.net import Arch, RTMDet  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = RTMDet(Arch(num_classes=3, exp_on_reg=False, **params)).eval()
+    for p in net.parameters():  # the default init is small: larger weights and biases exercise SiLU and attention
+        p.data.mul_(1.5)
+    x = torch.randn(2, 3, 128, 160, generator=torch.Generator().manual_seed(1))
+    with torch.no_grad():
+        want = net(x)
+    got = mlx_net.MlxRTMDet(net, "float32")(to_mx(x.permute(0, 2, 3, 1)))
+    assert len(got) == len(want) == 6
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g).permute(0, 3, 1, 2), w, atol=1e-4 * w.abs().max().item(), rtol=1e-3)
