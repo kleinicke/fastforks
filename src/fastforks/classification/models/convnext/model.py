@@ -44,7 +44,7 @@ class Kernels(Runner):
         self.head = tuple(
             t.detach().float().to(ctx.device) for t in (head.norm.weight, head.norm.bias, head.fc.weight, head.fc.bias)
         )
-        self._graphs = SmallShapeGraphs(self._forward, pixels=_GRAPH_PIXELS, graphs=_GRAPHS)
+        self._graphs = SmallShapeGraphs(self._forward, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, capture_warmup=False)
 
     def _forward(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised `[B, 3, H, W]` float32 -> logits `[B, classes]` float32."""
