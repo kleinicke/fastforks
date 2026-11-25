@@ -50,60 +50,12 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "focalnet_base_lrf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "focalnet_base_srf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "focalnet_small_lrf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "focalnet_small_srf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "focalnet_tiny_lrf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "focalnet_tiny_srf.ms_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "foundationstereo-vit-l@1": (
         "kernels float16",
         "kernels float32",
         "portable float32",
     ),
     "foundationstereo-vit-s@1": ("kernels float32",),
-    "hgnetv2_b0.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "hgnetv2_b1.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "hgnetv2_b3.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "hgnetv2_b4.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "hgnetv2_b5.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "hgnetv2_b6.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "hrnet-w48-fcn-ade20k@1": (
         "kernels float16",
         "kernels float32",
