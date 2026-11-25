@@ -13,7 +13,7 @@ from fastforks._core.errors import WeightsError
 # fx-traced CNNs (including StarNet), ViT (fused attention), Swin (window masks), TinyViT (its own kernels runner)
 REFS = ["mobilenet_v2.tv2_in1k@1", "vit_base_patch16_224.augreg2_in21k_ft_in1k@1",
         "swin_base_patch4_window7_224.ms_in22k_ft_in1k@1", "tiny_vit_5m_224.dist_in22k_ft_in1k@1",
-        "starnet_s1.in1k@1"]  # fmt: skip
+        "starnet_s1.in1k@1", "convnext_tiny.fb_in1k@1"]  # fmt: skip
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
 
