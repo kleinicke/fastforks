@@ -449,8 +449,8 @@ No MLX float16, because the golden fails (tolerances unchanged):
 ## Where MLX trails MPS: the next optimization queue (2026-11-24)
 
 From the two M1 Pro survey files (best passing row per ref and backend, warm ms): 541 refs have both, geomean MLX/MPS
-0.895, and 176 run more than 5% slower on MLX. `matting/matanyone` has had an MLX port since 2026-11-24; the six TotalSegmentator
-refs have a port but no MLX row yet. Rows the running agents are re-measuring (ben2, EfficientViT-SAM, the Conv3d and
+0.895, and 176 run more than 5% slower on MLX. `matting/matanyone` has had an MLX port since 2026-11-24; the two local TotalSegmentator
+refs were surveyed on MLX on 2026-11-25 ("Done: TotalSegmentator" below). Rows the running agents are re-measuring (ben2, EfficientViT-SAM, the Conv3d and
 fp16 re-surveys) may already be better than below.
 
 Work them one family at a time, at most two or three GPU agents at once (they share `gpu.sh`). Each: profile the
@@ -474,9 +474,10 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
 | 0.78, 0.34, 0.65, 0.67 (were 1.6, 1.6, 1.4, 1.6) | lineart, anyline, segnext-mscan-b/l | done, all seven refs of the three families auto-routed to MLX: hand-written networks, 0.07-0.22 s first calls ("Done: line art, AnyLine and SegNeXt" below) |
 | 0.80, 0.70, 0.70 (were 1.5-1.6) | sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | done: all auto-routed to MLX; oneformer and mask2former share a hand-written network (0.9 s first call), gmflow-scale2* and sapiens-seg-1b re-surveyed ("Done: Sapiens, OneFormer, GMFlow" below) |
+| 0.87, 0.95 (were 1.47, 1.42) | totalsegmentator-total, -total-3mm | `total` done, auto-routed to MLX fp16 (20.0 s vs 23.1 s); 3mm faster warm but its 2.3 s first call misses the rule ("Done: TotalSegmentator" below) |
 
-Also: survey the six TotalSegmentator
-refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
+Also: the other TotalSegmentator refs (total-6mm and the v3 tasks) have no local weights or goldens, so no MLX
+row; they share `volume/mlx_net.py` once surveyed.
 
 ## Restormer and RealPLKSR on MLX (2026-11-24)
 
@@ -1595,7 +1596,7 @@ in MB above it; 51 rows, gmflow-scale1-mixdata dropped out):
 
   These are mostly the process base: MLX plus torch against torch alone.
 - Other:
-  - totalsegmentator-total-3mm +658 (another agent is on it).
+  - totalsegmentator-total-3mm +658, now +1666 in fp16 with the hand-written network's 2 GB cache ("Done: TotalSegmentator" below; not auto-routed).
   - realplksr +555 (above).
   - gimm-vfi-r +299 and film +276, at 1080p: 12.2 against 11.9 GB and 9.5 against 9.2 GB.
   - bisenet-face-parsing +167, vitmatte-s +92, parseq-tiny +78, parseq +55.
@@ -1671,6 +1672,49 @@ Kernels mode (the cards now name `cnn_mlx`, the global pool a Metal kernel) meas
   row regresses; the float16 copy is not yet found.
 - StarNet was already a hand-written network (`mlx_cnn._star_net`); its 2026-11-19 rows predated later first-call
   fixes. Re-surveyed, it fits the budget without a code change.
+
+### Done: TotalSegmentator (2026-11-25)
+
+M1 Pro, a 200^3 CT volume (`total`: five 1.5 mm parts x eight 128^3 windows; `total-3mm`: one 112x112x128 window),
+all four MLX goldens pass (`tools/speed_survey.py`):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| totalsegmentator-total | MLX before, fp16 / fp32 | 33823 / 42521 | 38.3 / 47.6 | 3402 / 4198 | – |
+| | MLX now, fp16 / fp32 | 19980 / 25905 | 20.1 / 27.4 | 5853 / 5257 | MLX fp16 |
+| | MPS portable, fp16 / fp32 | 23070 / 27804 | 23.6 / 25.5 | 6058 / 10180 | |
+| totalsegmentator-total-3mm | MLX before, fp16 / fp32 | 740 / 828 | 1.91 / 2.21 | 3246 / 3031 | – |
+| | MLX now, fp16 / fp32 | 495 / 709 | 2.26 / 0.78 | 4254 / 5203 | MPS |
+| | MPS portable, fp16 / fp32 | 522 / 593 | 0.69 / 0.75 | 2588 / 4385 | |
+
+`total` goes to MLX under `auto` (both dtypes routed for explicit `device="mlx"`). `total-3mm` stays on MPS: fp16 is
+only 1.05x faster warm and its first call (2.26 s; an earlier run read 0.58 s, so it is noisy) is above the
+0.69 + 2 x 0.52 s limit; fp32 is slower than MPS.
+
+Before, the port replayed the exported PlainConvUNet. Now `volume/mlx_net.py` is a hand-written channels-last network
+built from the nnU-Net plan, weights in the conversion cache (layout `unet-v1`), nothing exported:
+
+- 3x3x3 convs at stride 1 with at least 16^3 voxels and 16 channels: banded Winograd F(4,3) (`conv_mlx`), about 2.5x
+  `mx.conv3d`, in float16 only. Float32 Winograd ran 16-60 s per window (`mx.conv3d`: 525 ms), so float32 and the
+  deep small maps and stride-2 convs use `mx.conv3d`. The one-channel input conv is an im2col of 27 taps and a GEMM.
+- Biases before an instance norm are dropped; the norm statistics are float32, scale-shift and LeakyReLU one
+  compiled function. The transposed convs are a GEMM and an interleave; only the last deep-supervision head runs.
+- The forward is one lazy graph per window, no per-layer `mx.eval`. Fresh zero-filled Metal allocations past the
+  buffer cache dominated, so the runner raises the cache to 2 GB (`cache_mb=2048`, the 1/8 cap at 16 GB). Dataset291
+  fp16 per window:
+
+| cache | lazy graph | eval per layer |
+|---|---|---|
+| 128 MB (base) | 420 ms | 495 ms |
+| 2 GB | 350 ms | 460 ms |
+| unlimited (about 6 GB held) | 255 ms | – |
+
+  `mx.compile` of the whole forward ran 806 ms.
+- `MlxPredictor._accumulate` sums the windows channels last in a float16 accumulator and takes the argmax there.
+
+Left: the accumulate still costs about 4 s of the 20 s `total` call (slice updates on the 1.2 GB accumulator); an
+unlimited cache would give about 255 ms per window but holds 6 GB, past the cap policy; the 3mm first call; the
+other TotalSegmentator refs need weights and goldens.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
