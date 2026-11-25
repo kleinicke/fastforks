@@ -640,3 +640,32 @@ def test_gmflow_two_channel_expectation(dev, rows, columns):
     torch.testing.assert_close(out[:, 2:-2], torch.bmm(scores.softmax(-1), values), rtol=2e-5, atol=2e-6)
     assert torch.all(out[:, :2] == -1000)
     assert torch.all(out[:, -2:] == -1000)
+
+
+@pytest.mark.parametrize(("tokens", "width"), [(11, 64), (17, 1024)])
+def test_vggt_omega_join_layer_norm(dev, tokens, width):
+    from fastforks.kernels.vggt_omega import load  # noqa: PLC0415 - CUDA kernel only
+
+    generator = torch.Generator(device=dev).manual_seed(29)
+    left = torch.randn(3, tokens + 3, width, generator=generator, device=dev)[:, 1 : tokens + 1]
+    right = torch.randn(3, tokens + 5, width, generator=generator, device=dev)[:, 3 : tokens + 3]
+    weight = torch.randn(2 * width, generator=generator, device=dev)
+    bias = torch.randn(2 * width, generator=generator, device=dev)
+    out = left.new_empty((3, tokens, 2 * width), dtype=torch.float16)
+    expected = F.layer_norm(torch.cat((left, right), -1), (2 * width,), weight, bias, 1e-6).half()
+    load(left.device).launch(
+        "omega_join_ln",
+        (3 * tokens, 1, 1),
+        (256, 1, 1),
+        left,
+        right,
+        out,
+        weight,
+        bias,
+        tokens,
+        *left.stride()[:2],
+        *right.stride()[:2],
+        width,
+        1e-6,
+    )
+    torch.testing.assert_close(out, expected, rtol=1e-3, atol=5e-4)

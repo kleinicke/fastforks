@@ -440,6 +440,7 @@ class _Base(Runner):
     Params = Params
     gacc = False  # fp16-accumulate GEMMs in the encoder (except the SwiGLU w3)
     dense_chunk = 8  # views per DPT chunk
+    compact_dense_features = False
 
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
@@ -548,8 +549,12 @@ class _Base(Runner):
             else:  # per view: the scale token sits out
                 y = self.block(p, x[:, :-1].reshape(v, n + 1, c))
                 x = torch.cat([y.view(1, -1, c), x[:, -1:]], 1)
-            if i in INTERMEDIATE or i == self.info_count - 1:
-                outs.append(info.norm(x))
+            if i == self.info_count - 1 or i in INTERMEDIATE:
+                normalized = info.norm(x)
+                if i != self.info_count - 1 and self.compact_dense_features:
+                    normalized = normalized.to(self.dt)
+                outs.append(normalized)
+                del normalized
         return [o[0, :-1].view(v, n + 1, c) for o in outs], outs[-1][0, -1]
 
     # ------------------------------------------------------------------ heads
@@ -575,6 +580,24 @@ class _Base(Runner):
             return out.view(*pixels.shape[:-1], channels)
         return F.linear(pixels.float(), self.head_w, self.head_b)
 
+    def _project_by_rows(self, y: torch.Tensor, head: torch.nn.Module, rows: int) -> torch.Tensor:
+        """Preserve the 3x3 head convolution context and retain only the projected output for each stripe."""
+        views, _, h, w = y.shape
+        out = torch.empty((views, h, w, self.head_w.shape[0]), device=y.device, dtype=torch.float32)
+        memory_format = (
+            torch.channels_last if y.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+        )
+        for start in range(0, h, rows):
+            end = min(start + rows, h)
+            lo, hi = max(0, start - 1), min(h, end + 1)
+            stripe = y[..., lo:hi, :].contiguous(memory_format=memory_format)
+            refined = head(stripe)
+            del stripe
+            image = self.project_head(refined)
+            out[:, start:end].copy_(image[:, start - lo : end - lo])
+            del image, refined
+        return out
+
     def dense(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:
         """DPT on 4 `[V, C, gh, gw]` features -> raw head output `[V, h, w, 6]` (fp32)."""
         dh: Any = self.net.dense_head
@@ -584,8 +607,13 @@ class _Base(Runner):
         for s in range(0, feats[0].shape[0], self.dense_chunk):
             y = dh[0]([f[s : s + self.dense_chunk] for f in feats])
             y = F.interpolate(dh[1].conv1(y), (h, w), mode="bilinear", align_corners=True)
-            y = dh[1].conv2(y)  # 3x3 conv + ReLU (the last 1x1 conv is head_w / head_b)
-            outs.append(self.project_head(y))
+            rows = 128  # bounded head convolution workspace, with the original view batch
+            if self.compact_dense_features and y.numel() * y.element_size() >= 128 << 20 and y.shape[-2] > rows:
+                outs.append(self._project_by_rows(y, dh[1].conv2, rows))
+            else:
+                y = dh[1].conv2(y)  # 3x3 conv + ReLU (the last 1x1 conv is head_w / head_b)
+                outs.append(self.project_head(y))
+            del y
         return torch.cat(outs) if len(outs) > 1 else outs[0]
 
     def _staged_blocks(self) -> Generator[_Blk]:
@@ -600,6 +628,8 @@ class _Base(Runner):
         norm = self.net.fusion_norm_layer
         feats = F.layer_norm(tok[:, 1:].float(), (DIM,), norm.weight, norm.bias, 1e-6)
         layers, scale_tok = self.share(feats, tok[:, 0].float(), info)
+        if self.compact_dense_features:
+            feats = feats.to(self.dt)
         return feats, layers, scale_tok
 
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -702,6 +732,8 @@ class Kernels(_Base):
     """`fastbb` flash attention (fp16 accumulation) everywhere, fp16-accumulate encoder GEMMs, not w3."""
 
     gacc = True
+
+    compact_dense_features = True
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107
         super().__init__(ctx)

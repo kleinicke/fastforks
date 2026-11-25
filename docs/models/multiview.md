@@ -681,7 +681,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `vggt-omega-1b-512` | 0.0002 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `vggt_omega@b8fa01afd00c:sm_120` |
+| `vggt-omega-1b-512` | 0.00021 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `vggt_omega@b31a95bb0646:sm_120` |
 
 ### Limitations
 
