@@ -619,7 +619,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -3047,7 +3048,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -10555,6 +10557,14 @@
    }
   },
   "sam2.1-hiera-base-plus@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -10572,6 +10582,9 @@
    }
   },
   "sam2.1-hiera-large@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -10589,6 +10602,9 @@
    }
   },
   "sam2.1-hiera-small@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -10606,6 +10622,9 @@
    }
   },
   "sam2.1-hiera-tiny@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -12210,12 +12229,17 @@
    }
   },
   "tipsv2-l14@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
