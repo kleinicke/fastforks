@@ -226,7 +226,9 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
                 "standalone": bool(c.get("standalone_build")),
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
+                "first_call_s": c.get("engine_first_call_s", c.get("first_call_s")) if mode == "tensorrt" else None,
                 "date": c.get("date"),
+                "torch": c.get("torch"),
                 **({"compare_to_original": False} if c.get("compare_to_original") is False else {}),
             }
             if task == "volume" and mode == "tensorrt" and c.get("net_input"):

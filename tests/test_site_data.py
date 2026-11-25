@@ -196,6 +196,9 @@ def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeyp
         "volume_shape": [200, 200, 200],
         "net_input": "2x1x112x112x128",
         "backend_part": "patch network, standalone build",
+        "engine_first_call_s": 0.02,
+        "first_call_s": 0.03,
+        "torch": "2.14.1+cu130",
     }
     monkeypatch.setattr(site_data.g, "_compile_rows", lambda: {(model.id, "tensorrt", "200x200"): engine})
     monkeypatch.setattr(site_data.g, "_oom", set)
@@ -218,6 +221,8 @@ def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeyp
     assert profiles["200x200"]["workload"] == {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
     assert profiles["200x200"]["tensorrt"]["engine_input"] == "2x1x112x112x128"
     assert profiles["200x200"]["tensorrt"]["part"] == "patch network, standalone build"
+    assert profiles["200x200"]["tensorrt"]["first_call_s"] == 0.02
+    assert profiles["200x200"]["tensorrt"]["torch"] == "2.14.1+cu130"
     assert profiles["422x255x255"]["workload"] == {"volume_shape": [422, 255, 255], "spacing_mm": [1.0, 0.8, 0.8]}
 
 
