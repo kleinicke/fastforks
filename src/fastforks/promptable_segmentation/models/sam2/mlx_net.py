@@ -14,8 +14,10 @@ first call (1.6 to 3.8 s on an M1 Pro; 0.15 to 0.6 s like this).
   so those stay as they are.
 - Windowed blocks partition the normalised map, zero-padded to whole windows (the padded tokens are keys, as
   upstream's); the query pooling of a stage's first block is a 2 x 2 max over each window.
-- The blocks are evaluated one by one (`mx.async_eval` of a block, then waiting for the one before it): the stage-1
-  maps are 256 x 256 tokens, and one lazy graph of the trunk keeps every block's temporaries alive at once.
+- The blocks are evaluated one by one, since one lazy graph of the trunk keeps every block's temporaries alive at
+  once. From stage 2 on a block is started (`mx.async_eval`) before the one before it is waited for, so the GPU never
+  idles while Python builds the next graph. The stage-1 blocks (256 x 256 tokens, 0.3 to 0.5 GB of temporaries each)
+  are evaluated alone: two of them in flight were 3 to 5 % faster and 0.3 to 0.5 GB more peak memory.
 """
 
 # ruff: noqa: ANN401 - the upstream trunk's torch modules
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
 
 __all__ = ["MlxEncoder"]
 
+SYNC_TOKENS = 1 << 16  # blocks on maps this large are evaluated alone (see the module docstring)
 PAD_TO = {56: 64}  # head dims padded to one MLX's attention runs fused, where that was measured faster
 
 
@@ -179,11 +182,16 @@ class MlxEncoder:
         x = (x + self.patch_b + self.pos).astype(self.stream)
         feats, prev = [], None
         for i, blk in enumerate(self.blocks):
+            big = x.shape[1] * x.shape[2] >= SYNC_TOKENS
             x = blk(x)
-            mx.async_eval(x)
-            if prev is not None:
-                mx.eval(prev)
-            prev = x
+            if big:
+                mx.eval(x)
+                prev = None
+            else:
+                mx.async_eval(x)
+                if prev is not None:
+                    mx.eval(prev)
+                prev = x
             if i in self.stage_ends:
                 feats.append(x)
         f0, f1, f2, f3 = feats
