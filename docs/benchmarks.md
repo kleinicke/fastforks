@@ -2724,7 +2724,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
-| memfof-kitti | 1080x1920 | 2202 ms | fails: CUDA out of memory (requested 1.96 GiB) | fails: TensorRT engine build: CUDA out of memory during Myelin tact | 1565 ms | – | – | 14515 / 14918 | – | 3805 / 4038 | – |
+| memfof-kitti | 1080x1920 | 2202 ms | 1951 ms (full flow inference with expandable CUDA segments) | fails: TensorRT engine build: CUDA out of memory during Myelin tact | 1565 ms | 57.8 s | – | 14515 / 14918 | 14294 / 14654 | 3805 / 4038 | – |
 | memfof-kitti | 384x1248 | 1526 ms | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | 3285 / 5238 | – | – | 4252 / 5692 |
 | memfof-sintel | 1080x1920 | 2177 ms | fails: CUDA out of memory (requested 1.96 GiB) | fails: CUDA out of memory (requested 3.91 GiB) | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
