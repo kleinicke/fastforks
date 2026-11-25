@@ -508,6 +508,109 @@ def test_speed_scene_normalizes_only_known_synthetic_fixtures():
     assert g._ratio(slow, {"ms": 2}) == "5.0x"
 
 
+def test_ratio_uses_known_timing_boundaries_and_preserves_legacy_rows():
+    original = {
+        "ref": "totalsegmentator-total-3mm",
+        "input": "200x200",
+        "mode": "upstream",
+        "ms": 20,
+        "scene": "synthetic (fastforks bench)",
+        "note": "in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)",
+    }
+    resident = {
+        "ref": original["ref"],
+        "input": original["input"],
+        "mode": "kernels",
+        "ms": 2,
+        "scene": "synthetic",
+        "note": "GPU-resident input and output.",
+    }
+    legacy_original_scope = "cpu-ct-to-cpu-labels-per-call-load"
+    assert g._speed_scope(original)["comparison_scope"] == legacy_original_scope
+    assert g._ratio(original, resident) == g.DASH
+    assert g._ratio(original, resident | {"note": ""}) == "10.0x"
+    host = "cpu-ct-to-cpu-labels"
+    assert g._ratio(original, resident | {"comparison_scope": host}) == g.DASH
+    assert g._ratio(original | {"comparison_scope": host}, resident | {"comparison_scope": host}) == "10.0x"
+    assert g._ratio(original | {"comparison_scope": host}, resident) == g.DASH
+
+
+def test_selected_backend_timings_and_notes_survive_scope_mismatch(monkeypatch):
+    card, variant = registry.resolve_any("totalsegmentator-v3-total-3mm")
+    data = {
+        "ref": variant.id,
+        "task": card.task,
+        "input": "200x200",
+        "scene": "synthetic",
+        "volume_shape": [200, 200, 200],
+        "spacing_mm": [1.5, 1.5, 1.5],
+    }
+    original = data | {
+        "mode": "upstream",
+        "ms": 20,
+        "dtype": "float16",
+        "comparison_scope": "cpu-ct-to-cpu-labels",
+    }
+    portable = data | {
+        "mode": "portable",
+        "ms": 8,
+        "note": "GPU-resident input and output.",
+        "peak_alloc_mb": 100,
+        "peak_reserved_mb": 120,
+    }
+    kernels = portable | {"mode": "kernels", "ms": 4}
+    compiled = data | {
+        "mode": "compile",
+        "ms": 5,
+        "backend_part": "compiled patch network inside the full sliding-window call",
+    }
+    engine = data | {
+        "mode": "tensorrt",
+        "ms": 6,
+        "comparison_scope": "fixed-patch-logits",
+        "standalone_build": True,
+        "compare_to_original": False,
+        "note": "Strict FP32. FP16 exceeded the validation limit.",
+    }
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    monkeypatch.setattr(
+        site_data.g,
+        "_compile_rows",
+        lambda: {(variant.id, mode, data["input"]): row for mode, row in (("compile", compiled), ("tensorrt", engine))},
+    )
+    source = {variant.id: [original, portable, kernels]}
+    result = site_data._speed(variant, card.task, source)["inputs"][0]
+    assert result["mixed_scopes"]
+    assert result["modes"]["original16"]["ms"] == 20
+    assert result["compile"]["comparison_scope"] == result["modes"]["kernels"]["comparison_scope"]
+    assert result["tensorrt"]["ms"] == 6
+    assert result["tensorrt"]["compare_to_original"] is False
+    assert result["tensorrt"]["note"] == engine["note"]
+    assert g._ratio(original, compiled) == g.DASH
+    assert g._ratio(portable, kernels) == "2.0x"
+    overview = {row["id"]: row for row in g._overview_rows(card.task, {}, source, {})}[variant.id]
+    assert overview["original"] == 20
+    assert overview["speedup"] == (2.0, "portable")
+
+
+def test_legacy_native_edges_and_parseq_output_boundaries():
+    rgb = {"task": "edges", "input": "1080x1920", "scene": "synthetic"}
+    original = rgb | {
+        "mode": "upstream",
+        "ms": 30,
+        "note": "huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing",
+    }
+    trt = rgb | {"mode": "tensorrt", "ms": 5}
+    assert g._ratio(original, trt) == g.DASH
+    assert g._ratio(original, trt | {"comparison_scope": "cuda-rgb-to-cpu-edge-map"}) == "6.0x"
+    assert g._ratio(original, trt | {"input": "720x1280"}) == "6.0x"
+
+    word = {"ref": "parseq", "input": "32x128", "scene": "synthetic"}
+    original = word | {"mode": "upstream", "ms": 15}
+    assert g._ratio(original, word | {"mode": "kernels", "ms": 3}) == "5.0x"
+    assert g._ratio(original, word | {"mode": "tensorrt", "ms": 1.5}) == g.DASH
+
+
 def test_speed_scene_uses_visible_rows_and_retains_conflicting_timings(monkeypatch):
     card, variant = registry.resolve_any("pi3")
     size = "8x336x518"

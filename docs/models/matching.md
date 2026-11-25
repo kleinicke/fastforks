@@ -371,11 +371,11 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
-| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
+| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 55.1 / 71.2 / 82.2 | 54.9 / 71.7 / 83.1 | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
 | `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 55.6 / 72.2 / 84.2 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 | 54.7 / 71.8 / 83.9 |  |  |
-| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
+| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 56.4 / 72.1 / 83.1 | 57.1 / 72.7 / 83.3 | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
 | `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 | 56.2 / 73.2 / 84.4 | 56.9 / 72.8 / 84.5 | 54.9 / 71.5 / 83.1 | 57.3 / 72.5 / 83.6 |  |  |
-| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
+| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 58.8 / 73.6 / 84.2 | 56.6 / 72.5 / 83.8 | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
 | `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 | 56.3 / 73.7 / 85.4 | 56.1 / 72.9 / 84.5 | 56.2 / 72.0 / 83.7 | 57.7 / 74.1 / 85.4 |  |  |
 | `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
 | `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 | 55.6 / 72.1 / 84.1 | 56.4 / 74.3 / 85.6 | 57.1 / 72.9 / 84.6 | 56.4 / 73.9 / 85.2 |  |  |

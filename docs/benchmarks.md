@@ -1164,16 +1164,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 ### Edges, synthetic, 1080x1920
 
-| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|
-| anyline | 585 | 45.2 | 35.0 | 16.7x | 1.3x | 909 / 1002 | 648 / 702 | 648 / 702 |
-| hed | 38.5 | 11.3 | 8.25 | 4.7x | 1.4x | 300 / 324 | 187 / 224 | 193 / 264 |
-| lineart | 29.8 | 18.3 | 15.5 | 1.9x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
-| lineart-anime | 25.2 | 8.36 | 6.50 | 3.9x | 1.3x | 407 / 448 | 241 / 284 | 217 / 244 |
-| lineart-coarse | 30.4 | 18.3 | 15.4 | 2.0x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
-| mlsd | 35.6 | 9.33 | 7.73 | 4.6x | 1.2x | 185 / 212 | 127 / 170 | 127 / 148 |
-| pidinet | 35.9 | 13.1 | 12.3 | 2.9x | 1.1x | 339 / 368 | 328 / 372 | 328 / 392 |
-| teed | 29.6 | 4.09 | 3.83 | 7.7x | 1.1x | 149 / 184 | 122 / 146 | 122 / 146 |
+| model | time (ms): original | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|
+| anyline | 585 | 45.2 | 35.0 | 1.3x | 909 / 1002 | 648 / 702 | 648 / 702 |
+| hed | 38.5 | 11.3 | 8.25 | 1.4x | 300 / 324 | 187 / 224 | 193 / 264 |
+| lineart | 29.8 | 18.3 | 15.5 | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| lineart-anime | 25.2 | 8.36 | 6.50 | 1.3x | 407 / 448 | 241 / 284 | 217 / 244 |
+| lineart-coarse | 30.4 | 18.3 | 15.4 | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| mlsd | 35.6 | 9.33 | 7.73 | 1.2x | 185 / 212 | 127 / 170 | 127 / 148 |
+| pidinet | 35.9 | 13.1 | 12.3 | 1.1x | 339 / 368 | 328 / 372 | 328 / 392 |
+| teed | 29.6 | 4.09 | 3.83 | 1.1x | 149 / 184 | 122 / 146 | 122 / 146 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1574,14 +1574,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1816 | 1699 | 1.1x | 1.1x | 3930 / 4298 | 1510 / 1564 | 1510 / 1564 |
 | nninteractive | 200x200 | 705 | 460 | 209 | 193 | 2.4x | 1.1x | 4076 / 4636 | 2423 / 2772 | 2423 / 2772 |
-| totalsegmentator-total | 200x200 | 47779 | 45630 | 2053 | 1429 | 31.9x | 1.4x | 2640 / 2874 | 1851 / 2650 | 1194 / 1606 |
-| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 83.6 | 35.9 | 202.6x | 2.3x | 2010 / 2684 | 904 / 1404 | 900 / 1376 |
-| totalsegmentator-total-6mm | 200x200 | 108 | 102 | 12.0 | 7.01 | 14.6x | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
-| totalsegmentator-v3-total | 200x200 | 5104 | 2673 | 2051 | 1429 | 1.9x | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
-| totalsegmentator-v3-total-3mm | 200x200 | 192 | 150 | 83.1 | 35.3 | 4.2x | 2.4x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
-| totalsegmentator-v3-total-6mm | 200x200 | 107 | 103 | 11.7 | 7.01 | 14.7x | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
-| totalsegmentator-v3-total-small | 200x200 | 5229 | 3370 | 3354 | 1628 | 2.1x | 2.1x | 1328 / 1508 | 1624 / 3174 | 1093 / 1872 |
-| totalsegmentator-v3-total-small-3mm | 200x200 | 143 | 127 | 84.5 | 26.7 | 4.8x | 3.2x | 424 / 490 | 1054 / 1218 | 1050 / 1218 |
+| totalsegmentator-total | 200x200 | 47779 | 45630 | 2053 | 1429 | – | 1.4x | 2640 / 2874 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 83.6 | 35.9 | – | 2.3x | 2010 / 2684 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-total-6mm | 200x200 | 108 | 102 | 12.0 | 7.01 | – | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total | 200x200 | 5104 | 2673 | 2051 | 1429 | – | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-v3-total-3mm | 200x200 | 192 | 150 | 83.1 | 35.3 | – | 2.4x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-v3-total-6mm | 200x200 | 107 | 103 | 11.7 | 7.01 | – | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total-small | 200x200 | 5229 | 3370 | 3354 | 1628 | – | 2.1x | 1328 / 1508 | 1624 / 3174 | 1093 / 1872 |
+| totalsegmentator-v3-total-small-3mm | 200x200 | 143 | 127 | 84.5 | 26.7 | – | 3.2x | 424 / 490 | 1054 / 1218 | 1050 / 1218 |
 
 ### Startup and first call
 
@@ -2441,6 +2441,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sapiens-seg-1b-goliath | 1024x2048 | 277 ms | 263 ms | 244 ms | 180 ms | 18.8 s | 84.9 s | 2880 / 3024 | 2986 / 3084 | 2880 / 3022 | 5694 / 5742 |
 | segformer-b0-ade20k | 1024x2048 | 11.4 ms | 9.27 ms | 5.51 ms | 3.49 ms | 12.3 s | 60.9 s | 339 / 376 | 336 / 356 | 105 / 178 | 1480 / 1522 |
 | segformer-b2-clothes | 512x512 | 8.13 ms | 4.38 ms | 2.68 ms | 3.61 ms | 17.6 s | 63.1 s | 156 / 168 | 182 / 228 | 133 / 170 | 312 / 328 |
+| segformer-b2-clothes | 1024x2048 | 8.81 ms | 4.85 ms | 3.33 ms (full-resolution logits engine) | 3.85 ms | 19.6 s | 61.4 s | 205 / 270 | 204 / 228 | 156 / 214 | 459 / 508 |
 | segformer-b5-ade20k | 1024x2048 | 38.9 ms | 31.4 ms | 22.8 ms | 25.4 ms | 33.8 s | 83.9 s | 444 / 490 | 543 / 630 | 294 / 432 | 2069 / 2110 |
 | segformer-b5-face-parsing | 512x512 | 21.9 ms | 14.1 ms | 6.33 ms | 9.21 ms | 34.5 s | 84.7 s | 278 / 292 | 305 / 352 | 257 / 294 | 538 / 552 |
 | segnext-mscan-b-ade20k | 1024x2048 | 28.3 ms | 40.7 ms | 23.3 ms | 12.1 ms | 24.1 s | 66.3 s | 376 / 424 | 491 / 526 | 192 / 226 | 1553 / 1622 |
@@ -2720,7 +2721,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
-| memfof-kitti | 1080x1920 | 2202 ms | fails: CUDA out of memory (requested 1.96 GiB) | – | 1565 ms | – | – | 14515 / 14918 | – | 3805 / 4038 | – |
+| memfof-kitti | 1080x1920 | 2202 ms | fails: CUDA out of memory (requested 1.96 GiB) | fails: TensorRT engine build: CUDA out of memory during Myelin tact | 1565 ms | – | – | 14515 / 14918 | – | 3805 / 4038 | – |
 | memfof-kitti | 384x1248 | 1526 ms | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | 3285 / 5238 | – | – | 4252 / 5692 |
 | memfof-sintel | 1080x1920 | 2177 ms | fails: CUDA out of memory (requested 1.96 GiB) | fails: CUDA out of memory (requested 3.91 GiB) | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |

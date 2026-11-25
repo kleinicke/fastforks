@@ -523,7 +523,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>349<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2132 |
-| `memfof-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | OOM<br>OOM<br>2202<br>1565<br>fails: CUDA out of memory (requested 1.96 GiB) | –<br>–<br>14515 / 14918<br>3805 / 4038<br>– |
+| `memfof-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>2202<br>1565<br>fails: CUDA out of memory (requested 1.96 GiB)<br>fails: TensorRT engine build: CUDA out of memory during Myelin tact | –<br>–<br>14515 / 14918<br>3805 / 4038<br>–<br>– |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>309<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>786 / 916<br>2041 / 2226<br>– |
 | `memfof-kitti` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1526<br>–<br>1335 (ResNet encoders with eager correlation, flow update and upsampling) | –<br>3285 / 5238<br>–<br>4252 / 5692 |
 | `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2177<br>1541<br>fails: CUDA out of memory (requested 1.96 GiB)<br>fails: CUDA out of memory (requested 3.91 GiB) | –<br>14156 / 14418<br>3805 / 4018<br>–<br>– |

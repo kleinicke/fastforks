@@ -339,14 +339,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`teed`](models/edges.md#teed-edges) | yes | 29.6 (1080x1920) | 4.1 | 3.8 | 7.7x vs original (1080x1920) | 122 |
-| [`lineart-anime`](models/edges.md#anime-line-art) | yes | 25.2 (1080x1920) | 8.4 | 6.5 | 3.9x vs original (1080x1920) | 217 |
-| [`mlsd`](models/edges.md#m-lsd-line-segments) | yes | 35.6 (1080x1920) | 9.3 | 7.7 | 4.6x vs original (1080x1920) | 127 |
-| [`hed`](models/edges.md#hed-soft-edges-controlnet-11) | yes | 38.5 (1080x1920) | 11.3 | 8.2 | 4.7x vs original (1080x1920) | 193 |
-| [`pidinet`](models/edges.md#pidinet-soft-edges) | no | 35.9 (1080x1920) | 13.1 | 12.3 | 2.9x vs original (1080x1920) | 328 |
-| [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes | 30.4 (1080x1920) | 18.3 | 15.4 | 2.0x vs original (1080x1920) | 217 |
-| [`lineart`](models/edges.md#line-art-informative-drawings) | yes | 29.8 (1080x1920) | 18.3 | 15.5 | 1.9x vs original (1080x1920) | 217 |
-| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 45.2 | 35.0 | 16.7x vs original (1080x1920) | 648 |
+| [`teed`](models/edges.md#teed-edges) | yes | 29.6 (1080x1920) | 4.1 | 3.8 | 1.1x vs portable | 122 |
+| [`lineart-anime`](models/edges.md#anime-line-art) | yes | 25.2 (1080x1920) | 8.4 | 6.5 | 1.3x vs portable | 217 |
+| [`mlsd`](models/edges.md#m-lsd-line-segments) | yes | 35.6 (1080x1920) | 9.3 | 7.7 | 1.2x vs portable | 127 |
+| [`hed`](models/edges.md#hed-soft-edges-controlnet-11) | yes | 38.5 (1080x1920) | 11.3 | 8.2 | 1.4x vs portable | 193 |
+| [`pidinet`](models/edges.md#pidinet-soft-edges) | no | 35.9 (1080x1920) | 13.1 | 12.3 | 1.1x vs portable | 328 |
+| [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes | 30.4 (1080x1920) | 18.3 | 15.4 | 1.2x vs portable | 217 |
+| [`lineart`](models/edges.md#line-art-informative-drawings) | yes | 29.8 (1080x1920) | 18.3 | 15.5 | 1.2x vs portable | 217 |
+| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 45.2 | 35.0 | 1.3x vs portable | 648 |
 
 ## Promptable segmentation
 
@@ -803,14 +803,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.8 (200x200) | 11.7 | 7.0 | 14.7x vs original (200x200) | 200 |
-| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.5 (200x200) | 12.0 | 7.0 | 14.6x vs original (200x200) | 200 |
-| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | 126.9 (200x200) | 84.5 | 26.7 | 4.8x vs original (200x200) | 1050 |
-| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | 149.8 (200x200) | 83.1 | 35.3 | 4.2x vs original (200x200) | 900 |
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 83.6 | 35.9 | 202.6x vs original (200x200) | 900 |
+| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.8 (200x200) | 11.7 | 7.0 | 1.7x vs portable | 200 |
+| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.5 (200x200) | 12.0 | 7.0 | 1.7x vs portable | 200 |
+| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | 126.9 (200x200) | 84.5 | 26.7 | 3.2x vs portable | 1050 |
+| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | 149.8 (200x200) | 83.1 | 35.3 | 2.4x vs portable | 900 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 83.6 | 35.9 | 2.3x vs portable | 900 |
 | [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 208.7 | 193.5 | 2.4x vs original (200x200) | 2423 |
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 247.6 | 231.9 | 1.2x vs original (200x200) | 2325 |
-| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | 2673.1 (200x200) | 2051.0 | 1429.0 | 1.9x vs original (200x200) | 1194 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 2052.7 | 1429.2 | 31.9x vs original (200x200) | 1194 |
-| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | 3369.8 (200x200) | 3353.9 | 1627.9 | 2.1x vs original (200x200) | 1093 |
+| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | 2673.1 (200x200) | 2051.0 | 1429.0 | 1.4x vs portable | 1194 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 2052.7 | 1429.2 | 1.4x vs portable | 1194 |
+| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | 3369.8 (200x200) | 3353.9 | 1627.9 | 2.1x vs portable | 1093 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1816.2 | 1699.4 (192x192) | 1.1x vs portable | 1510 |

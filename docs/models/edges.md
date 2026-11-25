@@ -12,14 +12,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anyline`](#anyline) | yes | 35.0, 16.7x | 702, 0.7x |
-| [`hed`](#hed) | yes | 8.25, 4.7x | 264, 0.81x |
-| [`lineart`](#lineart) | yes | 15.5, 1.9x | 284, 1.1x |
-| [`lineart-anime`](#lineart_anime) | yes | 6.50, 3.9x | 244, 0.54x |
-| [`lineart-coarse`](#lineart) | yes | 15.4, 2.0x | 284, 1.1x |
-| [`mlsd`](#mlsd) | yes | 7.73, 4.6x | 148, 0.7x |
-| [`pidinet`](#pidinet) | no | 12.3, 2.9x | 392, 1.1x |
-| [`teed`](#teed) | yes | 3.83, 7.7x | 146, 0.79x |
+| [`anyline`](#anyline) | yes | 35.0 | 702 |
+| [`hed`](#hed) | yes | 8.25 | 264 |
+| [`lineart`](#lineart) | yes | 15.5 | 284 |
+| [`lineart-anime`](#lineart_anime) | yes | 6.50 | 244 |
+| [`lineart-coarse`](#lineart) | yes | 15.4 | 284 |
+| [`mlsd`](#mlsd) | yes | 7.73 | 148 |
+| [`pidinet`](#pidinet) | no | 12.3 | 392 |
+| [`teed`](#teed) | yes | 3.83 | 146 |
 
 <a id="anyline"></a>
 

@@ -963,7 +963,7 @@ def _same_note(dups: dict[str, str]) -> list[str]:
 
 
 def _ratio(slow: dict | None, fast: dict | None) -> str:
-    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast and _scene_compatible(slow, fast) else DASH
+    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast and _comparison_compatible(slow, fast) else DASH
 
 
 def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str]:
@@ -1050,6 +1050,73 @@ def _scene_compatible(a: dict | None, b: dict | None) -> bool:
     """Keep legacy comparisons with unrecorded provenance and reject an explicit scene conflict."""
     left, right = (_speed_scene(row).get("scene_key") if row else None for row in (a, b))
     return not (left and right and left != right)
+
+
+_SCOPE_LABELS = {
+    "cpu-ct-to-cpu-labels": "CPU CT to CPU labels",
+    "cpu-ct-to-cpu-labels-per-call-load": "CPU CT to CPU labels, weights loaded per call",
+    "cuda-volume-to-cuda-labels": "CUDA volume to CUDA labels",
+    "cuda-rgb-to-cpu-edge-map": "CUDA RGB to CPU edge map",
+    "cuda-rgb-to-cuda-edge-map": "CUDA RGB to CUDA edge map",
+    "word-crop-to-text": "Word crop to decoded text",
+    "word-crop-to-logits": "Word crop to CUDA logits",
+    "decoded-cpu-rgb-to-cpu-depth": "Decoded CPU RGB to CPU depth",
+    "decoded-cpu-rgb-clip-to-cpu-depth": "Decoded CPU RGB clip to CPU depth",
+    "cuda-rgb-to-cuda-depth": "CUDA RGB to CUDA depth",
+}
+
+
+def _legacy_ct_scope(row: dict, mode: str, note: str) -> str:
+    """Timing boundaries of the verified 200-cube TotalSegmentator adapters."""
+    if mode in {"upstream", "upstream-default"}:
+        if "cpu numpy in, labels out; weights load per call" in note:
+            return "cpu-ct-to-cpu-labels-per-call-load"
+        return "cpu-ct-to-cpu-labels" if "cpu nifti input and labels out" in note else ""
+    resident = (
+        "gpu-resident input and output" in note
+        or "whole public volume call with cuda-resident input and output" in note
+        or "whole volume with cuda input and output" in note
+        or "portable preprocessing and aggregation unchanged" in note
+        or row.get("backend_part") == "compiled patch network inside the full sliding-window call"
+        or (mode == "tensorrt" and row.get("source") == "results/raw/2026-11-18_totalseg_patch_trt")
+    )
+    return "cuda-volume-to-cuda-labels" if resident else ""
+
+
+def _legacy_comparison_scope(row: dict) -> str:
+    """Infer scopes only for identified legacy benchmark protocols."""
+    ref, size, mode = (row.get(key, "") for key in ("ref", "input", "mode"))
+    note = (row.get("note") or "").casefold()
+    if ref.startswith("totalsegmentator-") and size == "200x200":
+        return _legacy_ct_scope(row, mode, note)
+    if row.get("task") == "edges" and size == "1080x1920":
+        if "huggingface/controlnet_aux@" in note and "host opencv resize" in note:
+            return "cuda-rgb-to-cpu-edge-map"
+        if mode in {"portable", "kernels", "compile", "tensorrt"} and not row.get("standalone_build"):
+            return "cuda-rgb-to-cuda-edge-map"
+    if ref in {"parseq", "parseq-tiny"} and size == "32x128":
+        return "word-crop-to-logits" if mode == "tensorrt" else "word-crop-to-text"
+    if row.get("task") == "depth" and row.get("backend_part") in {
+        "single-image call, CUDA tensor input",
+        "single-image engine",
+    }:
+        return "cuda-rgb-to-cuda-depth"
+    return ""
+
+
+def _speed_scope(row: dict) -> dict[str, str]:
+    """The timing boundary where recorded or verified from the benchmark implementation."""
+    key = row.get("comparison_scope") or _legacy_comparison_scope(row)
+    meta = {"comparison_scope": key} if key else {}
+    if label := _SCOPE_LABELS.get(key):
+        meta["scope_label"] = label
+    return meta
+
+
+def _comparison_compatible(a: dict | None, b: dict | None) -> bool:
+    """Keep legacy ratios with unknown scope, rejecting an explicit scene or timing boundary conflict."""
+    left, right = (_speed_scope(row).get("comparison_scope") if row else None for row in (a, b))
+    return _scene_compatible(a, b) and not (left and right and left != right)
 
 
 def _scene(scene: str) -> str:
@@ -1557,9 +1624,9 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             ms, mem = cell[0], cell[2]
         else:
             ms, mem = (_NOK, _NOK) if "kernels" not in card.modes or planned_reason(v, "kernels") else (_DASH, _DASH)
-        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig and _scene_compatible(orig, mx) else ""
+        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig and _comparison_compatible(orig, mx) else ""
         original_peaks = (
-            row for mode in ("upstream", "upstream-default") if _scene_compatible(mx, row := by.get(mode))
+            row for mode in ("upstream", "upstream-default") if _comparison_compatible(mx, row := by.get(mode))
         )
         mem = f"{mem}{_mem_ratio(mem, *original_peaks)}"
         cells = [
@@ -1922,12 +1989,12 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             osz = at if size == _OWN else orig_size
             orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
             max_o = mine.get(("kernels", osz))
-            if orig and max_o and _scene_compatible(orig, max_o):
+            if orig and max_o and _comparison_compatible(orig, max_o):
                 speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")
             elif (
                 isinstance(mx, tuple)
                 and isinstance(pt, tuple)
-                and _scene_compatible(mine.get(("portable", at)), mine.get(("kernels", at)))
+                and _comparison_compatible(mine.get(("portable", at)), mine.get(("kernels", at)))
             ):
                 speedup = (pt[0] / mx[0], "portable")
             else:

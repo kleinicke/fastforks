@@ -15,14 +15,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`nnfoundation-cnn`](#nnfoundation) | yes | 232, 1.2x | 3330, 0.72x |
 | [`nnfoundation-vit`](#nnfoundation) | yes | 1699, 1.1x (192x192) | 1564, 0.36x |
 | [`nninteractive`](#nninteractive) | no | 193, 2.4x | 2772, 0.6x |
-| [`totalsegmentator-total`](#totalsegmentator) | yes | 1429, 31.9x | 1606, 0.56x |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 35.9, 202.6x | 1376, 0.51x |
-| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | 7.01, 14.6x | 286, 0.81x |
-| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | 1429, 1.9x | 1606, 0.69x |
-| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | 35.3, 4.2x | 1376, 1.0x |
-| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | 7.01, 14.7x | 286, 0.81x |
-| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | 1628, 2.1x | 1872, 1.2x |
-| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | 26.7, 4.8x | 1218, 2.5x |
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1429 | 1606 |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 35.9 | 1376 |
+| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | 7.01 | 286 |
+| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | 1429 | 1606 |
+| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | 35.3 | 1376 |
+| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | 7.01 | 286 |
+| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | 1628 | 1872 |
+| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | 26.7 | 1218 |
 
 <a id="nnfoundation"></a>
 

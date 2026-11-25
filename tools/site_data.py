@@ -36,8 +36,6 @@ _PI3_LEGACY_SIZE = "336x518"
 _PI3_LEGACY_VIEWS = 8
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from fastforks._core.cards import ModelCard, Variant
     from fastforks._core.files import FileSpec
 
@@ -135,21 +133,29 @@ def _licence(card: ModelCard, v: Variant) -> dict[str, Any]:
     }
 
 
-def _profile_scene(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """Label a profile from its selected timings, retaining explicit scene conflicts."""
+def _profile_metadata(rows: tuple[dict[str, Any], ...]) -> dict[str, Any]:
+    """Label known scene and boundary differences among the selected timings."""
     labels = {row["scene_key"]: row["scene"] for row in rows if "scene_key" in row}
+    scopes = {r["comparison_scope"] for r in rows if "comparison_scope" in r}
+    scope_info = {"mixed_scopes": True} if len(scopes) > 1 else {}
     if len(labels) > 1:
-        return {"scene": "Mixed scenes", "mixed_scenes": True}
+        return {"scene": "Mixed scenes", "mixed_scenes": True} | scope_info
     label = next(iter(labels.values()), "")
-    return {"scene": g._scene(label)}  # noqa: SLF001
+    return {"scene": g._scene(label)} | scope_info  # noqa: SLF001
+
+
+def _speed_metadata(row: dict[str, Any]) -> dict[str, Any]:
+    """Provenance and explanatory notes shared by eager rows and backend timings."""
+    meta = g._speed_scene(row) | g._speed_scope(row)  # noqa: SLF001
+    if note := g._note(row):  # noqa: SLF001
+        meta["note"] = note
+    return meta
 
 
 def _speed_row(r: dict[str, Any]) -> dict[str, Any]:
-    out = {k: r[k] for k in _KEEP_SPEED if k in r} | g._speed_scene(r)  # noqa: SLF001 - shared docs scene metadata
+    out = {k: r[k] for k in _KEEP_SPEED if k in r} | _speed_metadata(r)
     dtype = _devices.dtype_of(r)
     out["dtype"] = "float16" if r["mode"] == "upstream" and dtype == "default" else dtype
-    if note := g._note(r):  # noqa: SLF001 - shared docs helper
-        out["note"] = note
     if r.get("commit"):
         out["commit"] = r["commit"][:12]
     return out
@@ -278,7 +284,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "first_call_s": c.get("engine_first_call_s", c.get("first_call_s")) if mode == "tensorrt" else None,
                 "date": c.get("date"),
                 "torch": c.get("torch"),
-                **g._speed_scene(c),  # noqa: SLF001
+                **_speed_metadata(c),
                 **({"compare_to_original": False} if c.get("compare_to_original") is False else {}),
             }
             if task == "volume" and mode == "tensorrt" and c.get("net_input"):
@@ -293,7 +299,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
         out.append(
             {
                 "input": size,
-                **_profile_scene(shown),
+                **_profile_metadata(shown),
                 "standard": size == std,
                 "native": size == native,
                 "modes": by,
