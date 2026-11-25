@@ -1054,3 +1054,27 @@ def test_mlx_unet_matches_torch(features, patch):
     with torch.no_grad():
         want = net(x)
     torch.testing.assert_close(mnet(x), want, atol=2e-3, rtol=2e-3)
+
+
+def test_mlx_rfdetr_keypoint_matches_torch():
+    """`shared.rfdetr.mlx_net.MlxRFDETR` with the keypoint branch against the PyTorch LWDETR (random weights, fp32)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    pytest.importorskip("transformers")
+    from fastforks.pose.models.rfdetr_keypoint import model as kp  # noqa: PLC0415
+    from fastforks.shared.rfdetr import mlx_net  # noqa: PLC0415 - optional (the mlx extra)
+
+    _, v = registry.resolve("pose", "rf-detr-keypoint-preview")
+    params = core_model.make_params(kp.Params, core_model.model_card("pose", v.id), v, {})
+    torch.manual_seed(0)
+    net = kp.network(params).eval()
+    mnet = mlx_net.MlxRFDETR(net, "float32", kp.MEAN, kp.STD)
+    r = params.resolution
+    image = torch.rand(1, 3, r, r, generator=torch.Generator().manual_seed(1))
+    mean, std = torch.tensor(kp.MEAN).view(1, 3, 1, 1), torch.tensor(kp.STD).view(1, 3, 1, 1)
+    with torch.no_grad():
+        want = net((image - mean) / std)
+    got = mnet(image)
+    for k in ("pred_logits", "pred_boxes", "pred_keypoints"):
+        assert got[k].shape == want[k].shape, k
+        torch.testing.assert_close(got[k], want[k].float(), atol=2e-3, rtol=2e-3, msg=k)
