@@ -28,6 +28,7 @@ input = "imagenet"  # Remover: static resize to `size` x `size` (PIL bilinear; h
 
 [params]
 size = 1024  # network input side (base_size); the sigmoid map is min-max normalised and resized back (bilinear, align_corners)
+cuda_graph_on_linux = false  # the 1024² replay has little steady benefit and keeps more VRAM
 
 [options]
 cuda_graph_policy = { default = "auto", choices = ["auto", "on", "off"], effect = "speed" }
@@ -54,5 +55,5 @@ weights = [{ name = "ckpt_base.pth", size = 367520613, sha256 = "0a6fe2a73ab0532
 [[variants]]
 id = "inspyrenet-fast"
 revision = 1
-params = { size = 384 }
+params = { size = 384, cuda_graph_on_linux = true }
 weights = [{ name = "ckpt_fast.pth", size = 367520613, sha256 = "e61ed7e85763dd83a796e1d650ea78604fff524121750858c54a6b560ac58c82", url = "https://github.com/plemeri/transparent-background/releases/download/1.2.12/ckpt_fast.pth" }]

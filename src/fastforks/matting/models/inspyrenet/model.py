@@ -37,8 +37,6 @@ from .net.modules.layers import Conv2d
 if TYPE_CHECKING:
     from fastforks.matting._runner import Context
 
-_BASE_NETWORK_SIDE = 1024  # the Linux graph policy only excludes this network size
-
 
 @dataclass(frozen=True)
 class Params:
@@ -47,10 +45,12 @@ class Params:
     Attributes:
         size: Network input side (square; transparent-background's `base_size`).
         cuda_graph_policy: CUDA graph capture for repeated network inputs.
+        cuda_graph_on_linux: Whether auto captures on Linux for this variant.
     """
 
     size: int
     cuda_graph_policy: Literal["auto", "on", "off"]
+    cuda_graph_on_linux: bool
 
 
 def _sica(
@@ -231,9 +231,7 @@ class Kernels(Portable):
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
         policy = ctx.params.cuda_graph_policy
-        enabled = policy == "on" or (
-            policy == "auto" and (sys.platform != "linux" or ctx.params.size != _BASE_NETWORK_SIDE)
-        )
+        enabled = policy == "on" or (policy == "auto" and (sys.platform != "linux" or ctx.params.cuda_graph_on_linux))
         self.graphs = SmallShapeGraphs(super()._net, pixels=2**21, enabled=enabled)
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
