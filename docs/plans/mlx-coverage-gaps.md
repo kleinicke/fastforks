@@ -1577,6 +1577,43 @@ Left: the peak is 60-63 MB (6 %) above the exported port's, the load footprint 1
 exist at load, as for RF-DETR; the PyTorch twin is freed, checked). Only the paths this checkpoint uses are written
 (downscale 1, no inter-instance attention, no registers); others raise `NotImplementedError`.
 
+### Done: mmseg (FCN, PSPNet, DeepLabV3 / V3+, HRNet; 2026-11-25)
+
+M1 Pro, 1024x2048, MLX goldens pass (fp16 and fp32, both modes). `auto` now takes MLX kernels float16 for fcn,
+deeplabv3 and deeplabv3plus (pspnet already did; hrnet stays on MPS: its kernels first call is 1.26 s, the budget
+0.80 s, and portable float16 is 240 vs 228 ms warm).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| fcn-r101-d8-ade20k | MLX before, kernels fp16 / fp32 | 358.3 / 490.3 | 1.63 / 1.73 | 1373 / 1803 | MPS |
+| | MLX now, kernels fp16 / fp32 (run 2; run 1 325.6 / 433.8) | 365.8 / 528.5 | 0.52 / 0.92 | 1391 / 1936 | MLX kernels fp16 |
+| | MPS portable fp16 | 405.2 | 0.52 | 1875 | |
+| pspnet-r101-d8-ade20k | MLX before, kernels fp16 / fp32 | 374.6 / 511.3 | 1.73 / 1.82 | 1450 / 2116 | MLX kernels fp16 |
+| | MLX now, kernels fp16 / fp32 (run 2; run 1 385.9 / 502.8) | 376.2 / 498.3 | 0.49 / 0.62 | 1553 / 2159 | MLX kernels fp16 |
+| | MPS portable fp16 | 410.8 | 1.22 | 1945 | |
+| deeplabv3-r101-d8-ade20k | MLX before, kernels fp16 / fp32 | 441.2 / 675.4 | 1.75 / 2.09 | 1426 / 1770 | MPS |
+| | MLX now, kernels fp16 / fp32 (run 2; run 1 400.5 / 588.7) | 444.0 / 600.7 | 0.56 / 0.68 | 1542 / 2055 | MLX kernels fp16 |
+| | MPS portable fp16 | 527.9 | 0.65 | 2010 | |
+| deeplabv3plus-r101-d8-ade20k | MLX before, kernels fp16 / fp32 | 333.0 / 462.8 | 1.68 / 1.76 | 1383 / 1879 | MPS |
+| | MLX now, kernels fp16 / fp32 (run 2; run 1 377.4 / 475.8) | 359.4 / 478.2 | 0.45 / 0.52 | 1552 / 2135 | MLX kernels fp16 |
+| | MPS portable fp16 | 430.2 | 0.56 | 1891 | |
+| hrnet-w48-fcn-ade20k | MLX before, portable fp16 / fp32 | 220.3 / 282.2 | 3.64 / 3.69 | 1112 / 1424 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 248.2 / 265.8) | 240.6 / 267.2 | 0.27 / 0.30 | 1258 / 1463 | MPS |
+| | MLX now, kernels fp16 / fp32 (run 2; run 1 209.0 / 267.6) | 233.6 / 262.2 | 1.26 / 0.52 | 1500 / 1567 | |
+| | MPS portable fp16 | 228.3 | 0.34 | 2044 | |
+
+`segmentation/models/mmseg/mlx_net.py` writes the folded ResNetV1c / HRNet backbones and the FCN, PSP, ASPP and
+depthwise-separable ASPP heads in `mlx.core`: 1 x 1 convs as matrix products, depthwise convs the shared kernel, kernels
+mode the `conv_mlx` Winograd and direct convs (the translator's rules). Each block, HR module and head conv is its own
+step (`_step`: `async_eval` it, then wait for the step before): MLX frees a command buffer's transients only when it
+completes, so the head's Winograd convs in one lazy graph held them all (fcn fp32 MLX peak 1746 MB, now 1263; the
+exported port 1235), while unbounded `async_eval` let Python run ahead (416 ms / 1848 MB vs depth 1 417 ms / 1756 MB).
+
+Left: the footprint peaks are 110-170 MB (6-8 %) above the exported port's (deeplabv3 fp32 measured in one process:
+load 986 vs 646 MB, calls 2010-2043 vs 1865-1930): the MLX weights exist at load, as for RF-DETR, while the MLX peak of
+the call itself matches. Warm times moved by -10 to +8 % between the two runs (the shared Mac); deeplabv3plus fp16 is
+8-13 % slower in both runs (the dilated depthwise ASPP convs), hrnet fp16 portable 9 %. 5 refs, all hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /
