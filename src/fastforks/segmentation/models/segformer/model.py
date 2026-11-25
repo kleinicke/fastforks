@@ -245,9 +245,26 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
-}
+class _MlxPortable(Portable):
+    """Apple MLX: the folded network written in `mlx.core` operations (`mlx_net`), the image handling as `Portable`."""
+
+    net: Any  # mlx_net.MlxSegFormer
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxSegFormer(_Net(pretrained(ctx), torch.float32, kernels=False), mlx_wrap.run_dtype(ctx))
+        self.acc = False
+        self.fused = False
+
+    def _forward(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.net(to_mx(x.float())))
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())  # both modes: the port's depthwise Metal kernel is the network's
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

@@ -1351,6 +1351,35 @@ def test_mlx_nafnet_matches_torch(width, tlc):
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
 
 
+def test_mlx_segformer_matches_torch():
+    """The hand-written SegFormer (`segformer/mlx_net.py`) against `_Net` (the folded transformers network), float32."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    transformers = pytest.importorskip("transformers")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.segmentation.models.segformer import mlx_net  # noqa: PLC0415
+    from fastforks.segmentation.models.segformer.model import _Net  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    config = transformers.SegformerConfig(
+        hidden_sizes=[16, 32, 48, 64], depths=[1, 2, 1, 1], num_attention_heads=[1, 2, 2, 4],
+        decoder_hidden_size=32, num_labels=5,
+    )  # fmt: skip
+    model = transformers.SegformerForSemanticSegmentation(config).eval()
+    for name, p in model.named_parameters():  # unit norms would hide layout errors
+        if "norm" in name:
+            p.data.add_(torch.randn_like(p) * 0.3)
+    bn = model.decode_head.batch_norm
+    bn.running_mean.uniform_(-0.5, 0.5)
+    bn.running_var.uniform_(0.5, 1.5)
+    net = _Net(model, torch.float32, kernels=False).eval()
+    x = torch.randn(2, 3, 70, 90)  # odd stage sizes: the spatial reductions crop
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.MlxSegFormer(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize(("scale", "use_ea", "size"), [(4, True, (50, 62)), (2, False, (17, 23))])
 def test_mlx_realplksr_matches_torch(scale, use_ea, size):
     """The hand-written RealPLKSR (`realplksr/mlx_net.py`) against the vendored network, float32.
