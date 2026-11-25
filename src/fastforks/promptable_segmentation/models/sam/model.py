@@ -93,13 +93,17 @@ def build(p: Params, *, meta_encoder: bool = False) -> Sam:
     )
 
 
-def _sam(ctx: Context) -> Sam:
-    assign = (
+def _mapped_checkpoint(ctx: Context) -> bool:
+    return (
         ctx.device.type == "cuda"
         and ctx.variant.ref in _MAPPED_CHECKPOINTS
         and ctx.user_weights is None
         and ctx.user_state is None
     )
+
+
+def _sam(ctx: Context) -> Sam:
+    assign = _mapped_checkpoint(ctx)
     sam = build(ctx.params, meta_encoder=assign)
     sd = ctx.state_dict()
     if assign:
@@ -176,8 +180,15 @@ class Portable(_Sam):
     def __init__(self, ctx: Context) -> None:
         """Build the network; the image encoder in the compute dtype."""
         super().__init__(ctx)
-        self.sam = _sam(ctx).to(ctx.device)
-        enc = self.sam.image_encoder.to(ctx.torch_dtype)
+        self.sam = _sam(ctx)
+        enc = self.sam.image_encoder
+        if ctx.torch_dtype == torch.float16 and _mapped_checkpoint(ctx):
+            # Only the encoder runs in FP16. Cast it as it moves, before placing the FP32 prompt side.
+            enc.to(device=ctx.device, dtype=ctx.torch_dtype)
+            self.sam.to(ctx.device)
+        else:
+            self.sam.to(ctx.device)
+            enc.to(ctx.torch_dtype)
         tokens = ctx.params.image_size // PATCH
         self.rel = [rel_tables(b, tokens, ctx.torch_dtype) for b in enc.blocks]
 
