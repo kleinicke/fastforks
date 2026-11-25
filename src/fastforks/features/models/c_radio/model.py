@@ -83,8 +83,8 @@ class _RadioWalk(features._Walk):  # noqa: SLF001 - the shared walk, with upstre
         return _resample(pos, h, w, align_corners=self.align_corners)
 
 
-def _network(ctx: Context) -> tuple[Any, torch.Tensor, list[int]]:
-    """Load and validate the ViT, position table and ordered summary token indices."""
+def _checkpoint(ctx: Context) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor, list[int]]:
+    """Read and validate the checkpoint: `(timm ViT state, position table, prefix tokens, summary token indices)`."""
     p: Params = ctx.params
     what = f"{ctx.variant.ref} checkpoint"
     sd = ctx.state_dict(0, strip="")
@@ -99,7 +99,24 @@ def _network(ctx: Context) -> tuple[Any, torch.Tensor, list[int]]:
         raise CheckpointMismatchError(
             what, f"summary_idxs {idx} (expected indices of the {p.summary_tokens} summary tokens)"
         )
-    summary_idxs = [int(i) for i in idx]
+    # other keys stay as they are and are reported by `load_strict`
+    state = {k.removeprefix(_MODEL_KEY).replace(".grandma", ".gamma"): v for k, v in sd.items()}
+    pos = state.pop("patch_generator.pos_embed")
+    tok = state.pop("patch_generator.cls_token.token")
+    emb = state.pop("patch_generator.embedder.weight")
+    state.pop("reg_token", None)  # B / L: an unused timm register table (the registers are in `cls_token.token`)
+    prefix = tok.shape[0]
+    if not p.summary_tokens < prefix or tok.shape[1:] != (p.embed_dim,) or pos.shape != (1, _GRID * _GRID, p.embed_dim):
+        msg = f"prefix tokens {tuple(tok.shape)}, position table {tuple(pos.shape)}"
+        raise CheckpointMismatchError(what, msg)
+    state["patch_embed.proj.weight"] = emb.view(p.embed_dim, 3, _PATCH, _PATCH)
+    return state, pos, tok, [int(i) for i in idx]
+
+
+def _network(ctx: Context) -> tuple[Any, torch.Tensor, list[int]]:
+    """Load and validate the ViT, position table and ordered summary token indices."""
+    p: Params = ctx.params
+    state, pos, tok, summary_idxs = _checkpoint(ctx)
     with torch.device("meta"):
         net: Any = (
             timm()
@@ -122,19 +139,9 @@ def _network(ctx: Context) -> tuple[Any, torch.Tensor, list[int]]:
             )
             .eval()
         )
-    # other keys stay as they are and are reported by `load_strict`
-    state = {k.removeprefix(_MODEL_KEY).replace(".grandma", ".gamma"): v for k, v in sd.items()}
-    pos = state.pop("patch_generator.pos_embed")
-    tok = state.pop("patch_generator.cls_token.token")
-    emb = state.pop("patch_generator.embedder.weight")
-    state.pop("reg_token", None)  # B / L: an unused timm register table (the registers are in `cls_token.token`)
-    prefix = tok.shape[0]
-    if not p.summary_tokens < prefix or tok.shape[1:] != (p.embed_dim,) or pos.shape != (1, _GRID * _GRID, p.embed_dim):
-        msg = f"prefix tokens {tuple(tok.shape)}, position table {tuple(pos.shape)}"
-        raise CheckpointMismatchError(what, msg)
-    state["patch_embed.proj.weight"] = emb.view(p.embed_dim, 3, _PATCH, _PATCH)
     state["patch_embed.proj.bias"] = torch.zeros(p.embed_dim)
-    load_strict(net, state, what, assign=True)
+    load_strict(net, state, f"{ctx.variant.ref} checkpoint", assign=True)
+    prefix = tok.shape[0]
     net.cls_token = torch.nn.Parameter(tok[None].clone())
     net.num_prefix_tokens, net.num_reg_tokens = prefix, prefix - p.summary_tokens
     return net, pos, summary_idxs
@@ -184,15 +191,15 @@ class Mlx(Runner):
     batch = None
 
     def __init__(self, ctx: Context) -> None:
-        """Build the MLX block and patch weights from the same validated checkpoint."""
+        """Build the MLX block and patch weights from the same validated checkpoint (converted once, then cached)."""
         super().__init__(ctx)
-        from .mlx_net import Engine  # noqa: PLC0415 - optional MLX
+        from .mlx_net import load  # noqa: PLC0415 - optional MLX
 
-        net, pos, indices = _network(ctx)
+        self.engine = load(ctx)
         self.num_layers, self.hidden_size = ctx.params.depth, ctx.params.embed_dim
-        self.num_prefix_tokens, self.num_register_tokens = net.num_prefix_tokens, net.num_reg_tokens
-        self.pooler_size = len(indices) * self.hidden_size
-        self.engine = Engine(net, pos, indices, ctx)
+        self.num_prefix_tokens = self.engine.prefix_tokens
+        self.num_register_tokens = self.num_prefix_tokens - ctx.params.summary_tokens
+        self.pooler_size = self.engine.summaries * self.hidden_size
 
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         """Feature tokens, ordered teacher summaries and the requested intermediate layers."""
