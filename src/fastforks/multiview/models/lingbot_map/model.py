@@ -198,11 +198,19 @@ class _StagedPair(nn.Module):
         return frame, global_out.view_as(frame)
 
 
+def _take_pending(parts: list[torch.Tensor], *, reuse: bool) -> torch.Tensor:
+    """Drain one list of owned features, concatenating only when there are multiple pieces."""
+    out = parts[0] if reuse and len(parts) == 1 else torch.cat(parts)
+    parts.clear()
+    return out
+
+
 class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's base
     """The streaming pass (see the module docstring); frame blocks, patch embed and DPT setup from VGGT."""
 
     Params = Params
     max_views = 1024  # upstream 3D RoPE table length
+    _reuse_pending = False
 
     def __init__(self, ctx: Context) -> None:
         Runner.__init__(self, ctx)
@@ -329,10 +337,8 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
                 return
             toks: list[torch.Tensor | None] = [None] * self.n_blocks
             for j, li in enumerate(LAYERS):
-                toks[li] = torch.cat(pend[j])[None]
-                pend[j].clear()
-            xi = torch.cat(pend_img)[None]
-            pend_img.clear()
+                toks[li] = _take_pending(pend[j], reuse=self._reuse_pending)[None]
+            xi = _take_pending(pend_img, reuse=self._reuse_pending)[None]
             # MPS: the DPT head one view at a time (as AnySplat). 8 views at once make 0.8 GB fp32 maps at 1/1 that
             # each take a heap of their own; the views are independent, so the output is the same.
             per = 1 if xi.device.type == "mps" else CHUNK
@@ -350,15 +356,18 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
             for i, block in enumerate(blocks):
                 if self.staged is None:
                     frame = self.block(block, t, tf)
-                    global_out = self.gblock(agg.global_blocks[i], i, frame.view(1, nf * p, c), tg, cache.kv[i], slots)
-                    t = global_out.view(nf, p, c)
+                    t = self.gblock(agg.global_blocks[i], i, frame.view(1, nf * p, c), tg, cache.kv[i], slots).view(
+                        nf, p, c
+                    )
                 else:
                     frame, t = block(t, self, i, tf, tg, cache.kv[i], slots)
                 if i in LAYERS:
                     pend[LAYERS.index(i)].append(torch.cat([frame, t], -1))
+                del frame
             # An FP32 view would keep the entire fused feature buffer alive until the camera head.
             cam.append(pend[-1][-1][:, 0].to(dtype=torch.float32, copy=True))
             pend_img.append(frame_images.to(self.dt))
+            del t, tg
             if fr.stop < n_img:
                 heads(force=False)
         # The final DPT pass no longer needs any layer's causal keys or values.
@@ -433,6 +442,7 @@ class Kernels(_Fast):
     """VGGT's kernels: `fastbb` flash (frame blocks, scale frames), fp16-accumulate GEMMs, cuDNN half-acc DPT convs."""
 
     gacc = True
+    _reuse_pending = True
     patch_tokens = vggt.Kernels.patch_tokens
     attention = vggt.Kernels.attention
 
