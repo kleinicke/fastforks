@@ -609,7 +609,7 @@ class Kernels(_Base):
             raise ValueError(msg)
         seq[3] = _StemPool(self.kern)
         self.graphs = (
-            GraphCache(self._graphed, graphs=2, capture_after=cudnn_hacc.capture_after())
+            GraphCache(self._graphed, graphs=2, capture_after=cudnn_hacc.capture_after(), capture_warmup=False)
             if ctx.params.cuda_graphs
             else None
         )

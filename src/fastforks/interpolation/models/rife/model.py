@@ -303,15 +303,21 @@ class Kernels(Portable):
                 override(m, _hacc_deconv)
         self._grids = None  # a captured graph holds its own grids
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _eager(self, x: torch.Tensor, timestep: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
             return self._forward(x, timestep)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
-        """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
-        x = torch.cat((image1, image2), 1).to(torch.float16).contiguous(memory_format=torch.channels_last)
+        """The frame at `timestep` of a padded batch. One graph handles every timestep of the same shape."""
+        b, _, h, w = image1.shape
+        x = torch.empty((b, 6, h, w), dtype=torch.float16, device=image1.device, memory_format=torch.channels_last)
+        torch.cat((image1, image2), dim=1, out=x)
         t = torch.full((x.shape[0], 1, 1, 1), timestep, dtype=x.dtype, device=x.device)
         out = None if self.graphs is None else self.graphs.run((x.device, tuple(x.shape)), x, t)
         return {"frame": self._eager(x, t) if out is None else out}

@@ -450,7 +450,11 @@ class Kernels(Portable):
             elif isinstance(m, torch.nn.ConvTranspose2d) and base_type(m) is torch.nn.ConvTranspose2d:
                 override(m, _hacc_deconv)  # Unet's up blocks: kernel 4, stride 2, padding 1, groups 1
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
