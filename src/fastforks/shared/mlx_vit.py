@@ -115,29 +115,33 @@ def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
     return out.transpose(0, 2, 1, 3).reshape(b, n, heads * d)
 
 
-def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, rope=None) -> mx.array:
-    """Pre-norm block `i` on tokens `[B, N, C]` (with `blocks.<i>.qk_norm.weight` / `.bias`: `attention`'s `norm`)."""
+def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, rope=None, act=None) -> mx.array:
+    """Pre-norm block `i` on tokens `[B, N, C]` (with `blocks.<i>.qk_norm.weight` / `.bias`: `attention`'s `norm`).
+
+    `act`: the GELU MLP's activation (default `gelu`; CLIP's QuickGELU, SigLIP 2 giantopt's tanh GELU). Float32
+    tokens with float16 weights keep a float32 residual stream: the norms' outputs run the GEMMs in the weights' dtype.
+    """
     b = f"blocks.{i}."
     norm = (p[b + "qk_norm.weight"], p[b + "qk_norm.bias"]) if b + "qk_norm.weight" in p else None
-    h = mx.fast.layer_norm(x, p[b + "norm1.weight"], p[b + "norm1.bias"], eps)
+    h = mx.fast.layer_norm(x, p[b + "norm1.weight"], p[b + "norm1.bias"], eps).astype(p[b + "qkv.weight"].dtype)
     h = attention(mx.addmm(p[b + "qkv.bias"], h, p[b + "qkv.weight"]), heads, rope, norm)
     x = x + mx.addmm(p[b + "proj.bias"], h, p[b + "proj.weight"])
-    h = mx.fast.layer_norm(x, p[b + "norm2.weight"], p[b + "norm2.bias"], eps)
+    h = mx.fast.layer_norm(x, p[b + "norm2.weight"], p[b + "norm2.bias"], eps).astype(p[b + "proj.weight"].dtype)
     if b + "w12.weight" in p:
         x1, x2 = mx.split(mx.addmm(p[b + "w12.bias"], h, p[b + "w12.weight"]), 2, axis=-1)
         return x + mx.addmm(p[b + "w3.bias"], x1 * mx.sigmoid(x1) * x2, p[b + "w3.weight"])
-    h = gelu(mx.addmm(p[b + "fc1.bias"], h, p[b + "fc1.weight"]))
+    h = (act or gelu)(mx.addmm(p[b + "fc1.bias"], h, p[b + "fc1.weight"]))
     return x + mx.addmm(p[b + "fc2.bias"], h, p[b + "fc2.weight"])
 
 
-def blocks(p: dict[str, mx.array], depth: int, heads: int, eps: float, t: mx.array, layers, rope=None):
+def blocks(p: dict[str, mx.array], depth: int, heads: int, eps: float, t: mx.array, layers, rope=None, act=None):
     """All blocks on the embedded tokens `t`: `(tokens after the last block, [tokens at layers])`.
 
     Layer 0 = `t`, layer `i` = the output of block `i` (1-based, before the final norm), in ascending order.
     """
     hs = [t] if 0 in layers else []
     for i in range(depth):
-        t = block(p, i, t, heads, eps, rope)
+        t = block(p, i, t, heads, eps, rope, act)
         if i + 1 in layers:
             hs.append(t)
     return t, hs

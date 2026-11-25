@@ -3,7 +3,7 @@ name = "CLIP"
 summary = "CLIP image towers (Radford et al. 2021): OpenAI, OpenCLIP (LAION-2B, DataComp-1B) and Apple DFN weights in timm's format; cls + patch tokens at any size, pooler_output = the post-LayerNorm cls token before the projection (QuickGELU for the OpenAI and DFN weights)."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["libnet", "mlx_wrap"]  # shared modules imported directly by this family
+uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
   "Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.",
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",

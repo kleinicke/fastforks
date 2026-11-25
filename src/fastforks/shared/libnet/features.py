@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from fastforks._optimize import FastModel
     from fastforks.features._runner import Context
 
-__all__ = ["Kernels", "MetalKernels", "Params", "Portable"]
+__all__ = ["Kernels", "MetalKernels", "MlxPortable", "Params", "Portable"]
 
 _TABLES = 8  # fixed: cache policy, resampled position / RoPE tables kept (the most recently used patch grids)
 # CUDA graphs (kernels) while the call is CPU launch bound: up to this many activations B * N * C (ViT-B up to ~460 px,
@@ -342,3 +342,32 @@ class MetalKernels(Portable):
         if not transformer.pe_rope(self.net, qk_rope):
             msg = f"{ctx.variant.ref}: no Perception Encoder RoPE block for the vit_metal kernel"
             raise ValueError(msg)
+
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the network in MLX array operations (`mlx_features`), float32 or fp16.
+
+    CLIP / SigLIP 2 ViTs (absolute position table, cls token or attention pool); written by hand, so the first call
+    only compiles (the exported-graph port spent 0.7-4 s exporting and translating there).
+    """
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from .mlx_features import Engine  # noqa: PLC0415 - needs the mlx extra
+
+        self.engine = Engine(ctx)
+        cfg = self.engine.cfg
+        self.hidden_size, self.num_layers = cfg.hidden_size, cfg.depth
+        self.num_prefix_tokens, self.num_register_tokens = int(cfg.cls), 0
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Features of a resized, normalised batch."""
+        last, pooled, *hs = self.engine(image, layers)
+        out = {"last_hidden_state": last, "pooler_output": pooled}
+        if layers:
+            out["hidden_states"] = torch.stack(hs, 1)
+        return out
