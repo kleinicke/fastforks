@@ -19,7 +19,7 @@ from fastforks._core.mlx import metal_kernel, mx, to_mx
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-__all__ = ["resize_argmax", "slide_scores", "upsample_argmax"]
+__all__ = ["mask_sigmoid_rows", "resize_argmax", "slide_scores", "upsample_argmax"]
 
 _CHUNK_ELEMENTS = 1 << 26  # float32 elements of one class chunk's resized scores (256 MB)
 
@@ -128,6 +128,76 @@ _ARGMAX2 = metal_kernel(
         out[(size_t(n) * OH + oy) * OW + ox] = arg;
     """,
 )
+
+
+_MASK_ROWS = metal_kernel(
+    name="seg_mask_resize2_sigmoid",
+    input_names=["x", "my0", "my1", "mwy", "mx0", "mx1", "mwx", "y0", "y1", "wy", "x0", "x1", "wx"],
+    output_names=["out"],
+    source="""
+        // rows of the mask logits after both bilinear steps (as `seg_resize2_argmax`), then the sigmoid: one thread
+        // per output pixel walks the queries, so neither resized grid exists
+        uint ox = thread_position_in_grid.x, oy = thread_position_in_grid.y;
+        if (ox >= OW || oy >= uint(y0_shape[0])) return;
+        int W = x_shape[1];
+        int ty[2] = {int(y0[oy]), int(y1[oy])}, tx[2] = {int(x0[ox]), int(x1[ox])};
+        const device float* q[2][2][2][2];  // [mid row][mid col][source row][source col]
+        float cy[2][2], cx[2][2];
+        for (int i = 0; i < 2; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                int a = ty[i], b = tx[j];
+                cy[i][j] = mwy[a];
+                cx[i][j] = mwx[b];
+                int r0 = my0[a], r1 = my1[a], c0 = mx0[b], c1 = mx1[b];
+                q[i][j][0][0] = x + (size_t(r0) * W + c0) * C;
+                q[i][j][0][1] = x + (size_t(r0) * W + c1) * C;
+                q[i][j][1][0] = x + (size_t(r1) * W + c0) * C;
+                q[i][j][1][1] = x + (size_t(r1) * W + c1) * C;
+            }
+        }
+        float fx = wx[ox], fy = wy[oy];
+        device T* o = out + (size_t(oy) * OW + ox) * C;
+        for (int c = 0; c < C; ++c) {
+            float m[2][2];
+            for (int i = 0; i < 2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    float l = q[i][j][0][0][c] + (q[i][j][1][0][c] - q[i][j][0][0][c]) * cy[i][j];
+                    float r = q[i][j][0][1][c] + (q[i][j][1][1][c] - q[i][j][0][1][c]) * cy[i][j];
+                    m[i][j] = l + (r - l) * cx[i][j];
+                }
+            }
+            float top = m[0][0] + (m[0][1] - m[0][0]) * fx;
+            float bot = m[1][0] + (m[1][1] - m[1][0]) * fx;
+            o[c] = T(1.0f / (1.0f + exp(-(top + (bot - top) * fy))));
+        }
+    """,
+)
+
+
+def mask_sigmoid_rows(x: mx.array, sizes: Sequence[Sequence[int]], rows: tuple[int, int], dtype: mx.Dtype) -> mx.array:
+    """Rows `[rows[0], rows[1])` of `sigmoid(resize(resize(x, mid)[:crop[0], :crop[1]], size))`: `[n * W, C]`, lazy.
+
+    `sizes` is `(mid, crop, size)`. `x` `[h, w, C]` float32 mask logits (channels last); both steps bilinear with
+    half-pixel centres, computed in float32 and rounded once to `dtype`. The Mask2Former-family semantic inference at
+    the image size: the padded-size and the image-size logits of every query never exist (250 queries at
+    1024 x 2048: 2 GB in float32).
+    """
+    h, w, c = x.shape
+    mid, crop, size = sizes
+    my0, my1, mwy = _taps(h, mid[0])
+    mx0, mx1, mwx = _taps(w, mid[1])
+    y0, y1, wy = (t[rows[0] : rows[1]] for t in _taps(crop[0], size[0]))
+    x0, x1, wx = _taps(crop[1], size[1])
+    n = rows[1] - rows[0]
+    (out,) = _MASK_ROWS(
+        inputs=[x, my0, my1, mwy, mx0, mx1, mwx, y0, y1, wy, x0, x1, wx],
+        template=[("T", dtype), ("C", c), ("OW", size[1])],
+        grid=(size[1], n, 1),
+        threadgroup=(32, 8, 1),
+        output_shapes=[(n * size[1], c)],
+        output_dtypes=[dtype],
+    )
+    return out
 
 
 def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]]) -> torch.Tensor:
