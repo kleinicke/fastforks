@@ -32,9 +32,9 @@ kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
 symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00063
-p99_px = 0.00234
+date = "2026-11-25"
+mean_px = 0.00061
+p99_px = 0.0023
 
 [validated."dat-2-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
@@ -50,9 +50,9 @@ kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
 symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00051
-p99_px = 0.00195
+date = "2026-11-25"
+mean_px = 0.00039
+p99_px = 0.0014
 
 [validated."dat-light-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
@@ -68,9 +68,9 @@ kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
 symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00049
-p99_px = 0.00183
+date = "2026-11-25"
+mean_px = 0.00048
+p99_px = 0.00178
 
 [validated."dat-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]

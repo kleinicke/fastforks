@@ -41,6 +41,7 @@ from fastforks.shared.swin_sr import (
     relative_bias,
     shift_mask,
     shifted_window_regions,
+    stripe_pixelshuffle,
     window_attention,
 )
 
@@ -225,6 +226,8 @@ class Kernels(Portable):
                 override(m, _shifted_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
+        if self.net.upsampler == "pixelshuffle":
+            stripe_pixelshuffle(self.net, self.net.upscale)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""

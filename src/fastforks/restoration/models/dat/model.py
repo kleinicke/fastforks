@@ -37,7 +37,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll
+from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll, stripe_pixelshuffle
 
 from .net import DAT
 from .net.dat_arch import (
@@ -289,12 +289,15 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
     """`Adaptive_Spatial_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, -1, 3, c).permute(2, 0, 1, 3)  # 3, b, hw, c
-    v = _image(qkv[2], h, w)
     s = max(m.split_size)
     pad_r, pad_b = -w % s, -h % s
+    # Use a view of the padded values on CUDA so the original QKV storage can be reclaimed.
+    v = None if compact_mask and (pad_r or pad_b) else _image(qkv[2], h, w)
     if pad_r or pad_b:  # no padded copy of q, k, v when the size divides (peak memory)
         qkv = F.pad(qkv.reshape(3 * b, h, w, c), (0, 0, 0, pad_r, 0, pad_b)).reshape(3, b, -1, c)
     hp, wp = h + pad_b, w + pad_r
+    if v is None:
+        v = qkv[2].view(b, hp, wp, c)[:, :h, :w].permute(0, 3, 1, 2)
     half = c // 2
     heads = qkv.new_empty((b, hp, wp, c))  # both branches' outputs, written in place (upstream: a cat)
     if (m.rg_idx % 2 == 0 and m.b_idx > 0 and (m.b_idx - 2) % 4 == 0) or (m.rg_idx % 2 != 0 and m.b_idx % 4 == 0):
@@ -545,6 +548,8 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
             elif is_base(m, nn.LayerNorm) and len(m.normalized_shape) == 1 and m.normalized_shape[0] <= _GN_MAX_C:
                 override(m, _narrow_layer_norm)
+        if self.net.upsampler == "pixelshuffle":
+            stripe_pixelshuffle(self.net, self.net.upscale)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""

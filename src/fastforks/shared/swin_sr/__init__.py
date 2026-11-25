@@ -36,12 +36,57 @@ __all__ = [
     "relative_bias",
     "roll",
     "shift_mask",
+    "stripe_pixelshuffle",
     "to_2tuple",
     "trunc_normal_",
     "window_attention",
 ]
 
 trunc_normal_ = nn.init.trunc_normal_
+
+_PIXELSHUFFLE_BYTES = 64 << 20  # fixed: target working set for one upsampled feature stripe
+
+
+class _StripedPixelShuffle(nn.Module):
+    """Evaluate the reconstruction convolutions in row stripes with their input halo."""
+
+    def __init__(self, upsample: nn.Module, output: nn.Conv2d, scale: int) -> None:
+        super().__init__()
+        self.upsample = upsample
+        self.output = output
+        self.scale = scale
+        # One low-resolution row per 3 x 3 convolution covers its radius at every upscale step.
+        self.halo = 1 + sum(isinstance(layer, nn.Conv2d) for layer in upsample.children())
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Write only the interior of each stripe into the final upscaled image."""
+        b, c, h, w = x.shape
+        scale = self.scale
+        rows = max(1, _PIXELSHUFFLE_BYTES // (b * c * scale**2 * w * x.element_size()))
+        if rows >= h:
+            return self.output(self.upsample(x))
+        out = torch.empty(
+            (b, self.output.out_channels, scale * h, scale * w),
+            dtype=x.dtype,
+            device=x.device,
+            memory_format=torch.channels_last,
+        )
+        for start in range(0, h, rows):
+            end = min(start + rows, h)
+            lo, hi = max(0, start - self.halo), min(h, end + self.halo)
+            tile = self.output(self.upsample(x[..., lo:hi, :]))
+            out[..., start * scale : end * scale, :].copy_(tile[..., (start - lo) * scale : (end - lo) * scale, :])
+            del tile
+        return out
+
+
+def stripe_pixelshuffle(net: nn.Module, scale: int) -> None:
+    """Attach the bounded upsampler to a CUDA runner's classical reconstruction path."""
+    upsample = net.get_submodule("upsample")
+    output = net.get_submodule("conv_last")
+    assert isinstance(output, nn.Conv2d)  # noqa: S101 - classical pixel-shuffle reconstruction
+    net.upsample = _StripedPixelShuffle(upsample, output, scale)
+    net.conv_last = nn.Identity()
 
 
 def to_2tuple(x: int | tuple[int, int]) -> tuple[int, int]:

@@ -31,7 +31,7 @@ from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
 from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
-from fastforks.kernels.shift_windows import rearrange
+from fastforks.kernels.shift_windows import rearrange, reverse_residual
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
@@ -43,6 +43,7 @@ from fastforks.shared.swin_sr import (
     relative_bias,
     shift_mask,
     shifted_window_regions,
+    stripe_pixelshuffle,
     window_attention,
 )
 
@@ -303,15 +304,17 @@ def _cab(m: CAB, x: torch.Tensor) -> torch.Tensor:
 def _shifted_block(
     m: HAB, x: torch.Tensor, x_size: tuple[int, int], rpi_sa: torch.Tensor, attn_mask: torch.Tensor
 ) -> torch.Tensor:
-    """Hybrid attention with (shifted) windows produced and consumed in one pass per direction."""
+    """Partition the hybrid-attention windows and reverse them while adding the residuals."""
     h, w = x_size
     normalized = m.norm1(x)
-    windows = rearrange(normalized, x_size, m.window_size, m.shift_size)
-    att = m.attn(windows, rpi=rpi_sa, mask=attn_mask if m.shift_size else None)
-    att = rearrange(att, x_size, m.window_size, m.shift_size, reverse=True)
+    att = m.attn(
+        rearrange(normalized, x_size, m.window_size, m.shift_size), rpi=rpi_sa, mask=attn_mask if m.shift_size else None
+    )
     conv = m.conv_block(normalized.unflatten(1, (h, w)).permute(0, 3, 1, 2)).flatten(2).transpose(1, 2)
-    x = x + m.drop_path(att) + conv * m.conv_scale
-    return x + m.drop_path(m.mlp(m.norm2(x)))
+    del normalized
+    x = reverse_residual(att, x, conv, x_size, window=m.window_size, shift=m.shift_size, scale=m.conv_scale)
+    del att, conv
+    return m.mlp(m.norm2(x)).add_(x)
 
 
 class Kernels(Portable):
@@ -330,6 +333,8 @@ class Kernels(Portable):
                 _pad_cab(m)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
+        if self.net.upsampler == "pixelshuffle":
+            stripe_pixelshuffle(self.net, self.net.upscale)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""

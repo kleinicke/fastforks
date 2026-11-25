@@ -96,3 +96,35 @@ def test_shifted_window_roundtrip(channels: int) -> None:
     got = rearrange(tokens, (h, w), win, 2)
     assert torch.equal(got, windows)
     assert torch.equal(rearrange(got, (h, w), win, 2, reverse=True), tokens)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("channels", "shift"), [(144, 0), (180, 8), (182, 8)])
+def test_window_residual_preserves_half_rounding(channels: int, shift: int) -> None:
+    from fastforks.kernels.shift_windows import rearrange, reverse_residual  # noqa: PLC0415
+
+    h, w, window = 32, 48, 16
+    skip = torch.randn(2, h * w, channels, device="cuda", dtype=torch.float16)
+    conv = torch.randn(2, h * w, channels + 4, device="cuda", dtype=torch.float16)[..., :channels]
+    tokens = torch.randn(2 * h * w // window**2, window**2, channels, device="cuda", dtype=torch.float16)
+    expected = skip + rearrange(tokens, (h, w), window, shift, reverse=True) + conv * 0.01
+    actual = reverse_residual(tokens, skip, conv, (h, w), window=window, shift=shift, scale=0.01)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("scale", [2, 3, 4])
+def test_pixelshuffle_stripes_keep_convolution_context(scale: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.restoration.models.swinir.net.network_swinir import Upsample  # noqa: PLC0415
+    from fastforks.shared import swin_sr  # noqa: PLC0415
+
+    channels, height, width = 4, 11, 7
+    x = torch.randn(2, channels, height, width)
+    net = torch.nn.Module()
+    net.upsample = Upsample(scale, channels)
+    net.conv_last = torch.nn.Conv2d(channels, 3, 3, padding=1)
+    monkeypatch.setattr(swin_sr, "_PIXELSHUFFLE_BYTES", x.element_size() * 2 * channels * width * scale**2 * 2)
+    with torch.inference_mode():
+        expected = net.conv_last(net.upsample(x))
+        swin_sr.stripe_pixelshuffle(net, scale)
+        actual = net.conv_last(net.upsample(x))
+    torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-6)
