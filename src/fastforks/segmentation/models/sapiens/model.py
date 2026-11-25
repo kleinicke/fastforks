@@ -16,6 +16,7 @@ Apple MLX runs the network written in MLX operations (`mlx_net.py`).
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import mps
+from fastforks._core.checkpoint import torchscript_state_dict
 from fastforks._core.errors import BackendUnavailableError, OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
@@ -60,7 +62,17 @@ def _load(ctx: Context) -> Sapiens:
     p: Params = ctx.params
     with torch.device("meta"):
         net = Sapiens(p)
-    sd = ctx.state_dict(strip="")
+    if (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.variant.ref == "sapiens-seg-1b-goliath@1"
+        and not p.stream
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    ):
+        sd = torchscript_state_dict(ctx.weights()[0], split_large_storages=True)
+    else:
+        sd = ctx.state_dict(strip="")
     net.load_state_dict({k: v for k, v in sd.items() if k not in _NOT_THE_NETWORK}, strict=True, assign=True)
     return net.eval().requires_grad_(requires_grad=False)
 

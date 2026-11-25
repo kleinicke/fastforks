@@ -21,6 +21,7 @@ import types
 import zipfile
 from collections import OrderedDict, defaultdict
 from collections.abc import Mapping
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
@@ -37,7 +38,7 @@ except ImportError:  # numpy 1
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from pathlib import Path
+    from typing import BinaryIO
 
 __all__ = [
     "NUMPY_ARRAYS",
@@ -432,6 +433,7 @@ def _is_torchscript(path: Path) -> bool:
 _SCRIPT_LISTS = frozenset(
     ("build_intlist", "build_tensorlist", "build_doublelist", "build_boollist", "build_genlist", "restore_type_tag")
 )
+_SCRIPT_WINDOW_BYTES = 1 << 20  # keep small storages on the whole-file mapping
 
 
 def _script_value(value: object, *_type: object) -> object:
@@ -448,10 +450,33 @@ class _ScriptObject:
 class _ScriptUnpickler(pickle.Unpickler):
     """`data.pkl` of a TorchScript archive: module classes -> `_ScriptObject`, tensors from the mapped file."""
 
-    def __init__(self, raw: bytes, path: Path, root: str, infos: dict[str, zipfile.ZipInfo]) -> None:
+    def __init__(
+        self,
+        raw: bytes,
+        source: BinaryIO,
+        root: str,
+        infos: dict[str, zipfile.ZipInfo],
+        *,
+        split_large_storages: bool,
+    ) -> None:
         super().__init__(io.BytesIO(raw))
-        self.path, self.root, self.infos = path, root, infos
-        self.mm = np.memmap(path, dtype=np.uint8, mode="c")
+        self.source, self.name = source, Path(source.name).name
+        self.root, self.infos = root, infos
+        self.mm = np.memmap(source, dtype=np.uint8, mode="c")
+        self.split_large_storages = split_large_storages
+        self.windows: dict[int, np.memmap] = {}
+
+    def _storage_bytes(self, info: zipfile.ZipInfo, start: int, nbytes: int) -> np.ndarray:
+        if not self.split_large_storages or info.file_size < _SCRIPT_WINDOW_BYTES or nbytes < 0:
+            return self.mm[start : start + nbytes]
+        key = info.header_offset
+        # A repeated storage record must keep sharing its original mapped bytes.
+        window = self.windows.get(key)
+        if window is None:
+            window = self.windows[key] = np.memmap(
+                self.source, dtype=np.uint8, mode="c", offset=start, shape=(info.file_size,)
+            )
+        return window[:nbytes]
 
     def find_class(self, module: str, name: str) -> Any:  # noqa: ANN401 - pickle protocol
         if module.startswith("__torch__."):
@@ -461,25 +486,26 @@ class _ScriptUnpickler(pickle.Unpickler):
         try:
             return _BASE[module, name]
         except KeyError:
-            msg = f"{self.path.name}: the archive references {module}.{name}, which is not on the allow-list"
+            msg = f"{self.name}: the archive references {module}.{name}, which is not on the allow-list"
             raise WeightsError(msg) from None
 
     def persistent_load(self, pid: Any) -> Any:  # noqa: ANN401 - pickle protocol
         if not (isinstance(pid, tuple) and len(pid) == 5 and pid[0] == "storage"):  # noqa: PLR2004 - torch's id
-            msg = f"{self.path.name}: unexpected persistent id {pid!r}"
+            msg = f"{self.name}: unexpected persistent id {pid!r}"
             raise WeightsError(msg)
         _, kind, key, _, numel = pid
         dtype = _STORAGE_DTYPES.get(kind)
         if dtype is None:
-            msg = f"{self.path.name}: tensor data {key!r} has an unsupported storage type {kind!r}"
+            msg = f"{self.name}: tensor data {key!r} has an unsupported storage type {kind!r}"
             raise WeightsError(msg)
         info = self.infos.get(f"{self.root}data/{key}")
-        if info is None or info.compress_type != zipfile.ZIP_STORED or int(numel) * dtype.itemsize > info.file_size:
-            msg = f"{self.path.name}: tensor data {key!r} is missing, compressed or too short"
+        nbytes = int(numel) * dtype.itemsize
+        if info is None or info.compress_type != zipfile.ZIP_STORED or nbytes > info.file_size:
+            msg = f"{self.name}: tensor data {key!r} is missing, compressed or too short"
             raise WeightsError(msg)
         header = self.mm[info.header_offset : info.header_offset + 30]  # zip local header: name / extra lengths
         start = info.header_offset + 30 + int(header[26:28].view("<u2")[0]) + int(header[28:30].view("<u2")[0])
-        data = torch.from_numpy(self.mm[start : start + int(numel) * dtype.itemsize])
+        data = torch.from_numpy(self._storage_bytes(info, start, nbytes))
         return torch.TypedStorage(wrap_storage=data.untyped_storage(), dtype=dtype, _internal=True)
 
 
@@ -492,17 +518,20 @@ def _script_tensors(o: object, prefix: str, out: dict[str, torch.Tensor]) -> dic
     return out
 
 
-def torchscript_state_dict(path: Path) -> dict[str, torch.Tensor]:
+def torchscript_state_dict(path: Path, *, split_large_storages: bool = False) -> dict[str, torch.Tensor]:
     """Every tensor attribute of a TorchScript archive, named as `torch.jit.load(path).state_dict()` names them.
 
     The archive's TorchScript code is never loaded or run: `data.pkl` is read with a restricted unpickler, every
     `__torch__.*` class becomes an inert attribute holder, and tensors are views of the memory-mapped file
     (copy-on-write: writes stay private). Only uncompressed, little-endian archives (as torch writes them) are read.
 
+    With `split_large_storages`, each large storage has its own mapping. Its pages leave the process's RSS when
+    the final tensor using that storage is released.
+
     Raises:
         WeightsError: Unsafe or unreadable archive.
     """
-    with zipfile.ZipFile(path) as z:
+    with path.open("rb") as source, zipfile.ZipFile(source) as z:
         infos = {i.filename: i for i in z.infolist()}
         pkl = next((n for n in infos if n.count("/") == 1 and n.endswith("/data.pkl")), None)
         root = (pkl or "").removesuffix("data.pkl")
@@ -513,11 +542,11 @@ def torchscript_state_dict(path: Path) -> dict[str, torch.Tensor]:
             )
             raise WeightsError(msg)
         raw = z.read(pkl)
-    try:
-        obj = _ScriptUnpickler(raw, path, root, infos).load()
-    except (pickle.UnpicklingError, TypeError, ValueError, AttributeError) as e:
-        msg = f"{path.name}: cannot read the TorchScript archive safely: {e}"
-        raise WeightsError(msg) from e
+        try:
+            obj = _ScriptUnpickler(raw, source, root, infos, split_large_storages=split_large_storages).load()
+        except (pickle.UnpicklingError, TypeError, ValueError, AttributeError) as e:
+            msg = f"{path.name}: cannot read the TorchScript archive safely: {e}"
+            raise WeightsError(msg) from e
     return _script_tensors(obj, "", {})
 
 

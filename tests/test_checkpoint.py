@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 import torch
 
+from fastforks._core import checkpoint
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, SafetensorsReader, load_state_dict, restricted_load
 from fastforks._core.errors import WeightsError
 
@@ -177,6 +178,7 @@ class _Scripted(torch.nn.Module):
         self.conv = torch.nn.Conv2d(3, 4, 3)
         self.head = torch.nn.Sequential(torch.nn.Linear(4, 2), torch.nn.BatchNorm1d(2))
         self.scale16 = torch.nn.Parameter(torch.randn(5, dtype=torch.float16))
+        self.register_buffer("scale_slice", self.scale16.detach()[1::2])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.head(self.conv(x).mean((2, 3))) + self.scale16.sum()
@@ -184,18 +186,28 @@ class _Scripted(torch.nn.Module):
 
 @pytest.mark.filterwarnings("ignore:`torch.jit.[a-z]*` is deprecated:FutureWarning")  # only to write the fixture
 @pytest.mark.filterwarnings("ignore:`torch.jit.[a-z]*` is not supported in Python 3.14:FutureWarning")  # same
-def test_torchscript_archive_tensors_without_running_code(tmp_path, monkeypatch):
+@pytest.mark.parametrize("split_storages", [False, True], ids=["whole-file", "storage-windows"])
+def test_torchscript_archive_tensors_without_running_code(tmp_path, monkeypatch, split_storages):
     torch.manual_seed(0)
     path = tmp_path / "net.pt2"
     module = torch.jit.script(_Scripted().eval())
     torch.jit.save(module, path)
     monkeypatch.setattr(torch.jit, "load", lambda *_a, **_k: pytest.fail("TorchScript code was loaded"))
-    sd = load_state_dict(path)
+    if split_storages:
+        monkeypatch.setattr(checkpoint, "_SCRIPT_WINDOW_BYTES", 1)
+        sd = checkpoint.torchscript_state_dict(path, split_large_storages=True)
+    else:
+        sd = load_state_dict(path)
     ref = module.state_dict()
     assert sorted(sd) == sorted(ref)
     for k, v in ref.items():
         assert sd[k].dtype == v.dtype
         assert torch.equal(sd[k], v), k
+    assert sd["scale_slice"].stride() == (2,)
+    assert sd["scale_slice"].storage_offset() == 1
+    sd["scale_slice"].fill_(7)
+    torch.testing.assert_close(sd["scale16"][1::2], sd["scale_slice"], rtol=0, atol=0)
+    assert torch.equal(load_state_dict(path)["scale_slice"], ref["scale_slice"])
 
 
 def test_torchscript_archive_with_foreign_globals_is_refused(tmp_path):
