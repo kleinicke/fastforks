@@ -114,6 +114,26 @@ def read(path: str | Path, prefix: str, dt: mx.Dtype, skip: Sequence[str] = ()) 
 # --- ops ------------------------------------------------------------------------------------------------------------
 
 
+def _step(prev: tuple[mx.array, ...], *arrays: mx.array, wait: bool = False) -> tuple[mx.array, ...]:
+    """Bound a layer loop's graph: start evaluating `arrays` and wait for `prev`, the layer before.
+
+    A blocking `mx.eval` per layer leaves the GPU idle while Python builds the next layer's graph (5 to 10 % of the
+    trunk and of a prompt on an M1 Pro); one lazy graph of the whole loop keeps every layer's temporaries alive.
+    `wait` also waits for `arrays`: for the layers whose temporaries are large (the trunk's global attention, the neck
+    and mask decoder levels), where two in flight raised the peak by 0.3 to 0.6 GB and saved under 1 % of the time.
+
+    Returns:
+        The next call's `prev`.
+    """
+    if wait:
+        mx.eval(*prev, *arrays)
+        return ()
+    mx.async_eval(*arrays)
+    if prev:
+        mx.eval(*prev)
+    return arrays
+
+
 def linear(x: mx.array, w: mx.array, b: mx.array | None = None) -> mx.array:
     """`F.linear` (bias added in the GEMM's epilogue)."""
     if b is None:
@@ -271,12 +291,13 @@ class Net:
             return z.reshape(b, k, j, s, s, c).transpose(0, 1, 3, 2, 4, 5).reshape(b, h * wd, c)
 
         x, windowed = x.reshape(b, h * wd, c), False  # the residual stays in window order between global layers
+        prev: tuple[mx.array, ...] = ()
         for i in range(VIT_LAYERS):
             size = 0 if i in GLOBAL_LAYERS else WINDOW
             if bool(size) != windowed:
                 x, windowed = (part(x) if size else unpart(x)), bool(size)
             x = self._vit_layer(x, f"{p}layers.{i}.", *self.ropes[size])
-            mx.eval(x)  # one layer's activations at a time
+            prev = _step(prev, x, wait=not size)  # one layer's activations at a time
         return (unpart(x) if windowed else x).reshape(b, h, wd, c)
 
     def _vit_layer(self, x: mx.array, p: str, cos: mx.array, sin: mx.array) -> mx.array:
@@ -292,6 +313,7 @@ class Net:
         """Trunk output `[1, 72, 72, 1024]` -> the 4x, 2x, 1x levels, NHWC (`sam3.Neck`; `w`: the tracker neck's)."""
         w = self.w if w is None else w
         out = []
+        prev: tuple[mx.array, ...] = ()
         for level, ups in enumerate(((0, 2), (0,), ())):
             q, x = f"{p}fpn_layers.{level}.", t
             for n, idx in enumerate(ups):
@@ -300,7 +322,7 @@ class Net:
                 x = _shuffle(linear(x, w[f"{q}scale_layers.{idx}.weight"], w[f"{q}scale_layers.{idx}.bias"]))
             x = linear(x, w[f"{q}proj1.weight"], w[f"{q}proj1.bias"])
             out.append(mx.conv2d(x, w[f"{q}proj2.weight"], padding=1) + w[f"{q}proj2.bias"])
-            mx.eval(out[-1])
+            prev = _step(prev, out[-1], wait=True)
         return out
 
     def encode(self, pixels: mx.array) -> list[mx.array]:
@@ -381,6 +403,7 @@ class Net:
         """Image tokens attend to themselves and the prompt (`sam3.DetrEncoder`, in the run dtype)."""
         dt = self.w["detr_encoder.layers.0.mlp.fc1.weight"].dtype
         x, pos, prompt = vision.astype(dt), self.pos.astype(dt), prompt.astype(dt)
+        prev: tuple[mx.array, ...] = ()
         for i in range(DETR_LAYERS):
             q = f"detr_encoder.layers.{i}."
             h = self.ln(x, f"{q}layer_norm1")
@@ -388,7 +411,7 @@ class Net:
             x = x + self.attn(f"{q}self_attn.", hp, hp, h)
             x = x + self.attn(f"{q}cross_attn.", self.ln(x, f"{q}layer_norm2"), prompt, prompt)
             x = x + self.mlp(self.ln(x, f"{q}layer_norm3"), f"{q}mlp", self._relu)
-            mx.eval(x)  # one layer's activations at a time (a longer graph keeps every layer's)
+            prev = _step(prev, x)  # one layer's activations at a time (a longer graph keeps every layer's)
         return x
 
     def rpb(self, ref: mx.array) -> mx.array:
@@ -418,6 +441,7 @@ class Net:
         dt = w[f"{d}layers.0.vision_cross_attn.q_proj.weight"].dtype
         key_dt, vision_dt = key.astype(dt), encoded.astype(dt)  # cast once, as every layer's attention would
         out = ref
+        prev: tuple[mx.array, ...] = ()
         for i in range(DETR_LAYERS):
             q = f"{d}layers.{i}."
             qpos = self.decoder_mlp(encode_boxes(ref), f"{d}ref_point_head", 2)
@@ -431,7 +455,7 @@ class Net:
             h = self.ln(h + self.mlp(h, f"{q}mlp", self._relu), f"{q}mlp_layer_norm")
             out = self.ln(h[:, 1:], f"{d}output_layer_norm")
             ref = mx.sigmoid(self.decoder_mlp(out, f"{d}box_head", 3) + inverse_sigmoid(ref))
-            mx.eval(h, out, ref)
+            prev = _step(prev, h, out, ref)
         presence = self.decoder_mlp(self.ln(h[:, :1], f"{d}presence_layer_norm"), f"{d}presence_head", 3)
         return out, ref, mx.clip(presence[..., 0], -10.0, 10.0)
 
@@ -450,14 +474,15 @@ class Net:
         enc, prompt = encoded.astype(dt), prompt.astype(dt)
         e = enc + self.attn(f"{m}prompt_cross_attn.", self.ln(enc, f"{m}prompt_cross_attn_norm"), prompt, prompt)
         x = e.reshape(fpn[-1].shape)
+        prev: tuple[mx.array, ...] = ()
         for i, f in enumerate(reversed(fpn[:-1])):
             q = f"{m}pixel_decoder."
             x = _up2(x) + f.astype(dt)
             x = mx.conv2d(x, self.w[f"{q}conv_layers.{i}.weight"], padding=1) + self.w[f"{q}conv_layers.{i}.bias"]
             x = _gn_relu(x, self.w[f"{q}norms.{i}.weight"], self.w[f"{q}norms.{i}.bias"])
-            mx.eval(x)
+            prev = _step(prev, x, wait=True)
         inst = self.lin(x, f"{m}instance_projection")  # [1, 288, 288, C]
-        mx.eval(inst)
+        _step(prev, inst)
         emb = queries.astype(dt)
         for i in range(3):
             emb = self.lin(emb, f"{m}mask_embedder.layers.{i}")
@@ -480,7 +505,7 @@ class Net:
         vision = fpn[-1].reshape(1, -1, DIM).astype(F32)
         prompt = mx.concatenate([text, self.geometry(vision, ex)], axis=1)
         encoded = self.detr_encoder(vision, prompt).astype(F32)
-        mx.eval(encoded, prompt)
+        _step((), encoded, prompt)
         queries, boxes, presence = self.detr_decoder(encoded, prompt)
         logits = self.scores(queries, prompt)
         masks = self.masks(queries, fpn, encoded, prompt).astype(F32)

@@ -1411,3 +1411,37 @@ def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):
     assert set(got) == set(want)
     for k, w in want.items():
         torch.testing.assert_close(got[k], w, atol=tol, rtol=tol)
+
+
+@pytest.mark.parametrize("count", [0, 1, 3])
+def test_mlx_sam3_geometry_matches_torch(count):
+    """`sam3.net.mlx_net.Net.geometry` against `sam3.GeometryEncoder`: the exemplar boxes' RoI pooling (two matmuls
+    with the `roi_weights`), the detector's attention at head dim 32 and the float32 residual, on a 12 x 9 map.
+    """
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam3.net import mlx_net, sam3  # noqa: PLC0415 - optional (mlx extra)
+
+    torch.manual_seed(0)
+    h, w = 12, 9
+    enc = _randomise(sam3.GeometryEncoder(mlx_net.GEOMETRY_LAYERS))
+    vision, pos = torch.randn(1, h * w, sam3.DIM), torch.randn(1, h * w, sam3.DIM)
+    ex = None
+    if count:
+        boxes = torch.rand(count, 4) * torch.tensor([0.6, 0.6, 0.35, 0.35]) + torch.tensor([0.2, 0.2, 0.02, 0.02])
+        pool_y, pool_x = sam3.roi_weights(boxes, h, w)
+        ex = sam3.Exemplars(boxes[None], torch.arange(count)[None] % 2, pool_y[None], pool_x[None])
+    with torch.no_grad():
+        want = enc(vision, pos, ex)
+
+    net = object.__new__(mlx_net.Net)
+    net.dt = mx.float32
+    net.pos = mx.array(pos.numpy())
+    net.w = {}
+    for k, v in enc.state_dict().items():
+        name = f"geometry_encoder.{k}"
+        net.w[name] = mlx_net._bias(name, mlx_net._layout(name, mx.array(v.numpy())))
+    fields = None if ex is None else [mlx_net.to_mx(t) for t in (ex.boxes, ex.labels, ex.pool_y, ex.pool_x)]
+    got = mlx_net.to_torch(net.geometry(mx.array(vision.numpy()), fields))
+    torch.testing.assert_close(got, want, atol=2e-4, rtol=2e-4)
