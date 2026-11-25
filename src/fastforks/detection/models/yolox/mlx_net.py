@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastforks._core.mlx import mx
+from fastforks._core.patch import base_type
 from fastforks.shared.cspnext import mlx_net as csp
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ def _csp_layer(layer: Any, d: mx.Dtype, graph: str) -> Layer:
 def _stage(stage: Any, d: mx.Dtype, graph: str) -> Layer:
     """A `dark` stage: the stride-2 conv, the SPP (last stage), the `CSPLayer`."""
     build = {"CSPLayer": _csp_layer, "SPP": csp.spp}
-    return csp.chain(*(build.get(type(m).__name__, csp.conv_act)(m, d, graph) for m in stage))
+    return csp.chain(*(build.get(base_type(m).__name__, csp.conv_act)(m, d, graph) for m in stage))
 
 
 class MlxYOLOX:
