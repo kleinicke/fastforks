@@ -8,24 +8,48 @@ elementwise kernels on `channels_last_3d`. Used by `fastforks.volume.models.tota
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import torch
 
 from fastforks._core import kernels
 from fastforks._core.kernels import cubin_library
+from fastforks._core.upload import to_device
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vol_norm.cu)
 SIGNATURES = {
     "in_stats_h": "ppiip",
     "in_final_h": "pppppiiifp",
     "in_apply_h": "ppliifp",
+    "vol_gaussian_h": "pppiiil",
+    "vol_gaussian_fix_h": "ppl",
     "vol_accum_h": "pppiiiillli",
     "vol_resize_labels_h": "pppiiiiiiiiiilllfff",
 }
 _ROWS = 256  # threads per stats block
+_GAUSSIAN_BLOCKS = 512  # fixed: bound the number of block minima
 _VECTOR_BYTES = 16
 _V8 = 8
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
+
+
+def gaussian(axes: Sequence[torch.Tensor], device: torch.device) -> torch.Tensor:
+    """Generate FP16 window weights directly on CUDA from three CPU FP64 axes."""
+    d, h, w = (len(axis) for axis in axes)
+    normal = (axes[0][d // 2] * axes[1][h // 2] * axes[2][w // 2] / 10).view(1)
+    args = to_device(torch.cat([*axes, normal]), device)
+    out = torch.empty((d, h, w), dtype=torch.float16, device=device)
+    smallest = torch.full((), 0x7C00, dtype=torch.int32, device=device)
+    lib = load(device)
+    grid, block = kernels.linear(out.numel(), _ROWS)
+    lib.launch(
+        "vol_gaussian_h", (min(grid[0], _GAUSSIAN_BLOCKS), 1, 1), block, args, out, smallest, d, h, w, out.numel()
+    )
+    lib.launch("vol_gaussian_fix_h", grid, block, out, smallest, out.numel())
+    return out
 
 
 def accumulate_(out: torch.Tensor, logits: torch.Tensor, gaussian: torch.Tensor) -> None:

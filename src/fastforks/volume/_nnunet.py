@@ -632,16 +632,22 @@ class UNet(nn.Module):
         return out
 
 
-def gaussian(patch: Sequence[int], device: torch.device, dtype: torch.dtype = torch.float16) -> torch.Tensor:
+def gaussian(
+    patch: Sequence[int], device: torch.device, dtype: torch.dtype = torch.float16, *, cuda_kernels: bool = False
+) -> torch.Tensor:
     """nnU-Net's importance map: a delta filtered by a Gaussian (sigma = patch / 8, truncated at 4 sigma), max 10."""
     axes = []
     for n in patch:
         sigma, c = n / 8, n // 2
         radius = int(4 * sigma + 0.5)
-        x = torch.arange(n, dtype=torch.float64) - c
-        w = torch.exp(-0.5 * (torch.arange(-radius, radius + 1, dtype=torch.float64) / sigma) ** 2)
+        x = torch.arange(n, dtype=torch.float64, device="cpu") - c
+        w = torch.exp(-0.5 * (torch.arange(-radius, radius + 1, dtype=torch.float64, device="cpu") / sigma) ** 2)
         w /= w.sum()
         axes.append(torch.where(x.abs() <= radius, w[(x + radius).clamp(0, 2 * radius).long()], 0.0))
+    if cuda_kernels and device.type == "cuda" and dtype == torch.float16:
+        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels mode only
+
+        return vol_norm.gaussian(axes, device)
     g = axes[0][:, None, None] * axes[1][None, :, None] * axes[2][None, None, :]
     g = (g / (g.max() / 10)).to(dtype)  # cast and zero fix on the CPU: on the device each was a host sync
     zero = g == 0
@@ -900,7 +906,7 @@ class Predictor:
         z = torch.arange(depth, dtype=torch.float64, device="cpu")
         coords = ((z + 0.5) * scale - 0.5).float().clamp_min_(0)
         right = (coords.long() + 1).clamp_max_(src_depth - 1).tolist()
-        self._gauss = gaussian(self.plan.patch_size, x.device)
+        self._gauss = gaussian(self.plan.patch_size, x.device, cuda_kernels=True)
         steps = sliding_steps(x.shape[1:], self.plan.patch_size, self.step)
         out = torch.empty(tuple(shape), dtype=torch.uint8, device=x.device)
         previous = None
@@ -971,7 +977,7 @@ class Predictor:
         (one network: on the sums, which differs from upstream only where the float16 division rounds two logits equal).
         """
         p = self.plan
-        self._gauss = gaussian(p.patch_size, x.device)
+        self._gauss = gaussian(p.patch_size, x.device, cuda_kernels=self.cuda_kernels)
         steps = sliding_steps(x.shape[1:], p.patch_size, self.step)
         d, h, w = x.shape[1:]
         dt = self._gauss.dtype

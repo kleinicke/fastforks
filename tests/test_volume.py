@@ -214,6 +214,17 @@ def test_nnunet_folder_with_safetensors(folder: Path, tmp_path: Path) -> None:
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize("patch", [(1, 37, 103), (16, 16, 16), (31, 48, 19), (192, 192, 192)])
+def test_cuda_gaussian_matches_cpu_half_weights(patch: tuple[int, int, int]) -> None:
+    """Compare complete weights, including zeros rounded away and replaced by the smallest positive weight."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    expected = _nnunet.gaussian(patch, torch.device("cpu"))
+    actual = _nnunet.gaussian(patch, torch.device("cuda"), cuda_kernels=True)
+    assert torch.equal(actual.cpu(), expected)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize("channels", [19, 118])
 def test_fused_window_accumulation_preserves_rounding(channels: int) -> None:
     from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only

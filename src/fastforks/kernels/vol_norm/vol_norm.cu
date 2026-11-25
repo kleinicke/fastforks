@@ -274,3 +274,40 @@ extern "C" __global__ void in_apply_h(__half* __restrict__ x, const float* __res
         reinterpret_cast<uint4*>(x)[i] = v.u;
     }
 }
+
+extern "C" __global__ void vol_gaussian_h(const double* __restrict__ axes, __half* __restrict__ out,
+                                         int* __restrict__ smallest, int d, int h, int w, int64_t count) {
+    // Match the CPU outer product and its FP64 -> FP32 -> FP16 rounding.
+    const double scale = axes[d + h + w];
+    int best = 0x7c00;
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (int64_t)gridDim.x * blockDim.x) {
+        const int64_t row = i / w;
+        const double a = axes[row / h], b = axes[d + row % h], c = axes[d + h + i % w];
+        const auto val = __float2half_rn(__double2float_rn(__ddiv_rn(__dmul_rn(__dmul_rn(a, b), c), scale)));
+        out[i] = val;
+        const unsigned bits = __half_as_ushort(val);
+        if (bits) best = min(best, (int)bits);
+    }
+    // The launcher uses 256 threads. Positive FP16 values sort by their unsigned bits.
+    __shared__ int mins[8];
+    const int lane = threadIdx.x % 32, warp = threadIdx.x / 32;
+    for (int step = 16; step; step /= 2) {
+        best = min(best, __shfl_down_sync(0xffffffff, best, step));
+    }
+    if (!lane) mins[warp] = best;
+    __syncthreads();
+    if (!warp) {
+        best = lane < blockDim.x / 32 ? mins[lane] : 0x7c00;
+        for (int step = 16; step; step /= 2) {
+            best = min(best, __shfl_down_sync(0xffffffff, best, step));
+        }
+        if (!lane) atomicMin(smallest, best);
+    }
+}
+
+extern "C" __global__ void vol_gaussian_fix_h(__half* __restrict__ out, const int* __restrict__ smallest, int64_t count) {
+    const auto fallback = __ushort_as_half((unsigned short)*smallest);
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (int64_t)gridDim.x * blockDim.x) {
+        if (!__half_as_ushort(out[i])) out[i] = fallback;
+    }
+}
