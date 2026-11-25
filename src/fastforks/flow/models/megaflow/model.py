@@ -26,12 +26,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.checkpoint import check_fits
+from fastforks._core.checkpoint import check_fits, load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
 from fastforks._core.upload import device_tensor
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import vggt_rotary
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.qk_affine import cached_qk_affine
@@ -61,9 +62,15 @@ class Params:
 
 
 def _net(ctx: Context) -> MegaFlow:
-    net = MegaFlow(fuse_cnn=True, use_temporal_attn=True, fix_width=True)  # upstream `from_pretrained`
+    direct = ctx.device.type == "cuda" and ctx.dtype == "float16"
+    with torch.device("meta") if direct else contextlib.nullcontext():
+        net = MegaFlow(fuse_cnn=True, use_temporal_attn=True, fix_width=True)  # upstream `from_pretrained`
     sd = ctx.state_dict()
-    check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+    checkpoint = f"{ctx.variant.ref} checkpoint"
+    check_fits(net.state_dict(), sd, checkpoint)
+    if direct:
+        load_strict(net, sd, checkpoint, assign=True)
+        return net.eval().requires_grad_(requires_grad=False).to(device=ctx.device, dtype=torch.float16)
     net.load_state_dict(sd)
     return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
 
@@ -209,6 +216,14 @@ class _Fast(Runner):
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
+    @staticmethod
+    def rotate(
+        norm: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, cosine: torch.Tensor, sine: torch.Tensor
+    ) -> torch.Tensor:
+        """Apply the query and key norm affine and rotate with the cached spatial tables."""
+        y = torch.addcmul(bias * cosine, _swap(bias), sine)
+        return torch.addcmul(y, norm, weight * cosine).addcmul_(_swap(norm), _swap(weight) * sine)
+
     def block(self, blk: Any, x: torch.Tensor, tab: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:  # noqa: ANN401 - vendored Block
         """One aggregator block: q/k LayerNorm + RoPE as `n*(w*cos) + swap(n)*(swap(w)*sin) + (b*cos + swap(b)*sin)`."""
         a = blk.attn
@@ -220,7 +235,7 @@ class _Fast(Runner):
         v = F.linear(xn, a.qkv.weight[2 * c :], a.qkv.bias[2 * c :]).view(bsz, n, nh, d)
         nrm = F.group_norm(qk.view(bsz * n, 2 * nh, d), 2 * nh, None, None, a.q_norm.eps).view(bsz, n, 2, nh, d)
         w, bb = self.qk_affine(a)
-        qk = torch.addcmul(torch.addcmul(bb * cos, _swap(bb), sin), nrm, w * cos).addcmul_(_swap(nrm), _swap(w) * sin)
+        qk = self.rotate(nrm, w, bb, cos, sin)
         o = F.linear(self.attention(qk[:, :, 0], qk[:, :, 1], v, a.scale), a.proj.weight, a.proj.bias)
         x = torch.addcmul(x, o, blk.ls1.gamma)
         m = blk.mlp
@@ -347,17 +362,18 @@ class _PatchEmbed(FastViT):
 
 def _fast_patch_embed(pe: nn.Module, attn: str) -> _PatchEmbed:
     """The aggregator's DINOv2 (ViT-L/14, 4 registers) rebuilt as the shared ViT -> fast fp16 path (`fastbb` flash)."""
-    vit = vit_large(
-        img_size=518,
-        patch_size=PATCH,
-        num_register_tokens=4,
-        interpolate_antialias=True,
-        interpolate_offset=0.0,
-        block_chunks=0,
-        init_values=1.0,
-    )
-    vit.load_state_dict({k: v.float() for k, v in pe.state_dict().items()}, strict=True)
-    return _PatchEmbed(vit.to(next(pe.parameters()).device).eval(), attn, None)
+    with torch.device("meta"):
+        vit = vit_large(
+            img_size=518,
+            patch_size=PATCH,
+            num_register_tokens=4,
+            interpolate_antialias=True,
+            interpolate_offset=0.0,
+            block_chunks=0,
+            init_values=1.0,
+        )
+    vit.load_state_dict(pe.state_dict(), strict=True, assign=True)
+    return _PatchEmbed(vit.eval(), attn, None)
 
 
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
@@ -420,6 +436,7 @@ class Kernels(_Fast):
     """`fastbb` flash attention + fast DINOv2, fp16-accumulate GEMMs and convs, on-the-fly correlation windows."""
 
     gacc = True
+    rotate = staticmethod(vggt_rotary.apply)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, convert it and bind the kernels."""
@@ -427,6 +444,7 @@ class Kernels(_Fast):
         from fastforks.kernels import cudnn_hacc, fastbb, raft_flow  # noqa: PLC0415 - kernels only
 
         fastbb.load(ctx.device)
+        vggt_rotary.load(ctx.device)
         self.flash, self.check_flash64 = fastbb.Flash64("hh"), fastbb.check_flash64
         cudnn_hacc.load(ctx.device)
         net: Any = self.net

@@ -34,7 +34,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc", "raft_flow"]  # flash attention + fast DINOv2, fp16-accumulate convs, the correlation windows on the fly
+kernels = ["fastbb", "cudnn_hacc", "raft_flow", "vggt_rotary"]  # flash attention + fast DINOv2, fp16-accumulate convs, the correlation windows on the fly
 
 [[papers]]
 title = "MegaFlow: Zero-Shot Large Displacement Optical Flow"

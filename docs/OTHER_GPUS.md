@@ -184,7 +184,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `swiglu` | dinov3, mapanything |
 | `tapnext_state` | tapnext |
 | `vggt_omega` | vggt_omega |
-| `vggt_rotary` | vggt |
+| `vggt_rotary` | megaflow, vggt |
 | `vol_norm` | lineart, nnfoundation, nninteractive, totalsegmentator |
 <!-- libraries:end -->
 

@@ -389,7 +389,7 @@ Commercial use: yes.
 - Licence evidence: <https://huggingface.co/Kristen-Z/MegaFlow/blob/b4c5c33800b8fa88e047d2eb70ae74b0feca606d/README.md>
 - Training data: FlyingChairs (Freiburg), TartanAir, Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D (part of SceneFlow), TartanAir, then a mix with Sintel, KITTI 2015 and HD1K, as upstream's README lists the training datasets)
 - Options: `iters` = 8 (>= 1)
-- Kernel libraries: `fastbb`, `cudnn_hacc`, `raft_flow`
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `raft_flow`, `vggt_rotary`
 - Variants: `megaflow`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
@@ -416,7 +416,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `megaflow` | 0.00199 / 0.00579 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `raft_flow@639b3b16ea48:sm_120` |
+| `megaflow` | 0.00199 / 0.00579 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `raft_flow@639b3b16ea48:sm_120`, `vggt_rotary@41a0f01c71c3:sm_120` |
 
 ### Limitations
 
