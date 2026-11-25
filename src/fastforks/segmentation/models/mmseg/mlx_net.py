@@ -351,7 +351,8 @@ class MlxMMSeg:
         self.dtype = getattr(mx, dtype)
         self.kernels = kernels
         dt, kw = self.dtype, {"kernels": kernels}
-        b, head = net.backbone, net.decode_head
+        b: Any = net.backbone  # the vendored modules type their submodules as `Module`
+        head: Any = net.decode_head
 
         def cm(m: Any) -> _Conv:  # noqa: ANN401 - a `ConvModule` (its BN folded, its ReLU `m.act`)
             return _Conv(m.conv, dt, **kw)
