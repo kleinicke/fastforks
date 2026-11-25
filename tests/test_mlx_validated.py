@@ -26,10 +26,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "deit_base_patch16_224.fb_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "efficientformer_l1.snap_dist_in1k@1": (
         "kernels float16",
         "kernels float32",
