@@ -24,6 +24,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import Inert, load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
@@ -107,8 +108,8 @@ class Net(nn.Module):
         self.mlp = MLP([46, 32, 32, 2], disable_final_activation=True)
         self.matching = ResnetMatchingEncoder(16)
 
-    def load(self, ctx: Context) -> None:
-        """Copy the weights from the Lightning checkpoint (its pickled options are skipped)."""
+    def load(self, ctx: Context, *, assign: bool = False) -> None:
+        """Load weights from the Lightning checkpoint while skipping its pickled options."""
         sd = ctx.state_dict(
             key="state_dict",
             strip="",
@@ -119,12 +120,16 @@ class Net(nn.Module):
         for k, t in sd.items():
             prefix = next((p for p in theirs if k.startswith(p)), None)
             own[theirs[prefix] + k[len(prefix) :] if prefix else k] = t
-        load_strict(self, own, "MVSAnywhere checkpoint", unused=_UNUSED)
+        load_strict(self, own, "MVSAnywhere checkpoint", unused=_UNUSED, assign=assign)
 
 
-def _net(ctx: Context) -> Net:
-    net = Net()
-    net.load(ctx)
+def _net(ctx: Context, *, assign: bool = False) -> Net:
+    if assign:
+        with skipped_init():
+            net = Net()
+    else:
+        net = Net()
+    net.load(ctx, assign=assign)
     return net.eval().requires_grad_(requires_grad=False)
 
 
@@ -564,7 +569,8 @@ class Kernels(_Base):
 
         super().__init__(ctx)
         self.kern = load_kernels(ctx.device)
-        net = _net(ctx)
+        assign = ctx.user_weights is None and ctx.user_state is None
+        net = _net(ctx, assign=assign)
         l1, l2, l3 = linears(net.mlp)
         w1 = l1.weight.float()
         packed = torch.cat(
@@ -576,6 +582,13 @@ class Kernels(_Base):
         self.mlp_args = packed.tolist()
         self.w1 = w1.to(ctx.device)
         self.b1 = l1.bias.float().to(ctx.device)
+        if assign:
+            for vit in (net.vit, net.cv_vit):
+                # Match FastViT's final storage dtype while retaining FP32 position interpolation.
+                position = vit.pos_embed.detach()
+                vit.to(device=ctx.device, dtype=torch.float16)
+                vit.pos_embed = nn.Parameter(position.to(ctx.device), requires_grad=False)
+            net.cv_fusers.to(device=ctx.device, dtype=torch.float16)
         self.net = net.to(ctx.device)
         fused = dpt_fused.load(ctx.device)
         self.fv = FastViT(net.vit, "fh", None, fused=fused)
