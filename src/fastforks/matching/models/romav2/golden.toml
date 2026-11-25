@@ -22,7 +22,7 @@ kernels = ["romav2@8e53c9cfd7d0:sm_120"]
 symbols = {"romav2" = {"roma_local_corr_c256_r2" = "900941c128aeb537", "roma_local_corr_c512_r3" = "19bf27a6ff65d255", "roma_local_corr_c512_r7" = "b0a8bd45e77652c5", "romav2_dw5_bias_relu_bf16" = "918d96fc9b075623", "romav2_local_corr_c192_r3" = "c863a91871ac6f61", "romav2_local_corr_c48_r1" = "c62cb5a669eedbec"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 0.00573
 p99_px = 0.02077
 

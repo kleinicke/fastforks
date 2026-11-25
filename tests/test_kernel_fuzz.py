@@ -478,6 +478,26 @@ def test_nf4_epilogues(dev, seed):
     assert torch.equal(nf4.rms_rope_bf16(xb, wb, f, out, t2), ref)
 
 
+@pytest.mark.parametrize("tokens", [1, 77, 513, 6000])
+@pytest.mark.parametrize("with_lora", [False, True])
+def test_nf4_fused_projection_rope(dev, tokens, with_lora):
+    from fastforks.kernels import nf4  # noqa: PLC0415 - CUDA kernel only
+
+    g = torch.Generator(device=dev).manual_seed(131)
+    offset, heads, width = 77, 24, 128
+    shape = (1, tokens, heads, width)
+    base = torch.randn(shape, dtype=torch.bfloat16, device=dev, generator=g)
+    lora = torch.randn(shape, dtype=torch.bfloat16, device=dev, generator=g).mul_(0.125) if with_lora else None
+    w = torch.rand(width, device=dev, generator=g).add_(0.5)
+    angle = torch.rand(tokens + offset, 1, width // 2, device=dev, generator=g).mul_(10)
+    f = torch.polar(torch.ones_like(angle), angle)
+    expected = torch.zeros((1, tokens + offset, heads, width), dtype=torch.bfloat16, device=dev)
+    actual = torch.zeros_like(expected)
+    nf4.rms_rope_bf16(base.float() if lora is None else nf4.lora_f32(base, lora), w, f, expected, offset)
+    nf4.lora_rms_rope128(base.flatten(2), None if lora is None else lora.flatten(2), w, f, actual, offset=offset)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------
 
 

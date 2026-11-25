@@ -824,7 +824,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-v2-depth` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@e236d80ba78b:sm_120` |
+| `marigold-v2-depth` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@7c56ba44efe2:sm_120` |
 
 ### Limitations
 

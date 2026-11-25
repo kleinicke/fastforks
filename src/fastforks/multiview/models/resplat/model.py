@@ -50,7 +50,15 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
-from .net.point_transformer import MLP, KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
+from .net.point_transformer import (
+    CHUNK,
+    MLP,
+    KNNAttention,
+    MultViewLowresAttn,
+    PlainPointTransformer,
+    PointLinearWrapper,
+    TransformerBlock,
+)
 from .net.resnet import ResNetFeatureWarpper
 from .render import render, sh_basis
 
@@ -530,6 +538,38 @@ def _indexed_attention(m: KNNAttention, pxo: tuple, knn_idx: torch.Tensor) -> to
     return m.proj(knn_attention.attention(m.qkv(x), knn_idx))
 
 
+def _point_block(m: TransformerBlock, pxo: tuple, knn_idx: torch.Tensor) -> torch.Tensor:
+    """Bound LayerNorm's FP32 working set before projecting all neighbours' QKV."""
+    p, x, o = pxo
+    if x.shape[0] > CHUNK and x.dtype == torch.float16:
+        projection = m.attn.qkv
+        qkv = x.new_empty((x.shape[0], projection.out_features))
+        for part, out in zip(x.split(CHUNK), qkv.split(CHUNK), strict=True):
+            torch.mm(m.norm1(part).half(), projection.weight.t(), out=out)
+        neighbours = knn_attention.attention(qkv, knn_idx)
+        del qkv
+        x = x + m.attn.proj(neighbours)
+        del neighbours
+    else:
+        x = x + m.attn((p, m.norm1(x), o), knn_idx=knn_idx)
+    for part in x.split(CHUNK):
+        part.add_(m.mlp(m.norm2(part)))
+    return x
+
+
+def _point_mlp_cuda(m: MLP, x: torch.Tensor) -> torch.Tensor:
+    """Write each activation tile straight into its output rows."""
+    rows = max(1, _MLP_TILE_BYTES // (m.fc1.out_features * m.fc1.weight.element_size()))
+    if x.shape[0] <= rows:
+        return m.fc2(m.act(m.fc1(x)))
+    result = m.fc2.weight.new_empty((x.shape[0], m.fc2.out_features))
+    for part, out in zip(x.split(rows), result.split(rows), strict=True):
+        hidden = m.act(m.fc1(part))
+        torch.addmm(m.fc2.bias, hidden, m.fc2.weight.t(), out=out)
+        del hidden
+    return result
+
+
 class Kernels(_Base):
     """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, `gsraster`'s CUDA rasteriser (refinement renders) and kNN."""
 
@@ -544,6 +584,10 @@ class Kernels(_Base):
         for m in self.net.modules():
             if isinstance(m, KNNAttention):
                 override(m, _indexed_attention)
+            if isinstance(m, TransformerBlock):
+                override(m, _point_block)
+            if isinstance(m, MLP):
+                override(m, _point_mlp_cuda)
             if isinstance(m, PlainPointTransformer):
                 m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
         knn_attention.load(ctx.device)

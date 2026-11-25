@@ -162,6 +162,7 @@ class ConvRefiner(nn.Module):
         prev_warp: torch.Tensor,
         prev_confidence: torch.Tensor | None,
         scale_factor: torch.Tensor,
+        projected: bool = False,
     ):
         B, H_A, W_A, _ = f_A.shape
         B, H_B, W_B, D = f_B.shape
@@ -170,12 +171,12 @@ class ConvRefiner(nn.Module):
         if prev_confidence is not None:
             prev_confidence = prev_confidence.detach()
         B, H_A, W_A, D = f_A.shape
-        assert D == self.cfg.feat_dim, (
-            f"Config feature dimension {self.cfg.feat_dim=} must be the same as the input feature dimension {D=}"
-        )
-
-        f_A = self._project(f_A)
-        f_B = self._project(f_B)
+        if not projected:
+            assert D == self.cfg.feat_dim, (
+                f"Config feature dimension {self.cfg.feat_dim=} must be the same as the input feature dimension {D=}"
+            )
+            f_A = self._project(f_A)
+            f_B = self._project(f_B)
         with torch.no_grad():
             f_BA = bhwc_grid_sample(
                 f_B, prev_warp, mode=self.cfg.grid_sample_mode, align_corners=False

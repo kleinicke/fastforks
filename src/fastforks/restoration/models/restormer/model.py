@@ -456,8 +456,14 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     )
 
 
+def _attention_depthwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """Depthwise Q/K/V convolution in the channels-last activation layout."""
+    tokens = x.permute(0, 2, 3, 1).contiguous()
+    return fastbb.dwconv3(tokens, conv.get_buffer("_qkv_packed"), None).permute(0, 3, 1, 2)
+
+
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`; the depthwise convs stay PyTorch's).
+    """Channels-last FP16 convolutions (`cudnn_hacc`) and packed Q/K/V depthwise convolutions (`fastbb`).
 
     The attention GEMMs keep float32 accumulation (the `q^T k` sums run over all pixels).
     """
@@ -478,6 +484,11 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
             elif isinstance(m, TransformerBlock):
                 override(m, _cuda_block)
+                dw = m.attn.qkv_dwconv
+                if dw.out_channels % 8 == 0 and dw.bias is None:
+                    weight = dw.weight.detach().view(dw.out_channels, 3, 3).permute(1, 2, 0).contiguous()
+                    dw.register_buffer("_qkv_packed", weight, persistent=False)
+                    override(dw, _attention_depthwise)
                 channels = m.attn.qkv.in_channels
                 if channels % 8 or channels > fastbb.LN_MAX_C:
                     continue  # arbitrary-width checkpoint variants use the generic channel normalization

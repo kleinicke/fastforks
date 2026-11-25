@@ -115,23 +115,32 @@ class Block(nn.Module):
             return NF4Linear.epi.mod_bf16(y, m[1], m[0])
         return y.mul_(m[1]).add_(m[0]).to(BF)
 
-    def _qk(self, yt: torch.Tensor, yi: torch.Tensor, wt: torch.Tensor, wi: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
-        """Joint q or k `[B, H, T, D]` bf16: RMS norm of each stream's projection, concatenated, RoPE."""
-        xt, xi = _heads(yt), _heads(yi)
-        if self.fused and NF4Linear.epi is not None and xt.shape[0] == 1:  # one fused kernel per stream, bit-equal
+    def _qk(  # noqa: PLR0913 - the two streams and their projections and normalization weights
+        self,
+        xt: torch.Tensor,
+        xi: torch.Tensor,
+        project_text: NF4Linear,
+        project_image: NF4Linear,
+        wt: torch.Tensor,
+        wi: torch.Tensor,
+        f: torch.Tensor,
+    ) -> torch.Tensor:
+        """Joint query or key: project each stream, normalize its heads, and apply the rotary embedding."""
+        if self.fused and NF4Linear.epi is not None and xt.shape[0] == 1:
             out = torch.empty(1, xt.shape[1] + xi.shape[1], HEADS, HEAD_DIM, dtype=BF, device=xt.device)
-            NF4Linear.epi.rms_rope_bf16(xt, wt, f, out, 0)
-            NF4Linear.epi.rms_rope_bf16(xi, wi, f, out, xt.shape[1])
+            project_text.rms_rope(xt, wt, f, out, 0)
+            project_image.rms_rope(xi, wi, f, out, xt.shape[1])
             return out.transpose(1, 2)
-        return rope(torch.cat([rms_qk(xt, wt), rms_qk(xi, wi)], 1), f).to(BF).transpose(1, 2)
+        yt, yi = _heads(project_text(xt)), _heads(project_image(xi))
+        return rope(torch.cat([rms_qk(yt, wt), rms_qk(yi, wi)], 1), f).to(BF).transpose(1, 2)
 
     def forward(self, img: torch.Tensor, txt: torch.Tensor, f_all: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`img [B, T_img, dim]`, `txt [B, T_txt, dim]` (float32, updated in place) -> the same after the block."""
         im, tm = self._mods(self.img_mod), self._mods(self.txt_mod)
         n_txt = txt.shape[1]
         xi, xt = self._mod(img, im[0]), self._mod(txt, tm[0])
-        q = self._qk(self.add_q(xt), self.to_q(xi), self.naq, self.nq, f_all)
-        k = self._qk(self.add_k(xt), self.to_k(xi), self.nak, self.nk, f_all)
+        q = self._qk(xt, xi, self.add_q, self.to_q, self.naq, self.nq, f_all)
+        k = self._qk(xt, xi, self.add_k, self.to_k, self.nak, self.nk, f_all)
         v = torch.cat([_heads(self.add_v.bf(xt)), _heads(self.to_v.bf(xi))], dim=1).transpose(1, 2)
         del xi, xt
         mask = torch.ones(1, 1, 1, q.shape[2], dtype=torch.bool, device=q.device) if self.exact_mask else None

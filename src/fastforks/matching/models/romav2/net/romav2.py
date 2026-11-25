@@ -41,6 +41,7 @@ def _interpolate_warp_and_confidence(
 class RoMaV2(nn.Module):
     anchor_width = 512
     anchor_height = 512
+    project_vgg_features = False
 
     def __init__(self) -> None:
         super().__init__()
@@ -51,6 +52,9 @@ class RoMaV2(nn.Module):
 
     def describe(self, img: torch.Tensor) -> list[torch.Tensor]:
         return self.f(imagenet(img))
+
+    def _project_feature(self, stride: int, features: torch.Tensor) -> torch.Tensor:
+        return self.refiners[str(stride)]._project(features)
 
     def forward(
         self,
@@ -73,8 +77,9 @@ class RoMaV2(nn.Module):
         for stage, (img_A, img_B) in enumerate(stages):
             B, C, H, W = img_A.shape
             scale_factor = device_tensor((W / self.anchor_width, H / self.anchor_height), device=img_A.device)  # fastforks: no host sync (a pageable upload syncs the host)
-            refiner_features_A = self.refiner_features(img_A)
-            refiner_features_B = self.refiner_features(img_B)
+            project = self._project_feature if self.project_vgg_features else None
+            refiner_features_A = self.refiner_features(img_A, project)
+            refiner_features_B = self.refiner_features(img_B, project)
             for patch_size_str, refiner in self.refiners.items():
                 patch_size = int(patch_size_str)
                 zero_out_precision = patch_size == 4 and stage == 1
@@ -87,7 +92,7 @@ class RoMaV2(nn.Module):
                 f_patch_B = refiner_features_B.pop(patch_size)
                 out = refiner(
                     f_A=f_patch_A, f_B=f_patch_B, prev_warp=warp_AB, prev_confidence=confidence_AB,
-                    scale_factor=scale_factor,
+                    scale_factor=scale_factor, projected=project is not None and patch_size < 4,
                 )
                 warp_AB, confidence_AB = out["warp"], out["confidence"]
                 if bidirectional:
@@ -97,9 +102,10 @@ class RoMaV2(nn.Module):
                     )
                     out = refiner(
                         f_A=f_patch_B, f_B=f_patch_A, prev_warp=warp_BA, prev_confidence=confidence_BA,
-                        scale_factor=scale_factor,
+                        scale_factor=scale_factor, projected=project is not None and patch_size < 4,
                     )
                     warp_BA, confidence_BA = out["warp"], out["confidence"]
+                del f_patch_A, f_patch_B
         preds = {"warp_AB": warp_AB, "confidence_AB": confidence_AB}
         if bidirectional:
             preds |= {"warp_BA": warp_BA, "confidence_BA": confidence_BA}

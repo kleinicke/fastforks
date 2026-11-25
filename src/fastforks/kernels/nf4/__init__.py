@@ -26,6 +26,7 @@ SIGNATURES = {
     "nf4_lora_gate_res": "ppppll",
     "nf4_mod_bf16": "ppppll",
     "nf4_rms_rope_bf16": "pppppliil",
+    "nf4_lora_rms_rope128": "ppppplil",
 }
 _WORD = 8  # bytes per 64-bit word (16 codes)
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -112,4 +113,47 @@ def rms_rope_bf16(x: torch.Tensor, w: torch.Tensor, f: torch.Tensor, out: torch.
     n2, half = x.numel() // 2, x.shape[-1] // 2
     v = x.pow(2).mean(-1)
     _run("nf4_rms_rope_bf16", n2, x, v, w, torch.view_as_real(f), out, n2, x.shape[2], half, t0)
+    return out
+
+
+def lora_rms_rope128(  # noqa: PLR0913 - one stream's projections, weights, frequencies and position
+    base: torch.Tensor,
+    lora: torch.Tensor | None,
+    weight: torch.Tensor,
+    frequencies: torch.Tensor,
+    out: torch.Tensor,
+    *,
+    offset: int,
+) -> torch.Tensor:
+    """Write one stream's BF16 Q/K projections to its range of the joint, rotary-embedded sequence.
+
+    `base` and optional `lora` are `[1, T, H * 128]`. Their sum, RMS norm and rotary embedding are computed in FP32
+    and rounded once to BF16 in `out` (`[1, T_all, H, 128]`). The frequency table is complex64 `[T_all, 1, 64]`.
+    """
+    if out.ndim != 4 or base.ndim != 3:  # noqa: PLR2004 - the stated tensor layouts
+        msg = "Expected Q/K projections [1, T, H * 128] and output [1, T_all, H, 128]"
+        raise ValueError(msg)
+    tokens, heads = base.shape[1], out.shape[2]
+    tensors = (base, weight, frequencies, out) if lora is None else (base, lora, weight, frequencies, out)
+    if (
+        out.shape[0] != 1
+        or out.shape[3] != 128  # noqa: PLR2004 - one 128-wide head
+        or base.shape != (1, tokens, heads * 128)
+        or base.dtype != torch.bfloat16
+        or out.dtype != torch.bfloat16
+        or weight.shape != (128,)
+        or weight.dtype != torch.float32
+        or frequencies.shape != (out.shape[1], 1, 64)
+        or frequencies.dtype != torch.complex64
+        or not 0 <= offset <= out.shape[1] - tokens
+        or (lora is not None and (lora.shape != base.shape or lora.dtype != base.dtype))
+        or not base.is_cuda
+        or any(t.device != base.device or not t.is_contiguous() or t.data_ptr() % 8 for t in tensors)
+    ):
+        msg = "Expected contiguous BF16 projections, FP32 weights and complex64 frequencies on one CUDA device"
+        raise ValueError(msg)
+    rows = tokens * heads
+    if rows:
+        rot = torch.view_as_real(frequencies)
+        _run("nf4_lora_rms_rope128", rows * 32, base, lora, weight, rot, out, rows, heads, offset)
     return out

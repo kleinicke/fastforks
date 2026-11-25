@@ -562,8 +562,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `resplat-small-dl3dv` | 0.00303 / 0.00749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
-| `resplat-base-re10k` | 0.00422 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
+| `resplat-small-dl3dv` | 0.00296 / 0.00755 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
+| `resplat-base-re10k` | 0.00432 / 0.01581 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
 
 ### Limitations
 
