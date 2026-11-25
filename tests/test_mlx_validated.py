@@ -14,42 +14,6 @@ from fastforks._core.model import _apple_mlx
 # not a goal: run the MLX survey for an entry (`tools/speed_survey.py`), regenerate the table and drop it here, or
 # drop the dtype from the card if its golden fails.
 UNVALIDATED: dict[str, tuple[str, ...]] = {
-    "davit_base.msft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "davit_small.msft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "davit_tiny.msft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformer_l1.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformer_l3.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformer_l7.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientvit_b2.r288_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "falconsai-nsfw-vit@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "foundationstereo-vit-l@1": (
         "kernels float16",
         "kernels float32",
@@ -60,55 +24,7 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "inception_v3.tv_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "mobilenetv4_conv_medium.e500_r256_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "segformer-b5-face-parsing@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "shvit_s1.in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "shvit_s2.in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "shvit_s3.in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "shvit_s4.in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "swin_base_patch4_window7_224.ms_in22k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "tiny_vit_11m_224.dist_in22k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "tiny_vit_21m_224.dist_in22k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "tiny_vit_21m_384.dist_in22k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "tiny_vit_21m_512.dist_in22k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "tiny_vit_5m_224.dist_in22k_ft_in1k@1": (
         "kernels float16",
         "kernels float32",
     ),
