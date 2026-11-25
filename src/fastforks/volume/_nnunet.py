@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
+_HEAD_TILE_BYTES = 128 << 20  # FP16 output budget per segmentation projection
 # fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
 # channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
 _SLAB_BYTES = 64 << 20
@@ -496,12 +497,15 @@ class _Decoder(nn.Module):
         )
         self.seg_layers = nn.ModuleList(nn.Conv3d(f[-(s + 2)], plan.n_outputs, 1) for s in range(n - 1))
 
-    def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
+    def features(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
         pending = skips if consume and isinstance(skips, list) else list(skips)
         x = pending.pop()
         for up, stage in zip(self.transpconvs, self.stages, strict=True):
             x = stage(_cat_consuming(up, x, pending.pop()))
-        return self.seg_layers[-1](x)
+        return x
+
+    def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
+        return self.seg_layers[-1](self.features(skips, consume=consume))
 
 
 def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
@@ -537,6 +541,10 @@ class UNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Logits `[B, heads, *patch]` of `[B, C, *patch]`."""
         return self.decoder(self.encoder(x), consume=True)
+
+    def features(self, x: torch.Tensor) -> torch.Tensor:
+        """Decoded patch features before the pointwise segmentation projection."""
+        return self.decoder.features(self.encoder(x), consume=True)
 
     @staticmethod
     def state_dict_of(weights: Mapping[str, torch.Tensor], dims: int = 3) -> dict[str, torch.Tensor]:
@@ -673,19 +681,15 @@ class Predictor:
     amp: torch.dtype | None = torch.float16
     channels_last: bool = False
     dtype: torch.dtype | None = None
-    forward: Callable[[nn.Module, torch.Tensor], torch.Tensor] | None = None
+    forward: Callable[[Callable[[torch.Tensor], torch.Tensor], torch.Tensor], torch.Tensor] | None = None
     cuda_kernels: bool = False
     _gauss: torch.Tensor = field(default_factory=lambda: torch.ones(()), init=False, repr=False)
 
-    def _net(self, net: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    def _net(self, net: Callable[[torch.Tensor], torch.Tensor], x: torch.Tensor) -> torch.Tensor:
         return net(x) if self.forward is None else self.forward(net, x)
 
     def _logits(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> torch.Tensor:
         """Window logits `[folds, B, heads, *patch]` of `nets`, each averaged over the mirrorings."""
-        x = x.to(
-            dtype=self.dtype or x.dtype,
-            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
-        )
         amp = self.amp is not None and x.device.type == "cuda"
         combos = [c for i in range(len(self.mirror_axes)) for c in itertools.combinations(self.mirror_axes, i + 1)]
         with torch.autocast("cuda", self.amp or torch.float16, enabled=amp):
@@ -853,16 +857,14 @@ class Predictor:
             raise RuntimeError(msg)
         return out
 
-    def _windows(
-        self,
-        x: torch.Tensor,
-        starts: Sequence[tuple[int, ...]],
-        nets: Sequence[nn.Module],
-    ) -> torch.Tensor:
-        """Window logits `[folds, B, heads, *patch]` at `starts`."""
-        k = self.plan.patch_size
-        batch = torch.stack([x[:, a : a + k[0], b : b + k[1], c : c + k[2]] for a, b, c in starts])
-        return self._logits(batch, nets)
+    def _window_batch(self, x: torch.Tensor, starts: Sequence[tuple[int, int, int]]) -> torch.Tensor:
+        """Stack windows and prepare the batch in the network's layout and dtype."""
+        d, h, w = self.plan.patch_size
+        batch = torch.stack([x[:, a : a + d, b : b + h, c : c + w] for a, b, c in starts])
+        return batch.to(
+            dtype=self.dtype or x.dtype,
+            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
+        )
 
     def _average(self, acc: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
         """nnU-Net's fold average of float16 sums `[folds, heads, ...]`: each fold / `n`, summed, / folds (float16)."""
@@ -946,6 +948,19 @@ class Predictor:
         Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
+        if (
+            self.cuda_kernels
+            and x.is_cuda
+            and self.channels_last
+            and self.amp is None
+            and not self.mirror_axes
+            and len(nets) == 1
+            and isinstance(nets[0], UNet)
+            and k0 > 1
+            and 2 * self.plan.n_outputs * k0 * k1 * k2 > 4 * _HEAD_TILE_BYTES
+        ):
+            self._sweep_tiled_head(x, acc, n, starts, nets[0])
+            return
         weighted_add = None
         if self.cuda_kernels and self.channels_last and len(nets) == 1:
             from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
@@ -953,7 +968,7 @@ class Predictor:
             weighted_add = accumulate_
         for j in range(0, len(starts), self.batch):
             chunk = starts[j : j + self.batch]
-            y = self._windows(x, chunk, nets)
+            y = self._logits(self._window_batch(x, chunk), nets)
             fuse = weighted_add is not None and y[0, 0].permute(1, 2, 3, 0).is_contiguous()
             if not fuse:
                 y.mul_(self._gauss)  # keep the product rounded before adding to the FP16 maps
@@ -967,3 +982,40 @@ class Predictor:
                     if n is not None:
                         n[physical, ys, xs] += self._gauss[local]
             del y  # free this batch of window logits before running the next network forward
+
+    def _sweep_tiled_head(
+        self,
+        x: torch.Tensor,
+        acc: torch.Tensor,
+        n: torch.Tensor | None,
+        starts: Sequence[tuple[int, int, int]],
+        net: UNet,
+    ) -> None:
+        """Project and merge depth tiles of the decoded features instead of materializing the full logits."""
+        from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
+
+        kd, kh, kw = self.plan.patch_size
+        depth = math.ceil(_HEAD_TILE_BYTES / (2 * self.plan.n_outputs * kh * kw))
+        head = net.decoder.seg_layers[-1]
+        for j in range(0, len(starts), self.batch):
+            chunk = starts[j : j + self.batch]
+            features = self._net(net.features, self._window_batch(x, chunk))
+            for i, (a, b, c) in enumerate(chunk):
+                ys, xs = slice(b, b + kh), slice(c, c + kw)
+                for k in range(0, kd, depth):
+                    end = min(k + depth, kd)
+                    scores = head(features[i : i + 1, :, k:end])[0]
+                    fused = scores.permute(1, 2, 3, 0).is_contiguous()
+                    if not fused:
+                        scores.mul_(self._gauss[k:end])
+                    for physical, local in _depth_slices(a + k, end - k, acc.shape[2]):
+                        target = acc[0, :, physical, ys, xs]
+                        weights = self._gauss[k + local.start : k + local.stop]
+                        if fused:
+                            accumulate_(target, scores[:, local], weights)
+                        else:
+                            target.add_(scores[:, local])
+                        if n is not None:
+                            n[physical, ys, xs].add_(weights)
+                    del scores
+            del features

@@ -26,7 +26,7 @@ from fastforks.volume._nnunet import Plan, Predictor, UNet, _conv_slabs_, _ConvN
 from fastforks.volume._runner import Runner
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from fastforks.volume._runner import Context
 
@@ -200,7 +200,7 @@ class Portable(Runner):
             dtype=self._dtype_of(),
         )
 
-    def _forward_patch(self, net: torch.nn.Module, patch: torch.Tensor) -> torch.Tensor:
+    def _forward_patch(self, net: Callable[[torch.Tensor], torch.Tensor], patch: torch.Tensor) -> torch.Tensor:
         """Compile the fold network on fixed-size patches. Resampling and merging stay eager."""
         return net(patch)
 

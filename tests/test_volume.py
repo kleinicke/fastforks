@@ -252,6 +252,19 @@ def test_fused_volume_labels_match_trilinear_across_slabs() -> None:
     assert torch.equal(actual.long(), expected)
 
 
+@pytest.mark.gpu
+def test_tiled_volume_head_matches_full_projection(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two windows per batch, overlapping depth spans, and a partial final projection tile."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    model = volume.load(folder, mode="kernels", device="cuda", folds=(0,), mirror=False)
+    ct = np.random.default_rng(17).normal(0, 400, (22, 21, 24)).astype(np.float32)
+    spacing = (2.0, 1.5, 1.5)
+    expected = model(ct, spacing=spacing).labels
+    monkeypatch.setattr(_nnunet, "_HEAD_TILE_BYTES", 3 * 3 * 16 * 16 * 2)
+    assert torch.equal(model(ct, spacing=spacing).labels, expected)
+
+
 def test_zoom_matches_scipy() -> None:
     """TotalSegmentator's `change_spacing` zooms (scipy `zoom`, order 1 truncated to int32 / order 0)."""
     ndimage = pytest.importorskip("scipy.ndimage")
