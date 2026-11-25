@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`bisenet-face-parsing`](#bisenet) | yes | 1.59, 3.7x (512x512) | 112, 1.2x |
+| [`bisenet-face-parsing`](#bisenet) | yes | 2.38, 10.2x | 208, 1.0x |
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.5, 2.7x | 414, 0.19x |
 | [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 17.9, 3.0x | 436, 0.22x |
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
@@ -28,9 +28,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 90.5, 1.9x | 1402, 0.51x |
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 180, 2.0x | 3022, 0.51x |
 | [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.49, 4.9x | 178, 0.11x |
-| [`segformer-b2-clothes`](#segformer) (resize 512x512) | no | 3.61, 3.9x (512x512) | 170, 0.35x |
+| [`segformer-b2-clothes`](#segformer) (resize 512x512) | no | 3.85, 3.8x | 214, 0.45x |
 | [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.4, 2.8x | 432, 0.17x |
-| [`segformer-b5-face-parsing`](#segformer) (resize 512x512) | no | 9.21, 3.7x (512x512) | 294, 0.39x |
+| [`segformer-b5-face-parsing`](#segformer) (resize 512x512) | no | 9.53, 3.9x | 338, 0.57x |
 | [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.1, 2.8x | 226, 0.13x |
 | [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.7, 2.5x | 320, 0.18x |
 | [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.04, 2.9x | 202, 0.12x |
@@ -46,6 +46,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `bisenet-face-parsing` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 25.0<br>24.3<br>3.19<br>2.38 | 267 / 332<br>155 / 202<br>151 / 202<br>162 / 208 |
 | `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>1.59<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>61 / 112<br>76 / 110<br>85 / 110 |
 
 <details><summary>Details</summary>
@@ -61,9 +62,11 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bisenet-face-parsing` 512x512 (0.0 GiB peak allocated, 0.1 reserved)
 - `bisenet-face-parsing` 512x512, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
+- `bisenet-face-parsing` original (fp32) 1024x2048, original 1024x2048: Original BiSeNet test protocol converts CUDA RGB to CPU uint8 for its PIL resize and uploads the resized image. Includes resize to 512×512, ImageNet normalization, model, 1024×2048 logits resize and GPU argmax.
+- `bisenet-face-parsing` portable 1024x2048, kernels 1024x2048: Full API on CUDA RGB. Includes default resize and normalization at 512×512 and full-size argmax. Returns 1024×2048 labels on the GPU. This path keeps the image on the GPU.
 - `bisenet-face-parsing` original 512x512: .half() on 1 modules, fp16 inputs; face-parsing.PyTorch test.py: PIL resize 512 x 512 on the CPU, Normalize, net(x)[0], float32
 - `bisenet-face-parsing` kernels 512x512: Existing CUDA kernel mode on one fixed input with five warm calls.
-- `bisenet-face-parsing` load / first call: original 0.31 s / 0.405 s (512x512), portable 0.2 s / 0.275 s (512x512), kernels 0.61 s / 0.083 s (512x512)
+- `bisenet-face-parsing` load / first call: original 0.1553 s / 0.4685 s, portable 0.2 s / 0.275 s (512x512), kernels 0.61 s / 0.083 s (512x512)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -461,7 +464,9 @@ Commercial use: `segformer-b0-ade20k`, `segformer-b5-ade20k`, `segformer-b2-clot
 |---|---|---|---|---|
 | `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.49<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>105 / 178<br>336 / 356<br>1480 / 1522 |
 | `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.9<br>25.4<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>444 / 490<br>294 / 432<br>543 / 630<br>2069 / 2110 |
+| `segformer-b2-clothes` (resize 512x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 20.0<br>14.7<br>8.81<br>3.85 | 854 / 940<br>451 / 480<br>205 / 270<br>156 / 214 |
 | `segformer-b2-clothes` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.9<br>14.1<br>8.13<br>3.61<br>4.38<br>2.68 | 829 / 902<br>425 / 488<br>156 / 168<br>133 / 170<br>182 / 228<br>312 / 328 |
+| `segformer-b5-face-parsing` (resize 512x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 39.9<br>37.0<br>23.4<br>9.53 | 1072 / 1178<br>561 / 590<br>332 / 398<br>279 / 338 |
 | `segformer-b5-face-parsing` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.8<br>34.2<br>21.9<br>9.21<br>14.1<br>6.33 | 1163 / 1284<br>647 / 758<br>278 / 292<br>257 / 294<br>305 / 352<br>538 / 552 |
 
 <details><summary>Details</summary>
@@ -486,14 +491,18 @@ Commercial use: `segformer-b0-ade20k`, `segformer-b5-ade20k`, `segformer-b2-clot
 - `segformer-b0-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b5-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b5-ade20k` portable 1024x2048: Smaller CUDA resize workspace for labels only. The synthetic output and three labeled ADE20K crops matched bitwise.
+- `segformer-b2-clothes` original (fp32) 1024x2048, original 1024x2048: Full original API on the same float32 [0,1] CUDA RGB input. Official SegformerImageProcessor uses do_rescale=False and keeps the input and output on CUDA. Includes 512×512 bilinear resize, ImageNet normalization, model, 1024×2048 logits resize and GPU argmax.
+- `segformer-b2-clothes` portable 1024x2048, kernels 1024x2048: Full API on CUDA RGB. Includes default resize and normalization at 512×512 and full-size argmax. Returns 1024×2048 labels on the GPU. This path keeps the image on the GPU.
 - `segformer-b2-clothes` original (fp32) 512x512: transformers SegformerForSemanticSegmentation, logits upsampled bilinear + argmax, float32; pinned transformers checkpoint
 - `segformer-b2-clothes` original 512x512: transformers SegformerForSemanticSegmentation, logits upsampled bilinear + argmax, .half(); pinned transformers checkpoint
+- `segformer-b5-face-parsing` original (fp32) 1024x2048, original 1024x2048: Full original API on the same float32 [0,1] CUDA RGB input. Official SegformerImageProcessor uses do_rescale=False and keeps the input and output on CUDA. Includes 512×512 bilinear resize, ImageNet normalization, model, 1024×2048 logits resize and GPU argmax.
+- `segformer-b5-face-parsing` portable 1024x2048, kernels 1024x2048: Full API on CUDA RGB. Includes default resize and normalization at 512×512 and full-size argmax. Returns 1024×2048 labels on the GPU. This path keeps the image on the GPU.
 - `segformer-b5-face-parsing` original (fp32) 512x512: transformers SegformerForSemanticSegmentation, logits upsampled bilinear + argmax, float32; pinned transformers checkpoint
 - `segformer-b5-face-parsing` original 512x512: transformers SegformerForSemanticSegmentation, logits upsampled bilinear + argmax, .half(); pinned transformers checkpoint
 - `segformer-b0-ade20k` load / first call: original 4.83 s / 2.232 s (512x512), portable 2.55 s / 0.082 s, kernels 2.92 s / 0.009 s
 - `segformer-b5-ade20k` load / first call: original 1.24 s / 0.501 s (512x512), portable 3.09 s / 0.077 s, kernels 3.43 s / 0.032 s
-- `segformer-b2-clothes` load / first call: portable 3.72 s / 0.245 s (512x512), kernels 3.65 s / 0.062 s (512x512)
-- `segformer-b5-face-parsing` load / first call: portable 4.16 s / 0.228 s (512x512), kernels 4.87 s / 0.093 s (512x512)
+- `segformer-b2-clothes` load / first call: original 2.7974 s / 1.2313 s, portable 3.72 s / 0.245 s (512x512), kernels 3.65 s / 0.062 s (512x512)
+- `segformer-b5-face-parsing` load / first call: original 3.224 s / 1.0003 s, portable 4.16 s / 0.228 s (512x512), kernels 4.87 s / 0.093 s (512x512)
 - Protocol, `segformer-b0-ade20k`, `segformer-b5-ade20k`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 - Protocol, `segformer-b2-clothes`, `segformer-b5-face-parsing`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
