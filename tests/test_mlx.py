@@ -1080,6 +1080,35 @@ def test_mlx_rfdetr_keypoint_matches_torch():
         torch.testing.assert_close(got[k], want[k].float(), atol=2e-3, rtol=2e-3, msg=k)
 
 
+@pytest.mark.parametrize(("scales", "refine"), [(1, 0), (2, 0), (2, 2)])
+def test_mlx_gmflow_matches_torch(scales, refine):
+    """`gmflow.mlx_net.MlxGMFlow` against `model.forward` (random weights, float32, a batch of two pairs)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.gmflow import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.gmflow import model as gm  # noqa: PLC0415
+    from fastforks.flow.models.gmflow.net.unimatch import UniMatch  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = UniMatch(num_scales=scales, upsample_factor=8 // scales, reg_refine=refine > 0, task="flow").eval()
+    with torch.no_grad():  # random weights give sharp softmaxes that amplify rounding; soften the features
+        net.backbone.conv2.weight.mul_(0.3)
+        net.backbone.conv2.bias.mul_(0.3)
+    params = gm.Params(scales=scales, refine=refine, cuda_graphs=False)
+    g = torch.Generator().manual_seed(1)
+    image1 = torch.randn(2, 3, 64, 96, generator=g)
+    image2 = torch.roll(image1, (2, 3), (2, 3)) + 0.1 * torch.randn(2, 3, 64, 96, generator=g)
+    with torch.no_grad():
+        want = gm.forward(net, image1, image2, params, fp16=False)
+    got = to_torch(mlx_net.MlxGMFlow(net, "float32", scales, refine)(to_mx(image1), to_mx(image2)))
+    assert got.shape == want.shape
+    diff = (got - want).abs()
+    bad = (diff > 2e-3 + 2e-3 * want.abs()).float().mean().item()  # the second scale's softmaxes amplify rounding
+    assert bad < 0.01, f"{bad:.2%} outside tolerance, max {diff.max().item():.4g}"
+    assert diff.median().item() < 1e-3  # flows of ~7 px: 4e-4 at two scales
+
+
 @pytest.mark.parametrize("plus", [False, True])
 def test_mlx_fast_acvnet_matches_torch(plus):
     """`fast_acvnet.mlx_net.MlxFastACV` against `model.forward` (random weights and batch norms, float32)."""

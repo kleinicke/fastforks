@@ -21,12 +21,10 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
-from torch._subclasses.fake_tensor import unset_fake_temporarily
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
-from fastforks._core.tracing import exporting_for_mlx
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, gmflow
 from fastforks.shared import mlx_wrap
@@ -63,14 +61,6 @@ class Params:
 
 def attend(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
     """`softmax(query @ key^T / sqrt(C)) @ value` for `[B, N, C]`, `[B, M, C]`, `[B, M, V]` (no `[N, M]` matrix)."""
-    if exporting_for_mlx():
-        # one attention op there (`sdpa`'s capture form is matmul, softmax, matmul). MLX runs it without writing the
-        # scores only when the value is as wide as the query: the 2-channel match and flow are zero-padded to it
-        # (1080p float32, 32640 tokens: 4.1 GB and 708 ms unpadded)
-        channels = value.shape[-1]
-        value = F.pad(value, (0, max(0, query.shape[-1] - channels)))
-        q, k, v = (x.unsqueeze(1) for x in (query, key, value))
-        return F.scaled_dot_product_attention(q, k, v).squeeze(1)[..., :channels]
     return sdpa(query, key, value)
 
 
@@ -439,69 +429,6 @@ def _window_transformer(
     return feature0, feature1
 
 
-def _region_layer(
-    layer: Any,  # noqa: ANN401 - a vendored TransformerLayer
-    source: torch.Tensor,
-    inputs: tuple[torch.Tensor, torch.Tensor],
-    groups: tuple[tuple[int, int, int], ...],
-) -> torch.Tensor:
-    """Upstream `TransformerLayer.forward` (swin, one head) as the MLX export records it, tokens in `groups` order.
-
-    `source` is the float32 residual, `inputs` the source and target in the run dtype (the MLX twin's split, as
-    autocast on CUDA). Each group of equal windows or regions (start, count, tokens each) is one attention op.
-    """
-    q, k, v = (proj(x) for proj, x in ((layer.q_proj, inputs[0]), (layer.k_proj, inputs[1]), (layer.v_proj, inputs[1])))
-    parts = []
-    for start, count, size in groups:
-        qa, ka, va = (x[:, start : start + count * size].unflatten(1, (count, size)) for x in (q, k, v))
-        parts.append(F.scaled_dot_product_attention(qa, ka, va).flatten(1, 2))
-    message = layer.norm1(layer.merge(parts[0] if len(parts) == 1 else torch.cat(parts, dim=1)))
-    if not layer.no_ffn:
-        message = layer.norm2(layer.mlp(torch.cat((inputs[0], message), dim=-1)))
-    return source + message
-
-
-def _region_transformer(
-    self: FeatureTransformer,
-    feature0: torch.Tensor,
-    feature1: torch.Tensor,
-    attn_type: str = "swin",
-    attn_num_splits: int | None = None,
-    **kwargs: object,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """`_window_transformer` for the MLX export: no in-place writes, the twin's float32 residual / run-dtype split.
-
-    Upstream's form records, per layer, the `[windows, L, L]` scores, their division and softmax as array operations
-    and, for a shifted layer, the mask repeated over the batch and added (1080p, float16: 4.4 of 5.3 s, 1 GB each).
-    Here every attention is one attention op, and a shifted layer attends within the regions its mask leaves
-    (`_window_orders`: 44 % fewer scores than the masked windows at 2 x 2 splits).
-    """
-    if attn_type != "swin" or attn_num_splits is None or attn_num_splits <= 1:
-        msg = "the region-order GMFlow transformer is 2-D swin with splits > 1"
-        raise RuntimeError(msg)
-    del kwargs
-    b, c, h, w = feature0.shape
-    # real constants of the export, uncached: the export's plain FakeTensorMode run would otherwise cache fake ones
-    with unset_fake_temporarily():
-        orders, groups = _window_orders.__wrapped__(h, w, attn_num_splits, feature0.device)
-    to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = orders
-    plain = ((0, attn_num_splits**2, h * w // attn_num_splits**2),)
-    tokens = to_float32(torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2)).index_select(1, to_plain)
-    shifted = False
-    for i, layer in enumerate(self.layers):
-        if (i % 2 == 1) != shifted:
-            tokens = tokens.index_select(1, shifted_to_plain if shifted else plain_to_shifted)
-            shifted = not shifted
-        layer_groups = groups if shifted else plain
-        low = to_run_dtype(tokens, tokens.dtype)
-        other = torch.cat(low.chunk(2)[::-1])  # the cross-attention target: the other image before this block
-        tokens = _region_layer(layer.self_attn, tokens, (low, low), layer_groups)
-        tokens = _region_layer(layer.cross_attn_ffn, tokens, (to_run_dtype(tokens, tokens.dtype), other), layer_groups)
-    tokens = tokens.index_select(1, shifted_back if shifted else plain_back)
-    feature0, feature1 = tokens.view(2 * b, h, w, c).permute(0, 3, 1, 2).chunk(2)
-    return feature0, feature1
-
-
 def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
     """Upstream `BasicUpdateBlock.forward`, channels-last, with the GRU input cast to the autocast dtype once.
 
@@ -555,17 +482,28 @@ class Kernels(Portable):
         self._graphs.release()
 
 
-class _MlxTwin(Portable):
-    """The PyTorch twin the MLX runner exports: `Portable` with the Transformer in region order."""
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`)."""
+
+    module = Runner.module
 
     def __init__(self, ctx: Context) -> None:
-        """Select the export's attention layout."""
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
         super().__init__(ctx)
-        override(self.net.transformer, _region_transformer)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        p = ctx.params
+        self.mlx = mlx_net.MlxGMFlow(self.net, mlx_wrap.run_dtype(ctx), p.scales, p.refine)
+        del self.net
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.mlx(to_mx(image1.float()), to_mx(image2.float())))
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxTwin, attrs=(), methods=("_flow",)),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
