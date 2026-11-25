@@ -46,7 +46,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bisenet-face-parsing` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 25.0<br>24.3<br>3.19<br>2.38 | 267 / 332<br>155 / 202<br>151 / 202<br>162 / 208 |
+| `bisenet-face-parsing` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.0<br>24.3<br>3.19<br>2.38<br>2.09<br>1.40 (full-resolution logits engine) | 267 / 332<br>155 / 202<br>151 / 202<br>162 / 208<br>151 / 190<br>269 / 332 |
 | `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>1.59<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>61 / 112<br>76 / 110<br>85 / 110 |
 
 <details><summary>Details</summary>
@@ -61,6 +61,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `celebamask-hq-19-bisenet`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bisenet-face-parsing` 512x512 (0.0 GiB peak allocated, 0.1 reserved)
+- `bisenet-face-parsing` 1024x2048, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `bisenet-face-parsing` 512x512, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
 - `bisenet-face-parsing` original (fp32) 1024x2048, original 1024x2048: Original BiSeNet test protocol converts CUDA RGB to CPU uint8 for its PIL resize and uploads the resized image. Includes resize to 512×512, ImageNet normalization, model, 1024×2048 logits resize and GPU argmax.
 - `bisenet-face-parsing` portable 1024x2048, kernels 1024x2048: Full API on CUDA RGB. Includes default resize and normalization at 512×512 and full-size argmax. Returns 1024×2048 labels on the GPU. This path keeps the image on the GPU.

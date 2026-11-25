@@ -50,13 +50,13 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5 | 630 |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3 | 1676 |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.6 | 1316 |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 11.1 | 358 |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 63.4, 6.0x | 1298, 0.4x |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 12.0, 6.2x | 368, 0.42x |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0 | 1252 |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.8, 2.1x | 1066, 0.3x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 61.0 | 1526 |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 60.5 | 1526 |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 61.8, 23.3x | 1146, 0.14x |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 62.2, 23.2x | 1146, 0.14x |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -1195,9 +1195,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.4<br>11.1 | –<br>306 / 426<br>246 / 358 |
+| `prompt-depth-anything-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 81.4<br>74.2<br>17.5<br>12.0<br>14.0 (single-image call, CUDA tensor input)<br>9.84 (single-image engine) | 738 / 1026<br>592 / 878<br>306 / 408<br>247 / 368<br>254 / 302<br>336 / 376 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
-| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>111<br>61.6 | –<br>1091 / 1390<br>1076 / 1316 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 572<br>381<br>112<br>63.4<br>104 (single-image call, CUDA tensor input)<br>67.9 (single-image engine) | 2929 / 4628<br>2544 / 3268<br>1091 / 1390<br>1075 / 1298<br>950 / 1108<br>1631 / 1714 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
@@ -1213,14 +1213,20 @@ Commercial use: yes.
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
+- `prompt-depth-anything-s` 994x1482, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `prompt-depth-anything-s` 756x1008, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
+- `prompt-depth-anything-l` 994x1482, first call: portable + torch.compile 23 s (cold Inductor cache), TensorRT fp16 56 s (ONNX + engine).
 - `prompt-depth-anything-l` 756x1008, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
-- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: Full single-image API on CUDA RGB. Default max_size=1008 yields a 672×1008 network input, with an identical synthetic positive 124×185 prompt. Includes resize, normalization, and 994×1482 depth output.
+- `prompt-depth-anything-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions in FP32. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions with CUDA FP16 autocast per the reference evaluator. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
-- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: Full single-image API on CUDA RGB. Default max_size=1008 yields a 672×1008 network input, with an identical synthetic positive 124×185 prompt. Includes resize, normalization, and 994×1482 depth output.
+- `prompt-depth-anything-l` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions in FP32. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-l` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions with CUDA FP16 autocast per the reference evaluator. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
-- `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
-- `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
+- `prompt-depth-anything-s` load / first call: original 0.37645419999898877 s / 0.68 s, portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
+- `prompt-depth-anything-l` load / first call: original 4.218828861994552 s / 0.626 s, portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1431,11 +1437,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>160<br>60.5 | –<br>1083 / 1782<br>1074 / 1526 |
+| `video-depth-anything-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1814<br>1441<br>161<br>62.2<br>112 (single-image call, CUDA tensor input)<br>67.7 (single-image engine) | 7223 / 10186<br>5609 / 8422<br>1083 / 1766<br>852 / 1146<br>1263 / 1524<br>988 / 1022 |
 | `video-depth-anything-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>58.4<br>100 (single image)<br>60.3 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1344<br>886 / 914 |
 | `video-depth-anything-s` | TUM RGB-D fr1_room (88x480x640) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5064<br>3786<br>954<br>835<br>762 (full 88-frame clip)<br>524 (full 88-frame clip) | 6030 / 8210<br>4780 / 6794<br>1730 / 1946<br>1796 / 1946<br>2587 / 3260<br>2753 / 3148 |
 | `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
-| `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>159<br>61.0 | –<br>1083 / 1782<br>1074 / 1526 |
+| `video-depth-anything-metric-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1812<br>1437<br>161<br>61.8<br>112 (single-image call, CUDA tensor input)<br>67.7 (single-image engine) | 7223 / 10186<br>5609 / 8422<br>1083 / 1764<br>852 / 1146<br>1263 / 1524<br>988 / 1022 |
 | `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
@@ -1453,19 +1459,25 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
+- `video-depth-anything-s` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 100 s (ONNX + engine).
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
 - `video-depth-anything-s` 88x480x640, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
 - `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
+- `video-depth-anything-metric-s` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 92 s (ONNX + engine).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
-- `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API call on CUDA float32 RGB. Default short_side=518 yields a 518×770 network input. Includes preprocessing and full-size CUDA depth output.
+- `video-depth-anything-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=True. The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=False (author CUDA autocast). The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `video-depth-anything-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
 - `video-depth-anything-s` original (fp32) 88x480x640, original (fp32) 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=True): uint8 numpy frames in, numpy out (its API)
 - `video-depth-anything-s` original 88x480x640, original 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` portable 88x480x640, kernels 88x480x640, portable 88x1080x1920, kernels 88x1080x1920: Float32 CUDA RGB frames in [0, 1] to depth on the device; 88-frame public video API.
-- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API call on CUDA float32 RGB. Default short_side=518 yields a 518×770 network input. Includes preprocessing and full-size CUDA depth output.
+- `video-depth-anything-metric-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=True. The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-metric-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=False (author CUDA autocast). The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `video-depth-anything-metric-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
-- `video-depth-anything-s` load / first call: original 0.26 s / 12.771 s (88x1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
-- `video-depth-anything-metric-s` load / first call: original 2.74 s / 11.32 s (88x1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
+- `video-depth-anything-s` load / first call: original 0.40379490799386986 s / 1.841 s, portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
+- `video-depth-anything-metric-s` load / first call: original 0.38780612900154665 s / 1.832 s, portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

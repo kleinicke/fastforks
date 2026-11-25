@@ -939,13 +939,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | omni-dc | 994x1482 | – | 875 | 558 | 512 | 1.7x | 1.1x | 5966 / 6732 | 3849 / 5044 | 3873 / 4566 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
-| prompt-depth-anything-l | 994x1482 | – | – | 111 | 61.6 | – | 1.8x | – | 1091 / 1390 | 1076 / 1316 |
-| prompt-depth-anything-s | 994x1482 | – | – | 16.4 | 11.1 | – | 1.5x | – | 306 / 426 | 246 / 358 |
+| prompt-depth-anything-l | 994x1482 | 572 | 381 | 112 | 63.4 | 6.0x | 1.8x | 2544 / 3268 | 1091 / 1390 | 1075 / 1298 |
+| prompt-depth-anything-s | 994x1482 | 81.4 | 74.2 | 17.5 | 12.0 | 6.2x | 1.5x | 592 / 878 | 306 / 408 | 247 / 368 |
 | stablenormal-turbo | 994x1482 | – | 299 | 291 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3316 / 3626 | 3037 / 3172 |
 | unidepth-v2-vitl14 | 994x1482 | – | – | – | 63.0 | – | – | – | – | 1153 / 1252 |
 | unik3d-vitl | 518x770 | 123 | 123 | 99.2 | 58.5 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1070 / 1106 |
-| video-depth-anything-metric-s | 994x1482 | – | – | 159 | 61.0 | – | 2.6x | – | 1083 / 1782 | 1074 / 1526 |
-| video-depth-anything-s | 994x1482 | – | – | 160 | 60.5 | – | 2.6x | – | 1083 / 1782 | 1074 / 1526 |
+| video-depth-anything-metric-s | 994x1482 | 1812 | 1437 | 161 | 61.8 | 23.3x | 2.6x | 5609 / 8422 | 1083 / 1764 | 852 / 1146 |
+| video-depth-anything-s | 994x1482 | 1814 | 1441 | 161 | 62.2 | 23.2x | 2.6x | 5609 / 8422 | 1083 / 1766 | 852 / 1146 |
 | zoedepth-nk | 994x1482 | – | – | 124 | – | – | – | – | 1843 / 1944 | – |
 
 ### Depth, Middlebury 2014 half, 994x1482
@@ -985,10 +985,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 ### Depth, Synthetic 32-frame clip, 32x994x1482
 
-| model | time (ms): portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
-|---|---|---|---|---|---|
-| video-depth-anything-metric-s | 469 | 364 | 1.3x | 1845 / 2494 | 1919 / 2414 |
-| video-depth-anything-s | 469 | 364 | 1.3x | 1845 / 2494 | 1919 / 2414 |
+| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|
+| video-depth-anything-metric-s | 3900 | 3018 | 822 | 627 | 4.8x | 1.3x | 5935 / 8422 | 1368 / 1666 | 1259 / 1636 |
+| video-depth-anything-s | 4175 | 3064 | 824 | 629 | 4.9x | 1.3x | 5935 / 8422 | 1368 / 1666 | 1259 / 1636 |
 
 ### Depth, TUM RGB-D fr1_room, 88x1080x1920
 
@@ -1435,7 +1435,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memflow-kitti | – | 3247 | 964 | 865 | 3.8x | 1.1x | 15061 / 15594 | 5985 / 6102 | 968 / 1022 |
 | memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 5985 / 6102 | 968 / 1022 |
 | memfof | – | 531 | 433 | 349 | 1.5x | 1.2x | 2003 / 2144 | 1911 / 2196 | 917 / 1016 |
-| memfof-kitti | – | – | 2202 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
+| memfof-kitti | OOM | OOM | 2202 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
 | memfof-sintel | – | OOM | 2177 | 1541 | – | 1.4x | – | 14156 / 14418 | 3805 / 4018 |
 | memfof-spring | – | 1035 | 433 | 349 | 3.0x | 1.2x | 2340 / 2676 | 1900 / 2196 | 917 / 1016 |
 | neuflow-v2 | 171 | 75.6 | 72.0 | 59.8 | 1.3x | 1.2x | 4367 / 4556 | 2327 / 2398 | 490 / 636 |
@@ -1574,8 +1574,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1816 | 1699 | 1.1x | 1.1x | 3930 / 4298 | 1510 / 1564 | 1510 / 1564 |
 | nninteractive | 200x200 | 705 | 460 | 209 | 193 | 2.4x | 1.1x | 4076 / 4636 | 2423 / 2772 | 2423 / 2772 |
-| totalsegmentator-total | 200x200 | 47779 | 45630 | 1977 | 1647 | 27.7x | 1.2x | 2640 / 2874 | 2017 / 2244 | 1219 / 1638 |
-| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 70.3 | 71.8 | 101.2x | 1.0x | 2010 / 2684 | 962 / 1050 | 913 / 1376 |
+| totalsegmentator-total | 200x200 | 47779 | 45630 | 2053 | 1429 | 31.9x | 1.4x | 2640 / 2874 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 83.6 | 35.9 | 202.6x | 2.3x | 2010 / 2684 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-total-6mm | 200x200 | 108 | 102 | 12.0 | 7.01 | 14.6x | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total | 200x200 | 5104 | 2673 | 2051 | 1429 | 1.9x | 1.4x | 1902 / 2312 | 1851 / 2650 | 1194 / 1606 |
+| totalsegmentator-v3-total-3mm | 200x200 | 192 | 150 | 83.1 | 35.3 | 4.2x | 2.4x | 1000 / 1332 | 904 / 1404 | 900 / 1376 |
+| totalsegmentator-v3-total-6mm | 200x200 | 107 | 103 | 11.7 | 7.01 | 14.7x | 1.7x | 276 / 352 | 201 / 286 | 200 / 286 |
+| totalsegmentator-v3-total-small | 200x200 | 5229 | 3370 | 3354 | 1628 | 2.1x | 2.1x | 1328 / 1508 | 1624 / 3174 | 1093 / 1872 |
+| totalsegmentator-v3-total-small-3mm | 200x200 | 143 | 127 | 84.5 | 26.7 | 4.8x | 3.2x | 424 / 490 | 1054 / 1218 | 1050 / 1218 |
 
 ### Startup and first call
 
@@ -1692,13 +1698,13 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | omni-dc | 9.52 | 2.47 | 2.44 | 2.04 | 1.06 | 0.94 |
 | pointdit-b-512 | 2.57 | 1.67 (518x770) | 1.74 (518x770) | 0.11 | 0.18 (518x770) | 0.15 (518x770) |
 | pointdit-l-512 | 9.47 | 3.96 (518x770) | 3.91 (518x770) | 0.12 | 0.25 (518x770) | 0.23 (518x770) |
-| prompt-depth-anything-l | 4.80 (756x1008) | 1.50 (756x1008) | 2.78 (756x1008) | 0.77 (756x1008) | 0.30 (756x1008) | 0.22 (756x1008) |
-| prompt-depth-anything-s | 0.42 (756x1008) | 0.37 (756x1008) | 1.20 (756x1008) | 0.79 (756x1008) | 0.24 (756x1008) | 0.18 (756x1008) |
+| prompt-depth-anything-l | 4.22 | 1.50 (756x1008) | 2.78 (756x1008) | 0.63 | 0.30 (756x1008) | 0.22 (756x1008) |
+| prompt-depth-anything-s | 0.38 | 0.37 (756x1008) | 1.20 (756x1008) | 0.68 | 0.24 (756x1008) | 0.18 (756x1008) |
 | stablenormal-turbo | 6.36 | 2.94 | 3.25 | 1.13 | 0.54 | 0.35 |
 | unidepth-v2-vitl14 | 3.80 | 4.16 | 1.90 (518x770) | 0.38 | 0.15 | 0.30 (518x770) |
 | unik3d-vitl | 7.28 | 0.88 | 3.77 (518x770) | 0.57 | 0.34 | 0.30 (518x770) |
-| video-depth-anything-metric-s | 2.74 (88x1080x1920) | 0.19 (480x640) | 0.19 (480x640) | 11.32 (88x1080x1920) | 0.44 (480x640) | 0.50 (480x640) |
-| video-depth-anything-s | 0.26 (88x1080x1920) | 0.98 (480x640) | 0.38 (480x640) | 12.77 (88x1080x1920) | 0.54 (480x640) | 0.37 (480x640) |
+| video-depth-anything-metric-s | 0.39 | 0.19 (480x640) | 0.19 (480x640) | 1.83 | 0.44 (480x640) | 0.50 (480x640) |
+| video-depth-anything-s | 0.40 | 0.98 (480x640) | 0.38 (480x640) | 1.84 | 0.54 (480x640) | 0.37 (480x640) |
 | zoedepth-nk | 8.35 | 0.46 | 0.33† | 1.53 | 0.49 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
 | coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | 1.94 | 0.31 | 0.38 | 0.28 |
@@ -2161,6 +2167,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | nninteractive | 3.23 | 1.09 | 0.65 | 1.04 | 0.48 | 0.40 |
 | totalsegmentator-total | 0.07 | 0.77 | 0.77 | 54.51 | 2.10 | 1.88 |
 | totalsegmentator-total-3mm | 0.06 | 1.18 | 1.19 | 12.48 | 0.26 | 0.21 |
+| totalsegmentator-total-6mm | 0.29 | 1.35 | 1.20 | 3.53 | 0.25 | 0.14 |
+| totalsegmentator-v3-total | 0.07 | 1.35 | 0.98 | 8.59 | 2.29 | 1.55 |
+| totalsegmentator-v3-total-3mm | 0.05 | 1.33 | 1.19 | 2.51 | 0.32 | 0.18 |
+| totalsegmentator-v3-total-6mm | 0.05 | 1.39 | 1.19 | 2.99 | 0.25 | 0.16 |
+| totalsegmentator-v3-total-small | 0.05 | 1.17 | 0.96 | 7.76 | 3.55 | 1.73 |
+| totalsegmentator-v3-total-small-3mm | 0.05 | 1.28 | 1.26 | 2.80 | 0.34 | 0.18 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -2297,14 +2309,18 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
+| prompt-depth-anything-l | 994x1482 | 112 ms | 104 ms (single-image call, CUDA tensor input) | 67.9 ms (single-image engine) | 63.4 ms | 23.4 s | 55.6 s | 1091 / 1390 | 950 / 1108 | 1075 / 1298 | 1631 / 1714 |
 | prompt-depth-anything-s | 756x1008 | 18.4 ms | 16.3 ms | 10.5 ms | 11.4 ms | 14.7 s | 46.6 s | 363 / 442 | 260 / 322 | 297 / 384 | 368 / 410 |
+| prompt-depth-anything-s | 994x1482 | 17.5 ms | 14.0 ms (single-image call, CUDA tensor input) | 9.84 ms (single-image engine) | 12.0 ms | 20.4 s | 40.0 s | 306 / 408 | 254 / 302 | 247 / 368 | 336 / 376 |
 | stablenormal-turbo | 994x1482 | 291 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3316 / 3626 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1153 / 1252 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 107 ms | 94.4 ms | 58.0 ms | 62.8 ms | 32.8 s | 105 s | 1063 / 1152 | 1258 / 1312 | 985 / 1066 | 1609 / 1678 |
 | video-depth-anything-metric-s | 480x640 | 147 ms | 101 ms (single image) | 60.2 ms (single image) | 59.5 ms | 32.5 s | 82.1 s | 953 / 1146 | 1143 / 1464 | 988 / 1188 | 886 / 914 |
+| video-depth-anything-metric-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 61.8 ms | 34.2 s | 92.5 s | 1083 / 1764 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
 | video-depth-anything-s | 88x1080x1920 | 1423 ms | 1314 ms (full 88-frame clip) | – | 1233 ms | 82.7 s | – | 6207 / 6524 | 7762 / 8530 | 6288 / 6486 | – |
 | video-depth-anything-s | 480x640 | 147 ms | 100 ms (single image) | 60.3 ms (single image) | 58.4 ms | 34.8 s | 103 s | 953 / 1146 | 1143 / 1344 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-s | 88x480x640 | 954 ms | 762 ms (full 88-frame clip) | 524 ms (full 88-frame clip) | 835 ms | 51.8 s | 181 s | 1730 / 1946 | 2587 / 3260 | 1796 / 1946 | 2753 / 3148 |
+| video-depth-anything-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 62.2 ms | 33.6 s | 100 s | 1083 / 1766 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 1843 / 1944 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | 1.74 ms | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | 100 / 144 | 158 / 170 |
@@ -2408,6 +2424,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | wd-vit-large-tagger-v3 | 448x448 | 12.9 ms | 13.3 ms | 11.2 ms | 12.6 ms | 13.5 s | 36.2 s | 671 / 756 | 713 / 742 | 669 / 718 | 1266 / 1290 |
 | wd-vit-tagger-v3 | 448x448 | 4.09 ms | 5.33 ms | 3.32 ms | 4.12 ms | 9.55 s | 18.8 s | 248 / 334 | 282 / 302 | 243 / 272 | 421 / 446 |
 | bisenet-face-parsing | 512x512 | 2.41 ms | 1.34 ms | 0.678 ms | 1.59 ms | 5.79 s | 12.9 s | 51 / 72 | 76 / 110 | 61 / 112 | 85 / 110 |
+| bisenet-face-parsing | 1024x2048 | 3.19 ms | 2.09 ms | 1.40 ms (full-resolution logits engine) | 2.38 ms | 7.28 s | 16.2 s | 151 / 202 | 151 / 190 | 162 / 208 | 269 / 332 |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 48.0 ms | 42.1 ms | 30.6 ms | 20.5 ms | 9.60 s | 25.7 s | 450 / 492 | 450 / 512 | 356 / 414 | 1764 / 1826 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 47.1 ms | 44.6 ms | 30.9 ms | 17.9 ms | 10.9 s | 23.3 s | 410 / 452 | 410 / 432 | 355 / 436 | 1683 / 1732 |
 | dinov2-b-linear-ade20k | 1024x2048 | 33.3 ms | 35.8 ms | 49.5 ms | 20.1 ms | 10.8 s | 40.6 s | 765 / 884 | 1455 / 1504 | 771 / 884 | 3367 / 3424 |
@@ -2446,13 +2463,21 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vitmatte-b | 1080x1920 | 180 ms | 157 ms | 108 ms | 146 ms | 32.6 s | 48.8 s | 891 / 1036 | 1166 / 1472 | 747 / 832 | 1233 / 1262 |
 | vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 84.1 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1305 / 1404 | 876 / 920 |
 | anyline | 1024x1024 | 21.0 ms | 11.6 ms | 12.9 ms (full line map only; memory estimated) | 18.8 ms | 40.0 s | 29.6 s | 362 / 384 | 306 / 346 | 362 / 384 | 528 / 542 |
+| anyline | 1080x1920 | 45.2 ms | 24.6 ms | 23.7 ms (full line map only; memory estimated) | 35.0 ms | 33.3 s | 29.3 s | 648 / 702 | 508 / 548 | 648 / 702 | 625 / 632 |
 | hed | 1024x1024 | 6.02 ms | 4.81 ms | 2.57 ms | 4.44 ms | 9.37 s | 11.6 s | 117 / 146 | 137 / 166 | 121 / 146 | 170 / 178 |
+| hed | 1080x1920 | 11.3 ms | 8.25 ms | 4.96 ms | 8.25 ms | 11.7 s | 13.9 s | 187 / 224 | 197 / 224 | 193 / 264 | 259 / 280 |
 | lineart | 1024x1024 | 9.93 ms | 6.49 ms | 4.80 ms | 8.49 ms | 9.92 s | 10.3 s | 129 / 164 | 117 / 164 | 126 / 186 | 150 / 176 |
+| lineart | 1080x1920 | 18.3 ms | 10.9 ms | 9.35 ms | 15.5 ms | 12.5 s | 11.6 s | 222 / 284 | 178 / 184 | 217 / 284 | 238 / 256 |
 | lineart-anime | 1024x1024 | 3.86 ms | 2.80 ms | 1.54 ms | 3.62 ms | 10.3 s | 13.4 s | 161 / 206 | 180 / 206 | 161 / 186 | 304 / 314 |
+| lineart-anime | 1080x1920 | 8.36 ms | 4.92 ms | 3.74 ms | 6.50 ms | 22.1 s | 16.6 s | 241 / 284 | 229 / 252 | 217 / 244 | 379 / 402 |
 | lineart-coarse | 1024x1024 | 9.92 ms | 6.49 ms | 4.80 ms | 8.51 ms | 9.66 s | 10.5 s | 129 / 164 | 117 / 164 | 126 / 166 | 150 / 176 |
+| lineart-coarse | 1080x1920 | 18.3 ms | 10.8 ms | 9.34 ms | 15.4 ms | 12.9 s | 11.2 s | 222 / 284 | 178 / 184 | 217 / 284 | 238 / 256 |
 | mlsd | 1024x1024 | 7.65 ms | 4.61 ms | 5.75 ms, fp32 engine (standalone CNN with eager resize and line decoding) | 7.03 ms | 11.4 s | – | 72 / 90 | 101 / 130 | 72 / 90 | 295 / 310 |
+| mlsd | 1080x1920 | 9.33 ms | 5.18 ms | – | 7.73 ms | 12.2 s | – | 127 / 170 | 159 / 208 | 127 / 148 | – |
 | pidinet | 1024x1024 | 6.59 ms | 5.66 ms | 4.50 ms | 6.37 ms | 12.4 s | 20.4 s | 186 / 228 | 166 / 190 | 186 / 228 | 187 / 200 |
+| pidinet | 1080x1920 | 13.1 ms | 10.6 ms | 9.04 ms | 12.3 ms | 16.1 s | 22.6 s | 328 / 372 | 216 / 246 | 328 / 392 | 307 / 312 |
 | teed | 1024x1024 | 2.54 ms | 1.10 ms | 0.799 ms | 2.43 ms | 9.06 s | 12.5 s | 68 / 88 | 71 / 104 | 68 / 88 | 106 / 120 |
+| teed | 1080x1920 | 4.09 ms | 1.58 ms | 1.95 ms | 3.83 ms | 13.7 s | 13.7 s | 122 / 146 | 103 / 146 | 122 / 146 | 180 / 186 |
 | clipseg | 1024x1024 | 4.46 ms | 3.19 ms | 1.75 ms (segmentation network on a normalized 352x352 image and precomputed text embedding only) | 2.76 ms | 9.92 s | 39.9 s | 328 / 356 | 348 / 374 | 335 / 362 | 464 / 480 |
 | efficientvit-sam-l0 | 1024x1024 | 11.1 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.55 ms | 25.2 s | 19.9 s | 158 / 190 | 188 / 228 | 164 / 236 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.47 ms | 24.8 s | 22.0 s | 183 / 234 | 212 / 252 | 191 / 264 | 517 / 578 |
@@ -2668,8 +2693,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11330 / 11352 |
 | flowseek-t-things-notartan | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
-| gmflow-scale1-mixdata | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 29.1 s | 67.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
-| gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
+| gmflow-scale1-mixdata | 1080x1920 | 448 ms | 382 ms | – | 446 ms | 29.1 s | – | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | – |
+| gmflow-scale1-mixdata | 1088x1920 | – | – | 187 ms (fixed 1088x1920 source pair) | – | – | 67.3 s | – | – | – | 4333 / 4390 |
+| gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | – | 446 ms | 35.3 s | – | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | – |
+| gmflow-scale1-things | 1088x1920 | – | – | 187 ms (fixed 1088x1920 source pair) | – | – | 69.3 s | – | – | – | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 915 ms | 765 ms | public API unavailable | 915 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-mixdata | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1410 / 2272 | – | – | 1616 / 2560 |
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 1383 ms | 1116 ms | public API unavailable | 1389 ms | 58.4 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
@@ -2697,7 +2724,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memfof-sintel | 1080x1920 | 2177 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
 | memfof-sintel | 384x1248 | 1528 ms | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | 3285 / 5238 | – | – | 4252 / 5692 |
-| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |
+| memfof-spring | 1080x1920 | 433 ms | 291 ms | – | 349 ms | 45.4 s | – | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | – |
+| memfof-spring | 1088x1920 | – | – | 160 ms (fixed 1088x1920 source pair) | – | – | 95.8 s | – | – | – | 2070 / 2112 |
 | neuflow-v2 | 1080x1920 | 72.0 ms | 91.4 ms | 65.0 ms | 59.8 ms | 28.5 s | 104 s | 2327 / 2398 | 4529 / 4558 | 490 / 636 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
@@ -2714,11 +2742,13 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | recover-rn | 1080x1920 | 64.1 ms | 48.8 ms | 28.9 ms | 51.3 ms | 9.34 s | 34.1 s | 590 / 672 | 375 / 432 | 590 / 672 | 419 / 466 |
 | sea-raft-m | 1080x1920 | 269 ms | 191 ms | 132 ms | 73.4 ms | 34.3 s | 70.0 s | 5847 / 6570 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-m-kitti | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.3 ms | 34.9 s | 69.7 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
-| sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | 4.43 ms | 23.5 ms | 23.2 s | 47.1 s | 652 / 700 | 624 / 640 | 170 / 194 | 291 / 318 |
+| sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | – | 23.5 ms | 23.2 s | – | 652 / 700 | 624 / 640 | 170 / 194 | – |
+| sea-raft-m-spring | 544x960 | – | – | 4.43 ms (fixed 544x960 source pair with the checkpoint's internal half resize) | – | – | 47.1 s | – | – | – | 291 / 318 |
 | sea-raft-m-things | 1080x1920 | 270 ms | 192 ms | 132 ms | 73.0 ms | 34.9 s | 73.6 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.6 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 404 / 452 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.7 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 404 / 432 | 11043 / 11078 |
-| sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.2 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 150 / 172 | 215 / 278 |
+| sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | – | 16.2 ms | 21.9 s | – | 611 / 656 | 582 / 596 | 150 / 172 | – |
+| sea-raft-s-spring | 544x960 | – | – | 3.01 ms (fixed 544x960 source pair with the checkpoint's internal half resize) | – | – | 38.8 s | – | – | – | 215 / 278 |
 | waft-a1 | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
 | waft-a1-kitti | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 1832 / 2196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
 | waft-a1-sintel | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
@@ -2748,9 +2778,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
 | cotracker3-online | 8x256x256 | 97.2 ms | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | 936 / 1298 | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
-| locotrack-b | 480x854 | 189 ms | 82.6 ms | – | 109 ms | 146 s | – | 535 / 596 | 1117 / 1140 | 507 / 600 | – |
+| locotrack-b | 480x854 | 189 ms | 82.6 ms | 65.8 ms (24 frames with 256 queries) | 109 ms | 146 s | 170 s | 535 / 596 | 1117 / 1140 | 507 / 600 | 849 / 882 |
 | locotrack-b | 8x480x854 | 27.2 ms | – | 6.12 ms (8 frames with 16 queries only) | – | – | – | 241 / 278 | – | – | 233 / 242 |
-| locotrack-s | 480x854 | 180 ms | 74.1 ms | – | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
+| locotrack-s | 480x854 | 180 ms | 74.1 ms | 49.8 ms (24 frames with 256 queries) | 151 ms | 140 s | 159 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 714 / 762 |
 | locotrack-s | 8x480x854 | 25.3 ms | – | 5.66 ms (8 frames with 16 queries only) | – | – | 51.4 s | 229 / 280 | – | – | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
@@ -2812,8 +2842,14 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nnfoundation-vit | 192x192 | 1816 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1699 ms | 69.5 s | 127 s | 1510 / 1564 | 1406 / 1484 | 1510 / 1564 | 8452 / 8452 |
 | nninteractive | 200x200 | 209 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 193 ms | 18.0 s | – | 2423 / 2772 | 3643 / 3832 | 2423 / 2772 | – |
 | nninteractive | 192x192 | 204 ms | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | 2145 / 2608 | – | – | 2738 / 2740 |
-| totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1647 ms | 37.0 s | 152 s | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | 6646 / 7136 |
-| totalsegmentator-total-3mm | 200x200 | 70.3 ms | 63.1 ms | 74.4 ms (patch network, standalone build) | 71.8 ms | 11.9 s | 31.3 s | 962 / 1050 | 907 / 1030 | 913 / 1376 | 2909 / 2970 |
+| totalsegmentator-total | 200x200 | 2053 ms | 1504 ms (compiled patch network inside the full sliding-window call) | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1429 ms | 28.6 s | 152 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 6646 / 7136 |
+| totalsegmentator-total-3mm | 200x200 | 83.6 ms | 52.7 ms (compiled patch network inside the full sliding-window call) | 74.4 ms (patch network, standalone build) | 35.9 ms | 8.63 s | 31.3 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 2909 / 2970 |
+| totalsegmentator-total-6mm | 200x200 | 12.0 ms | 8.00 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 7.01 ms | 7.58 s | 17.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
+| totalsegmentator-v3-total | 200x200 | 2051 ms | 1500 ms (compiled patch network inside the full sliding-window call) | 2326 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1429 ms | 27.4 s | 89.8 s | 1851 / 2650 | 1712 / 2004 | 1194 / 1606 | 3032.0 process |
+| totalsegmentator-v3-total-3mm | 200x200 | 83.1 ms | 52.3 ms (compiled patch network inside the full sliding-window call) | 205 ms, fp32 engine (one fixed nnU-Net patch engine with eager full-volume preprocessing and labels) | 35.3 ms | 8.59 s | 31.9 s | 904 / 1404 | 901 / 1030 | 900 / 1376 | 3122.0 process |
+| totalsegmentator-v3-total-6mm | 200x200 | 11.7 ms | 8.02 ms (compiled patch network inside the full sliding-window call) | 26.3 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 7.01 ms | 7.46 s | 16.3 s | 201 / 286 | 220 / 252 | 200 / 286 | 810.0 process |
+| totalsegmentator-v3-total-small | 200x200 | 3354 ms | 2100 ms (compiled patch network inside the full sliding-window call) | 4478 ms (five fixed nnU-Net patch engines with eager full-volume processing) | 1628 ms | 74.1 s | 165 s | 1624 / 3174 | 1759 / 2144 | 1093 / 1872 | 3764.0 process |
+| totalsegmentator-v3-total-small-3mm | 200x200 | 84.5 ms | 46.0 ms (compiled patch network inside the full sliding-window call) | 111 ms, fp32 engine (one fixed FP32 patch engine, eager volume processing) | 26.7 ms | 19.7 s | 34.2 s | 1054 / 1218 | 1054 / 1130 | 1050 / 1218 | 2238.0 process |
 <!-- compile:end -->
 
 ## Original code

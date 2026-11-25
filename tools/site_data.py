@@ -167,26 +167,24 @@ def _native_speed_input(card: ModelCard, v: Variant) -> str | None:
 
 def _speed_workload(ref: str, task: str, size: str, rows: list[dict]) -> dict[str, Any]:
     """Preserve recorded workload geometry without changing the comparison key."""
+    fields = {
+        "volume": ("volume_shape", "spacing_mm"),
+        "multiview": ("views",),
+        "depth": ("frames",),
+        "tracking": ("frames", "queries"),
+    }.get(task, ())
     legacy: dict[str, Any] = {}
     synthetic = all((r.get("scene") or "synthetic").casefold().startswith("synthetic") for r in rows)
-    if task == "volume":
-        fields = ("volume_shape", "spacing_mm")
-        if synthetic and ref.startswith("totalsegmentator-") and size == "200x200":
-            # Legacy speed rows used volume.bench_inputs: [H, W, W] at 1.5 mm.
-            legacy = {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
-    elif task == "multiview" and ref == "pi3":
-        fields = ("views",)
-        if match := re.fullmatch(r"(\d+)x\d+x\d+", size):
-            legacy = {"views": int(match[1])}
-    elif task == "tracking":
-        fields = ("frames", "queries")
-        if synthetic and ref in {"locotrack-b", "locotrack-s"}:
-            if size == "480x854":
-                legacy = {"frames": 24, "queries": 256}  # tracking.bench_inputs
-            elif size == "8x480x854":
-                legacy = {"frames": 8, "queries": 16}  # matched export workload
-    else:
-        return {}
+    if task == "volume" and synthetic and ref.startswith("totalsegmentator-") and size == "200x200":
+        # Legacy speed rows used volume.bench_inputs: [H, W, W] at 1.5 mm.
+        legacy = {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
+    elif task == "multiview" and ref == "pi3" and (match := re.fullmatch(r"(\d+)x\d+x\d+", size)):
+        legacy = {"views": int(match[1])}
+    elif task == "tracking" and synthetic and ref in {"locotrack-b", "locotrack-s"}:
+        legacy = {
+            "480x854": {"frames": 24, "queries": 256},  # tracking.bench_inputs
+            "8x480x854": {"frames": 8, "queries": 16},  # matched export workload
+        }.get(size, {})
 
     recorded = {k: [row[k] for row in rows if row.get(k) is not None] for k in fields}
     if any(value != legacy[k] for k in legacy for value in recorded[k]):
@@ -270,6 +268,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
                 "standalone": bool(c.get("standalone_build")),
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
+                "engine_load_s": c.get("engine_load_s") if mode == "tensorrt" else None,
                 "first_call_s": c.get("engine_first_call_s", c.get("first_call_s")) if mode == "tensorrt" else None,
                 "date": c.get("date"),
                 "torch": c.get("torch"),

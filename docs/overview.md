@@ -121,7 +121,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`distill-any-depth-b`](models/depth.md#depth-anything-v2) | yes | 0.0470 | 59.8 (994x1482) | 18.6 | 10.8 | 1.7x vs portable | 349 |
 | [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth-anything-v2) | yes | 0.0549 | 60.7 (994x1482) | 18.6 | 10.8 | 1.7x vs portable | 349 |
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth-anything-v2) | yes | 0.1089 | 60.6 (994x1482) | 18.6 | 10.8 | 1.7x vs portable | 349 |
-| [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | – | 16.4 | 11.1 | 1.5x vs portable | 246 |
+| [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | 74.2 (994x1482) | 17.5 | 12.0 | 6.2x vs original (994x1482) | 247 |
 | [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.9 | 1.6x vs portable | 805 |
 | [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 15.0 | 1.6x vs portable | 802 |
 | [`any2full-b`](models/depth.md#any2full) | yes | – | 108.3 (994x1482) | 26.8 | 17.2 | 6.3x vs original (994x1482) | 481 |
@@ -136,12 +136,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | 42.3 | 6.4x vs original (994x1482) | 1115 |
 | [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 45.2 | 1.6x vs portable | 2535 |
 | [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 92.5 | 59.5 | 1.6x vs portable | 3120 |
-| [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 159.7 | 60.5 | 2.6x vs portable | 1074 |
-| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 159.3 | 61.0 | 2.6x vs portable | 1074 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.5x vs portable | 1310 |
-| [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 110.9 | 61.6 | 1.8x vs portable | 1076 |
+| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | 1437.5 (994x1482) | 160.7 | 61.8 | 23.3x vs original (994x1482) | 852 |
+| [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | 1440.9 (994x1482) | 161.4 | 62.2 | 23.2x vs original (994x1482) | 852 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 106.7 | 62.8 | 2.1x vs original (994x1482) | 985 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | – | 1153 |
+| [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | 380.8 (994x1482) | 111.9 | 63.4 | 6.0x vs original (994x1482) | 1075 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 140.2 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 123.6 | 88.9 | 3.1x vs original (994x1482) | 1771 |
@@ -674,7 +674,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.915 | 2175.1 (1080x1920) | 1381.9 | 1384.0 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | 2.978 † | OOM (1080x1920) | 2176.7 | 1540.6 | 1.4x vs portable | 3805 |
-| [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 2202.3 | 1565.1 | 1.4x vs portable | 3805 |
+| [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | OOM (1080x1920) | 2202.3 | 1565.1 | 1.4x vs portable | 3805 |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 7.005 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 11.031 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 3.978 † | OOM (1080x1920) | 4003.3 | 3957.9 | 1.0x vs portable | 8696 |
@@ -798,19 +798,19 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 11 models; size 200x200.
 
-- Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (71.8 ms).
-- Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (71.8 ms).
+- Fastest: [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) (7.0 ms).
+- Fastest commercially usable: [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) (7.0 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 70.3 | 71.8 | 101.2x vs original (200x200) | 913 |
+| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.8 (200x200) | 11.7 | 7.0 | 14.7x vs original (200x200) | 200 |
+| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | 102.5 (200x200) | 12.0 | 7.0 | 14.6x vs original (200x200) | 200 |
+| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | 126.9 (200x200) | 84.5 | 26.7 | 4.8x vs original (200x200) | 1050 |
+| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | 149.8 (200x200) | 83.1 | 35.3 | 4.2x vs original (200x200) | 900 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 83.6 | 35.9 | 202.6x vs original (200x200) | 900 |
 | [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 208.7 | 193.5 | 2.4x vs original (200x200) | 2423 |
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 247.6 | 231.9 | 1.2x vs original (200x200) | 2325 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1976.9 | 1647.4 | 27.7x vs original (200x200) | 1219 |
+| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | 2673.1 (200x200) | 2051.0 | 1429.0 | 1.9x vs original (200x200) | 1194 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 2052.7 | 1429.2 | 31.9x vs original (200x200) | 1194 |
+| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | 3369.8 (200x200) | 3353.9 | 1627.9 | 2.1x vs original (200x200) | 1093 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1816.2 | 1699.4 (192x192) | 1.1x vs portable | 1510 |
-| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
-| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
-| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
-| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
-| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
-| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |

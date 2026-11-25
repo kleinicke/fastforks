@@ -224,9 +224,10 @@ def test_published_clip_timings_match_exported_workloads():
             assert "original16" in clip["modes"]
             assert standard["tensorrt"]["part"] == "single image"
         else:
-            assert "tensorrt" not in standard
             assert standard["workload"] == {"frames": 24, "queries": 256}
             assert clip["workload"] == {"frames": 8, "queries": 16}
+            assert "ms" in standard["tensorrt"]
+            assert standard["tensorrt"]["part"] == "24 frames with 256 queries"
 
 
 def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeypatch):
@@ -239,6 +240,7 @@ def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeyp
         "volume_shape": [200, 200, 200],
         "net_input": "2x1x112x112x128",
         "backend_part": "patch network, standalone build",
+        "engine_load_s": 0.1,
         "engine_first_call_s": 0.02,
         "first_call_s": 0.03,
         "torch": "2.14.1+cu130",
@@ -264,9 +266,16 @@ def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeyp
     assert profiles["200x200"]["workload"] == {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
     assert profiles["200x200"]["tensorrt"]["engine_input"] == "2x1x112x112x128"
     assert profiles["200x200"]["tensorrt"]["part"] == "patch network, standalone build"
+    assert profiles["200x200"]["tensorrt"]["engine_load_s"] == 0.1
     assert profiles["200x200"]["tensorrt"]["first_call_s"] == 0.02
     assert profiles["200x200"]["tensorrt"]["torch"] == "2.14.1+cu130"
     assert profiles["422x255x255"]["workload"] == {"volume_shape": [422, 255, 255], "spacing_mm": [1.0, 0.8, 0.8]}
+
+
+def test_depth_video_profile_reports_recorded_frame_count():
+    rows = [{"frames": 32, "scene": "Synthetic 32-frame clip, decoded CPU RGB"}]
+    assert site_data._speed_workload("video-depth-anything-s", "depth", "32x994x1482", rows) == {"frames": 32}
+    assert site_data._speed_workload("video-depth-anything-s", "depth", "994x1482", [{}]) == {}
 
 
 def test_workload_inference_is_limited_to_known_legacy_inputs():

@@ -369,22 +369,22 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
-| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 |  |  |  |
-| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
-| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 54.9 / 71.5 / 83.1 |  |  |  |
-| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
-| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 56.2 / 72.0 / 83.7 |  |  |  |
-| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
-| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 57.1 / 72.9 / 84.6 |  |  |  |
-| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
-| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 58.8 / 74.6 / 85.3 |  |  |  |
-| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
-| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 56.9 / 72.4 / 83.6 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
+| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 55.6 / 72.2 / 84.2 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 | 54.7 / 71.8 / 83.9 |  |  |
+| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
+| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 | 56.2 / 73.2 / 84.4 | 56.9 / 72.8 / 84.5 | 54.9 / 71.5 / 83.1 | 57.3 / 72.5 / 83.6 |  |  |
+| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
+| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 | 56.3 / 73.7 / 85.4 | 56.1 / 72.9 / 84.5 | 56.2 / 72.0 / 83.7 | 57.7 / 74.1 / 85.4 |  |  |
+| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
+| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 | 55.6 / 72.1 / 84.1 | 56.4 / 74.3 / 85.6 | 57.1 / 72.9 / 84.6 | 56.4 / 73.9 / 85.2 |  |  |
+| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
+| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 | 55.5 / 71.5 / 83.0 | 57.3 / 73.6 / 84.3 | 58.8 / 74.6 / 85.3 | 56.1 / 72.8 / 84.4 |  |  |
+| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
+| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 | 54.1 / 70.6 / 82.9 | 56.6 / 72.1 / 83.3 | 56.9 / 72.4 / 83.6 | 54.7 / 70.7 / 83.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 8630e98f1 / cb6c4aae6, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 3e1db914b7468c48e59db7f2461bc37e582be1da / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-25; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 3e1db914b7468c48e59db7f2461bc37e582be1da / 8630e98f1 / cb6c4aae6, 2026-11-20 to 2026-11-25; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
 
 ### Parity
 
