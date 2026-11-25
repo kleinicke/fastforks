@@ -7,6 +7,7 @@ and `predict_torch` (prompt coordinates scaled like the image, prompt encoder + 
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING
@@ -14,6 +15,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.checkpoint import load_strict
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -36,6 +38,7 @@ PATCH = 16  # fixed: SAM's ViT patch size (all released checkpoints)
 PROMPT_DIM = 256  # fixed: SAM's prompt / mask-decoder embedding width (all released checkpoints)
 GRAPH_PROMPTS = 4  # fixed: as Mobile-SAM (same prompt side: a graph pays off up to 4 prompts)
 GRAPHS = 4  # fixed: prompt layouts with a graph at a time (points, a box, both, with a mask)
+_MAPPED_CHECKPOINTS = frozenset(("sam-vit-l@1", "sam-vit-h@1"))
 
 
 @dataclass(frozen=True)
@@ -51,12 +54,12 @@ class Params:
     cuda_graphs: bool  # kernels: replay CUDA graphs of the prompt decode (option)
 
 
-def build(p: Params) -> Sam:
-    """Upstream `build_sam._build_sam` for `p` (untrained)."""
+def build(p: Params, *, meta_encoder: bool = False) -> Sam:
+    """Upstream `build_sam._build_sam` for `p`, optionally deferring encoder weight storage."""
     tokens = p.image_size // PATCH
     every = p.depth // p.global_attn
-    return Sam(
-        image_encoder=ImageEncoderViT(
+    with torch.device("meta") if meta_encoder else nullcontext():
+        encoder = ImageEncoderViT(
             depth=p.depth,
             embed_dim=p.embed_dim,
             img_size=p.image_size,
@@ -69,7 +72,9 @@ def build(p: Params) -> Sam:
             global_attn_indexes=tuple(range(every - 1, p.depth, every)),
             window_size=p.window_size,
             out_chans=PROMPT_DIM,
-        ),
+        )
+    return Sam(
+        image_encoder=encoder,
         prompt_encoder=PromptEncoder(
             embed_dim=PROMPT_DIM,
             image_embedding_size=(tokens, tokens),
@@ -89,8 +94,22 @@ def build(p: Params) -> Sam:
 
 
 def _sam(ctx: Context) -> Sam:
-    sam = build(ctx.params)
-    sam.load_state_dict(ctx.state_dict())
+    assign = (
+        ctx.device.type == "cuda"
+        and ctx.variant.ref in _MAPPED_CHECKPOINTS
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+    sam = build(ctx.params, meta_encoder=assign)
+    sd = ctx.state_dict()
+    if assign:
+        # The checkpoint stores positions in channel-major order; the original copy produces NHWC strides.
+        key = "image_encoder.pos_embed"
+        if key in sd:
+            sd[key] = sd[key].contiguous()
+        load_strict(sam, sd, f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        sam.load_state_dict(sd)
     return sam.eval()
 
 
