@@ -826,6 +826,6 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|
 | [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | 4271 | 3520 | 8041 |
 | [`nninteractive`](../models/volume.md#nninteractive) | 4005 | 3797 | 5587 |
-| [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | 42521 | 33823 | 3402 |
-| [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | 828 | 740 | 3246 |
+| [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | 25905 | 19980 | 5853 |
+| [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | 709 | 495 | 4254 |
 <!-- device:end -->
