@@ -30,13 +30,13 @@ upstream = "https://github.com/msu-video-group/memfof@a51de9fc59c6fe20ba08e07937
 settings = "CPU float32, upstream MEMFOF iters=8, frames (image1, image1, image2), forward flow, scale_and_forward_flow scale=0, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."memfof-kitti@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "7d05240c9a4093e7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00035
-p99_px = 0.00157
+date = "2026-11-25"
+mean_px = 0.00037
+p99_px = 0.0016
 
 [validated."memfof-kitti@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
@@ -48,13 +48,13 @@ mean_px = 0.00037
 p99_px = 0.0016
 
 [validated."memfof-sintel@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "7d05240c9a4093e7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00041
-p99_px = 0.00206
+date = "2026-11-25"
+mean_px = 0.00042
+p99_px = 0.00214
 
 [validated."memfof-sintel@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
@@ -66,13 +66,13 @@ mean_px = 0.00042
 p99_px = 0.00214
 
 [validated."memfof-spring@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "7d05240c9a4093e7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00066
-p99_px = 0.00442
+date = "2026-11-25"
+mean_px = 0.00071
+p99_px = 0.00445
 
 [validated."memfof-spring@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
@@ -84,13 +84,13 @@ mean_px = 0.00071
 p99_px = 0.00445
 
 [validated."memfof@1"]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c1024_r4" = "7d05240c9a4093e7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00065
-p99_px = 0.00304
+date = "2026-11-25"
+mean_px = 0.00057
+p99_px = 0.00266
 
 [validated."memfof@1".windows]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]

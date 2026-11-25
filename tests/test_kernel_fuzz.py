@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, vol_norm
+from fastforks.kernels import affine_silu, cudnn_hacc, fastbb, nf4, seg_up, sr_norm, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -46,6 +46,20 @@ def dev():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     return torch.device("cuda", torch.cuda.current_device())
+
+
+@pytest.mark.parametrize(("batch", "channels", "height", "width"), [(1, 32, 53, 37), (2, 192, 127, 103)])
+def test_affine_silu_fp16_rounding(dev, batch, channels, height, width):
+    """Keep the FP16 rounding point between the affine transform and SiLU."""
+    x = _randn(_gen(473), batch, channels, height, width).to(device=dev, dtype=torch.float16, memory_format=CL)
+    variance, mean = torch.var_mean(x, dim=(2, 3), keepdim=True, unbiased=False)
+    inverse_std = (variance.float() + 1e-5).rsqrt()
+    scale, bias = inverse_std.half(), (-mean.float() * inverse_std).half()
+    expected = x.clone(memory_format=CL)
+    F.silu(torch.addcmul(bias, expected, scale, out=expected), inplace=True)
+    actual = affine_silu.apply_(x, scale, bias)
+    assert actual is x
+    assert torch.equal(actual.permute(0, 2, 3, 1).view(torch.int16), expected.permute(0, 2, 3, 1).view(torch.int16))
 
 
 def _rng(seed: int, name: str) -> random.Random:
@@ -414,6 +428,44 @@ def test_vol_norm(dev, seed, record_property):
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
 
 
+def test_volume_padded_rotary_rounding(dev):
+    """The fused ViT kernel writes both rotary channels and zero padding with the eager FP16 rounding."""
+    g = _gen(497)
+    x = _randn(g, 2, 257, 3, 66).to(device=dev, dtype=torch.float16).transpose(1, 2)
+    sin, cos = (_randn(g, 257, 66).to(dev) for _ in range(2))
+    rot = torch.stack((-x[..., 1::2], x[..., ::2]), dim=-1).reshape(x.shape)
+    expected = F.pad((x * cos + rot * sin).half(), (0, 6))
+    got = vol_norm.rotary_padded66(x, sin, cos)
+    assert got.is_contiguous()
+    assert torch.equal(got.view(torch.int16), expected.view(torch.int16))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_restoration_row_layer_norm(dev, seed, record_property):
+    """Four- and eight-element vectors agree with an FP32 tokenwise normalization rounded to FP16."""
+    rng, generator, mag = _rng(seed, "sr_norm"), _gen(seed), MAGS[seed % 3]
+    for channels in (60, 144, 180, 240, 308, 536, 1020, 2048):
+        rows = rng.randint(1, 511)
+        x = _randn(generator, rows, channels, mag=mag).to(dev).half()
+        w, b = (_randn(generator, channels).to(dev) for _ in range(2))
+        expected = F.layer_norm(x.float(), (channels,), w, b, 1e-5)
+        got = sr_norm.layer_norm(x, w, b, 1e-5)
+        _cmp(record_property, "restoration row LayerNorm", got, expected, 5e-3, mag=mag, shape=[rows, channels])
+
+
+@pytest.mark.parametrize("channels", [180, 240])
+def test_restoration_layer_norm_fp16_rounding(dev, channels):
+    """Low-variance, shifted rows keep the exact CUDA PyTorch FP16 result."""
+    rows = 821
+    generator = _gen(8390)
+    x = (_randn(generator, rows * channels + 4) * 0.003 - 7).to(dev).half()[4:].view(rows, channels)
+    w, b = (_randn(generator, channels).to(dev).half() for _ in range(2))
+    eps = 1e-5 / 64**2
+    expected = F.layer_norm(x, (channels,), w, b, eps)
+    actual = sr_norm.layer_norm_ordered(x, w, b, eps)
+    assert torch.equal(actual.view(torch.int16), expected.view(torch.int16))
+
+
 # --- NF4 dequantization (nf4) ---------------------------------------------------------------------------------------
 
 
@@ -463,6 +515,26 @@ def test_nf4_epilogues(dev, seed):
     out = torch.empty(1, t2 + t, heads, d, dtype=bf, device=dev)
     nf4.rms_rope_bf16(xa, wa, f, out, 0)
     assert torch.equal(nf4.rms_rope_bf16(xb, wb, f, out, t2), ref)
+
+
+@pytest.mark.parametrize("tokens", [1, 77, 513, 6000])
+@pytest.mark.parametrize("with_lora", [False, True])
+def test_nf4_fused_projection_rope(dev, tokens, with_lora):
+    from fastforks.kernels import nf4  # noqa: PLC0415 - CUDA kernel only
+
+    g = torch.Generator(device=dev).manual_seed(131)
+    offset, heads, width = 77, 24, 128
+    shape = (1, tokens, heads, width)
+    base = torch.randn(shape, dtype=torch.bfloat16, device=dev, generator=g)
+    lora = torch.randn(shape, dtype=torch.bfloat16, device=dev, generator=g).mul_(0.125) if with_lora else None
+    w = torch.rand(width, device=dev, generator=g).add_(0.5)
+    angle = torch.rand(tokens + offset, 1, width // 2, device=dev, generator=g).mul_(10)
+    f = torch.polar(torch.ones_like(angle), angle)
+    expected = torch.zeros((1, tokens + offset, heads, width), dtype=torch.bfloat16, device=dev)
+    actual = torch.zeros_like(expected)
+    nf4.rms_rope_bf16(base.float() if lora is None else nf4.lora_f32(base, lora), w, f, expected, offset)
+    nf4.lora_rms_rope128(base.flatten(2), None if lora is None else lora.flatten(2), w, f, actual, offset=offset)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
 
 
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------
@@ -569,3 +641,83 @@ def test_vol_norm_repeatable() -> None:
     expected = vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01)
     for _ in range(3):
         assert torch.equal(vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01), expected)
+
+
+@pytest.mark.parametrize(("height", "width", "channels"), [(2, 3, 6), (11, 17, 96), (249, 372, 96)])
+def test_stereo_fused_feature_flaw(dev, height, width, channels):
+    from fastforks.kernels.stereo_warp import flaw_into  # noqa: PLC0415 - CUDA kernel only
+    from fastforks.stereo.models.monster.net.inference import warp  # noqa: PLC0415 - reference warp
+
+    g = torch.Generator(device=dev).manual_seed(28)
+
+    def features() -> torch.Tensor:
+        return torch.randn(1, height, width, channels, device=dev, dtype=torch.float16, generator=g).permute(0, 3, 1, 2)
+
+    right, left = features(), features()
+    disp = torch.randn(1, 1, height, width * 2, device=dev, generator=g)[..., ::2].mul_(width / 3)
+    disp[..., 0, 0] = -2 * width
+    disp[..., -1, -1] = 2 * width
+    out = torch.ones(1, height, width, channels + 8, device=dev, dtype=torch.float16).permute(0, 3, 1, 2)
+    flaw_into(right, left, disp, out[:, 2 : 2 + channels])
+    expected = (warp(right.float(), disp) - left.float()).half()
+    torch.testing.assert_close(out[:, 2 : 2 + channels], expected, atol=0, rtol=0)
+    assert torch.all(out[:, :2] == 1)
+    assert torch.all(out[:, 2 + channels :] == 1)
+
+
+@pytest.mark.parametrize(("rows", "columns"), [(5, 37), (11, 4097)])
+def test_gmflow_two_channel_expectation(dev, rows, columns):
+    from fastforks.kernels.gmflow import load  # noqa: PLC0415 - CUDA kernel only
+
+    generator = torch.Generator(device=dev).manual_seed(65)
+    scores = torch.randn(2, rows, columns, device=dev, generator=generator, dtype=torch.float32)
+    values = torch.randn(2, columns, 2, device=dev, generator=generator, dtype=torch.float32)
+    out = torch.full((2, rows + 4, 2), -1000.0, dtype=torch.float32, device=dev)
+    load(scores.device).launch(
+        "expectation2", (rows, 2, 1), (256, 1, 1), scores, values, out[:, 2:], rows, columns, rows + 4
+    )
+    torch.testing.assert_close(out[:, 2:-2], torch.bmm(scores.softmax(-1), values), rtol=2e-5, atol=2e-6)
+    assert torch.all(out[:, :2] == -1000)
+    assert torch.all(out[:, -2:] == -1000)
+
+
+@pytest.mark.parametrize(("tokens", "width"), [(11, 64), (17, 1024)])
+def test_vggt_omega_join_layer_norm(dev, tokens, width):
+    from fastforks.kernels.vggt_omega import load  # noqa: PLC0415 - CUDA kernel only
+
+    generator = torch.Generator(device=dev).manual_seed(29)
+    left = torch.randn(3, tokens + 3, width, generator=generator, device=dev)[:, 1 : tokens + 1]
+    right = torch.randn(3, tokens + 5, width, generator=generator, device=dev)[:, 3 : tokens + 3]
+    weight = torch.randn(2 * width, generator=generator, device=dev)
+    bias = torch.randn(2 * width, generator=generator, device=dev)
+    out = left.new_empty((3, tokens, 2 * width), dtype=torch.float16)
+    expected = F.layer_norm(torch.cat((left, right), -1), (2 * width,), weight, bias, 1e-6).half()
+    load(left.device).launch(
+        "omega_join_ln",
+        (3 * tokens, 1, 1),
+        (256, 1, 1),
+        left,
+        right,
+        out,
+        weight,
+        bias,
+        tokens,
+        *left.stride()[:2],
+        *right.stride()[:2],
+        width,
+        1e-6,
+    )
+    torch.testing.assert_close(out, expected, rtol=1e-3, atol=5e-4)
+
+
+@pytest.mark.parametrize(("shape", "size"), [((2, 7, 11, 32), (17, 37)), ((2, 1, 5, 8), (1, 13))])
+def test_dpt_resize_rows(dev, shape, size):
+    from fastforks.kernels import dpt_fused, dpt_resize  # noqa: PLC0415 - CUDA kernels only
+
+    generator = torch.Generator(device=dev).manual_seed(81)
+    image = torch.randn(shape, dtype=torch.float16, generator=generator, device=dev)
+    full = dpt_fused.load(dev).bilinear(image, size, align_corners=True)
+    for start in range(0, size[0], 5):
+        stop = min(start + 5, size[0])
+        stripe = dpt_resize.rows(image, size, (start, stop))
+        torch.testing.assert_close(stripe, full[:, start:stop], rtol=0, atol=0)

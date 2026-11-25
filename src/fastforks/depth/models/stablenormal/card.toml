@@ -41,7 +41,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]
+kernels = ["cudnn_hacc", "group_silu"]
 
 [[papers]]
 title = "StableNormal: Reducing Diffusion Variance for Stable and Sharp Normal"

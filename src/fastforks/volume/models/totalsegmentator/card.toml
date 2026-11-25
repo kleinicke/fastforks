@@ -1,6 +1,6 @@
 schema = 2
 name = "TotalSegmentator"
-summary = "TotalSegmentator (Wasserthal et al., Radiology: AI 2023): 117 anatomical structures (organs, bones, muscles, vessels) in CT, from nnU-Net v2 3D U-Nets. `total` merges five 1.5 mm part networks, `total-3mm` is the single fast 3 mm network. The portable runner also supports v2 at 6 mm, v3 at 1.5, 3 and 6 mm, and small v3 at 1.5 and 3 mm. V3 labels L6 separately and includes S1 in the sacrum. Gives one integer label volume on the input grid plus the label names."
+summary = "TotalSegmentator (Wasserthal et al., Radiology: AI 2023): 117 anatomical structures (organs, bones, muscles, vessels) in CT, from nnU-Net v2 3D U-Nets. `total` merges five 1.5 mm part networks, `total-3mm` is the single fast 3 mm network. Also supports v2 at 6 mm, v3 at 1.5, 3 and 6 mm, and small v3 at 1.5 and 3 mm. V3 labels L6 separately and includes S1 in the sacrum. Gives one integer label volume on the input grid plus the label names."
 limitations = [
   "On CUDA, stream=True keeps weights in CPU RAM and transfers each part once per volume. The five-part total model holds one part on the GPU at a time. All folds within the active part share the GPU.",
   "On an RTX 5060 Ti with a 96 × 128 × 128 CT, total peak allocated memory was 1,140 / 876 MiB for resident / streamed portable and 1,013 / 748 MiB for kernels. Streaming preserved every predicted label in both modes.",
@@ -28,6 +28,7 @@ configuration = ""  # the part name's last `__` field
 checkpoint = "checkpoint_final.pth"
 embedded = false
 classes = "classes_total.txt"
+cuda_windows = 2
 
 [options]
 stream = { default = false, effect = "speed" }
@@ -89,7 +90,6 @@ weights = [
 [[variants]]
 id = "totalsegmentator-total-6mm"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
 params = { parts = ["Dataset298_TotalSegmentator_total_6mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres"], spacing = 6.0 }
 weights = [
   { name = "Dataset298_TotalSegmentator_total_6mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 6898, sha256 = "bfd9ab6cfc0e094ced3aff7d7ad23e00e4d50376110b9fdfce0fbca5564c8ca8", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset298_TotalSegmentator_total_6mm_1559subj.zip", member = "Dataset298_TotalSegmentator_total_6mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 134827240, sha256 = "b1832acde46c0f76cc9aba599e49e986c21c94e522ade4d920602b227e9d6c63" } },
@@ -100,7 +100,6 @@ weights = [
 [[variants]]
 id = "totalsegmentator-v3-total"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
 params = { parts = ["Dataset831_TotalSegmentator_part1_organs_1830subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset832_TotalSegmentator_part2_vertebrae_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset833_TotalSegmentator_part3_cardiac_1830subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset834_TotalSegmentator_part4_muscles_1830subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset835_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres"], spacing = 1.5, classes = "classes_total_v3.txt" }
 licence = { training_data = ["totalsegmentator-ct-v3"], training_note = "Updated CT labels and pediatric scans.", evidence = "https://github.com/wasserth/TotalSegmentator/blob/f3f68e2eaedaad338ef34465c4a60c786b3b6b6c/resources/improvements_in_v3.md" }
 weights = [
@@ -124,8 +123,7 @@ weights = [
 [[variants]]
 id = "totalsegmentator-v3-total-3mm"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
-params = { parts = ["Dataset836_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres"], spacing = 3.0, classes = "classes_total_v3.txt" }
+params = { parts = ["Dataset836_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres"], spacing = 3.0, classes = "classes_total_v3.txt", cuda_windows = 1 }
 licence = { training_data = ["totalsegmentator-ct-v3"], training_note = "Updated CT labels and pediatric scans.", evidence = "https://github.com/wasserth/TotalSegmentator/blob/f3f68e2eaedaad338ef34465c4a60c786b3b6b6c/resources/improvements_in_v3.md" }
 weights = [
   { name = "Dataset836_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 10095, sha256 = "10bd20534f9aa1d72c5427b17d36651a5bd80d7e2ac014909831fb73899ad6c5", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v3.0.0-weights/Dataset836_TotalSegmentator_total_3mm_1559subj.zip", member = "Dataset836_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 242248414, sha256 = "45574e4573b1c1f1430c4b6f02e84d78f2443a2999027ba8bf1991fa972f6477" } },
@@ -136,7 +134,6 @@ weights = [
 [[variants]]
 id = "totalsegmentator-v3-total-6mm"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
 params = { parts = ["Dataset837_TotalSegmentator_total_6mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres"], spacing = 6.0, classes = "classes_total_v3.txt" }
 licence = { training_data = ["totalsegmentator-ct-v3"], training_note = "Updated CT labels and pediatric scans.", evidence = "https://github.com/wasserth/TotalSegmentator/blob/f3f68e2eaedaad338ef34465c4a60c786b3b6b6c/resources/improvements_in_v3.md" }
 weights = [
@@ -148,7 +145,6 @@ weights = [
 [[variants]]
 id = "totalsegmentator-v3-total-small"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
 params = { parts = ["Dataset831_TotalSegmentator_part1_organs_1830subj/nnUNetTrainerNoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres", "Dataset832_TotalSegmentator_part2_vertebrae_1559subj/nnUNetTrainerNoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres", "Dataset833_TotalSegmentator_part3_cardiac_1830subj/nnUNetTrainerNoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres", "Dataset834_TotalSegmentator_part4_muscles_1830subj/nnUNetTrainerNoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres", "Dataset835_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres"], spacing = 1.5, classes = "classes_total_v3.txt" }
 licence = { training_data = ["totalsegmentator-ct-v3"], training_note = "Updated CT labels and pediatric scans.", evidence = "https://github.com/wasserth/TotalSegmentator/blob/f3f68e2eaedaad338ef34465c4a60c786b3b6b6c/resources/improvements_in_v3.md" }
 weights = [
@@ -172,7 +168,6 @@ weights = [
 [[variants]]
 id = "totalsegmentator-v3-total-small-3mm"
 revision = 1
-planned = { kernels = "CUDA kernel parity has not yet been validated for this checkpoint." }
 params = { parts = ["Dataset836_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetResEncUNetLPlans_8__3d_fullres"], spacing = 3.0, classes = "classes_total_v3.txt" }
 licence = { training_data = ["totalsegmentator-ct-v3"], training_note = "Updated CT labels and pediatric scans.", evidence = "https://github.com/wasserth/TotalSegmentator/blob/f3f68e2eaedaad338ef34465c4a60c786b3b6b6c/resources/improvements_in_v3.md" }
 weights = [

@@ -38,13 +38,13 @@ patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793
 settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."ema-vfi-small-t@1"]
-kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
-symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00019
-p99_px = 0.00065
+date = "2026-11-25"
+mean_px = 0.00018
+p99_px = 0.0006
 
 [validated."ema-vfi-small-t@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
@@ -56,11 +56,11 @@ mean_px = 0.00019
 p99_px = 0.00065
 
 [validated."ema-vfi-small@1"]
-kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
-symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 0.00018
 p99_px = 0.00058
 
@@ -74,13 +74,13 @@ mean_px = 0.00018
 p99_px = 0.00058
 
 [validated."ema-vfi-t@1"]
-kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
-symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.0002
-p99_px = 0.00082
+date = "2026-11-25"
+mean_px = 0.00019
+p99_px = 0.00073
 
 [validated."ema-vfi-t@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
@@ -92,13 +92,13 @@ mean_px = 0.0002
 p99_px = 0.00082
 
 [validated."ema-vfi@1"]
-kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
-symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
-mean_px = 0.00018
-p99_px = 0.00062
+date = "2026-11-25"
+mean_px = 0.00019
+p99_px = 0.00066
 
 [validated."ema-vfi@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]

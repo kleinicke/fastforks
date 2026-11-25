@@ -27,7 +27,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from _common import reference_tree, write
-from raft_flow import CROP, IMAGE_SHA256, warp
 
 from fastforks._core import registry
 
@@ -45,13 +44,14 @@ def resize(image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
 
 
 def build(
-    files: list[Path], params: dict, device: str = "cpu"
+    files: list[Path], params: dict, device: str = "cpu", *, mixed: bool = False
 ) -> Callable[[torch.Tensor, torch.Tensor], dict[str, torch.Tensor]]:
-    """Upstream LoMa on the CPU in float32: `[3, H, W]` pair in [0, 1] -> keypoints (input pixels), pairs, scores.
+    """Run upstream LoMa on a `[3, H, W]` pair in [0, 1] and return pixel keypoints, pairs and scores.
 
     `params`: the card's params, variant params and options merged; `device`: where the net and the call run (the speed
     harness passes "cuda"; the goldens stay on the CPU). The reference checkout's `src` must be on
     `sys.path`; DaD and the DINOv2 construction weights come from the torch hub cache.
+    `mixed` enables the authors' device-specific mixed precision for CUDA accuracy measurements.
     """
     import loma  # noqa: PLC0415  # reference checkout
     from loma.loma import filter_matches  # noqa: PLC0415
@@ -64,7 +64,7 @@ def build(
         descriptor="dedode_g" if params.get("descriptor", "dedode_g") == "dedode_g" else "dedode_b",
         descriptor_vgg_size="11" if params.get("descriptor") == "dedode_b_vgg11" else "19",
         descriptor_in1k_normalization=params.get("normalize_descriptor", False),
-        mp=False,
+        mp=mixed,
         compile=False,
         weights_url=None,
     )
@@ -75,13 +75,14 @@ def build(
     if missing or extra:
         msg = f"checkpoint keys: missing {missing}, unexpected {extra}"
         raise SystemExit(msg)
-    for m in net.modules():
-        if hasattr(m, "amp_dtype"):
-            m.amp = False
-            m.amp_dtype = torch.float32
-    dino = getattr(net._descriptor.encoder, "frozen_dinov2", None)  # noqa: SLF001
-    if dino is not None:
-        dino.dinov2_vitl14 = dino.dinov2_vitl14.float()
+    if not mixed:
+        for m in net.modules():
+            if hasattr(m, "amp_dtype"):
+                m.amp = False
+                m.amp_dtype = torch.float32
+        dino = getattr(net._descriptor.encoder, "frozen_dinov2", None)  # noqa: SLF001
+        if dino is not None:
+            dino.dinov2_vitl14 = dino.dinov2_vitl14.float()
     net.eval().to(device)
     thr, size, long_side = params["threshold"], int(params["size"]), int(params["long_side"])
     num = int(params["max_keypoints"])
@@ -118,6 +119,7 @@ def main() -> None:
     ap.add_argument("--only", nargs="+", help="only these variant IDs")
     a = ap.parse_args()
     import skimage  # noqa: PLC0415
+    from raft_flow import CROP, IMAGE_SHA256, warp  # noqa: PLC0415 - only the golden image generation needs these
 
     png = Path(skimage.data.__file__).parent / "astronaut.png"
     if hashlib.sha256(png.read_bytes()).hexdigest() != IMAGE_SHA256:

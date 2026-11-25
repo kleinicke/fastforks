@@ -29,9 +29,9 @@ _ASYNC_SCRIPT = textwrap.dedent(
 
     def failing(x):
         y = torch.relu(x @ w)
-        d = torch.empty(2, device=x.device)
-        d[0] = 1.5  # a CPU scalar copy: rejected during capture (RIFE's warp did this)
-        return y * d[0]
+        if torch.cuda.is_current_stream_capturing():
+            raise RuntimeError("synthetic failure after allocating during capture")
+        return y * 1.5
 
     def fine(x):
         return torch.relu(x @ w) + 1
@@ -74,6 +74,87 @@ def test_failed_capture_under_cuda_malloc_async_does_not_abort():
     )
     assert p.returncode == 0, p.stderr[-4000:]
     assert "survived" in p.stdout
+
+
+def test_async_graph_pool_returns_unused_memory():
+    """Releasing a graph, including on a larger input, returns its separate CUDA driver pool."""
+    script = textwrap.dedent(
+        """
+        import ctypes
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+
+        import torch
+        from fastforks._core.kernels import _libcuda
+        from fastforks.shared import cuda_graphs
+
+        assert torch.cuda.get_allocator_backend() == "cudaMallocAsync"
+        device = torch.cuda.current_device()
+
+        def graph_reserved():
+            torch.cuda.synchronize()
+            value = ctypes.c_uint64()
+            reserved_mem_current = 2  # CU_GRAPH_MEM_ATTR_RESERVED_MEM_CURRENT
+            assert _libcuda().cuDeviceGetGraphMemAttribute(device, reserved_mem_current, ctypes.byref(value)) == 0
+            return value.value
+
+        def forward(x):
+            result = x.repeat(32 * 1024, 1).sum(0)
+            if fail and torch.cuda.is_current_stream_capturing():
+                raise RuntimeError("replacement graph failed")
+            return result
+
+        small = torch.ones(1024, device="cuda")
+        large = torch.ones(4096, device="cuda")
+        baseline = graph_reserved()
+        for action in ("release", "grow", "failed replacement"):
+            fail = False
+            cache = cuda_graphs.GraphCache(forward, graphs=1, stale=1)
+            assert cache.run("small", small) is None
+            result = cache.run("small", small)
+            assert result is not None
+            assert graph_reserved() > baseline
+            if action == "grow":
+                assert cache.run("large", large) is None
+            elif action == "release":
+                cache.release()
+            else:
+                fail = True
+                assert cache.run("alternate", small) is None
+                assert cache.run("alternate", small) is None
+            assert not cache.graphs
+            assert graph_reserved() == baseline
+            torch.testing.assert_close(result, small * (32 * 1024))
+
+        # Pause the capture request just after the cache unlocks, while release runs in another thread.
+        fail = False
+        ready, resume = Event(), Event()
+        empty_cache = cuda_graphs.empty_graph_cache
+
+        def wait_after_replay(device, *, released):
+            if not released:
+                ready.set()
+                assert resume.wait(timeout=10)
+            empty_cache(device, released=released)
+
+        cache = cuda_graphs.GraphCache(forward)
+        assert cache.run("small", small) is None
+        cuda_graphs.empty_graph_cache = wait_after_replay
+        with ThreadPoolExecutor(max_workers=1) as worker:
+            future = worker.submit(cache.run, "small", small)
+            try:
+                assert ready.wait(timeout=10)
+                assert graph_reserved() > baseline
+                cache.release()
+                assert graph_reserved() == baseline
+            finally:
+                resume.set()
+            torch.testing.assert_close(future.result(timeout=10), small * (32 * 1024))
+        """
+    )
+    env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "backend:cudaMallocAsync"}
+    p = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, timeout=60, check=False)
+    assert p.returncode == 0, p.stderr[-4000:]
 
 
 def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture):

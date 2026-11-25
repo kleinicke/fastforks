@@ -166,6 +166,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/plemeri/transparent-background/blob/f0fa91701a98cfc8e955c554e84522f365ec6da3/LICENSE ; https://github.com/plemeri/transparent-background/releases/tag/1.2.12 ; https://github.com/plemeri/InSPyReNet/blob/692ad8a5774cf95ef615a730d5070aad18f6b160/docs/model_zoo.md
 - Training data: DUTS (salient object detection), HRSOD (high-resolution salient object detection), UHRSD (ultra-high-resolution salient object detection), DIS5K (dichotomous image segmentation) (plemeri/InSPyReNet docs/model_zoo.md, Plus_Ultra(_LR): DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, DIS-TR/VD/TE1-4, DUT-OMRON, ECSSD, HKU-IS, PASCAL-S, DAVIS-S, FSS-1000, MSRA-10K (all test sets included, so benchmark numbers on them are not held out). Swin-B backbone from ImageNet-22k -> 1k.)
+- Options: `cuda_graph_policy` = auto (one of 'auto', 'on', 'off'; speed only)
 - Kernel libraries: `image_normalize`
 - Variants: `inspyrenet`, `inspyrenet-fast`
 - Outputs: alpha
@@ -198,6 +199,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `inspyrenet` | 3e-05 / 0.00067 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 | `inspyrenet-fast` | 1e-05 / 0.00029 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+
+### Limitations
+
+- On Linux CUDA, the base 1024 × 1024 network runs eagerly by default. Set `cuda_graph_policy="on"` to enable graph replay or `"off"` to disable it for either variant.
 
 </details>
 
@@ -277,7 +282,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
 - Options: `cuda_graphs` = True (speed only), `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: `image_normalize`
+- Kernel libraries: `image_normalize`, `seg_up`
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -307,7 +312,7 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `image_normalize@592f5511307a:sm_120`, `seg_up@3e44e71200cd:sm_120` |
 
 ### Limitations
 

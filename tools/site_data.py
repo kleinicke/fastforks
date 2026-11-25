@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -31,6 +32,8 @@ from fastforks._core.sizes import size_range
 from fastforks._core.tasks import spec
 
 _ROOT = Path(__file__).resolve().parents[1]
+_PI3_LEGACY_SIZE = "336x518"
+_PI3_LEGACY_VIEWS = 8
 
 if TYPE_CHECKING:
     from fastforks._core.cards import ModelCard, Variant
@@ -70,7 +73,6 @@ _KEEP_SPEED = (
     "load_s",
     "first_call_s",
     "import_s",
-    "scene",
     "date",
     "torch",
     "protocol",
@@ -131,55 +133,190 @@ def _licence(card: ModelCard, v: Variant) -> dict[str, Any]:
     }
 
 
+def _profile_metadata(rows: tuple[dict[str, Any], ...]) -> dict[str, Any]:
+    """Label known scene and boundary differences among the selected timings."""
+    labels = {row["scene_key"]: row["scene"] for row in rows if "scene_key" in row}
+    scopes = {r["comparison_scope"] for r in rows if "comparison_scope" in r}
+    scope_info = {"mixed_scopes": True} if len(scopes) > 1 else {}
+    if len(labels) > 1:
+        return {"scene": "Mixed scenes", "mixed_scenes": True} | scope_info
+    label = next(iter(labels.values()), "")
+    return {"scene": g._scene(label)} | scope_info  # noqa: SLF001
+
+
+def _speed_metadata(row: dict[str, Any]) -> dict[str, Any]:
+    """Provenance and explanatory notes shared by eager rows and backend timings."""
+    meta = g._speed_scene(row) | g._speed_scope(row)  # noqa: SLF001
+    if note := g._note(row):  # noqa: SLF001
+        meta["note"] = note
+    return meta
+
+
 def _speed_row(r: dict[str, Any]) -> dict[str, Any]:
-    out = {k: r[k] for k in _KEEP_SPEED if k in r}
-    out["dtype"] = _devices.dtype_of(r) if r["mode"] != "upstream" or r.get("dtype") else "float16"
-    if note := g._note(r):  # noqa: SLF001 - shared docs helper
-        out["note"] = note
+    out = {k: r[k] for k in _KEEP_SPEED if k in r} | _speed_metadata(r)
+    dtype = _devices.dtype_of(r)
+    out["dtype"] = "float16" if r["mode"] == "upstream" and dtype == "default" else dtype
     if r.get("commit"):
         out["commit"] = r["commit"][:12]
     return out
 
 
-def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any]:
+def _native_speed_input(card: ModelCard, v: Variant) -> str | None:
+    """The input normally shown on a fixed-size model page."""
+    if card.task == "classification" and v.io.crop:
+        return f"{v.io.crop}x{v.io.crop}"
+    if card.task == "ocr" and card.family == "parseq":
+        # PARSeq recognises a single word crop. PP-OCRv5 takes a whole page.
+        return "32x128"
+    return None
+
+
+def _speed_workload(ref: str, task: str, size: str, rows: list[dict]) -> dict[str, Any]:
+    """Preserve recorded workload geometry without changing the comparison key."""
+    fields = {
+        "volume": ("volume_shape", "spacing_mm"),
+        "multiview": ("views",),
+        "depth": ("frames",),
+        "tracking": ("frames", "queries"),
+    }.get(task, ())
+    legacy: dict[str, Any] = {}
+    synthetic = all((r.get("scene") or "synthetic").casefold().startswith("synthetic") for r in rows)
+    if task == "volume" and synthetic and ref.startswith("totalsegmentator-") and size == "200x200":
+        # Legacy speed rows used volume.bench_inputs: [H, W, W] at 1.5 mm.
+        legacy = {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
+    elif task == "multiview" and ref == "pi3" and (match := re.fullmatch(r"(\d+)x\d+x\d+", size)):
+        legacy = {"views": int(match[1])}
+    elif task == "tracking" and synthetic and ref in {"locotrack-b", "locotrack-s"}:
+        legacy = {
+            "480x854": {"frames": 24, "queries": 256},  # tracking.bench_inputs
+            "8x480x854": {"frames": 8, "queries": 16},  # matched export workload
+        }.get(size, {})
+
+    recorded = {k: [row[k] for row in rows if row.get(k) is not None] for k in fields}
+    if any(value != legacy[k] for k in legacy for value in recorded[k]):
+        legacy = {}  # A different recorded workload cannot inherit the legacy assumptions.
+    return legacy | {k: values[0] for k, values in recorded.items() if values and all(v == values[0] for v in values)}
+
+
+def _speed_input(ref: str, size: str, row: dict[str, Any]) -> str:
+    """Give the archived eight-view Pi3 floor the same key as its matched TensorRT profile."""
+    if ref == "pi3" and size == _PI3_LEGACY_SIZE and row.get("views", _PI3_LEGACY_VIEWS) == _PI3_LEGACY_VIEWS:
+        return f"{_PI3_LEGACY_VIEWS}x{size}"
+    return size
+
+
+def _profile_rows(model_id: str, speed: dict[str, list[dict]]) -> tuple[list[dict], dict[tuple[str, str], dict]]:
+    rows = speed.get(model_id, [])
+    if model_id == "pi3":
+        # An explicitly keyed measurement takes precedence over a legacy row for the same backend.
+        rows = [
+            r | {"input": _speed_input(model_id, r["input"], r)}
+            for r in sorted(rows, key=lambda r: r["input"] != _PI3_LEGACY_SIZE)
+        ]
+    backends = {}
+    for (ref, mode, size), row in g._compile_rows().items():  # noqa: SLF001
+        if ref != model_id or mode not in {"compile", "tensorrt"}:
+            continue
+        profile = _speed_input(ref, size, row)
+        key = (mode, profile)
+        if profile == size or key not in backends:
+            backends[key] = row
+    return rows, backends
+
+
+def _backend_failure(v: Variant, mode: str, message: str) -> dict[str, Any]:
+    if message == g.PLANNED and (reason := planned_reason(v, mode)):
+        return {"fails": reason, "planned": True}
+    failure: dict[str, Any] = {"fails": g._fail_reason(message)}  # noqa: SLF001
+    if "cuda out of memory" in message.casefold():
+        failure["oom"] = True
+    return failure
+
+
+def _backend_speed_row(row: dict[str, Any], task: str) -> dict[str, Any]:
+    engine = row["mode"] == "tensorrt"
+    if engine:
+        alloc, reserved = g._trt_peaks(row) or (None, None)  # noqa: SLF001 - shared docs helper
+    else:
+        alloc, reserved = row.get("peak_alloc_mb"), row.get("peak_reserved_mb")
+    timing = {
+        "ms": row["ms"],
+        "peak_alloc_mb": alloc,
+        "peak_reserved_mb": reserved,
+        "device_mb": row.get("device_mb"),
+        "process_peak_mb": row.get("nvml_peak_mb"),
+        "engine_dtype": row.get("engine_dtype", "float16") if engine else None,
+        "part": g._backend_part(row).strip(" ()"),  # noqa: SLF001 - shared docs helper
+        "standalone": bool(row.get("standalone_build")),
+        "setup_s": g._setup_seconds(row),  # noqa: SLF001 - shared docs helper
+        "engine_load_s": row.get("engine_load_s") if engine else None,
+        "first_call_s": row.get("engine_first_call_s", row.get("first_call_s")) if engine else row.get("first_call_s"),
+        "date": row.get("date"),
+        "torch": row.get("torch"),
+        **_speed_metadata(row),
+        **({"compare_to_original": False} if row.get("compare_to_original") is False else {}),
+    }
+    if not engine:
+        timing.update(dtype=_devices.dtype_of(row), load_s=row.get("load_s"))
+    if engine and task == "volume" and row.get("net_input"):
+        timing["engine_input"] = row["net_input"]
+    return timing
+
+
+def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
-    rows = speed.get(v.id, [])
+    rows, backends = _profile_rows(v.id, speed)
     std = g._std_input(task, {})  # noqa: SLF001
-    inputs = sorted({r["input"] for r in rows} | g._compiled_inputs(v.id), key=g._pixels)  # noqa: SLF001
+    compiled = {size for (_, size), row in backends.items() if not row.get("fails") and row.get("ms") is not None}
+    inputs = sorted({r["input"] for r in rows} | compiled, key=g._pixels)  # noqa: SLF001
+    eager = {r["input"] for r in rows if r["mode"] in {"portable", "kernels"}}
+    preferred_inputs = eager or set(inputs)
+    ordered = (native, std, *reversed(inputs))
+    preferred = next((size for size in ordered if size in preferred_inputs), None)
     out = []
     for size in inputs:
-        by = {_SPEED_KEY[r["mode"]]: _speed_row(r) for r in rows if r["input"] == size and r["mode"] in _SPEED_KEY}
+        profile_rows = [r for r in rows if r["input"] == size]
+        by = {}
+        for r in profile_rows:
+            if r["mode"] not in _SPEED_KEY:
+                continue
+            row = _speed_row(r)
+            key = _SPEED_KEY[r["mode"]]
+            # Some historical FP32 rows used `upstream`, including the two LocoTrack checkpoints.
+            by["original32" if key == "original16" and row["dtype"] == "float32" else key] = row
         oom = [_SPEED_KEY[m] for m in _SPEED_KEY if (v.id, m, size) in g._oom()]  # noqa: SLF001
         extra = {}
         for mode in ("compile", "tensorrt"):
-            c = g._compile_rows().get((v.id, mode, size))  # noqa: SLF001
+            c = backends.get((mode, size))
             if c is None:
+                if reason := planned_reason(v, mode):
+                    extra[mode] = {"fails": reason, "planned": True}
                 continue
             if "fails" in c:
-                reason = planned_reason(v, mode) if c["fails"] == g.PLANNED else None
-                extra[mode] = (
-                    {"fails": reason, "planned": True} if reason else {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
-                )
+                extra[mode] = _backend_failure(v, mode, c["fails"])
                 continue
-            if mode == "tensorrt":
-                alloc, reserved = g._trt_peaks(c) or (None, None)  # noqa: SLF001 - shared docs helper
-            else:
-                alloc, reserved = c.get("peak_alloc_mb"), c.get("peak_reserved_mb")
-            extra[mode] = {
-                "ms": c["ms"],
-                "peak_alloc_mb": alloc,
-                "peak_reserved_mb": reserved,
-                "device_mb": c.get("device_mb"),
-                "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
-                "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
-                "standalone": bool(c.get("standalone_build")),
-                "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
-                "date": c.get("date"),
-            }
+            profile_rows.append(c)
+            extra[mode] = _backend_speed_row(c, task)
         extra |= _pose_parts(v, size)
-        scene = next((r.get("scene", "") for r in rows if r["input"] == size), "")
-        out.append({"input": size, "scene": g._scene(scene), "standard": size == std, "modes": by, "oom": oom, **extra})  # noqa: SLF001
-    return {"standard": std, "inputs": out}
+        shown = (
+            *by.values(),
+            *(extra.get(mode, {}) for mode in ("compile", "tensorrt")),
+            *extra.get("original_network", {}).values(),
+        )
+        workload = _speed_workload(v.id, task, size, profile_rows)
+        out.append(
+            {
+                "input": size,
+                **_profile_metadata(shown),
+                "standard": size == std,
+                "native": size == native,
+                "modes": by,
+                "oom": oom,
+                **({"workload": workload} if workload else {}),
+                **extra,
+            }
+        )
+    return {"standard": std, "preferred": preferred, "inputs": out}
 
 
 def _pose_parts(v: Variant, size: str) -> dict[str, Any]:
@@ -488,7 +625,7 @@ def _variant(
             if r.tested_max
             else None
         ),
-        "speed": _speed(v, card.task, speed),
+        "speed": _speed(v, card.task, speed, native=_native_speed_input(card, v)),
         "streaming": g.stream_rows().get(v.id, []),
         "devices": _devices_of(v),
         "quality": _quality(card, v, rows),

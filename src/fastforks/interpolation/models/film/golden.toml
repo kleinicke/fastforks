@@ -15,13 +15,13 @@ upstream = "https://github.com/dajes/frame-interpolation-pytorch@33bf477ea2c65a2
 settings = "CPU float32, the TorchScript release as inference.py, dt 0.5, zero pad to 64 centred (util.pad_batch), clamp [0, 1], skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."film@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.00034
-p99_px = 0.00154
+date = "2026-11-25"
+mean_px = 0.00024
+p99_px = 0.00099
 
 [validated."film@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]

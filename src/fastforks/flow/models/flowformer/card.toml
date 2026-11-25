@@ -70,7 +70,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["flow_upsample"]
+kernels = ["flow_upsample", "raft_flow", "fastbb"]
 dtype = "float32"
 
 [[papers]]

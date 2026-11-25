@@ -245,7 +245,11 @@ class Kernels(Portable):
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_module)
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=cudnn_hacc.BUILD_AFTER > 0)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _eager(self, image: torch.Tensor) -> torch.Tensor:
         x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)

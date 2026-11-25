@@ -17,6 +17,7 @@ QK_ROWS = 8  # warps (rows) per block of omega_qk_norm_rope
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vggt_omega_kernels.cu)
 SIGNATURES = {
     "omega_ln_f2h": "ppppillif",
+    "omega_join_ln": "pppppillllif",
     "omega_add_ln": "pppppppif",
     "omega_qk_norm_rope": "ppppppp" + "liii" + "ff" + "ii",
 }

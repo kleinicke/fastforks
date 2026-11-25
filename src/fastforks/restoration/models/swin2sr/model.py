@@ -19,6 +19,7 @@ import math
 import re
 import warnings
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -28,10 +29,12 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
-from fastforks.kernels.shift_windows import rearrange
+from fastforks.kernels.shift_windows import rearrange, reverse_residual
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.sr_layer_norm import fast_layer_norm
 from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, patch_unembed, shift_mask, window_attention
+from fastforks.shared.swin_sr.window_tiles import WINDOW_STREAM_BYTES, can_stream, window_tiles
 
 from .net import Swin2SR
 from .net.network_swin2sr import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
@@ -209,29 +212,53 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
-def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
-    """Keep the shifted window layout only while attention consumes it."""
+def _transform_window(m: SwinTransformerBlock, raw: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+    attn = m.attn
+    cosine: torch.Tensor = attn.cosine  # ty: ignore[invalid-assignment]
+    attended = window_attention(
+        raw, attn.qkv, attn.proj, heads=attn.num_heads, scale=1.0, bias=bias, mask=None, cosine=cosine
+    )
+    raw.add_(m.drop_path(m.norm1(attended)))
+    return raw.add_(m.drop_path(m.norm2(m.mlp(raw))))
+
+
+def _window_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """Complete attention and the MLP before scattering each group of windows."""
+    if x.numel() * x.element_size() >= WINDOW_STREAM_BYTES and can_stream(x, x_size, m.window_size):
+        bias: torch.Tensor = m.attn.bias  # ty: ignore[invalid-assignment]
+        return window_tiles(
+            x,
+            x_size,
+            window=m.window_size,
+            shift=m.shift_size,
+            qkv_width=m.attn.qkv.out_features,
+            bias=bias,
+            transform=partial(_transform_window, m),
+        )
+    if not m.shift_size:
+        return SwinTransformerBlock.forward(m, x, x_size)
     mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
     windows = rearrange(x, x_size, m.window_size, m.shift_size)
     attended = m.attn(windows, mask=mask)
-    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
-    x = x + m.drop_path(m.norm1(attended))
-    return x + m.drop_path(m.norm2(m.mlp(x)))
+    del windows
+    x = reverse_residual(m.norm1(attended), x, None, x_size, window=m.window_size, shift=m.shift_size)
+    del attended
+    return x.add_(m.drop_path(m.norm2(m.mlp(x))))
 
 
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
-    strip_nearest_reconstruction = False  # keep the whole-image cuDNN convolution plans
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fast_layer_norm(self.net, ctx.device)
         for m in self.net.modules():
-            if isinstance(m, SwinTransformerBlock) and m.shift_size:
-                override(m, _shifted_block)
+            if isinstance(m, SwinTransformerBlock):
+                override(m, _window_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 

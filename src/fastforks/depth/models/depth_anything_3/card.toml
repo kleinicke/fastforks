@@ -40,7 +40,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "dpt_fused"]
+kernels = ["fastbb", "dpt_fused", "dpt_resize"]
 
 [[papers]]
 title = "Depth Anything 3: Recovering the Visual Space from Any Views"

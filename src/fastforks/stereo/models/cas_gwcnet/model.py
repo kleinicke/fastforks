@@ -13,7 +13,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 from fastforks._core.layout import nchw
 from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import exporting_for_mlx
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cfnet_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
@@ -195,7 +195,7 @@ def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor, *, fu
     """Upstream's eval forward (`outputs["stage2"]["pred"]`); disparity `[B, H, W]` float32.
 
     Inputs are cast to the network's dtype (channels-last on CUDA); hypotheses, warps and regression run in float32.
-    `fused` (kernels): the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
+    `fused` (kernels): write the sampled volume directly and run residual adds and ReLUs in the convolution epilogues.
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -211,7 +211,19 @@ def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor, *, fu
         else:
             full, low = _next_hypotheses(net, pred, stage, scale)
         key = f"stage{stage + 1}"
-        volume = cost_volume(fl.pop(key), fr.pop(key), low, groups[stage])
+        lf, rf = fl.pop(key), fr.pop(key)
+        if fused:
+            if isinstance(lf, dict) and isinstance(rf, dict):
+                features = (lf["gwc_feature"], rf["gwc_feature"], lf["concat_feature"], rf["concat_feature"])
+            else:
+                assert isinstance(lf, torch.Tensor)  # noqa: S101 - concat checkpoint
+                assert isinstance(rf, torch.Tensor)  # noqa: S101 - concat checkpoint
+                features = (None, None, lf, rf)
+            volume = cfnet_volume.cascade(features, low, groups[stage], VOL_SCALE)
+            del features
+        else:
+            volume = cost_volume(lf, rf, low, groups[stage])
+        del lf, rf
         del low
         cost = agg.dres0(volume)
         del volume

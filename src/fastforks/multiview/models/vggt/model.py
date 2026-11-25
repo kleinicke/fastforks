@@ -34,6 +34,7 @@ from fastforks._core.upload import device_tensor
 from fastforks.kernels import vggt_rotary
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -95,6 +96,12 @@ class Net(nn.Module):
 
 def _net(ctx: Context) -> Net:
     sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith("track_head.")}
+    if ctx.device.type == "cuda" and not ctx.params.stream:
+        with torch.device("meta"):
+            net = Net()
+        half = ("aggregator.", "depth_head.", "point_head.") if ctx.dtype != "float32" else ()
+        assign_inference_weights(net, sd, ctx.device, half)
+        return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
     net = Net()
     # MPS: the mmapped checkpoint moves to the GPU as it is (no 4.8 GB float32 CPU copy first: about -4 s of load)
     net.load_state_dict(sd, strict=True, assign=ctx.device.type == "mps")
@@ -336,9 +343,8 @@ class _Fast(_Base):
         if last is None:
             msg = "VGGT: the last aggregator block is not cached"
             raise RuntimeError(msg)
-        ct = [None] * (len(toks) - 1) + [last.float()]
-        pose = net.camera_head(ct)[-1]
-        del ct
+        # The camera head consumes only the final layer's camera tokens.
+        pose = net.camera_head([last[:, :, :1].float()])[-1]
         xh = x.to(self.dt)
         depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
         pts, pts_conf = net.point_head(toks, images=xh, patch_start_idx=psi)
@@ -433,17 +439,18 @@ class _PatchEmbed(FastViT):
 
 def fast_patch_embed(pe: nn.Module, attn: str) -> _PatchEmbed:
     """The aggregator's DINOv2 (ViT-L/14, 4 registers) rebuilt as the shared ViT -> fast fp16 path (`fastbb` flash)."""
-    vit = vit_large(
-        img_size=518,
-        patch_size=PATCH,
-        num_register_tokens=4,
-        interpolate_antialias=True,
-        interpolate_offset=0.0,
-        block_chunks=0,
-        init_values=1.0,
-    )
-    vit.load_state_dict({k: v.float() for k, v in pe.state_dict().items()}, strict=True)
-    return _PatchEmbed(vit.to(next(pe.parameters()).device).eval(), attn, None)
+    with torch.device("meta"):
+        vit = vit_large(
+            img_size=518,
+            patch_size=PATCH,
+            num_register_tokens=4,
+            interpolate_antialias=True,
+            interpolate_offset=0.0,
+            block_chunks=0,
+            init_values=1.0,
+        )
+    vit.load_state_dict(pe.state_dict(), strict=True, assign=True)
+    return _PatchEmbed(vit.eval(), attn, None)
 
 
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:

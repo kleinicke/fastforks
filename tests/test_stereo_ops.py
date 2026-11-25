@@ -1,4 +1,4 @@
-"""The `stereo_ops` kernels against their PyTorch definitions (GPU; odd sizes, batch 2)."""
+"""CUDA stereo operations against their PyTorch definitions (odd sizes, batch 2)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,11 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from fastforks.kernels import stereo_warp
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 from fastforks.stereo.models.las2.net.aggregation_fasternet import AttentionModule
 from fastforks.stereo.models.las2.net.submodule import build_correlation_volume
+from fastforks.stereo.models.waft_stereo.net.utils import disp_warp
 
 pytestmark = pytest.mark.gpu
 CL = torch.channels_last
@@ -21,6 +23,21 @@ def dev():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     return torch.device("cuda", torch.cuda.current_device())
+
+
+def test_waft_stereo_direct_warp_preserves_rounding(dev: torch.device) -> None:
+    """Sample a strided disparity map into only the requested channels, including zero borders."""
+    gen = torch.Generator(dev).manual_seed(83)
+    image = torch.randn(2, 48, 19, 67, device=dev, dtype=torch.float16, generator=gen)
+    image = image.contiguous(memory_format=CL)
+    disp = torch.randn(2, 1, 19, 134, device=dev, generator=gen)[..., ::2].mul_(25)
+    out = torch.full((2, 56, 19, 67), 6, device=dev, dtype=torch.float16).contiguous(memory_format=CL)
+    dest = out[:, 4:-4]
+    stereo_warp.sample_into(image, disp, dest)
+    expected = disp_warp(image.float(), disp, padding_mode="zeros").half()
+    torch.testing.assert_close(dest, expected, rtol=0, atol=0)
+    assert (out[:, :4] == 6).all()
+    assert (out[:, -4:] == 6).all()
 
 
 @pytest.mark.parametrize(("c", "h", "w", "d"), [(40, 5, 77, 48), (8, 3, 31, 5), (70, 2, 40, 64)])

@@ -781,11 +781,13 @@ def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
 
 
 def _trt_peak(row: dict | None) -> str:
-    """`alloc / reserved` of `_trt_peaks`; `unknown` where the engine memory was not recorded; a dash without a row."""
+    """Report estimated allocator peaks or a measured process peak, whichever the run recorded."""
     if row is None or "fails" in row:
         return DASH
     peaks = _trt_peaks(row)
-    return "unknown" if peaks is None else f"{peaks[0]} / {peaks[1]}"
+    if peaks is not None:
+        return f"{peaks[0]} / {peaks[1]}"
+    return f"{row['nvml_peak_mb']} process" if row.get("nvml_peak_mb") is not None else "unknown"
 
 
 def _ms_str(ms: object) -> str:
@@ -860,7 +862,7 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
     for (ref, mode, size), r in rows.items():
-        standalone = mode == "tensorrt" and r.get("standalone_build") and r.get("ms") and not r.get("fails")
+        standalone = mode == "tensorrt" and r.get("standalone_build")
         if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode) and not standalone:
             rows[ref, mode, size] = {**r, "fails": PLANNED}
             rows[ref, mode, size].pop("ms", None)
@@ -961,7 +963,7 @@ def _same_note(dups: dict[str, str]) -> list[str]:
 
 
 def _ratio(slow: dict | None, fast: dict | None) -> str:
-    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast else DASH
+    return f"{slow['ms'] / fast['ms']:.1f}x" if slow and fast and _comparison_compatible(slow, fast) else DASH
 
 
 def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str]:
@@ -1022,6 +1024,106 @@ def _stream_table(card: ModelCard) -> list[str]:
             ["Model", "Mode", "Input", "GPU", "PyTorch", "Resident (`stream=False`)", "Streamed (`stream=True`)"], rows
         ),
     ]
+
+
+def _speed_scene(row: dict) -> dict[str, str]:
+    """Normalize labels known to use the same default synthetic fixture."""
+    label = " ".join((row.get("scene") or "").split())
+    if not label:
+        return {}
+    key = label.casefold()
+    if key in {
+        "synthetic (fastforks bench)",
+        "synthetic (fastforks bench), one point prompt",
+        "synthetic (fastforks bench), two frames",
+    }:
+        key = "synthetic"
+    if match := re.fullmatch(r"synthetic \(fastforks bench\), (\d+) views", key):
+        # The reference speed harness uses eight views, except for these two checkpoints.
+        views = {"mapanything-apache": 9, "patchmatchnet": 5}.get(row.get("ref"), 8)
+        if int(match[1]) == row.get("views", views) == views:
+            key = "synthetic"
+    return {"scene": label, "scene_key": key}
+
+
+def _scene_compatible(a: dict | None, b: dict | None) -> bool:
+    """Keep legacy comparisons with unrecorded provenance and reject an explicit scene conflict."""
+    left, right = (_speed_scene(row).get("scene_key") if row else None for row in (a, b))
+    return not (left and right and left != right)
+
+
+_SCOPE_LABELS = {
+    "cpu-ct-to-cpu-labels": "CPU CT to CPU labels",
+    "cpu-ct-to-cpu-labels-nnunet-resampling": "CPU CT to CPU labels with nnU-Net cubic resampling",
+    "cpu-ct-to-cpu-labels-totalseg218": "CPU CT to CPU labels with TotalSegmentator 2.18 resampling",
+    "cpu-ct-to-cpu-labels-per-call-load": "CPU CT to CPU labels, weights loaded per call",
+    "cuda-volume-to-cuda-labels": "CUDA volume to CUDA labels",
+    "cuda-rgb-to-cpu-edge-map": "CUDA RGB to CPU edge map",
+    "cuda-rgb-to-cuda-edge-map": "CUDA RGB to CUDA edge map",
+    "word-crop-to-text": "Word crop to decoded text",
+    "word-crop-to-logits": "Word crop to CUDA logits",
+    "decoded-cpu-rgb-to-cpu-depth": "Decoded CPU RGB to CPU depth",
+    "decoded-cpu-rgb-clip-to-cpu-depth": "Decoded CPU RGB clip to CPU depth",
+    "cuda-rgb-to-cuda-depth": "CUDA RGB to CUDA depth",
+    "cuda-rgb-float32-clip-to-cuda-depth": "CUDA RGB clip to CUDA depth",
+}
+
+
+def _legacy_ct_scope(row: dict, mode: str, note: str) -> str:
+    """Timing boundaries of the verified 200-cube TotalSegmentator adapters."""
+    if mode in {"upstream", "upstream-default"}:
+        if "cpu numpy in, labels out; weights load per call" in note:
+            return "cpu-ct-to-cpu-labels-per-call-load"
+        if "cpu nifti input and labels out" in note:
+            if row["ref"].endswith(("-3mm", "-6mm")):
+                return "cpu-ct-to-cpu-labels-nnunet-resampling"
+            return "cpu-ct-to-cpu-labels"
+        return ""
+    resident = (
+        "gpu-resident input and output" in note
+        or "whole public volume call with cuda-resident input and output" in note
+        or "whole volume with cuda input and output" in note
+        or "portable preprocessing and aggregation unchanged" in note
+        or row.get("backend_part") == "compiled patch network inside the full sliding-window call"
+        or (mode == "tensorrt" and row.get("source") == "results/raw/2026-11-18_totalseg_patch_trt")
+    )
+    return "cuda-volume-to-cuda-labels" if resident else ""
+
+
+def _legacy_comparison_scope(row: dict) -> str:
+    """Infer scopes only for identified legacy benchmark protocols."""
+    ref, size, mode = (row.get(key, "") for key in ("ref", "input", "mode"))
+    note = (row.get("note") or "").casefold()
+    if ref.startswith("totalsegmentator-") and size == "200x200":
+        return _legacy_ct_scope(row, mode, note)
+    if row.get("task") == "edges" and size == "1080x1920":
+        if "huggingface/controlnet_aux@" in note and "host opencv resize" in note:
+            return "cuda-rgb-to-cpu-edge-map"
+        if mode in {"portable", "kernels", "compile", "tensorrt"} and not row.get("standalone_build"):
+            return "cuda-rgb-to-cuda-edge-map"
+    if ref in {"parseq", "parseq-tiny"} and size == "32x128":
+        return "word-crop-to-logits" if mode == "tensorrt" else "word-crop-to-text"
+    if row.get("task") == "depth" and row.get("backend_part") in {
+        "single-image call, CUDA tensor input",
+        "single-image engine",
+    }:
+        return "cuda-rgb-to-cuda-depth"
+    return ""
+
+
+def _speed_scope(row: dict) -> dict[str, str]:
+    """The timing boundary where recorded or verified from the benchmark implementation."""
+    key = row.get("comparison_scope") or _legacy_comparison_scope(row)
+    meta = {"comparison_scope": key} if key else {}
+    if label := _SCOPE_LABELS.get(key):
+        meta["scope_label"] = label
+    return meta
+
+
+def _comparison_compatible(a: dict | None, b: dict | None) -> bool:
+    """Keep legacy ratios with unknown scope, rejecting an explicit scene or timing boundary conflict."""
+    left, right = (_speed_scope(row).get("comparison_scope") if row else None for row in (a, b))
+    return _scene_compatible(a, b) and not (left and right and left != right)
 
 
 def _scene(scene: str) -> str:
@@ -1529,8 +1631,11 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             ms, mem = cell[0], cell[2]
         else:
             ms, mem = (_NOK, _NOK) if "kernels" not in card.modes or planned_reason(v, "kernels") else (_DASH, _DASH)
-        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
-        mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
+        speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig and _comparison_compatible(orig, mx) else ""
+        original_peaks = (
+            row for mode in ("upstream", "upstream-default") if _comparison_compatible(mx, row := by.get(mode))
+        )
+        mem = f"{mem}{_mem_ratio(mem, *original_peaks)}"
         cells = [
             f"[`{_name(v)}`](#{card.family})"
             + (f" ({setting(card.variants, v)})" if setting(card.variants, v) else ""),
@@ -1891,9 +1996,13 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             osz = at if size == _OWN else orig_size
             orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
             max_o = mine.get(("kernels", osz))
-            if orig and max_o:
+            if orig and max_o and _comparison_compatible(orig, max_o):
                 speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")
-            elif isinstance(mx, tuple) and isinstance(pt, tuple):
+            elif (
+                isinstance(mx, tuple)
+                and isinstance(pt, tuple)
+                and _comparison_compatible(mine.get(("portable", at)), mine.get(("kernels", at)))
+            ):
                 speedup = (pt[0] / mx[0], "portable")
             else:
                 speedup = None
@@ -2150,6 +2259,7 @@ _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
     (r"^deferred", DEFERRED),
+    (r"CUDA out of memory\. Tried to allocate ([\d.]+ \w+)", r"CUDA out of memory (requested \1)"),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
     (r"cannot parse .*operator: (\w+)", r"TensorRT parser: \1 node"),
     (r"engine build failed.*\[myelin", "TensorRT bug: Myelin internal error"),

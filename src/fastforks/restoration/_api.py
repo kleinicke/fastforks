@@ -218,7 +218,8 @@ class RestorationModel(core.Model):
                 m = _ramp(th * s, OVERLAP * s, x.device)[:, None] * _ramp(tw * s, OVERLAP * s, x.device)[None, :]
                 out[..., top * s : (top + th) * s, left * s : (left + tw) * s] += y * m
                 weight[..., top * s : (top + th) * s, left * s : (left + tw) * s] += m
-        return {"image": (out / weight).clamp_(0, 1)}
+                del y, m
+        return {"image": out.div_(weight).clamp_(0, 1)}
 
 
 def _scale(x: torch.Tensor, io: Io) -> torch.Tensor:

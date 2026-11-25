@@ -13,10 +13,11 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import base_type, override
 from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import flow_upsample
+from fastforks.kernels import flow_upsample, raft_flow
 from fastforks.shared import libnet, mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.cuda_softmax import softmax_rows_
+from fastforks.shared.instance_norm import RELU, instance_norm, is_in_resblock, resblock_forward
 
 if TYPE_CHECKING:
     from collections.abc import KeysView
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from fastforks.flow._runner import Context
 
     from .net.FlowFormer.LatentCostFormer.attention import BroadMultiHeadAttention, MultiHeadAttention
+    from .net.FlowFormer.LatentCostFormer.cnn import BasicEncoder
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
     from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
@@ -31,10 +33,11 @@ if TYPE_CHECKING:
 
 RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
 LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
-# fixed: GMA's attention matrix (1/8 pixels squared, float16) is kept up to this size and multiplied once per iteration;
-# the rows beyond it are recomputed as softmax(q k) v with fused attention in each iteration (1080 x 1920: all rows
-# fused 12.6 ms per iteration, the whole 2 GiB matrix 5.9 ms, its first half kept 9.8 ms)
-GMA_MATRIX_BYTES = 1 << 30
+# fixed: keep this many bytes of CUDA GMA attention, recomputing the remaining query rows with fused attention.
+GMA_CUDA_MATRIX_BYTES = 512 << 20
+GMA_MATRIX_BYTES = 1 << 30  # fixed: MLX GMA matrix cutoff, with float32 scores
+_ENCODER_PIXELS = 512 << 10  # fixed: split large feature batches before their full-resolution activation peak
+_ENCODER_BATCH = 2  # fixed: the two feature images at the measured working-set size
 
 
 @dataclass(frozen=True)
@@ -174,10 +177,24 @@ class _Volume:
         self.f2 = fmap2
         self.windows: tuple[torch.Tensor, torch.Tensor] | None = None  # the lookup's float16 copies, made once
 
+    def window_features(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """The two contiguous feature maps read by every correlation lookup."""
+        if self.windows is None:
+            b, c, h, w = self.f2.shape
+            dtype = torch.float16 if self.f2.is_cuda else self.f2.dtype
+            self.windows = (
+                self.f1.to(dtype).contiguous(),
+                self.f2.to(dtype).permute(0, 2, 3, 1).reshape(b, h * w, c).contiguous(),
+            )
+        return self.windows
+
 
 def _corr(enc: MemoryEncoder, fmap1: torch.Tensor, fmap2: torch.Tensor) -> _Volume:
     """`MemoryEncoder.corr`, deferred (`_Volume`)."""
     assert enc.cfg.cost_heads_num == 1  # noqa: S101 - the released Small configuration
+    if fmap1.is_cuda:
+        # CUDA's cost encoder and its correlation lookup both use FP16 operands.
+        fmap1, fmap2 = fmap1.half(), fmap2.half()
     return _Volume(fmap1, fmap2)
 
 
@@ -330,10 +347,7 @@ def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> tor
     interpolated; the window index is x offset major, as upstream's grid.
     """
     b, c, h, w = vol.f2.shape
-    if vol.windows is None:
-        dt = torch.float16 if vol.f2.is_cuda else vol.f2.dtype
-        vol.windows = vol.f1.to(dt).contiguous(), vol.f2.to(dt).permute(0, 2, 3, 1).reshape(b, h * w, c).contiguous()
-    f1, f2 = vol.windows
+    f1, f2 = vol.window_features()
     side = 2 * RADIUS + 2
     xy = coords.float().flatten(2)
     out = torch.empty(b, h * w, (side - 1) ** 2, device=coords.device)
@@ -356,18 +370,41 @@ def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> tor
     return out.view(b, h, w, -1).permute(0, 3, 1, 2)
 
 
+def _windows_cuda(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
+    """Build the local costs from the two feature maps without materializing a neighbourhood tensor."""
+    b, _, h, w = vol.f2.shape
+    f1, f2 = vol.window_features()
+    xy = coords.float().permute(0, 2, 3, 1).contiguous()
+    out = torch.empty((b, h, w, (2 * RADIUS + 1) ** 2), device=coords.device, dtype=torch.float32)
+    cuda = raft_flow.load(coords.device)
+    warps = 8  # each CUDA block computes eight complete windows
+    for i in range(b):
+        cuda.launch(
+            "corr_lookup_flowformer",
+            ((h * w + warps - 1) // warps, 1, 1),
+            (warps * 32, 1, 1),
+            f1[i],
+            f2[i],
+            h,
+            w,
+            xy[i],
+            out[i],
+        )
+    return out.permute(0, 3, 1, 2)
+
+
 def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ...]:
     """Upstream GMA `Attention.forward` (one head) in float16: the softmax matrix.
 
-    Beyond `GMA_MATRIX_BYTES` only its first rows: then also `(q, k)` of the remaining queries, for fused attention.
+    Return the first rows up to `GMA_CUDA_MATRIX_BYTES` and the remaining queries and keys for fused attention.
     """
     assert att.heads == 1  # noqa: S101 - FlowFormer's GMA
     q, k = att.to_qk(fmap).chunk(2, dim=1)
     q = (att.scale * q).flatten(2).transpose(1, 2).half()
     k = k.flatten(2).transpose(1, 2).half()
     b, n = q.shape[:2]
-    rows = min(n, GMA_MATRIX_BYTES // (b * n * q.element_size()))
-    matrix = softmax_rows_(torch.bmm(q[:, :rows], k.transpose(1, 2)), 32 << 20)
+    rows = min(n, GMA_CUDA_MATRIX_BYTES // (b * n * q.element_size()))
+    matrix = softmax_rows_(torch.bmm(q[:, :rows], k.transpose(1, 2)))
     if rows == n:
         return (matrix,)
     return matrix, q[:, None, rows:].contiguous(), k[:, None].contiguous()
@@ -392,6 +429,27 @@ def _gma_aggregate(agg: Aggregate, attention: tuple[torch.Tensor, ...], fmap: to
     if agg.project is not None:
         out = agg.project(out.float())
     return torch.addcmul(fmap, agg.gamma, out)
+
+
+def _encode_basic(m: BasicEncoder, x: torch.Tensor) -> torch.Tensor:
+    """Channels-last FP16 feature extraction with CUDA instance normalization."""
+    x = instance_norm(m.norm1, m.conv1(_half_cl(x)), RELU, inplace=True)
+    return m.conv2(m.layer3(m.layer2(m.layer1(x))))
+
+
+def _bounded_basic_forward(m: BasicEncoder, x: torch.Tensor) -> torch.Tensor:
+    """Keep the batch of full-resolution features bounded; the following projection takes FP32."""
+    if x.shape[0] > _ENCODER_BATCH and x.shape[-2] * x.shape[-1] >= _ENCODER_PIXELS:
+        return torch.cat([_encode_basic(m, chunk).float() for chunk in x.split(_ENCODER_BATCH)])
+    return _encode_basic(m, x).float()
+
+
+def _prepare_basic(m: BasicEncoder) -> None:
+    m.half().to(memory_format=torch.channels_last)
+    for block in m.modules():
+        if is_in_resblock(block):
+            override(block, resblock_forward)
+    override(m, _bounded_basic_forward)
 
 
 class Kernels(Portable):
@@ -420,9 +478,15 @@ class Kernels(Portable):
         block.get_submodule("aggregator.to_v").half().to(memory_format=torch.channels_last)
         override(self.net.memory_decoder, _upsample, "upsample_flow")
         override(self.net.memory_encoder, _corr, "corr")
+        from .net.FlowFormer.LatentCostFormer.cnn import BasicEncoder  # noqa: PLC0415 - needs timm
+
+        for encoder in (self.net.memory_encoder.feat_encoder, self.net.context_encoder):
+            if isinstance(encoder, BasicEncoder):
+                _prepare_basic(encoder)
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
         _prepare_patch_embed(self.net.memory_encoder.cost_perceiver_encoder.patch_embed)
-        override(self.net.memory_decoder, _windows, "encode_flow_token")
+        lookup = _windows_cuda if ctx.params.encoder_latent_dim == 256 else _windows  # noqa: PLR2004 - kernel width
+        override(self.net.memory_decoder, lookup, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
         from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm

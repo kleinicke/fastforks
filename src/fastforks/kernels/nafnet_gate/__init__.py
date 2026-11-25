@@ -6,7 +6,12 @@ import torch
 
 from fastforks._core.kernels import cubin_library, linear
 
-SIGNATURES = {"depthwise_gate": "ppppiiil", "depthwise_gate_tile": "ppppiiil", "channel_norm": "ppilf"}
+SIGNATURES = {
+    "depthwise_gate": "ppppiiil",
+    "depthwise_gate_tile": "ppppiiil",
+    "channel_norm": "ppilf",
+    "scale_replicate": "ppiiiiil",
+}
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 
@@ -75,3 +80,28 @@ def channel_norm(x: torch.Tensor, eps: float) -> torch.Tensor:
         grid = (min(_MAX_GRID_X, (rows + _NORM_ROWS - 1) // _NORM_ROWS), 1, 1)
         load(x.device).launch("channel_norm", grid, (32, _NORM_ROWS, 1), packed, out, c, rows, eps)
     return out
+
+
+def scale_replicate_(x: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
+    """Multiply a channels-last feature map by its centered, edge-replicated FP16 scores."""
+    n, c, h, w = x.shape
+    sn, sc, oh, ow = scores.shape
+    if (
+        not x.is_cuda
+        or x.device != scores.device
+        or x.dtype != torch.float16
+        or scores.dtype != x.dtype
+        or (n, c) != (sn, sc)
+        or not 0 < oh <= h
+        or not 0 < ow <= w
+        or c % 2
+        or any(
+            not t.is_contiguous(memory_format=torch.channels_last) or t.data_ptr() % _HALF2_ALIGNMENT
+            for t in (x, scores)
+        )
+    ):
+        msg = "Expected compatible CUDA channels-last FP16 features and local scores with an even channel width"
+        raise ValueError(msg)
+    count = x.numel() // 2
+    load(x.device).launch("scale_replicate", *linear(count), x, scores, h, w, oh, ow, c // 2, count)
+    return x

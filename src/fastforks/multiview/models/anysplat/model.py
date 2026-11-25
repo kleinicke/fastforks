@@ -32,6 +32,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.qk_affine import cached_qk_affine
@@ -144,9 +145,15 @@ class Net(nn.Module):
 
 
 def _net(ctx: Context) -> Net:
-    sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict().items()}  # bf16 + fp32: cast on copy
-    net = Net()
-    net.load_state_dict(sd, strict=True)
+    sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict().items()}
+    if ctx.device.type == "cuda":
+        with torch.device("meta"):
+            net = Net()
+        half = ("aggregator.", "depth_head.", "gaussian_param_head.") if ctx.dtype != "float32" else ()
+        assign_inference_weights(net, sd, ctx.device, half)
+    else:
+        net = Net()
+        net.load_state_dict(sd, strict=True)
     return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
 
 
@@ -485,17 +492,18 @@ class _PatchEmbed(FastViT):
 
 def fast_patch_embed(pe: nn.Module, attn: str) -> _PatchEmbed:
     """The aggregator's DINOv2 (ViT-L/14, 4 registers) rebuilt as the shared ViT -> fast fp16 path (`fastbb` flash)."""
-    vit = vit_large(
-        img_size=518,
-        patch_size=PATCH,
-        num_register_tokens=4,
-        interpolate_antialias=True,
-        interpolate_offset=0.0,
-        block_chunks=0,
-        init_values=1.0,
-    )
-    vit.load_state_dict({k: v.float() for k, v in pe.state_dict().items()}, strict=True)
-    return _PatchEmbed(vit.to(next(pe.parameters()).device).eval(), attn, None)
+    with torch.device("meta"):
+        vit = vit_large(
+            img_size=518,
+            patch_size=PATCH,
+            num_register_tokens=4,
+            interpolate_antialias=True,
+            interpolate_offset=0.0,
+            block_chunks=0,
+            init_values=1.0,
+        )
+    vit.load_state_dict(pe.state_dict(), strict=True, assign=True)
+    return _PatchEmbed(vit.eval(), attn, None)
 
 
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:

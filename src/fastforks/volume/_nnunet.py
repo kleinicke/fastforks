@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import itertools
 import math
+from bisect import bisect_right
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -29,11 +30,15 @@ from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
+_DECODER_TILE_BYTES = 144 << 20  # FP16 concatenated input to the first decoder convolution
+_LARGE_DECODER_TILE_BYTES = 320 << 20  # fixed: larger bands amortize transposition at two-window resolution
+_BAND_TRANSPOSE_BYTES = 2 * _LARGE_DECODER_TILE_BYTES  # whole upsampled map size that benefits from banding
+_HEAD_TILE_BYTES = 128 << 20  # FP16 output budget per segmentation projection
 # fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
 # channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
 _SLAB_BYTES = 64 << 20
@@ -309,6 +314,18 @@ class _ConvNormAct(nn.Module):
         return self.norm_act(_conv_slabs_(self.conv, y, self.conv.bias, depth))
 
 
+def _bias_norm_act(block: _ConvNormAct, y: torch.Tensor) -> torch.Tensor:
+    """CUDA epilogue for a convolution whose bias has yet to be added."""
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+    bias = block.conv.bias
+    if vol_norm.supported(y):
+        return vol_norm.norm_act_(y, block.norm.weight, block.norm.bias, block.norm.eps, block.slope, conv_bias=bias)
+    if bias is not None:
+        y.add_(bias.view(1, -1, 1, 1, 1))
+    return block.norm_act(y)
+
+
 def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
     """Depth slices per slab for `_ConvNormAct.forward_(y)`; 0 where it does not apply or `y` is under four slabs.
 
@@ -494,13 +511,92 @@ class _Decoder(nn.Module):
             for s in range(n - 1)
         )
         self.seg_layers = nn.ModuleList(nn.Conv3d(f[-(s + 2)], plan.n_outputs, 1) for s in range(n - 1))
+        self.tile_skip = False
+
+    def features(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
+        owned = consume and isinstance(skips, list)
+        pending = skips if owned else list(skips)
+        x = pending.pop()
+        for up, layer in zip(self.transpconvs, self.stages, strict=True):
+            stage = cast("_Stacked", layer)
+            depth = _decoder_tile_depth(stage, pending[-1]) if owned and self.tile_skip else 0
+            if depth:
+                skip = pending.pop()
+                if skip.numel() * skip.element_size() >= _BAND_TRANSPOSE_BYTES:
+                    x = _decode_into_skip(stage, x, skip, depth, up=cast("nn.ConvTranspose3d", up))
+                else:
+                    x = _decode_into_skip(stage, up(x), skip, depth)
+                del skip
+            else:
+                x = stage(_cat_consuming(up, x, pending.pop()))
+        return x
 
     def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
-        pending = skips if consume and isinstance(skips, list) else list(skips)
-        x = pending.pop()
-        for up, stage in zip(self.transpconvs, self.stages, strict=True):
-            x = stage(_cat_consuming(up, x, pending.pop()))
-        return self.seg_layers[-1](x)
+        return self.seg_layers[-1](self.features(skips, consume=consume))
+
+
+def _decoder_tile_depth(stage: _Stacked, skip: torch.Tensor) -> int:
+    """Number of full-resolution planes processed at once, where a skip can be safely reused."""
+    conv = cast("_ConvNormAct", stage.convs[0]).conv
+    if (
+        not skip.is_cuda
+        or skip.dtype != torch.float16
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or (conv.kernel_size[0], conv.padding[0]) != (3, 1)
+        or not skip.is_contiguous(memory_format=torch.channels_last_3d)
+    ):
+        return 0
+    plane_bytes = 2 * skip[:, :, 0].numel() * skip.element_size()
+    budget = (
+        _LARGE_DECODER_TILE_BYTES
+        if skip.numel() * skip.element_size() >= _BAND_TRANSPOSE_BYTES
+        else _DECODER_TILE_BYTES
+    )
+    depth = max(2, budget // plane_bytes)
+    return depth if depth * 4 <= skip.shape[2] else 0
+
+
+def _decode_into_skip(
+    stage: _Stacked, source: torch.Tensor, skip: torch.Tensor, tile: int, *, up: nn.ConvTranspose3d | None = None
+) -> torch.Tensor:
+    """Convolve depth tiles from the upsampled features and write the output over the consumed skip."""
+    first = cast("_ConvNormAct", stage.convs[0])
+    conv = first.conv
+    depth = skip.shape[2]
+    padding = cast("tuple[int, int, int]", conv.padding)
+    inner = (0, *padding[1:])
+    held = None
+    for start in range(0, depth, tile):
+        stop = min(start + tile, depth)
+        lo, hi = max(0, start - 1), min(depth, stop + 1)
+        if up is None:
+            upsampled = source[:, :, lo:hi]
+        else:
+            # The transpose uses kernel=stride and zero padding. It needs only the low-res planes overlapping this tile.
+            stride = up.stride[0]
+            start_plane, stop_plane = lo // stride, (hi + stride - 1) // stride
+            offset = start_plane * stride
+            upsampled = up(source[:, :, start_plane:stop_plane])[:, :, lo - offset : hi - offset]
+        joined = torch.cat((upsampled, skip[:, :, lo:hi]), dim=1).contiguous(memory_format=torch.channels_last_3d)
+        del upsampled
+        if start > 0 and stop < depth:
+            part = F.conv3d(joined, conv.weight, None, padding=inner)
+        else:
+            part = F.conv3d(joined, conv.weight, None, padding=padding)[:, :, start - lo : stop - lo]
+        if held is not None:
+            skip[:, :, start - 1].copy_(held)
+        if stop < depth:
+            # The next tile still needs this plane of the original skip as its low halo.
+            skip[:, :, start : stop - 1].copy_(part[:, :, :-1])
+            held = part[:, :, -1].clone()
+        else:
+            skip[:, :, start:stop].copy_(part)
+        del joined, part
+    x = _bias_norm_act(first, skip)
+    for conv_block in stage.convs[1:]:
+        x = conv_block(x)
+    return x
 
 
 def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
@@ -537,6 +633,10 @@ class UNet(nn.Module):
         """Logits `[B, heads, *patch]` of `[B, C, *patch]`."""
         return self.decoder(self.encoder(x), consume=True)
 
+    def features(self, x: torch.Tensor) -> torch.Tensor:
+        """Decoded patch features before the pointwise segmentation projection."""
+        return self.decoder.features(self.encoder(x), consume=True)
+
     @staticmethod
     def state_dict_of(weights: Mapping[str, torch.Tensor], dims: int = 3) -> dict[str, torch.Tensor]:
         """An nnU-Net checkpoint's `network_weights` without its aliases (`all_modules`, `decoder.encoder`).
@@ -552,16 +652,22 @@ class UNet(nn.Module):
         return out
 
 
-def gaussian(patch: Sequence[int], device: torch.device, dtype: torch.dtype = torch.float16) -> torch.Tensor:
+def gaussian(
+    patch: Sequence[int], device: torch.device, dtype: torch.dtype = torch.float16, *, cuda_kernels: bool = False
+) -> torch.Tensor:
     """nnU-Net's importance map: a delta filtered by a Gaussian (sigma = patch / 8, truncated at 4 sigma), max 10."""
     axes = []
     for n in patch:
         sigma, c = n / 8, n // 2
         radius = int(4 * sigma + 0.5)
-        x = torch.arange(n, dtype=torch.float64) - c
-        w = torch.exp(-0.5 * (torch.arange(-radius, radius + 1, dtype=torch.float64) / sigma) ** 2)
+        x = torch.arange(n, dtype=torch.float64, device="cpu") - c
+        w = torch.exp(-0.5 * (torch.arange(-radius, radius + 1, dtype=torch.float64, device="cpu") / sigma) ** 2)
         w /= w.sum()
         axes.append(torch.where(x.abs() <= radius, w[(x + radius).clamp(0, 2 * radius).long()], 0.0))
+    if cuda_kernels and device.type == "cuda" and dtype == torch.float16:
+        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels mode only
+
+        return vol_norm.gaussian(axes, device)
     g = axes[0][:, None, None] * axes[1][None, :, None] * axes[2][None, None, :]
     g = (g / (g.max() / 10)).to(dtype)  # cast and zero fix on the CPU: on the device each was a host sync
     zero = g == 0
@@ -598,13 +704,26 @@ def _bbox(nz: torch.Tensor) -> tuple[slice, ...]:
     return tuple(slice(*e) if e else slice(0, n) for e, n in zip(nonzero_extent(nz), nz.shape, strict=True))
 
 
-def _normalise(x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None) -> torch.Tensor:
+def _normalise(
+    x: torch.Tensor,
+    norms: Sequence[Norm],
+    mask: torch.Tensor | None,
+    *,
+    dtype: torch.dtype = torch.float32,
+    cuda_kernels: bool = False,
+) -> torch.Tensor:
     """nnU-Net's normalisation schemes per channel, in float32 (`mask`: the hole-filled nonzero mask)."""
-    out = torch.empty_like(x, dtype=torch.float32)
+    out = torch.empty_like(x, dtype=dtype)
     for c, n in enumerate(norms):
         v = x[c].float()
         if n.scheme == "CTNormalization":
-            v = v.clamp(n.lower, n.upper).sub_(n.mean).div_(max(n.std, 1e-8))
+            std = max(n.std, 1e-8)
+            if cuda_kernels and v.is_cuda and not (math.isnan(n.lower) or math.isnan(n.upper)):
+                from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA preprocessing only
+
+                vol_norm.normalize_ct_(out[c], v, (n.lower, n.upper), mean=n.mean, std=std)
+                continue
+            v = v.clamp(n.lower, n.upper).sub_(n.mean).div_(std)
         elif n.scheme == "ZScoreNormalization":
             if n.use_mask and mask is not None:
                 sel = v[mask].cpu().double()  # float64 on the CPU: MPS has none
@@ -661,6 +780,7 @@ class Predictor:
         channels_last: Windows in `channels_last_3d` memory format.
         dtype: Cast the windows to this dtype (networks of that dtype, no autocast), or `None`.
         forward: Replaces `net(x)` (kernels runners); gets `(net, x)`.
+        cuda_kernels: Use the fused accumulation and label-resampling kernels for FP16 CUDA inference.
     """
 
     plan: Plan
@@ -671,18 +791,15 @@ class Predictor:
     amp: torch.dtype | None = torch.float16
     channels_last: bool = False
     dtype: torch.dtype | None = None
-    forward: Callable[[nn.Module, torch.Tensor], torch.Tensor] | None = None
+    forward: Callable[[Callable[[torch.Tensor], torch.Tensor], torch.Tensor], torch.Tensor] | None = None
+    cuda_kernels: bool = False
     _gauss: torch.Tensor = field(default_factory=lambda: torch.ones(()), init=False, repr=False)
 
-    def _net(self, net: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    def _net(self, net: Callable[[torch.Tensor], torch.Tensor], x: torch.Tensor) -> torch.Tensor:
         return net(x) if self.forward is None else self.forward(net, x)
 
     def _logits(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> torch.Tensor:
         """Window logits `[folds, B, heads, *patch]` of `nets`, each averaged over the mirrorings."""
-        x = x.to(
-            dtype=self.dtype or x.dtype,
-            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
-        )
         amp = self.amp is not None and x.device.type == "cuda"
         combos = [c for i in range(len(self.mirror_axes)) for c in itertools.combinations(self.mirror_axes, i + 1)]
         with torch.autocast("cuda", self.amp or torch.float16, enabled=amp):
@@ -712,7 +829,6 @@ class Predictor:
         box = _bbox(nz)
         x = x[(slice(None), *box)]
         mask = _resample.fill_holes(nz[box]) if any(n.use_mask for n in p.norms) else None
-        x = _normalise(x, p.norms, mask)
         shape = tuple(x.shape[1:])
         target = self.target_spacing(sp)
         new = _resample.new_shape(shape, sp, target)
@@ -726,7 +842,11 @@ class Predictor:
             )
             raise InputError(msg)
         fn, kw = p.resample_data
-        return _resample.resample(x, new, sp, target, fn, kw), box, shape
+        dtype = (self.dtype or torch.float32) if self.cuda_kernels else torch.float32
+        same_grid = tuple(new) == shape or fn == "no_resampling_hack"
+        x = _normalise(x, p.norms, mask, dtype=dtype if same_grid else torch.float32, cuda_kernels=self.cuda_kernels)
+        x = _resample.resample(x, new, sp, target, fn, kw)
+        return x.to(dtype), box, shape
 
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
         """Labels `[D, H, W]` (uint8, int16 above 256 labels) of `volume` `[C, D, H, W]` with `spacing` (mm)."""
@@ -735,14 +855,31 @@ class Predictor:
         x, box, cropped = self.preprocess(volume, spacing)
         resample = tuple(x.shape[1:]) != cropped
         x, keep = _pad(x, p.patch_size)
-        logits = self._accumulate(x, full=resample or p.dims == _2D)
-        if logits.dim() == 3:  # noqa: PLR2004 - already labels
-            seg = logits[keep]
+        sp = [spacing[t] for t in p.transpose_forward]
+        current = self.target_spacing(sp)
+        fn, kwargs = p.resample_logits
+        if (
+            resample
+            and self.cuda_kernels
+            and x.is_cuda
+            and self.channels_last
+            and p.dims != _2D
+            and p.regions is None
+            and p.n_labels <= 256  # noqa: PLR2004 - the resampling kernel emits uint8 labels
+            and len(self.nets) == 1
+            and fn == "resample_torch_fornnunet"
+            and not kwargs.get("is_seg")
+            and _resample.lowres_axis(current, sp, kwargs.get("force_separate_z")) is None
+        ):
+            seg = self._stream_resampled(x, keep, cropped)
         else:
-            inner = logits[(slice(None), *keep)]
-            del logits
-            sp = [spacing[t] for t in p.transpose_forward]
-            seg = self._decide_resampled(inner, cropped, self.target_spacing(sp), sp)
+            logits = self._accumulate(x, full=resample or p.dims == _2D)
+            if logits.dim() == 3:  # noqa: PLR2004 - already labels
+                seg = logits[keep]
+            else:
+                inner = logits[(slice(None), *keep)]
+                del logits
+                seg = self._decide_resampled(inner, cropped, current, sp)
         out = torch.zeros(tuple(full[t] for t in p.transpose_forward), dtype=_labels_dtype(p.n_labels), device=x.device)
         out[box] = seg.to(out.dtype)
         return out.permute(*p.transpose_backward)
@@ -779,18 +916,78 @@ class Predictor:
             assert seg is not None  # noqa: S101 - at least one head
             return seg
         best, idx = part(0).max(0)
+        labels = idx.to(_labels_dtype(self.plan.n_labels))
+        del idx
         for c0 in range(chunk, logits.shape[0], chunk):
-            m, i = part(c0).max(0)
-            better = m > best
-            best = torch.where(better, m, best)
-            idx = torch.where(better, i + c0, idx)
-        return idx
+            values, idx = part(c0).max(0)
+            better = values > best
+            torch.where(better, values, best, out=best)
+            torch.where(better, idx.add_(c0).to(labels.dtype), labels, out=labels)
+            del values, idx, better
+        return labels
 
-    def _windows(self, x: torch.Tensor, starts: Sequence[tuple[int, ...]], nets: Sequence[nn.Module]) -> torch.Tensor:
-        """Gaussian-weighted logits `[folds, B, heads, *patch]` at `starts` (nnU-Net: `prediction *= gaussian`)."""
-        k = self.plan.patch_size
-        batch = torch.stack([x[:, a : a + k[0], b : b + k[1], c : c + k[2]] for a, b, c in starts])
-        return self._logits(batch, nets).mul_(self._gauss)  # in the logits' dtype, then added to the float16 maps
+    def _stream_resampled(self, x: torch.Tensor, keep: Sequence[slice], shape: Sequence[int]) -> torch.Tensor:
+        """Finalize each target slice once both of its contributing score planes are complete."""
+        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels mode only
+
+        depth = shape[0]
+        src_depth = keep[0].stop - keep[0].start
+        # Compute the higher source index for every target slice with the kernel's FP32 fused multiply-add.
+        scale = torch.tensor(src_depth / depth, dtype=torch.float32, device="cpu").item()
+        z = torch.arange(depth, dtype=torch.float64, device="cpu")
+        coords = ((z + 0.5) * scale - 0.5).float().clamp_min_(0)
+        right = (coords.long() + 1).clamp_max_(src_depth - 1).tolist()
+        self._gauss = gaussian(self.plan.patch_size, x.device, cuda_kernels=True)
+        steps = sliding_steps(x.shape[1:], self.plan.patch_size, self.step)
+        out = torch.empty(tuple(shape), dtype=torch.uint8, device=x.device)
+        previous = None
+        next_row = 0
+        for padded_start, scores in self._completed_slabs(x, steps, normalize=True):
+            start = max(padded_start, keep[0].start)
+            end = min(padded_start + scores.shape[1], keep[0].stop)
+            if end <= start:
+                continue
+            current = scores[:, start - padded_start : end - padded_start, keep[1], keep[2]]
+            source_start, source_end = start - keep[0].start, end - keep[0].start
+            available = bisect_right(right, source_end - 1, lo=next_row)
+            if available != next_row:
+                vol_norm.resize_labels_(
+                    out[next_row:available],
+                    current,
+                    previous,
+                    first_src_z=source_start,
+                    first_out_z=next_row,
+                    src_depth=src_depth,
+                    dst_depth=depth,
+                )
+            next_row = available
+            if next_row == depth:
+                break
+            # The next target slab may still interpolate from the last plane before the ring buffer reuses it.
+            previous = current[:, -1].permute(1, 2, 0).clone(memory_format=torch.contiguous_format)
+        if next_row != depth:
+            msg = f"Volume resampling finished {next_row} of {depth} target slices"
+            raise RuntimeError(msg)
+        return out
+
+    def _window_batch(self, x: torch.Tensor, starts: Sequence[tuple[int, int, int]]) -> torch.Tensor:
+        """Stack windows and prepare the batch in the network's layout and dtype."""
+        d, h, w = self.plan.patch_size
+        if self.cuda_kernels and self.channels_last and x.is_cuda:
+            batch = torch.empty(
+                (len(starts), x.shape[0], d, h, w),
+                dtype=self.dtype or x.dtype,
+                device=x.device,
+                memory_format=torch.channels_last_3d,
+            )
+            for i, (a, b, c) in enumerate(starts):
+                batch[i].copy_(x[:, a : a + d, b : b + h, c : c + w])
+            return batch
+        batch = torch.stack([x[:, a : a + d, b : b + h, c : c + w] for a, b, c in starts])
+        return batch.to(
+            dtype=self.dtype or x.dtype,
+            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
+        )
 
     def _average(self, acc: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
         """nnU-Net's fold average of float16 sums `[folds, heads, ...]`: each fold / `n`, summed, / folds (float16)."""
@@ -810,17 +1007,19 @@ class Predictor:
         sums are kept for one window depth (`[folds, heads, patch depth, H, W]`), decided as soon as they are complete
         (one network: on the sums, which differs from upstream only where the float16 division rounds two logits equal).
         """
-        p, k0 = self.plan, self.plan.patch_size[0]
-        self._gauss = gaussian(p.patch_size, x.device)
+        p = self.plan
+        self._gauss = gaussian(p.patch_size, x.device, cuda_kernels=self.cuda_kernels)
         steps = sliding_steps(x.shape[1:], p.patch_size, self.step)
         d, h, w = x.shape[1:]
         dt = self._gauss.dtype
+        # Match the window logits so accumulation reads and writes adjacent channels together on CUDA.
+        layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
         if full:
             starts = [(a, b, c) for a in steps[0] for b in steps[1] for c in steps[2]]
             n = torch.zeros((d, h, w), dtype=dt, device=x.device)
             out = None
             for f, net in enumerate(self.nets):
-                acc = torch.zeros((1, p.n_outputs, d, h, w), dtype=dt, device=x.device)
+                acc = torch.empty((1, p.n_outputs, d, h, w), dtype=dt, device=x.device, memory_format=layout).zero_()
                 self._sweep(x, acc, n if f == 0 else None, starts, [net])
                 y = acc[0].div_(n)
                 out = y if out is None else out.add_(y)
@@ -829,22 +1028,167 @@ class Predictor:
             if len(self.nets) > 1:
                 out /= len(self.nets)
             return out
-        acc = torch.zeros((len(self.nets), p.n_outputs, k0, h, w), dtype=dt, device=x.device)
-        ensemble = len(self.nets) > 1  # one network: argmax and sign do not need the division by `n`
-        n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if ensemble else None
         labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)
+        # For hard labels on the model grid, argmax and sign can use the sums directly for one fold.
+        for start, values in self._completed_slabs(x, steps, normalize=len(self.nets) > 1):
+            labels[start : start + values.shape[1]] = self.decide(values)
+        return labels
+
+    def _completed_slabs(
+        self, x: torch.Tensor, steps: Sequence[Sequence[int]], *, normalize: bool
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Yield complete slabs before reusing their space in the sliding-window ring buffer."""
+        p = self.plan
+        k0, k1, k2 = p.patch_size
+        d, h, w = x.shape[1:]
+        if tiling := self._head_tiling(x, self.nets):
+            _, tile = tiling
+            step = min((b - a for a, b in itertools.pairwise(steps[0])), default=k0)
+            capacity = max(tile, k0 - step)
+            windows = len(steps[1]) * len(steps[2])
+            retained = (windows - 1) // self.batch * self.batch
+            saved_scores = (k0 - capacity) * h * w * p.n_outputs
+            extra_features = retained * k0 * k1 * k2 * p.features[0]
+            if saved_scores > extra_features:
+                depths = steps[0]
+                overlap = max(
+                    sum(max(0, previous + k0 - start) for previous in depths[:i]) for i, start in enumerate(depths)
+                )
+                saved_ring = (capacity - tile) * h * w * p.n_outputs
+                retained_features = overlap * windows * k1 * k2 * p.features[0]
+                if retained_features < saved_ring:
+                    yield from self._completed_feature_overlap(x, steps, tiling, normalize=normalize)
+                else:
+                    yield from self._completed_head_tiles(x, steps, tiling, capacity, normalize=normalize)
+                return
+        dt = self._gauss.dtype
+        layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
+        acc = torch.empty(
+            (len(self.nets), p.n_outputs, k0, h, w), dtype=dt, device=x.device, memory_format=layout
+        ).zero_()
+        n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if normalize else None
         for i, a in enumerate(steps[0]):
             self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], self.nets)
             end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
             for physical, local in _depth_slices(a, end - a, k0):
                 done = acc[:, :, physical]
                 values = self._average(done, n[physical]) if n is not None else done[0]
-                labels[a + local.start : a + local.stop] = self.decide(values)
+                yield a + local.start, values
                 if i + 1 < len(steps[0]):
                     done.zero_()
                     if n is not None:
                         n[physical].zero_()
-        return labels
+
+    def _completed_head_tiles(
+        self,
+        x: torch.Tensor,
+        steps: Sequence[Sequence[int]],
+        tiling: tuple[UNet, int],
+        capacity: int,
+        *,
+        normalize: bool,
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Hold the output features for one row of windows and finish one score tile at a time.
+
+        A plane remains live only until all the windows that cover it have been merged. The ring holds at most the
+        largest depth overlap or one output tile. Every voxel sees its contributing windows in the usual order.
+        """
+        net, tile = tiling
+        head = net.decoder.seg_layers[-1]
+        k0 = self.plan.patch_size[0]
+        d, h, w = x.shape[1:]
+        acc = torch.empty(
+            (1, self.plan.n_outputs, capacity, h, w),
+            device=x.device,
+            dtype=self._gauss.dtype,
+            memory_format=torch.channels_last_3d,
+        ).zero_()
+        n = torch.zeros((capacity, h, w), device=x.device, dtype=self._gauss.dtype) if normalize else None
+        for i, a in enumerate(steps[0]):
+            end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
+            starts = [(a, b, c) for b in steps[1] for c in steps[2]]
+            batches = list(self._decoded_windows(x, starts, net))
+            for k in range(0, k0, tile):
+                stop = min(k + tile, k0)
+                for chunk, features in batches:
+                    for j, position in enumerate(chunk):
+                        self._merge_head_tile(acc, n, head(features[j : j + 1, :, k:stop])[0], position, k)
+                    del features
+                ready = min(a + stop, end) - (a + k)
+                if ready <= 0:
+                    continue
+                yield from self._ready_head_planes(acc, n, a + k, ready)
+            del batches
+
+    @staticmethod
+    def _ready_head_planes(
+        acc: torch.Tensor, norm: torch.Tensor | None, start: int, length: int
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Yield completed scores, then reset the corresponding ring slots for reuse."""
+        for physical, local in _depth_slices(start, length, acc.shape[2]):
+            values = acc[0, :, physical]
+            if norm is not None:
+                values.div_(norm[physical])
+            yield start + local.start, values
+            values.zero_()
+            if norm is not None:
+                norm[physical].zero_()
+
+    def _completed_feature_overlap(
+        self,
+        x: torch.Tensor,
+        steps: Sequence[Sequence[int]],
+        tiling: tuple[UNet, int],
+        *,
+        normalize: bool,
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Keep overlap in decoder features and project only the score planes that are ready.
+
+        Visit retained windows in their original depth/y/x order, preserving the FP16 weighted sum of every voxel.
+        Copy just the still-covered suffix of each decoded window before the next row is decoded.
+        """
+        net, tile = tiling
+        head = net.decoder.seg_layers[-1]
+        patch_depth = self.plan.patch_size[0]
+        depth, height, width = x.shape[1:]
+        dtype = self._gauss.dtype
+        acc = torch.empty(
+            (1, self.plan.n_outputs, tile, height, width),
+            dtype=dtype,
+            device=x.device,
+            memory_format=torch.channels_last_3d,
+        ).zero_()
+        norm = torch.zeros((tile, height, width), dtype=dtype, device=x.device) if normalize else None
+        live: list[tuple[int, list[tuple[Sequence[tuple[int, int, int]], torch.Tensor]]]] = []
+        for i, start in enumerate(steps[0]):
+            end = steps[0][i + 1] if i + 1 < len(steps[0]) else depth
+            starts = [(start, y, z) for y in steps[1] for z in steps[2]]
+            live.append((start, list(self._decoded_windows(x, starts, net))))
+            for at in range(start, end, tile):
+                stop = min(at + tile, end)
+                for offset, batches in live:
+                    for chunk, features in batches:
+                        for j, position in enumerate(chunk):
+                            last = min(stop, position[0] + patch_depth)
+                            if at < last:
+                                cut = features[j : j + 1, :, at - offset : last - offset]
+                                self._merge_head_tile(acc, norm, head(cut)[0], position, at - position[0])
+                                del cut
+                        del features
+                    del batches
+                yield from self._ready_head_planes(acc, norm, at, stop - at)
+            kept = []
+            for offset, batches in live:
+                trimmed = [
+                    (chunk, features[:, :, end - offset :].clone(memory_format=torch.channels_last_3d))
+                    for chunk, features in batches
+                    if end < chunk[0][0] + patch_depth
+                ]
+                if trimmed:
+                    kept.append((end, trimmed))
+                del batches, trimmed
+            live = kept
+            del kept
 
     def _sweep(
         self,
@@ -859,13 +1203,90 @@ class Predictor:
         Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
+        if tiling := self._head_tiling(x, nets):
+            self._sweep_tiled_head(x, acc, n, starts, tiling)
+            return
+        weighted_add = None
+        if self.cuda_kernels and self.channels_last and len(nets) == 1:
+            from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
+
+            weighted_add = accumulate_
         for j in range(0, len(starts), self.batch):
             chunk = starts[j : j + self.batch]
-            y = self._windows(x, chunk, nets)
+            y = self._logits(self._window_batch(x, chunk), nets)
+            fuse = weighted_add is not None and y[0, 0].permute(1, 2, 3, 0).is_contiguous()
+            if not fuse:
+                y.mul_(self._gauss)  # keep the product rounded before adding to the FP16 maps
             for i, (a, b, c) in enumerate(chunk):
                 ys, xs = slice(b, b + k1), slice(c, c + k2)
                 for physical, local in _depth_slices(a, k0, acc.shape[2]):
-                    acc[:, :, physical, ys, xs] += y[:, i, :, local]
+                    if fuse and weighted_add is not None:
+                        weighted_add(acc[0, :, physical, ys, xs], y[0, i, :, local], self._gauss[local])
+                    else:
+                        acc[:, :, physical, ys, xs] += y[:, i, :, local]
                     if n is not None:
                         n[physical, ys, xs] += self._gauss[local]
             del y  # free this batch of window logits before running the next network forward
+
+    def _head_tiling(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> tuple[UNet, int] | None:
+        k0, k1, k2 = self.plan.patch_size
+        plane_bytes = 2 * self.plan.n_outputs * k1 * k2
+        if (
+            self.cuda_kernels
+            and x.is_cuda
+            and self.channels_last
+            and self.amp is None
+            and not self.mirror_axes
+            and len(nets) == 1
+            and isinstance(nets[0], UNet)
+            and k0 > 1
+            and plane_bytes * k0 > 4 * _HEAD_TILE_BYTES
+        ):
+            return nets[0], math.ceil(_HEAD_TILE_BYTES / plane_bytes)
+        return None
+
+    def _decoded_windows(
+        self, x: torch.Tensor, starts: Sequence[tuple[int, int, int]], net: UNet
+    ) -> Iterator[tuple[Sequence[tuple[int, int, int]], torch.Tensor]]:
+        for j in range(0, len(starts), self.batch):
+            chunk = starts[j : j + self.batch]
+            yield chunk, self._net(net.features, self._window_batch(x, chunk))
+
+    def _sweep_tiled_head(
+        self,
+        x: torch.Tensor,
+        acc: torch.Tensor,
+        n: torch.Tensor | None,
+        starts: Sequence[tuple[int, int, int]],
+        tiling: tuple[UNet, int],
+    ) -> None:
+        """Project and merge depth tiles of the decoded features instead of materializing the full logits."""
+        kd = self.plan.patch_size[0]
+        net, depth = tiling
+        head = net.decoder.seg_layers[-1]
+        for chunk, features in self._decoded_windows(x, starts, net):
+            for i, position in enumerate(chunk):
+                for k in range(0, kd, depth):
+                    self._merge_head_tile(acc, n, head(features[i : i + 1, :, k : k + depth])[0], position, k)
+            del features
+
+    def _merge_head_tile(
+        self, acc: torch.Tensor, n: torch.Tensor | None, scores: torch.Tensor, position: tuple[int, int, int], k: int
+    ) -> None:
+        from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
+
+        a, b, c = position
+        depth, height, width = scores.shape[1:]
+        ys, xs = slice(b, b + height), slice(c, c + width)
+        fused = scores.permute(1, 2, 3, 0).is_contiguous()
+        if not fused:
+            scores.mul_(self._gauss[k : k + depth])
+        for physical, local in _depth_slices(a + k, depth, acc.shape[2]):
+            target = acc[0, :, physical, ys, xs]
+            weights = self._gauss[k + local.start : k + local.stop]
+            if fused:
+                accumulate_(target, scores[:, local], weights)
+            else:
+                target.add_(scores[:, local])
+            if n is not None:
+                n[physical, ys, xs].add_(weights)

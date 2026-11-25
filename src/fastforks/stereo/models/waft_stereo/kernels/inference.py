@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import dpt_fused
+from fastforks.kernels import dpt_fused, stereo_warp
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
@@ -33,9 +33,11 @@ from fastforks.shared.timm_blocks.flash import use_flash_attention
 
 from ..net._lora import PeftModel
 from ..net.block import resconv
-from ..net.utils import Padder, normalize_coords
+from ..net.utils import Padder
 
 if TYPE_CHECKING:
+    from ..net.dav2 import DAv2Encoder
+    from ..net.dpt import ProjFeats, UpsampleFeats
     from ..net.waft import WAFT
 
 _NO_AFFINE = "the kernels path implements InstanceNorm2d without affine parameters and SiLU only"
@@ -73,6 +75,43 @@ def _merge_lora(model: WAFT) -> int:
     return n
 
 
+def _finest(proj: ProjFeats, up: UpsampleFeats, features: list[torch.Tensor]) -> torch.Tensor:
+    """Process the DPT scales coarse to fine, keeping only the preceding refined map."""
+    prev = None
+    blocks = zip(
+        reversed(proj.projects),
+        reversed(proj.resize_layers),
+        reversed(up.scratch),
+        reversed(up.refine),
+        reversed(features),
+        strict=True,
+    )
+    for project, resize, scratch, refine, tokens in blocks:
+        x = scratch(resize(project(tokens)))
+        if prev is not None:
+            prev = F.interpolate(prev, scale_factor=2, mode="bilinear", align_corners=True)
+            x.add_(refine.resConfUnit1(prev))
+            del prev
+        prev = refine.out_conv(refine.resConfUnit2(x))
+        del x
+    assert prev is not None
+    return prev
+
+
+def _stream_dpt(model: DAv2Encoder, imgs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Project and refine paired or joint DINOv2 features without retaining every scale."""
+    b, n, _, h, w = imgs.shape
+    h, w = h // 16, w // 16
+    imgs = F.interpolate(imgs.flatten(0, 1), (h * 14, w * 14), mode="bilinear", align_corners=True)
+    feats = model.encoder.get_intermediate_layers(imgs, model.idx, return_class_token=True)
+    fmap_tokens = [x[0].reshape(b * n, h, w, -1).permute(0, 3, 1, 2) for x in feats]
+    pair = _finest(model.fmap_proj, model.fmap_upsample, fmap_tokens).unflatten(0, (b, n))
+    del fmap_tokens
+    hidden_tokens = [x[0].reshape(b, n, h, w, -1).permute(0, 1, 4, 2, 3).reshape(b, -1, h, w) for x in feats]
+    hidden = _finest(model.hidden_proj, model.hidden_upsample, hidden_tokens)
+    return pair[:, 0], pair[:, 1], hidden
+
+
 def prepare_kernels(model: WAFT, device: torch.device) -> None:
     """Switch `model` (fp32, eval, on `device`) to the kernels path in place.
 
@@ -80,8 +119,10 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
         KernelUnavailableError: A kernel library is unusable on `device`.
     """
     model.eval()
+    stereo_warp.load(device)
     _merge_lora(model)
     use_fast_vit(model.encoder.encoder, fused=dpt_fused.load(device))  # fp16 DINOv2 with the fastbb flash kernel
+    override(model.encoder, _stream_dpt)
     for m in model.modules():
         if isinstance(m, resconv):
             if not (isinstance(m.conv[1], nn.SiLU) and is_base(m.conv[0], nn.InstanceNorm2d) and not m.conv[0].affine):
@@ -113,21 +154,6 @@ def _normalize(model: WAFT, img: torch.Tensor) -> torch.Tensor:
     return ((img / 255.0 - mean) / std).contiguous()
 
 
-def _pixel_grid(feature: torch.Tensor) -> torch.Tensor:
-    """`net.utils.meshgrid(feature)`, made on the device: `[B, 2, H, W]`, `grid[:, :, i, j] = (j, i)`."""
-    b, _, h, w = feature.shape
-    x_range = torch.arange(w, device=feature.device, dtype=feature.dtype).view(1, 1, w).expand(1, h, w)
-    y_range = torch.arange(h, device=feature.device, dtype=feature.dtype).view(1, h, 1).expand(1, h, w)
-    return torch.cat((x_range, y_range), dim=0).unsqueeze(0).expand(b, 2, h, w)
-
-
-def _disp_warp(feature: torch.Tensor, disp: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
-    """`net.utils.disp_warp(feature, disp, padding_mode="zeros")` on the pixel grid `_pixel_grid(feature)`."""
-    offset = torch.cat((-disp, torch.zeros_like(disp)), dim=1)  # [B, 2, H, W]
-    sample_grid = normalize_coords(grid + offset)  # [B, H, W, 2] in [-1, 1]
-    return F.grid_sample(feature, sample_grid, mode="bilinear", padding_mode="zeros", align_corners=False)
-
-
 @torch.no_grad()
 def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Disparity `[B, H, W]` of a pair in 0..255; the same math as `WAFT.forward` (test path)."""
@@ -141,8 +167,6 @@ def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> tor
     prob = F.softmax(model.prop_bins_head(prop).float(), dim=1)  # (the 'init' output is a training target only)
     disp = torch.sum(prob * bins, dim=1, keepdim=True)
     del prob, prop
-    fmap2_f32 = fmap2.float()
-    grid = _pixel_grid(fmap2_f32)
     # the update's input `[fmap1, warped fmap2, hidden, disp]`, written part by part (and the zero channels once)
     b, e, h, w = fmap1.shape
     shape = (b, model.delta_proj.fc1.in_channels, h, w)
@@ -151,7 +175,7 @@ def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> tor
     d = hidden.shape[1]
     x[:, 2 * e + d + 1 :] = 0
     for _ in range(model.iters):
-        x[:, e : 2 * e] = _disp_warp(fmap2_f32, disp, grid)
+        stereo_warp.sample_into(fmap2, disp, x[:, e : 2 * e])
         x[:, 2 * e : 2 * e + d] = hidden
         x[:, 2 * e + d : 2 * e + d + 1] = disp
         hidden = model.delta_decoder(model.delta_proj(x))

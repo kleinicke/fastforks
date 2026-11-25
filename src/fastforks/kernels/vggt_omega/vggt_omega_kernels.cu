@@ -145,3 +145,23 @@ extern "C" __global__ void __launch_bounds__(256)
     p[d] = __float2half_rn(x1 * sc);
     p[d + 32] = __float2half_rn(x2 * sc);
 }
+
+extern "C" __global__ void __launch_bounds__(LN_NT)
+    omega_join_ln(const float* __restrict__ left, const float* __restrict__ right, __half* __restrict__ y,
+                  const float* __restrict__ w, const float* __restrict__ b, int T, long long lR, long long lT,
+                  long long rR, long long rT, int half_width, float eps) {
+    __shared__ float sh[LN_NT / 32];
+    const long long row = blockIdx.x;
+    const float4* a = reinterpret_cast<const float4*>(left + (row / T) * lR + (row % T) * lT);
+    const float4* z = reinterpret_cast<const float4*>(right + (row / T) * rR + (row % T) * rT);
+    const int n = half_width >> 2;
+    float4 v[LN_V];
+    float s = 0.f;
+#pragma unroll
+    for (int i = 0; i < LN_V; i++) {
+        const int c = threadIdx.x + i * LN_NT;
+        v[i] = c < n ? a[c] : c < 2 * n ? z[c - n] : make_float4(0.f, 0.f, 0.f, 0.f);
+        s += v[i].x + v[i].y + v[i].z + v[i].w;
+    }
+    ln_store(v, s, y + row * (2 * half_width), w, b, 2 * half_width, eps, sh);
+}

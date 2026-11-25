@@ -39,7 +39,7 @@ mlx_dtypes = ["float32", "float16"]
 # (tools/golden/cas_gwcnet.py, patches/cas-gwcnet-align-corners.patch).
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+kernels = ["cfnet_volume", "igev", "cutlass_conv", "cudnn_hacc"]
 
 # Upstream also links a KITTI 2015 fine-tuned Cas-GwcNet-c: not added.
 

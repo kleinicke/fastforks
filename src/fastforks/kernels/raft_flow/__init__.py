@@ -22,6 +22,7 @@ SIGNATURES = {
     "corr_lookup_c256_r4": "pppppiippif",
     "corr_lookup_c128_r3": "pppppiippif",
     "corr_lookup_c1024_r4": "pppppiippif",
+    "corr_lookup_flowformer": "ppiipp",
     "corr_lookup_c128_r4_l1": "ppiippif",
     "init_coords": "pil",
     "write_flow": "pilppii",

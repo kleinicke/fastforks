@@ -1,0 +1,4 @@
+kind = "cubin"
+sources = ["warp.cu"]
+targets = ["sm_80", "sm_86", "sm_89", "sm_90", "sm_100", "sm_120", "compute_80"]
+flags = ["-O3", "-std=c++17"]

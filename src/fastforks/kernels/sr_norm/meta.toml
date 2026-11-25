@@ -1,0 +1,2 @@
+licence = "Apache-2.0 AND BSD-3-Clause"
+derived_from = "fastforks (LayerNorm code adapted from fastbb); width-180 and width-240 reductions follow PyTorch aten/src/ATen/native/cuda/layer_norm_kernel.cu at 5c4886908584029761b579af026dcfb627c84070"

@@ -12,8 +12,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`parseq`](#parseq) | yes | 3.62, 4.4x (32x128) | 100, 0.69x |
-| [`parseq-tiny`](#parseq) | yes | 2.10, 6.9x (32x128) | 54, 0.93x |
+| [`parseq`](#parseq) | yes | 3.66, 4.4x (32x128) | 92, 0.64x |
+| [`parseq-tiny`](#parseq) | yes | 2.19, 6.6x (32x128) | 46, 0.79x |
 | [`ppocrv5-mobile`](#ppocrv5) | yes | 156, 2.7x | 448, 0.45x |
 | [`ppocrv5-server`](#ppocrv5) | yes | 231, 3.3x | 654, 0.23x |
 
@@ -27,8 +27,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>3.62<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>79 / 100<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>2.10<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>44 / 54<br>76 / 94<br>82 / 90 |
+| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.68<br>3.66<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 92<br>79 / 92<br>111 / 118<br>148 / 168 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.17<br>2.19<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 46<br>44 / 46<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -46,9 +46,9 @@ Commercial use: yes.
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
 - `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
-- `parseq` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `parseq` portable 32x128, kernels 32x128: Full word-crop recognition API with card-default decoding.
 - `parseq-tiny` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
-- `parseq-tiny` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `parseq-tiny` portable 32x128, kernels 32x128: Full word-crop recognition API with card-default decoding.
 - `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128), kernels 0.91 s / 0.205 s (32x128)
 - `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128), kernels 0.76 s / 0.192 s (32x128)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

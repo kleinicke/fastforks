@@ -177,6 +177,7 @@ class Kernels(Portable):
             pixels=_GRAPH_PIXELS,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def _network(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

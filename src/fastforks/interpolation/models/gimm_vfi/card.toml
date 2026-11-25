@@ -40,7 +40,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["raft_flow", "cudnn_hacc"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the three all-pairs volumes; the full-size decoder convs with float16 accumulation; otherwise the portable float16 network
+kernels = ["raft_flow", "cudnn_hacc", "ema_warp"]  # on-the-fly correlation windows, half-accumulating decoder convolutions, and fused decoder feature warps
 
 [[papers]]
 title = "Generalizable Implicit Motion Modeling for Video Frame Interpolation"

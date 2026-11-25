@@ -7,6 +7,7 @@ import torch
 from fastforks._core.kernels import cubin_library, linear
 
 SIGNATURES = {"tile_moments": "ppiili", "group_moments": "ppilf", "normalize_silu": "pppppiill"}
+SIGNATURES["affine_silu_h"] = "ppppilll"
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 _TILE = 2048  # elements per statistics tile (TILE in group_silu.cu)
 
@@ -37,4 +38,26 @@ def group_silu(norm: torch.nn.GroupNorm, x: torch.Tensor, *, inplace: bool) -> t
     lib.launch(
         "normalize_silu", *linear(x.numel()), x, out, stats, norm.weight, norm.bias, c, width, spatial, x.numel()
     )
+    return out
+
+
+def affine_silu(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> torch.Tensor | None:
+    """Fuse the affine and SiLU with the intermediate half rounding on aligned NHWC rows."""
+    b, c, h, w = x.shape
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or c % 8
+        or x.stride()[1:] != (1, c * w, c)
+        or any(t.data_ptr() % 16 for t in (x, scale, shift))
+        or x.stride(0) % 8
+        or any(
+            t.shape != (b, c, 1, 1) or t.device != x.device or t.dtype != x.dtype or not t.is_contiguous()
+            for t in (scale, shift)
+        )
+    ):
+        return None
+    out = torch.empty_like(x, memory_format=torch.channels_last)
+    count = x.numel() // 8
+    load(x.device).launch("affine_silu_h", *linear(count), x, scale, shift, out, c, h * w, x.stride(0), count)
     return out
