@@ -1,10 +1,9 @@
-"""SigLIP 2 runners: timm's network walked by `fastforks.shared.libnet.features` (portable / kernels)."""
+"""SigLIP 2 runners: timm's network walked by `fastforks.shared.libnet.features` (MLX: `features.MlxPortable`)."""
 
-from fastforks.shared import mlx_wrap
 from fastforks.shared.libnet import features
 
 RUNNERS = {
     "portable": features.Portable,
     "kernels": features.Kernels,
-    "portable_mlx": mlx_wrap.port(features.Portable, attrs=(), methods=("_forward",)),
+    "portable_mlx": features.MlxPortable,
 }
