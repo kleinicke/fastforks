@@ -481,7 +481,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`hrnet-w48-384`](../models/pose.md#hrnet) | 597 | 449 | – | 1058 |
 | [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 23.8 | 19.8 | – | 621 |
 | [`retinaface-resnet50`](../models/pose.md#retinaface) | 263 | 185 | unsupported | 1165 |
-| [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 81.4 | 67.0 | unsupported | 915 |
+| [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 79.0 | 65.9 | unsupported | 975 |
 | [`rtmo-l`](../models/pose.md#rtmo) | 88.9 | 71.9 | unsupported | 1171 |
 | [`rtmo-m`](../models/pose.md#rtmo) | 53.2 | 45.0 | unsupported | 999 |
 | [`rtmo-s`](../models/pose.md#rtmo) | 33.8 | 25.6 | unsupported | 763 |
