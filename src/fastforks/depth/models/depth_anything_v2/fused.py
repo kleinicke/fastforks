@@ -127,6 +127,7 @@ class FusedViT(FastViT):
         h = a.num_heads
         qkv = k.gemm(blk.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
         k.gemm(_flash(qkv, (c // h) ** -0.5, self.attn), a.proj.weight, a.proj.bias, scale=g1, res=x, out=x)
+        del qkv  # The attention and projection have consumed it. Free it before the MLP workspace.
         hid = k.gemm(blk.norm2(x), m.fc1.weight, m.fc1.bias, act=self.gelu)
         k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2, res=x, out=x)
         return x
