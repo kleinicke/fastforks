@@ -193,9 +193,9 @@ class Mlx(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the MLX block and patch weights from the same validated checkpoint (converted once, then cached)."""
         super().__init__(ctx)
-        from .mlx_net import load  # noqa: PLC0415 - optional MLX
+        from .mlx_net import engine  # noqa: PLC0415 - optional MLX
 
-        self.engine = load(ctx)
+        self.engine = engine(ctx)
         self.num_layers, self.hidden_size = ctx.params.depth, ctx.params.embed_dim
         self.num_prefix_tokens = self.engine.prefix_tokens
         self.num_register_tokens = self.num_prefix_tokens - ctx.params.summary_tokens

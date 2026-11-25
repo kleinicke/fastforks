@@ -53,7 +53,7 @@ def _convert(ctx: Context) -> dict[str, mx.array]:
     return out
 
 
-def load(ctx: Context) -> Engine:
+def engine(ctx: Context) -> Engine:
     """The engine of `ctx.variant`: its weights converted once, then read from the cache."""
     p = ctx.params
     return Engine(converted(ctx, LAYOUT, lambda: _convert(ctx)), p.num_heads, ctx.dtype, align=p.pos_align_corners)
