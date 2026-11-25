@@ -13,10 +13,12 @@ import torch
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import keep_float32
 from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import FusedConvs
 from fastforks.detection._rtdetr import ConvBn, RepVgg
 from fastforks.detection._runner import Forward, Runner, split_kept
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 
 if TYPE_CHECKING:
@@ -50,14 +52,18 @@ class Portable(Runner):
         self.mf = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
         self.dt = ctx.torch_dtype
         self.net = self.build(ctx).to(ctx.device, self.dt).to(memory_format=self.mf)
-        self.float_heads()
+        heads = self.float_heads()
+        for m in heads:
+            m.float()
+        if mlx_wrap.twin_dtype() == "float16":  # the twin of a float16 MLX replay: the same modules stay float32
+            keep_float32(*heads)
 
     def build(self, ctx: Context) -> torch.nn.Module:
         """The network with the checkpoint loaded (BatchNorm folded, RepVGG merged), in eval mode."""
         raise NotImplementedError
 
-    def float_heads(self) -> None:
-        """Keep query selection, box refinement and the heads in float32."""
+    def float_heads(self) -> tuple[torch.nn.Module, ...]:
+        """The modules kept in float32 (query selection, box refinement, the heads), as the forward calls them."""
         raise NotImplementedError
 
     def module(self) -> torch.nn.Module:

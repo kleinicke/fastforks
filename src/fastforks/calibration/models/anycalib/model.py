@@ -31,6 +31,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
@@ -153,9 +154,9 @@ def _maps(net: _Net, tokens: list[torch.Tensor], h: int, w: int) -> torch.Tensor
     feats = [t[:, 1:].reshape(b, h // p, w // p, c).permute(0, 3, 1, 2).contiguous() for t in tokens]
     x = net.decoder({"outputs": feats})
     head = net.head
-    tangent = head.tangent_head(x).float()
+    tangent = to_float32(head.tangent_head(x))
     up: Any = head.upsampling_weights_head
-    weights = up[3](up[2](up[1](up[0](x)))).float().softmax(2)  # conv, ReLU, conv, Unflatten; softmax in float32
+    weights = to_float32(up[3](up[2](up[1](up[0](x))))).softmax(2)  # conv, ReLU, conv, Unflatten; softmax in float32
     tangent = cvx_upsample(tangent, weights, head.up_factor)
     return Unit3.expmap_at_z1(tangent.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 

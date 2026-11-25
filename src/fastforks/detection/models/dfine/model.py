@@ -51,10 +51,10 @@ class Portable(base.Portable):
         net.load_state_dict(convert(ctx.state_dict(key=key), ctx.params.dec_layers))
         return net.eval()
 
-    def float_heads(self) -> None:
-        """Keep query selection, box refinement and the heads in float32."""
+    def float_heads(self) -> tuple[torch.nn.Module, ...]:
+        """The modules kept in float32 (query selection, box refinement, the heads), as the forward calls them."""
         net: Any = self.net  # the DFine built by `build`
-        for m in (
+        return (
             net.enc_output,
             net.enc_score_head,
             net.enc_bbox_head,
@@ -63,8 +63,7 @@ class Portable(base.Portable):
             net.decoder.bbox_embed,
             net.decoder.class_embed,
             net.decoder.lqe,
-        ):
-            m.float()
+        )
 
 
 class Kernels(base.Kernels, Portable):

@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import CheckpointMismatchError
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks.detection._attention import Attention, deformable_sample
 from fastforks.detection._fold import fold_bn_into, merge_repvgg
 from fastforks.detection._rtdetr import (
@@ -252,7 +253,7 @@ class Decoder(nn.Module):
         mem = torch.cat([f.flatten(2).transpose(1, 2) for f in proj], dim=1)
         anc, valid = anchors(shapes, mem.device)
         # query selection in float32 (the ranking decides which memory slots the decoder sees)
-        sel = (valid.to(mem.dtype) * mem).float()
+        sel = to_float32(valid.to(mem.dtype) * mem)
         out = self.enc_output.norm(self.enc_output.proj(sel))  # ty: ignore[call-non-callable]
         logits = self.enc_score_head(out)
         coords = self.enc_bbox_head(out) + anc
@@ -260,13 +261,13 @@ class Decoder(nn.Module):
         idx = logits.max(-1).values.topk(min(self.queries, mem.shape[1]), dim=-1).indices
         pick = idx.unsqueeze(-1)
         ref = F.sigmoid(coords.gather(1, pick.expand(-1, -1, 4)))
-        tgt = out.gather(1, pick.expand(-1, -1, EMB)).to(mem.dtype)
+        tgt = to_run_dtype(out.gather(1, pick.expand(-1, -1, EMB)), mem.dtype)
         for i, layer in enumerate(self.decoder.layers):  # ty: ignore[invalid-argument-type]
-            qpos = self.query_pos_head(ref).to(mem.dtype)
-            tgt = layer(tgt, ref.to(mem.dtype).unsqueeze(2), mem, shapes, qpos)
-            boxes = F.sigmoid(self.dec_bbox_head[i](tgt.float()) + inverse_sigmoid(ref))
+            qpos = to_run_dtype(self.query_pos_head(ref), mem.dtype)
+            tgt = layer(tgt, to_run_dtype(ref, mem.dtype).unsqueeze(2), mem, shapes, qpos)
+            boxes = F.sigmoid(self.dec_bbox_head[i](to_float32(tgt)) + inverse_sigmoid(ref))
             if i == self.eval_layers - 1:
-                return self.dec_score_head[i](tgt.float()), boxes
+                return self.dec_score_head[i](to_float32(tgt)), boxes
             ref = boxes
         msg = "eval_layers exceeds the decoder depth"
         raise ValueError(msg)

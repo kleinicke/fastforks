@@ -21,6 +21,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks.shared.depth_anything_v2 import DPTHead
 from fastforks.shared.depth_anything_v2.net.dinov2 import DINOv2, DinoVisionTransformer
 from fastforks.shared.depth_anything_v2.net.dinov2_layers.layer_scale import LayerScale
@@ -123,7 +124,8 @@ class DepthEmbed(nn.Module):
             ms = ms.reshape(-1, 1, g, g)
             heat = _fill(xs.reshape(-1, 1, g, g) / (ms + _POOL_EPS), ms >= _POOL_EPS, g - 1)
             cols += [heat.view(b, gh * gw, g * g), ms.view(b, gh * gw, g * g)]
-        enc: list[torch.Tensor] = [c.get_parameter(n) for c in self.depth_heatmap_encoder for n in ("weight", "bias")]
+        # getattr, not get_parameter: in a `float32_call` (MLX replay) the weights are plain tensors
+        enc: list[torch.Tensor] = [getattr(c, n) for c in self.depth_heatmap_encoder for n in ("weight", "bias")]
         w = torch.cat([v.flatten(1) for v in enc[::2]], 1)  # the strided convs as one linear (same products)
         t = F.linear(torch.cat(cols, -1), w, torch.stack(enc[1::2]).sum(0))
         t = torch.cat([t.mean(1, keepdim=True), t], 1)
@@ -190,7 +192,7 @@ class Any2FullNet(nn.Module):
                 feats.append(vit.norm(t)[:, 1:])
         et = self.embed.pos_embed.dtype
         p, mask = self.embed(d.to(et), pres[0][1].to(et))
-        p = p.to(dt)
+        p = to_run_dtype(p, dt)
         km: torch.Tensor | None = mask[:, None, None]
         for j, (blk, pre) in enumerate(pres):
             p = self.branches[j](blk.norm1(pre), p, km)

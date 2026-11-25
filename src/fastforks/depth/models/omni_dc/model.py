@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import pure_half
+from fastforks._core.mlx_cast import keep_float32, to_float32
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN
 from fastforks._core.tracing import in_onnx_export
@@ -160,6 +161,8 @@ class Portable(Runner):
             pure_half(net.depth_module, fp32=[head.scratch.output_conv2[2]])
             pure_half(net.update_block)  # the RGB-D backbone stays fp32: its PVT features reach ~1e6
             net.prop_layer.float()
+        elif mlx_wrap.twin_dtype() == "float16":  # the twin of a float16 MLX replay: the same conv stays float32
+            keep_float32(net.depth_module.depth_head.scratch.output_conv2[2])
         self.net = net
 
     def _run(self, image: torch.Tensor, prompt: torch.Tensor) -> torch.Tensor:
@@ -191,7 +194,7 @@ class Portable(Runner):
         """The update block and the normal equations `(d, b)` of the linear solve."""
         _, small, mask = sparse_inputs(dep)
         grad, up = self.net.update_block(context)
-        d, b = system(grad.float(), small, mask, conf_in.float())
+        d, b = system(to_float32(grad), small, mask, to_float32(conf_in))
         return d.float(), b.float(), up
 
     def _post(
@@ -358,12 +361,18 @@ class Kernels(Runner):
 
 class _Mlx(
     mlx_wrap.port(  # ty: ignore[unsupported-base]
-        Portable, attrs=(), methods=("_mono", "_backbone", "_update", "_post"), fp32_methods=("_backbone",), prune=True
+        Portable,
+        attrs=(),
+        methods=("_mono", "_backbone", "_update", "_post"),
+        fp32_methods=("_backbone", "_post"),
+        fp32_inputs=("dep", "conf_in"),
+        prune=True,
     )
 ):
     """Apple MLX: the network before and after the linear solve; the conjugate-gradient solve stays PyTorch (CPU).
 
-    As in the portable float16 run, the RGB-D backbone stays float32 (its PVT features overflow float16).
+    As in the portable float16 run, the RGB-D backbone stays float32 (its PVT features overflow float16), and so do
+    the normal equations, the convex upsampling and the propagation.
     """
 
     def _graph(self, x: torch.Tensor, dep: torch.Tensor) -> torch.Tensor:

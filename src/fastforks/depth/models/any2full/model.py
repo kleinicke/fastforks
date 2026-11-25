@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import latin1_encode, numeric_scalar
 from fastforks._core.half import pure_half
+from fastforks._core.mlx_cast import keep_float32
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
@@ -125,6 +126,9 @@ class Portable(Runner):
             for m in (net.pretrained, net.branches, net.prompt_norm, net.fusion, net.scale):
                 m.half()
             pure_half(net.depth_head, fp32=[net.depth_head.scratch.output_conv2[2]])
+        elif mlx_wrap.twin_dtype() == "float16":  # the twin of a float16 MLX replay: the same parts stay float32
+            keep_float32(net.embed)
+            keep_float32(net.depth_head.scratch.output_conv2[2])
         self.net = net
 
     def _run(self, image: torch.Tensor, prompt: torch.Tensor) -> torch.Tensor:
