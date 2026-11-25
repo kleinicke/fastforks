@@ -466,24 +466,25 @@ FAMILIES = frozenset(
     {
         "alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2", "convnext", "convnextv2", "resnet", "mobilenetv2",
         "efficientnet", "efficientnetv2", "mobilenetv3", "regnet", "mobilenetv1", "starnet", "repvit",
-        "coatnet",
+        "coatnet", "efficientformerv2",
     }
 )  # fmt: skip
 
 
 # `(features, head)` builders of the networks written out here, and of those in their own modules (named by family)
 _BUILDERS = {"mobilenetv1": _mobile_v1, "starnet": _star_net, "repvit": _rep_vit}
-_MODULES = frozenset({"coatnet"})
+_MODULES = frozenset({"coatnet", "efficientformerv2"})
 
 
 def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
     # These modules import this one
-    if family != "coatnet":
-        msg = f"No MLX module for {family}"
-        raise ValueError(msg)
-    from .mlx_coatnet import coatnet  # noqa: PLC0415
+    if family == "coatnet":
+        from .mlx_coatnet import coatnet  # noqa: PLC0415
 
-    return coatnet(net, dtype)
+        return coatnet(net, dtype)
+    from .mlx_efficientformerv2 import efficientformerv2  # noqa: PLC0415
+
+    return efficientformerv2(net, dtype)
 
 
 class Network:

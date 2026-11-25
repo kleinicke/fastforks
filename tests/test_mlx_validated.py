@@ -42,22 +42,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "efficientformerv2_l.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformerv2_s0.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformerv2_s1.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "efficientformerv2_s2.snap_dist_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "efficientvit_b2.r288_in1k@1": (
         "kernels float16",
         "kernels float32",
