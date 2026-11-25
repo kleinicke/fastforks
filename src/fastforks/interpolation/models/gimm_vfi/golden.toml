@@ -24,8 +24,8 @@ patch_sha256 = "2a4ab1aa8c9421ce02a632b3d66938be7ef39e756d8043a2a9a156577be6bc11
 settings = "CPU float32, upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."gimm-vfi-r-p@1"]
-kernels = ["cudnn_hacc@cudnn92400", "raft_flow@639b3b16ea48:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c256_r4" = "0daca3cb119feb1c"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}, "raft_flow" = {"corr_lookup_c256_r4" = "0daca3cb119feb1c"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
@@ -42,8 +42,8 @@ mean_px = 5e-05
 p99_px = 0.00029
 
 [validated."gimm-vfi-r@1"]
-kernels = ["cudnn_hacc@cudnn92400", "raft_flow@639b3b16ea48:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c256_r4" = "0daca3cb119feb1c"}}
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@4974d6834555:sm_120", "raft_flow@639b3b16ea48:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "d293b62a785d8071", "warp_f16x4" = "d293b62a785d8071", "warp_f32" = "d293b62a785d8071", "warp_write_f16" = "d293b62a785d8071", "warp_write_f16x4" = "d293b62a785d8071", "warp_write_f32" = "d293b62a785d8071"}, "raft_flow" = {"corr_lookup_c256_r4" = "0daca3cb119feb1c"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"

@@ -124,7 +124,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nafnet, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam3, sam_hq, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft, waft_stereo |
 | `dual_softmax` | dedode, loftr |
 | `edge_components` | anyline |
-| `ema_warp` | ema_vfi, film |
+| `ema_warp` | ema_vfi, film, gimm_vfi |
 | `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, flowformer, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, restormer, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `flow_upsample` | flowformer, flowseek, gmflow, memfof, recover |

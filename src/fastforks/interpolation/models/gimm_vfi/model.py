@@ -29,7 +29,7 @@ from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 from fastforks.interpolation._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, ema_warp
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -451,6 +451,7 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     img1: torch.Tensor,
     *,
     band_pixels: int = BAND_PIXELS,
+    fused_warp: bool = False,
 ) -> tuple[torch.Tensor, ...]:
     """Upstream `NewMultiFlowDecoder.forward` with its full-size input assembled part by part in the conv dtype.
 
@@ -478,7 +479,14 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     put(ft_)
     del ft_
     for f, flow in ((f0, flow0), (f1, flow1)):
-        put(warp(m.upsample(f), flow))
+        if fused_warp:
+            features = m.upsample(f)
+            channels = features.shape[1]
+            ema_warp.write_rows(features, flow.float(), buf[:, c : c + channels])
+            c += channels
+            del features
+        else:
+            put(warp(m.upsample(f), flow))
     del f0, f1
     for part in (flow0, flow1, mask, img0, img1):
         put(part)
@@ -495,7 +503,7 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
 
 def _kernels_decoder(m: NewMultiFlowDecoder, *args: torch.Tensor, **kwargs: torch.Tensor) -> tuple[torch.Tensor, ...]:
     """`_decoder` in kernels' smaller row bands (`KERNELS_BAND_PIXELS`)."""
-    return _decoder(m, *args, **kwargs, band_pixels=KERNELS_BAND_PIXELS)
+    return _decoder(m, *args, **kwargs, band_pixels=KERNELS_BAND_PIXELS, fused_warp=True)
 
 
 def _net(ctx: Context) -> GIMMVFI_R:
@@ -605,6 +613,7 @@ class Kernels(Portable):
         k = raft_flow.load(ctx.device)
         self.make = lambda f1, f2: _kernel_corr(k, f1, f2)
         cudnn_hacc.load(ctx.device)
+        ema_warp.load(ctx.device)
         for m in self.net.amt_final_decoder.modules():
             if isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d:
                 m.w16 = m.weight.detach().half().contiguous(memory_format=torch.channels_last)
