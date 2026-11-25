@@ -149,6 +149,7 @@ class _LibRunner(Runner):
             fp16=ctx.dtype == "float16",
             family=self.family,
             fuse_convs=self.fuse_convs,
+            cast_cpu_weights=True,
         )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()

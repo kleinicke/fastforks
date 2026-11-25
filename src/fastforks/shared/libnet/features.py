@@ -174,7 +174,7 @@ class _TimmFeatures(Runner):
 
             self.fast = streamed_vit(net, ctx)
         else:
-            self.fast = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
+            self.fast = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16", cast_cpu_weights=True)
         self.net: Any = self.fast.net
         self.gemm: Callable[[], contextlib.AbstractContextManager] = contextlib.nullcontext  # GEMM precision
         if ctx.device.type == "cuda":  # the fp32 weights stay cached otherwise

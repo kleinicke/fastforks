@@ -364,7 +364,19 @@ def _replaced(fast: FastModel, name: str) -> FastModel:
     return fast
 
 
-def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, then the pass pipeline
+def _move_weights(model: nn.Module, device: torch.device, *, cast_cpu_weights: bool) -> nn.Module:
+    if cast_cpu_weights and all(t.device.type == "cpu" for t in itertools.chain(model.parameters(), model.buffers())):
+        # Transformer rewrites run after the half conversion. Upload the final dtype directly.
+        return model.float().to(device=device, dtype=torch.float16)
+    model = model.to(device)
+    if any(
+        t.is_floating_point() and t.dtype != torch.float32 for t in itertools.chain(model.parameters(), model.buffers())
+    ):
+        model = model.float()  # BatchNorm folds and probes require float32
+    return model
+
+
+def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the pass pipeline
     model: nn.Module,
     *,
     mode: str = "portable",
@@ -373,6 +385,7 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
     auto: bool = False,
     family: str | None = None,
     fuse_convs: bool = True,
+    cast_cpu_weights: bool = False,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
@@ -380,6 +393,7 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
     `kernels` is always fp16. `auto`: a covered model on which no kernels pass applies comes back portable instead of
     raising (`patch(mode="auto")`). `family` (a `COVERED` key): the architecture family of a registry network that its
     class names do not reveal (e.g. `"cnn"`: a plain conv / SiLU / concat / pool net of our own).
+    `cast_cpu_weights`: upload trusted registry transformer weights in their final fp16 dtype.
     """
     if mode not in MODES:
         msg = f"optimize: mode must be one of {MODES}, got {mode!r}"
@@ -415,11 +429,9 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
         libs = []
     # after the kernels checks: a refusal up to here leaves the user's model as it was; the refusals after the passes
     # (no fast path applies, cudnn_hacc fails to load) leave it modified (see `patch`)
-    model = model.eval().to(dev)
-    if any(
-        t.is_floating_point() and t.dtype != torch.float32 for t in itertools.chain(model.parameters(), model.buffers())
-    ):
-        model = model.float()  # the passes (BatchNorm fold, probes) run in float32; fp16 after them where requested
+    model = _move_weights(
+        model.eval(), dev, cast_cpu_weights=cast_cpu_weights and mode == "kernels" and family in {"vit", "swin"}
+    )
     report: dict[str, Any] = {"mode": mode, "family": family or "generic", "device": str(dev)}
     if libs:
         report["kernels"] = libs
