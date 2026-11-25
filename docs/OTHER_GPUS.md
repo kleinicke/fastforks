@@ -179,6 +179,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sparse_conv` | moge |
 | `sr_ops` | compact, realesrgan, span |
 | `stereo_ops` | coex, las2 |
+| `stereo_warp` | waft_stereo |
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3, mapanything |
 | `tapnext_state` | tapnext |

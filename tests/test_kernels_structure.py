@@ -347,8 +347,11 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
         1376,
         285,
         {
+            "Attention.flash": 24,
+            "Attention.forward": 24,
             "Conv2d.forward": 173,
             "ConvTranspose2d.forward": 12,
+            "DAv2Encoder.forward": 1,
             "DinoVisionTransformer.get_intermediate_layers": 1,
             "InstanceNorm2d.forward": 92,
             "Mlp.forward": 11,
