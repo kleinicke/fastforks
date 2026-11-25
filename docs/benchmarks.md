@@ -376,16 +376,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`mm-grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 1104 ms · portable fp32 | 766 ms · portable fp16 | – | – | – | – | – |
 | [`owlv2-b16`](models/detection.md#owlv2) | – | 394 ms · portable fp32 | 290 ms · portable fp16 | – | – | – | – | – |
 | [`owlv2-l14`](models/detection.md#owlv2) | – | 2047 ms · portable fp32 | 1426 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-l-coco`](models/detection.md#rfdetr) | – | 75.5 ms · portable fp16 | 46.9 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-m-coco`](models/detection.md#rfdetr) | – | 55.5 ms · portable fp16 | 33.3 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-n-coco`](models/detection.md#rfdetr) | – | 30.3 ms · portable fp16 | 19.0 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-s-coco`](models/detection.md#rfdetr) | – | 44.9 ms · portable fp16 | 28.0 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-2xl-coco`](models/detection.md#rfdetr) | – | 184 ms · portable fp16 | 137 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-l-coco`](models/detection.md#rfdetr) | – | 89.2 ms · portable fp32 | 50.6 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-m-coco`](models/detection.md#rfdetr) | – | 64.7 ms · portable fp16 | 39.9 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-n-coco`](models/detection.md#rfdetr) | – | 41.8 ms · portable fp16 | 23.8 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-s-coco`](models/detection.md#rfdetr) | – | 50.1 ms · portable fp16 | 30.2 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-xl-coco`](models/detection.md#rfdetr) | – | 124 ms · portable fp16 | 84.7 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-l-coco`](models/detection.md#rfdetr) | – | 75.5 ms · portable fp16 | 50.7 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-m-coco`](models/detection.md#rfdetr) | – | 55.5 ms · portable fp16 | 34.8 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-n-coco`](models/detection.md#rfdetr) | – | 30.3 ms · portable fp16 | 19.1 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-s-coco`](models/detection.md#rfdetr) | – | 44.9 ms · portable fp16 | 28.6 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-2xl-coco`](models/detection.md#rfdetr) | – | 184 ms · portable fp16 | 142 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-l-coco`](models/detection.md#rfdetr) | – | 89.2 ms · portable fp32 | 53.0 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-m-coco`](models/detection.md#rfdetr) | – | 64.7 ms · portable fp16 | 41.3 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-n-coco`](models/detection.md#rfdetr) | – | 41.8 ms · portable fp16 | 24.5 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-s-coco`](models/detection.md#rfdetr) | – | 50.1 ms · portable fp16 | 31.1 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-xl-coco`](models/detection.md#rfdetr) | – | 124 ms · portable fp16 | 90.2 ms · portable fp16 | – | – | – | – | – |
 | [`rtdetrv2-l-coco`](models/detection.md#rtdetrv2) | – | 77.3 ms · portable fp16 | 67.8 ms · portable fp16 | 7.20 ms · kernels fp16 | 3.82 ms · kernels fp16 | 7.63 ms · kernels fp16 | 6.65 ms · kernels fp16 | 3.31 ms · kernels fp16 |
 | [`rtdetrv2-m-coco`](models/detection.md#rtdetrv2) | – | 55.0 ms · portable fp16 | 50.0 ms · portable fp16 | – | – | – | – | 2.68 ms · kernels fp16 |
 | [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | – | 62.7 ms · portable fp16 | 57.4 ms · portable fp16 | – | – | – | – | 2.57 ms · kernels fp16 |

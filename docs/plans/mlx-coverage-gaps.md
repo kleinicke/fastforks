@@ -1412,13 +1412,12 @@ the head-mask GEMMs (two `[L, 256] x [256, 256]` products per layer, cheap at 15
 `auto` takes MLX only when its first call is at most the MPS first call plus twice the MPS warm time
 (`tools/gen_auto_mode.py`, `cold=True`). 203 refs had an MLX row that wins warm (and on memory) against the MPS path
 `auto` would replace, but miss that budget (2026-11-25 rows, M1 Pro 16 GB). Per family: refs, the MLX / MPS warm ratio,
-the MLX first call, and how far over the budget it is (142 left: coatnet, efficientformerv2 and starnet are
+the MLX first call, and how far over the budget it is (132 left: coatnet, efficientformerv2 and starnet are
 now in, and so are the families under "Done" below):
 
 | family | refs | warm MLX / MPS | first call s | over budget s |
 |---|---|---|---|---|
 | dfine | 10 | 0.72-0.97 | 1.52-9.11 | 1.17-8.68 |
-| rfdetr | 10 | 0.57-0.74 | 1.82-2.56 | 1.57-1.91 |
 | lwdetr | 5 | 0.61-1.01 | 1.89-2.71 | 1.63-2.23 |
 | rtdetrv2 | 5 | 0.84-1.03 | 1.54-2.12 | 1.18-1.58 |
 | tinyvit | 5 | 0.54-0.78 | 0.97-1.18 | 0.83-1.09 |
@@ -1499,6 +1498,64 @@ its translation and compiles were 1.5-3 s of each first call. Now each network i
   128 -> 128 encoder convs (MLX's half Winograd misses the golden there).
 
 Left: the Spring variants' 512 MB buffer cache was tuned on the exported port; not re-tuned.
+
+### Done: RF-DETR (2026-11-25)
+
+M1 Pro, 800x1344, all ten MLX goldens pass (fp16 and fp32 alike); second of two surveys recorded (the seg refs
+surveyed again on a busy machine, load average 4-6). `auto` now takes MLX float16 for every `-coco` ref: before,
+each first call was 1.6-1.9 s over the budget and `auto` stayed on MPS.
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| rf-detr-n | MLX before, fp16 / fp32 | 19.0 / 21.0 | 1.82 / 1.86 | 657 / 714 | MPS |
+| | MLX now, fp16 / fp32 | 19.1 / 20.9 | 0.08 / 0.08 | 594 / 658 | MLX fp16 |
+| | MPS portable fp32 | 31.8 | 0.18 | 1718 | |
+| rf-detr-s | MLX before | 28.0 / 32.6 | 2.13 / 1.99 | 679 / 736 | MPS |
+| | MLX now | 28.6 / 33.1 | 0.18 / 0.12 | 656 / 727 | MLX fp16 |
+| | MPS upstream fp32 | 59.2 | 0.18 | 2129 | |
+| rf-detr-m | MLX before | 33.3 / 39.8 | 2.10 / 2.10 | 740 / 780 | MPS |
+| | MLX now | 34.8 / 40.2 | 0.08 / 0.11 | 697 / 785 | MLX fp16 |
+| | MPS portable fp16 | 55.5 | 0.14 | 1660 | |
+| rf-detr-l | MLX before | 46.9 / 56.4 | 2.20 / 2.20 | 731 / 798 | MPS |
+| | MLX now | 50.7 / 56.4 | 0.09 / 0.19 | 726 / 812 | MLX fp16 |
+| | MPS upstream fp32 | 98.3 | 0.20 | 1938 | |
+| rf-detr-seg-n | MLX before | 23.8 / 27.8 | 2.00 / 2.00 | 730 / 820 | MPS |
+| | MLX now | 24.5 / 29.6 | 0.08 / 0.09 | 628 / 718 | MLX fp16 |
+| | MPS portable fp32 | 44.8 | 0.14 | 1737 | |
+| rf-detr-seg-s | MLX before | 30.2 / 38.0 | 2.02 / 2.05 | 729 / 824 | MPS |
+| | MLX now | 31.1 / 37.7 | 0.09 / 0.08 | 668 / 740 | MLX fp16 |
+| | MPS portable fp16 | 50.1 | 0.14 | 1651 | |
+| rf-detr-seg-m | MLX before | 39.9 / 50.9 | 2.20 / 2.16 | 821 / 875 | MPS |
+| | MLX now | 41.3 / 50.5 | 0.10 / 0.10 | 733 / 809 | MLX fp16 |
+| | MPS portable fp16 | 64.7 | 0.16 | 1668 | |
+| rf-detr-seg-l | MLX before | 50.6 / 65.1 | 2.18 / 2.18 | 814 / 884 | MPS |
+| | MLX now | 53.0 / 67.0 | 0.10 / 0.11 | 738 / 829 | MLX fp16 |
+| | MPS portable fp32 | 89.2 | 0.18 | 1741 | |
+| rf-detr-seg-xl | MLX before | 84.7 / 117.0 | 2.28 / 2.33 | 859 / 986 | MPS |
+| | MLX now | 90.2 / 113.6 | 0.13 / 0.16 | 840 / 994 | MLX fp16 |
+| | MPS portable fp16 | 123.8 | 0.22 | 1669 | |
+| rf-detr-seg-2xl | MLX before | 136.5 / 181.1 | 2.56 / 2.72 | 936 / 1083 | MPS |
+| | MLX now | 141.6 / 179.8 | 0.18 / 0.22 | 994 / 1187 | MLX fp16 |
+| | MPS portable fp16 | 184.5 | 0.33 | 1698 | |
+
+Before, the port exported the PyTorch network on the first call and replayed the graph (1.8-2.7 s of translation
+and compiles). Now the network is written in `mlx.core` (`shared/rfdetr/mlx_net.py`), weights copied from the
+PyTorch twin built on the CPU, nothing exported (`_MlxPortable`, `mlx_wrap.port(..., attrs=())`):
+
+- DINOv2 windowed backbone through `mlx_vit.block` (windows folded into the batch, the global blocks on the whole
+  map), the patch embedding one `addmm`. One block in flight (`async_eval` this block, wait on the one before): as
+  one lazy graph, or with `async_eval` alone, its transients reached 160-460 MB of MLX peak in float32 and the
+  footprint ended above the export's; waiting on every block idled the GPU (rf-detr-n fp16 backbone 12.1 -> 15.2
+  ms; pipelined 12.0 ms, +10 MB).
+- From the projector on in float32: projector, two-stage top-k, decoder (`graph_mlx.ops.msda` on float32 sampling
+  points), box and class heads. With the projector in float16, seg-m's boxes missed the golden (0.41) and seg-s /
+  seg-m scores flipped near-tied top-k picks.
+- Seg mask head in the run dtype, evaluated block by block at R/4 (lazy, seg-xl fp32 had +190 MB of MLX peak).
+- Weights cast by NumPy before `mx.array` and the build's buffer cache cleared: no float32 copies left cached.
+
+Left: rf-detr-seg-2xl's peak is 58 / 104 MB (6-10 %) above the exported port's, and the fp16 seg rows are 2-6 %
+slower warm (within a busy machine's noise, but consistently on that side); the load footprint is 80-170 MB higher
+(the MLX weights now exist at load). `pose/models/rfdetr_keypoint` (2.60 s over the budget) still uses the export.
 
 ### Done: MLX memory peaks (2026-11-25)
 
