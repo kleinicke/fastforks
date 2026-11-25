@@ -11,11 +11,11 @@ channels-last, the InstanceNorm statistics in fp32 and the normalisation fused w
 decoder maps are 2.4 GB each in fp16). `portable` (friendly) is plain PyTorch: SDPA attention, cuDNN
 convolutions, fp16 on CUDA. `kernels` (kernels) adds fp16-accumulate cuBLAS GEMMs, the `fastbb` flash attention
 kernel (head_dim 64, fp32 `q k^T`) and fp16-accumulate cuDNN convolutions / transposed convolutions (`cudnn_hacc`).
+Apple MLX runs the network written in MLX operations (`mlx_net.py`).
 """
 
 from __future__ import annotations
 
-import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -33,11 +33,13 @@ from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.seginfer import upsample, upsample_argmax
 
 if TYPE_CHECKING:
+    from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
 
 FLASH_HEAD_DIM = 64  # fixed: head_dim of the fastbb flash kernel
 # The archives' normalisation buffers (the runner uses the card's mean / std); any other key hits the strict load.
 _NOT_THE_NETWORK = frozenset({"data_preprocessor.mean", "data_preprocessor.std"})
+_MLX_CACHE_MB = 1024  # fixed: MLX buffer cache; the decoder's 302 MB maps are reused, not allocated zeroed per call
 
 
 @dataclass(frozen=True)
@@ -252,24 +254,49 @@ class Kernels(_Functional):
             return super().labels(image)
 
 
-class MlxPortable(Portable):
-    """Apple MLX: the network (patch embedding, transformer, decoder) runs through the exported-graph translation."""
+class Mlx(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`); the labels' resize and argmax are one kernel."""
+
+    batch = None
+    dtypes = ("float32", "float16")
+    Params = Params
 
     def __init__(self, ctx: Context) -> None:
-        """Build the PyTorch network in float32 on the CPU, then export it to MLX."""
-        from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+        """Build the PyTorch network on the checkpoint's tensors and copy its weights to MLX."""
+        super().__init__(ctx)
+        if ctx.params.stream:
+            msg = "Sapiens block streaming requires CUDA"
+            raise OptionsError(msg)
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
 
-        super().__init__(dataclasses.replace(ctx, dtype="float32"))
-        self.ctx = ctx
-        self._mlx = MlxModule(self.net, ctx.dtype, kernels=ctx.mode == "kernels")
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
 
-    def _logits(self, x: torch.Tensor) -> torch.Tensor:
-        return self._mlx(x)
+        self.net = mlx_net.MlxSapiens(_load(ctx), ctx.dtype)
+        request_cache(self, _MLX_CACHE_MB)
+
+    def _low(self, image: torch.Tensor) -> mx.array:
+        """Logits `[B, h / 2, w / 2, 28]` (float32, MLX) of the resized, normalised batch."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+
+        return self.net.logits(to_mx(_prepare(image, self.ctx))).astype(mx.float32)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Logits `[B, 28, H, W]` of a batch."""
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - imports mlx
+
+        scores = to_torch(self._low(image).transpose(0, 3, 1, 2))
+        return {"logits": upsample(scores, (tuple(image.shape[-2:]),))}
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the scores stay on MLX up to the argmax."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        return mlx_seg.resize_argmax(self._low(image), image.shape[-2:])
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": MlxPortable,
-    "kernels_mlx": MlxPortable,
+    "portable_mlx": Mlx,
+    "kernels_mlx": Mlx,
 }
