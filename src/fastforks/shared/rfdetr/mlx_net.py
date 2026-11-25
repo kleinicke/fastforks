@@ -441,6 +441,22 @@ class MlxRFDETR:
                 x, kt = self._keypoint_layer(p, (x, kt), (qpos, ref), kp_memory)
         return _ln(x, self.dec_norm, _EPS), kt
 
+    def _masks(self, feat: mx.array, hs: mx.array) -> mx.array:
+        """Projector map `[B, n, n, D]`, decoder output `[B, Q, D]` -> mask logits `[B, Q, R/4, R/4]`."""
+        b, n, _, d = feat.shape
+        m = self.mask_side
+        x = ops.bilinear_nhwc(feat, (m, m), (n / m, n / m), align=False)
+        for dw, db, ln, pw in self.seg_blocks:
+            y = ops.depthwise(x, dw, db, (1, 1), (1, 1), (1, 1))
+            x = x + mlx_vit.gelu(_linear(_ln(y, ln, _EPS_VIT), pw))
+            mx.eval(x)  # block by block: lazy, the R/4 maps piled up (seg-xl float32 +190 MB of MLX peak, +70-95)
+        spatial = _linear(x.reshape(b, m * m, d), self.spatial_proj)
+        mx.eval(spatial)
+        hs = hs.astype(self.dtype)
+        qf = hs + _linear(mlx_vit.gelu(_linear(_ln(hs, self.qf_norm, _EPS), self.qf_fc1)), self.qf_fc2)
+        qf = _linear(qf, self.qf_proj)
+        return (qf @ spatial.transpose(0, 2, 1) + self.mask_bias).reshape(b, -1, m, m)
+
     def _keypoint_layer(
         self, p: dict[str, Any], state: tuple[mx.array, mx.array], query: tuple[mx.array, mx.array], memory: mx.array
     ) -> tuple[mx.array, mx.array]:

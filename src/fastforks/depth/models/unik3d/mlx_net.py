@@ -47,7 +47,7 @@ TABLES = 4  # position tables kept (one per token grid, least recently used drop
 leaky = mx.compile(lambda x: mx.maximum(x, SLOPE * x), shapeless=True)
 
 
-def _np(t: torch.Tensor) -> np.ndarray:
+def _np(t: Any) -> np.ndarray:  # noqa: ANN401 - a torch tensor (module attributes are typed `Tensor | Module`)
     return t.detach().double().numpy()
 
 
