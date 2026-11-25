@@ -382,7 +382,7 @@ class Portable(Runner):
         h, w = image.shape[-2:]
         size = target_size(h, w, self.ctx.params.resize)
         x = scale(resize(image, size), self.ctx.io)
-        dtype = next(self.net.parameters()).dtype
+        dtype = self._input_dtype()
         if x.is_cuda:
             x = x.contiguous(memory_format=torch.channels_last)
         s = self._forward(x.to(dtype))
@@ -391,6 +391,9 @@ class Portable(Runner):
         if not (_RESIZE_FP16 and s.is_cuda):
             s = s.float()
         return s.contiguous(), (size, (h, w))  # NCHW: 1.6x faster bilinear upsampling
+
+    def _input_dtype(self) -> torch.dtype:
+        return next(self.net.parameters()).dtype
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -440,9 +443,30 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
-}
+class _MlxPortable(Portable):
+    """Apple MLX: the folded network written in `mlx.core` operations (`mlx_net`), the image handling as `Portable`."""
+
+    net: Any  # mlx_net.MlxMMSeg
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = network(ctx)
+        fold_batchnorms(net)
+        # the PyTorch network is not kept
+        self.net = mlx_net.MlxMMSeg(net, mlx_wrap.run_dtype(ctx), kernels=ctx.mode == "kernels")
+
+    def _input_dtype(self) -> torch.dtype:
+        return torch.float32
+
+    def _forward(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.net(to_mx(x)))
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())  # kernels mode: the conv_mlx Winograd and direct kernels
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

@@ -1078,3 +1078,44 @@ def test_mlx_rfdetr_keypoint_matches_torch():
     for k in ("pred_logits", "pred_boxes", "pred_keypoints"):
         assert got[k].shape == want[k].shape, k
         torch.testing.assert_close(got[k], want[k].float(), atol=2e-3, rtol=2e-3, msg=k)
+
+
+@pytest.mark.parametrize(
+    ("arch", "kernels"),
+    [
+        ("fcn-r101-d8", False),
+        ("psp-r101-d8", False),
+        ("aspp-r101-d8", False),
+        ("sepaspp-r101-d8", False),
+        ("sepaspp-r101-d8", True),
+        ("fcn-hr48", False),
+        ("fcn-hr48", True),
+    ],
+)
+def test_mlx_mmseg_matches_torch(arch, kernels):
+    """`mmseg.mlx_net.MlxMMSeg` against the folded PyTorch network (random weights and BN statistics, float32)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.segmentation.models.mmseg import mlx_net  # noqa: PLC0415
+    from fastforks.segmentation.models.mmseg import model as mmodel  # noqa: PLC0415
+    from fastforks.segmentation.models.mmseg import net as mm  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = mm.build(arch).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.weight.uniform_(0.3, 0.8)
+                m.bias.normal_(0, 0.1)
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    mmodel.fold_batchnorms(net)
+    mnet = mlx_net.MlxMMSeg(net, "float32", kernels=kernels)
+    x = torch.randn(1, 3, 224, 256, generator=torch.Generator().manual_seed(1))  # Winograd on the stride-4 maps
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mnet(to_mx(x)))
+    assert got.shape == want.shape
+    scale = want.abs().max().item()
+    torch.testing.assert_close(got, want, atol=2e-4 * scale, rtol=1e-3)
