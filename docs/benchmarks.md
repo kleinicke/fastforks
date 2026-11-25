@@ -427,10 +427,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | 15.3 ms · portable fp16 | 19.8 ms · portable fp16 |
 | [`retinaface-resnet50`](models/pose.md#retinaface) | 150 ms · portable fp16 | 185 ms · portable fp16 |
 | [`rf-detr-keypoint-preview`](models/pose.md#rfdetr_keypoint) | 148 ms · portable fp32 | 64.0 ms · portable fp16 |
-| [`rtmo-l`](models/pose.md#rtmo) | 61.9 ms · portable fp16 | 71.9 ms · portable fp16 |
-| [`rtmo-m`](models/pose.md#rtmo) | 43.9 ms · portable fp16 | 45.0 ms · portable fp16 |
-| [`rtmo-s`](models/pose.md#rtmo) | 31.0 ms · portable fp16 | 25.6 ms · portable fp16 |
-| [`rtmo-t`](models/pose.md#rtmo) | 19.9 ms · portable fp16 | 14.4 ms · portable fp16 |
+| [`rtmo-l`](models/pose.md#rtmo) | 61.9 ms · portable fp16 | 55.0 ms · portable fp16 |
+| [`rtmo-m`](models/pose.md#rtmo) | 43.9 ms · portable fp16 | 35.1 ms · portable fp16 |
+| [`rtmo-s`](models/pose.md#rtmo) | 31.0 ms · portable fp16 | 19.0 ms · portable fp16 |
+| [`rtmo-t`](models/pose.md#rtmo) | 19.9 ms · portable fp16 | 11.8 ms · portable fp16 |
 | [`rtmpose-l`](models/pose.md#rtmpose) | 70.0 ms · portable fp16 | 61.9 ms · portable fp16 |
 | [`rtmpose-l-384`](models/pose.md#rtmpose) | 136 ms · portable fp16 | 118 ms · portable fp16 |
 | [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | 83.7 ms · portable fp16 | 62.5 ms · portable fp16 |

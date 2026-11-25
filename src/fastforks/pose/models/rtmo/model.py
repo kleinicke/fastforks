@@ -296,14 +296,42 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode}
 
 
-class _OneImage(Portable):
-    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`); letterbox, decoding and the DCC as portable.
+
+    One image per call, as before batching (not measured on Apple GPUs). float16 Winograd convs run in float32
+    (`half_wino_f32`): rtmo-l keypoints p99 0.98 -> 0.31 px.
+    """
 
     batch = 1
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network (BatchNorm folded), its weights copied to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        with csp.run_dtype_silu():  # as the exported network: the float32 one drifts rtmo-t float16 (see csp)
+            self.mlx = mlx_net.MlxRTMO(self.net, mlx_wrap.run_dtype(ctx), ctx.params.size)
+        self.net = None  # the MLX copy replaces it
+
+    def dense(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """float32 per-cell outputs (`net.Head.forward`) of the letterboxed image `[B, 3, S, S]` in 0..255."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        csp.options(mlx_net.GRAPH, half_wino_f32=True)
+        out = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
+        mx.eval(*out)
+        return tuple(to_torch(t) for t in out)
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OneImage, half_wino_f32=True),  # rtmo-l keypoints p99 0.98 -> 0.31 in fp16
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

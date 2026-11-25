@@ -482,10 +482,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 23.8 | 19.8 | – | 621 |
 | [`retinaface-resnet50`](../models/pose.md#retinaface) | 263 | 185 | unsupported | 1165 |
 | [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 74.5 | 64.0 | unsupported | 978 |
-| [`rtmo-l`](../models/pose.md#rtmo) | 88.9 | 71.9 | unsupported | 1171 |
-| [`rtmo-m`](../models/pose.md#rtmo) | 53.2 | 45.0 | unsupported | 999 |
-| [`rtmo-s`](../models/pose.md#rtmo) | 33.8 | 25.6 | unsupported | 763 |
-| [`rtmo-t`](../models/pose.md#rtmo) | 16.2 | 14.4 | unsupported | 596 |
+| [`rtmo-l`](../models/pose.md#rtmo) | 62.0 | 55.0 | unsupported | 1188 |
+| [`rtmo-m`](../models/pose.md#rtmo) | 38.7 | 35.1 | unsupported | 917 |
+| [`rtmo-s`](../models/pose.md#rtmo) | 21.2 | 19.0 | unsupported | 607 |
+| [`rtmo-t`](../models/pose.md#rtmo) | 12.3 | 11.8 | unsupported | 486 |
 | [`rtmpose-l`](../models/pose.md#rtmpose) | 71.1 | 61.9 | – | 1054 |
 | [`rtmpose-l-384`](../models/pose.md#rtmpose) | 138 | 118 | – | 1159 |
 | [`rtmpose-l-halpe26`](../models/pose.md#rtmpose) | 70.5 | 62.5 | – | 1077 |
