@@ -467,14 +467,14 @@ FAMILIES = frozenset(
     {
         "alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2", "convnext", "convnextv2", "resnet", "mobilenetv2",
         "efficientnet", "efficientnetv2", "mobilenetv3", "regnet", "mobilenetv1", "starnet", "repvit",
-        "coatnet", "efficientformerv2",
+        "coatnet", "efficientformerv2", "hgnetv2", "focalnet",
     }
 )  # fmt: skip
 
 
 # `(features, head)` builders of the networks written out here, and of those in their own modules (named by family)
 _BUILDERS = {"mobilenetv1": _mobile_v1, "starnet": _star_net, "repvit": _rep_vit}
-_MODULES = frozenset({"coatnet", "efficientformerv2"})
+_MODULES = frozenset({"coatnet", "efficientformerv2", "hgnetv2", "focalnet"})
 
 
 def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
@@ -483,6 +483,14 @@ def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, C
         from .mlx_coatnet import coatnet  # noqa: PLC0415
 
         return coatnet(net, dtype)
+    if family == "hgnetv2":
+        from .mlx_hgnetv2 import hgnetv2  # noqa: PLC0415
+
+        return hgnetv2(net, dtype)
+    if family == "focalnet":
+        from .mlx_focalnet import focalnet  # noqa: PLC0415
+
+        return focalnet(net, dtype)
     from .mlx_efficientformerv2 import efficientformerv2  # noqa: PLC0415
 
     return efficientformerv2(net, dtype)
