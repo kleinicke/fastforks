@@ -17,7 +17,6 @@ kernels). As in the torch fp16 runners, ViT-B / L / H+ run with the residual str
 unscaled, past the fp16 range): the scale is a power of two folded into the embedding and the residual branches'
 last layers when the weights are cast, with the LayerNorm eps divided by 64; hidden states are multiplied back.
 """
-# ruff: noqa: ANN202 - array-in / array-out functions; shapes are in the docstrings
 
 from __future__ import annotations
 
@@ -27,7 +26,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
-from fastforks._core.mlx import converted, mx, to_mx, tuning
+from fastforks._core.mlx import converted, mx, to_mx
 from fastforks.shared.mlx_vit import blocks, patches, rope_tables
 
 from .net import CONFIGS, PATCH, REGISTERS, Config, rope_table
@@ -37,7 +36,6 @@ if TYPE_CHECKING:
 
 LAYOUT = "v1"  # version of `prepare`'s parameter layout (part of the conversion cache's file name)
 TABLES = 8  # RoPE tables kept (one per grid size, least recently used dropped)
-COMPILED = 8  # compiled forwards kept (one per set of hidden-state layers)
 WIDE = 768  # ViT-B and wider: fp16 residual stream past 65504 without the scale
 STREAM_SCALE = 8.0
 SCALED = ("prefix", "patch.", "proj.", "fc2.", "w3.")  # what the stream scale divides (embedding, branch outputs)
@@ -100,13 +98,13 @@ def forward(  # noqa: PLR0913, PLR0917 - the network's pieces
     prefix = p["prefix"]
     t = patches(x.astype(prefix.dtype), PATCH) @ p["patch.weight"] + p["patch.bias"]
     t = mx.concatenate([mx.broadcast_to(prefix, (x.shape[0], *prefix.shape)), t], axis=1)
-    t, hs = blocks(p, cfg.num_layers, cfg.num_heads, eps, t, layers, (cos, sin))
+    t, hs = blocks(p, cfg.num_layers, cfg.num_heads, eps, t, layers, (cos, sin), bounded=True)
     last = mx.fast.layer_norm(t, p["norm.weight"], p["norm.bias"], eps)
     return (last.astype(mx.float32), *(h.astype(mx.float32) * scale for h in hs))
 
 
 class Engine:
-    """The MLX network of one loaded model: converted weights, RoPE tables and compiled forwards."""
+    """The MLX network of one loaded model: converted weights, RoPE tables and the forward (block by block)."""
 
     def __init__(self, ctx: Context) -> None:
         """Convert (or read the cached) weights for `ctx`."""
@@ -120,12 +118,12 @@ class Engine:
             name = k.split(".", 2)[2] if k.startswith("blocks.") else k
             return self.scale != 1.0 and name.startswith(SCALED)
 
-        self.p = {k: (v / self.scale if scaled(k) else v).astype(self.dtype) for k, v in p32.items()}
-        del p32
-        mx.eval(self.p)
-        self.compile = tuning().compile_steps
+        self.p = {}
+        for k in list(p32):  # one by one: a lazy cast keeps its float32 source until it is evaluated
+            v = p32.pop(k)
+            self.p[k] = (v / self.scale if scaled(k) else v).astype(self.dtype)
+            mx.eval(self.p[k])
         self.tables: OrderedDict[tuple[int, int], tuple[mx.array, mx.array]] = OrderedDict()
-        self.compiled: OrderedDict[tuple[int, ...], object] = OrderedDict()
 
     def rope(self, h0: int, w0: int) -> tuple[mx.array, mx.array]:
         """`(cos, sin)` `[5 + h0 * w0, head_dim]` in the run dtype (identity rows for cls and registers)."""
@@ -141,22 +139,10 @@ class Engine:
         self.tables.move_to_end(key)
         return self.tables[key]
 
-    def _forward(self, layers: tuple[int, ...]):
-        if layers not in self.compiled:
-
-            def run(x: mx.array, cos: mx.array, sin: mx.array) -> tuple[mx.array, ...]:
-                return forward(self.p, self.cfg, layers, self.scale, x, cos, sin)
-
-            self.compiled[layers] = mx.compile(run) if self.compile else run
-            while len(self.compiled) > COMPILED:
-                self.compiled.popitem(last=False)
-        self.compiled.move_to_end(layers)
-        return self.compiled[layers]
-
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> tuple[torch.Tensor, list[torch.Tensor]]:
         """Normalised `[B, 3, H, W]` CPU tensor -> float32 CPU `(last_hidden_state, hidden states at layers)`."""
         cos, sin = self.rope(image.shape[2] // PATCH, image.shape[3] // PATCH)
-        out = self._forward(tuple(layers))(to_mx(image), cos, sin)
+        out = forward(self.p, self.cfg, tuple(layers), self.scale, to_mx(image), cos, sin)
         mx.eval(*out)
         last, *hs = (torch.from_numpy(np.array(a)) for a in out)
         return last, hs
