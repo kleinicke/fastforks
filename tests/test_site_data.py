@@ -57,6 +57,18 @@ def test_preferred_speed_falls_back_to_an_existing_input(monkeypatch):
     assert site_data._speed(model, "segmentation", {})["preferred"] is None
 
 
+def test_preferred_speed_keeps_a_measured_call_over_a_standalone_engine(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    engine = {"ref": "pi3", "mode": "tensorrt", "input": "8x512x640", "ms": 8, "compare_to_original": False}
+    monkeypatch.setattr(site_data.g, "_compile_rows", lambda: {("pi3", "tensorrt", "8x512x640"): engine})
+    card, variant = registry.resolve_any("pi3")
+    rows = {variant.id: [{"input": "336x518", "mode": "portable", "ms": 822}]}
+    speed = site_data._speed(variant, card.task, rows)
+    profiles = {p["input"]: p for p in speed["inputs"]}
+    assert speed["preferred"] == "336x518"
+    assert profiles["8x512x640"]["tensorrt"]["compare_to_original"] is False
+
+
 def test_unmeasured_planned_backend_reports_card_reason(monkeypatch):
     monkeypatch.setattr(site_data.g, "_compile_rows", dict)
     monkeypatch.setattr(site_data.g, "_oom", set)

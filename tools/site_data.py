@@ -182,7 +182,10 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
     rows = speed.get(v.id, [])
     std = g._std_input(task, {})  # noqa: SLF001
     inputs = sorted({r["input"] for r in rows} | g._compiled_inputs(v.id), key=g._pixels)  # noqa: SLF001
-    preferred = next((size for size in (native, std) if size in inputs), inputs[-1] if inputs else None)
+    eager = {r["input"] for r in rows if r["mode"] in {"portable", "kernels"}}
+    preferred_inputs = eager or set(inputs)
+    ordered = (native, std, *reversed(inputs))
+    preferred = next((size for size in ordered if size in preferred_inputs), None)
     out = []
     for size in inputs:
         profile_rows = [r for r in rows if r["input"] == size]
@@ -224,6 +227,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "standalone": bool(c.get("standalone_build")),
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
                 "date": c.get("date"),
+                **({"compare_to_original": False} if c.get("compare_to_original") is False else {}),
             }
             if task == "volume" and mode == "tensorrt" and c.get("net_input"):
                 extra[mode]["engine_input"] = c["net_input"]
