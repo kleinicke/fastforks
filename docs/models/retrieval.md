@@ -8,7 +8,7 @@ Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x640: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -27,6 +27,15 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `boq-dinov2` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.44<br>5.73<br>2.84<br>3.89<br>2.73 | 231 / 256<br>231 / 254<br>227 / 256<br>269 / 274<br>426 / 434 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 3.61 ms / 318 MiB | 13.53 ms / 136 MiB |
+| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4.85 ms / 318 MiB | 13.69 ms / 138 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/amaralibey/Bag-of-Queries> at `1a4965ea7dfd`
@@ -34,6 +43,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/amaralibey/Bag-of-Queries/blob/1a4965ea7dfd9bd0dd846adf7a0e430f68101d12/LICENSE ; https://github.com/amaralibey/Bag-of-Queries/releases/tag/v1.0
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), GSV-Cities (Google Street View images of 62k places in 40 cities) (DINOv2 ViT-B/14 (LVD-142M) with its last two blocks and the aggregator trained on GSV-Cities at 320 x 320 (README, Training).)
+- Options: `stream` = False (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `boq-dinov2`
 - Outputs: descriptor
@@ -48,10 +58,10 @@ Commercial use: yes.
 
 Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of the file names), the standard visual place recognition protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `boq-dinov2` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 99.86 / 100.00 |  | 99.86 / 100.00 | 99.86 / 100.00 |  |
-| `boq-dinov2` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `boq-dinov2` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 99.86 / 100.00 |  |  | 99.86 / 100.00 |  | 99.86 / 100.00 |  |
+| `boq-dinov2` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 | 99.66 / 100.00 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13.
 
@@ -62,6 +72,10 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `boq-dinov2` | 0.01726 / 0.05735 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False.
 
 </details>
 
@@ -77,6 +91,15 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `megaloc` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.68<br>5.29<br>4.26<br>4.27<br>3.21 | 1347 / 1368<br>483 / 508<br>485 / 508<br>518 / 530<br>937 / 964 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 6.71 ms / 564 MiB | 16.10 ms / 402 MiB |
+| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8.10 ms / 562 MiB | 15.05 ms / 402 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/gmberton/MegaLoc> at `5fe0dd697c4a`
@@ -84,6 +107,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/gmberton/MegaLoc/blob/5fe0dd697c4a70ba3e23607f6716ab3c606b16db/LICENSE ; https://huggingface.co/gberton/MegaLoc/blob/a0f34722c4297ff787e022433799250180860af7/README.md
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), GSV-Cities (Google Street View images of 62k places in 40 cities), Mapillary Street-Level Sequences, MegaScenes (Internet photo collections of scenes from Wikimedia Commons), ScanNet (RGB-D scans of indoor scenes), San Francisco eXtra Large (street-view images of San Francisco) (Fine-tuned from DINOv2 ViT-B/14 (LVD-142M) on GSV-Cities, MSLS, MegaScenes, ScanNet and SF-XL (paper, arXiv 2502.17237, Sec. 2); MSLS and ScanNet carry non-commercial terms. Only the weights licence (MIT) counts for the commercial flag.)
+- Options: `stream` = False (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `megaloc`
 - Outputs: descriptor
@@ -98,12 +122,12 @@ Commercial use: yes.
 
 Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of the file names), the standard visual place recognition protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `megaloc` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 |  | 100.00 / 100.00 | 100.00 / 100.00 |  |
-| `megaloc` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `megaloc` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 |  | 100.00 / 100.00 |  | 100.00 / 100.00 |  |  |  |
+| `megaloc` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19.
 
 ### Parity
 
@@ -112,6 +136,10 @@ CPU, float32: max |diff| <= 8.8e-08 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `megaloc` | 0.01356 / 0.04384 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False.
 
 </details>
 

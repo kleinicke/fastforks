@@ -3,7 +3,7 @@ name = "MiDaS v3.1"
 summary = "MiDaS v3.1 (Birkl et al. 2023): relative monocular depth from a BEiT-L/16 encoder and a DPT decoder, trained on a mix of 12 depth datasets."
 tier = "stable"
 outputs = ["inverse_depth"]
-uses = ["midas_beit"]  # fastforks.shared modules this family imports
+uses = ["midas_beit", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [output]
 kind = "affine_invariant_inverse"  # relative disparity: inverse depth up to an unknown scale and shift
@@ -32,6 +32,7 @@ input_size = { default = 512, min = 32 }  # target side of the original code's "
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]

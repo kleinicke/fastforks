@@ -8,7 +8,7 @@ Input: one RGB image. Output: dense patch features and a pooled image feature.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -40,14 +40,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 648, 0.53x |
 | [`dinov2-vits14`](#dinov2) | yes | 0.827, 4.0x | 122, 0.92x |
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.832, 4.9x | 102, 0.77x |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.4x | 214, 0.54x |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 2.7x | 452, 0.5x |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.48x |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.68x |
-| [`dinov3-vitb16`](#dinov3) | yes | 1.26, 5.5x | 210, 0.54x |
-| [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 3.1x | 1672, 0.51x |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.04, 5.8x | 650, 0.54x |
-| [`dinov3-vits16`](#dinov3) | yes | 0.793, 8.2x | 68, 0.52x |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.0x | 214, 0.92x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 1.9x | 452, 1.1x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.79x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.86x |
+| [`dinov3-vitb16`](#dinov3) | yes | 1.36, 4.9x | 210, 1.0x |
+| [`dinov3-vith16plus`](#dinov3) | yes | 8.85, 1.8x | 1670, 0.92x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.26, 3.4x | 628, 0.98x |
+| [`dinov3-vits16`](#dinov3) | yes | 0.799, 8.1x | 68, 0.58x |
 | [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 268, 0.61x |
 | [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 3696, 0.49x |
 | [`pe-core-l14-336`](#perception_encoder) | yes | 4.97, 3.6x | 672, 0.53x |
@@ -96,7 +96,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md and https://huggingface.co/nvidia/C-RADIOv4-SO400M/blob/c0457f5dc26ca145f954cd4fc5bb6114e5705ad8/README.md
 - Training data: NV-CC-Img-Text-Dataset (NVIDIA web image-text data, 700 M images, not released) (700 M web images (NV-CC-Img-Text-Dataset), distilled from teachers whose own training data does not carry over as terms: v3 the DFN CLIP ViT-H/14, SigLIP 2 (So400m; g for C-RADIOv3-H), DINOv2-g and SAM ViT-H; v4 SigLIP 2-g, DINOv3-7B and SAM 3)
 - Licence note: The weights are governed by the NVIDIA Open Model License Agreement, which allows commercial use (the model card: 'ready for commercial/non-commercial use'). Our code is timm's VisionTransformer plus our own walk; no NVIDIA code is vendored.
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `c-radio-v3-b`, `c-radio-v3-l`, `c-radio-v3-h`, `c-radio-v3-g`, `c-radio-v4-so400m`, `c-radio-v4-h`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -130,16 +130,16 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `c-radio-v3-b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 57.58 | 57.62 | 57.60 | 57.66 |  |
-| `c-radio-v3-l` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.06 | 67.06 | 67.08 | 67.08 |  |
-| `c-radio-v3-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.52 | 69.52 | 69.54 | 69.58 |  |
-| `c-radio-v3-g` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.88 | 70.94 | 70.92 | 70.98 |  |
-| `c-radio-v4-so400m` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.06 | 70.02 | 70.02 | 70.04 |  |
-| `c-radio-v4-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.38 | 71.36 | 71.32 | 71.36 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `c-radio-v3-b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 57.58 | 57.62 | 57.60 | 57.58 | 57.66 |  |
+| `c-radio-v3-l` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.06 | 67.06 | 67.08 | 67.06 | 67.08 |  |
+| `c-radio-v3-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.52 | 69.52 | 69.54 | 69.52 | 69.58 |  |
+| `c-radio-v3-g` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.88 | 70.94 | 70.92 | 70.84 | 70.98 |  |
+| `c-radio-v4-so400m` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.06 | 70.02 | 70.02 | 70.04 | 70.04 |  |
+| `c-radio-v4-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.38 | 71.36 | 71.32 | 71.38 | 71.36 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13.
 
 ### Parity
 
@@ -156,6 +156,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - last_hidden_state holds the prefix tokens (v3: 4 summary + 4 registers; v4: 3 summary + 7 registers), then the patches (upstream's `features`).
 - pooler_output is upstream's `summary`: the summary tokens concatenated (v3: clip, siglip2, dino_v2 = 3 x hidden size; v4: siglip2, dino_v3 = 2 x hidden size).
 - The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.
@@ -208,7 +209,7 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
   - `clip-l14-dfn2b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
   - `clip-h14-dfn5b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
   - `clip-h14-378-dfn5b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `clip-b16-laion2b`, `clip-l14-laion2b`, `clip-h14-laion2b`, `clip-l14-datacompxl`, `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -260,20 +261,20 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `clip-b16-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 51.98 | 52.00 | 52.00 | 52.00 |  |
-| `clip-l14-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.70 | 58.64 | 58.56 | 58.58 |  |
-| `clip-l14-336-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.82 | 58.72 | 58.80 | 58.86 |  |
-| `clip-b16-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 54.14 | 54.24 | 54.22 | 54.16 |  |
-| `clip-l14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.30 | 59.30 | 59.36 | 59.32 |  |
-| `clip-h14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.56 | 62.46 | 62.46 | 62.56 |  |
-| `clip-l14-datacompxl` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.44 | 62.44 | 62.38 |  |
-| `clip-l14-dfn2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.86 | 66.74 | 66.76 | 66.78 |  |
-| `clip-h14-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 68.72 | 68.70 | 68.80 | 68.86 |  |
-| `clip-h14-378-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.84 | 65.10 | 65.10 | 65.00 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `clip-b16-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 51.98 | 52.00 | 52.00 | 52.04 | 52.00 |  |
+| `clip-l14-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.70 | 58.64 | 58.56 | 58.62 | 58.58 |  |
+| `clip-l14-336-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.82 | 58.72 | 58.80 | 58.60 | 58.86 |  |
+| `clip-b16-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 54.14 | 54.24 | 54.22 | 54.14 | 54.16 |  |
+| `clip-l14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.30 | 59.30 | 59.36 | 59.24 | 59.32 |  |
+| `clip-h14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.56 | 62.46 | 62.46 | 62.48 | 62.56 |  |
+| `clip-l14-datacompxl` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.44 | 62.44 | 62.42 | 62.38 |  |
+| `clip-l14-dfn2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.86 | 66.74 | 66.76 | 66.82 | 66.78 |  |
+| `clip-h14-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 68.72 | 68.70 | 68.80 | 68.74 | 68.86 |  |
+| `clip-h14-378-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.84 | 65.10 | 65.10 | 65.00 | 65.00 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -294,6 +295,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
@@ -348,14 +350,14 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `convnext_tiny.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.80 | 66.88 | 66.82 | 66.84 |  |
-| `convnext_small.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.68 | 71.68 | 71.72 | 71.72 |  |
-| `convnext_base.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.04 | 73.04 | 73.08 | 73.04 |  |
-| `convnext_large.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.26 | 75.22 | 75.28 | 75.24 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `convnext_tiny.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.80 | 66.88 | 66.82 | 66.80 | 66.84 |  |
+| `convnext_small.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.68 | 71.68 | 71.72 | 71.68 | 71.72 |  |
+| `convnext_base.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.04 | 73.04 | 73.08 | 73.04 | 73.04 |  |
+| `convnext_large.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.26 | 75.22 | 75.28 | 75.26 | 75.24 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
 
 ### Parity
 
@@ -401,7 +403,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/dinov2/blob/7764ea0/README.md (License section: code and model weights under Apache 2.0)
 - Training data: LVD-142M: 142M images retrieved from web crawls by similarity to curated datasets (ImageNet-22k/1k train, Google Landmarks, fine-grained sets), self-supervised (no labels), per the paper; not released
-- Options: `fp16_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`, `dinov2-vitg14-reg`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -438,18 +440,18 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov2-vits14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.20 | 59.22 | 59.26 | 59.16 |  |
-| `dinov2-vits14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.98 | 60.00 | 59.96 | 59.96 |  |
-| `dinov2-vitb14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.80 | 67.76 | 67.74 | 67.78 |  |
-| `dinov2-vitb14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.14 | 69.18 | 69.14 | 69.18 |  |
-| `dinov2-vitl14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.12 | 72.16 | 72.18 | 72.14 |  |
-| `dinov2-vitl14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.08 | 73.08 | 73.06 | 73.08 |  |
-| `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.68 |  |
-| `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.64 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov2-vits14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.20 | 59.22 | 59.26 | 59.22 | 59.16 |  |
+| `dinov2-vits14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.98 | 60.00 | 59.96 | 59.98 | 59.96 |  |
+| `dinov2-vitb14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.80 | 67.76 | 67.74 | 67.80 | 67.78 |  |
+| `dinov2-vitb14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.14 | 69.18 | 69.14 | 69.14 | 69.18 |  |
+| `dinov2-vitl14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.12 | 72.16 | 72.18 | 72.12 | 72.14 |  |
+| `dinov2-vitl14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.08 | 73.08 | 73.06 | 73.08 | 73.08 |  |
+| `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.64 | 70.68 |  |
+| `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.60 | 72.64 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -466,6 +468,11 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 | `dinov2-vitg14` | 0.00785 / 0.0449 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `dinov2-vitg14-reg` | 0.00779 / 0.04094 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- On CUDA, stream=True stages the transformer blocks from pinned host RAM. Streamed inference uses eager execution and requires enough host RAM for the blocks.
+- With all hidden states requested at 756 × 1008, ViT-L with registers reduced CUDA peak allocation from 1,416 to 1,096 MiB portable and from 1,419 to 1,108 MiB kernels. The final features and every requested state matched bitwise.
+
 </details>
 
 <a id="dinov3_convnext"></a>
@@ -478,10 +485,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>4.47<br>3.04<br>1.22<br>1.96<br>0.681 | 151 / 162<br>198 / 206<br>93 / 108<br>59 / 110<br>123 / 148<br>126 / 158 |
-| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>8.09<br>5.42<br>1.98<br>3.41<br>1.17 | 233 / 274<br>328 / 348<br>134 / 150<br>100 / 132<br>165 / 188<br>232 / 252 |
-| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>8.24<br>5.71<br>2.19<br>3.41<br>1.45 | 384 / 394<br>535 / 552<br>208 / 232<br>174 / 214<br>241 / 252<br>400 / 430 |
-| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.59<br>5.45<br>3.61<br>4.30<br>2.50 | 819 / 898<br>1163 / 1252<br>419 / 430<br>409 / 452<br>459 / 470<br>804 / 824 |
+| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>3.60<br>3.04<br>1.22<br>1.96<br>0.681 | 151 / 162<br>91 / 128<br>93 / 108<br>59 / 110<br>123 / 148<br>126 / 158 |
+| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>6.62<br>5.42<br>1.98<br>3.41<br>1.17 | 233 / 274<br>133 / 168<br>134 / 150<br>100 / 132<br>165 / 188<br>232 / 252 |
+| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>6.62<br>5.71<br>2.19<br>3.41<br>1.45 | 384 / 394<br>207 / 232<br>208 / 232<br>174 / 214<br>241 / 252<br>400 / 430 |
+| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>6.72<br>5.45<br>3.61<br>4.30<br>2.50 | 819 / 898<br>418 / 430<br>419 / 430<br>409 / 452<br>459 / 470<br>804 / 824 |
 
 <details><summary>Details</summary>
 
@@ -500,6 +507,10 @@ Commercial use: yes.
 - `dinov3-convnext-small` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `dinov3-convnext-base` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `dinov3-convnext-large` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
+- `dinov3-convnext-tiny` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-small` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-base` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-large` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
 - `dinov3-convnext-tiny` load / first call: original 0.43 s / 1.034 s, portable 0.48 s / 0.417 s, kernels 0.08 s / 0.124 s
 - `dinov3-convnext-small` load / first call: original 0.27 s / 0.01 s, portable 0.25 s / 0.334 s, kernels 0.11 s / 0.074 s
 - `dinov3-convnext-base` load / first call: original 0.42 s / 0.015 s, portable 0.43 s / 0.27 s, kernels 0.19 s / 0.104 s
@@ -510,14 +521,14 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.50 | 62.44 |  |
-| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.14 | 67.16 |  |
-| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.88 |  |
-| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.30 | 73.28 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.48 | 62.50 | 62.52 | 62.44 |  |
+| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.18 | 67.14 | 67.16 | 67.16 |  |
+| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.84 | 69.84 | 69.88 |  |
+| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.32 | 73.30 | 73.30 | 73.28 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -542,10 +553,18 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.40<br>0.793<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 104<br>44 / 68<br>109 / 138<br>107 / 120 |
-| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>9.33<br>3.59<br>1.26<br>2.35<br>1.14 | 367 / 390<br>527 / 550<br>200 / 226<br>168 / 210<br>236 / 306<br>393 / 480 |
-| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>17.7<br>6.52<br>3.04<br>4.91<br>2.98 | 1199 / 1212<br>1772 / 1812<br>616 / 646<br>616 / 650<br>655 / 846<br>1226 / 1418 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>25.9<br>12.5<br>8.45<br>11.6<br>7.86 | 3255 / 3276<br>4849 / 4876<br>1646 / 1666<br>1645 / 1672<br>1699 / 2008<br>3280 / 3628 |
+| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>6.45<br>5.19<br>0.799<br>3.24<br>0.564 | 119 / 132<br>76 / 118<br>76 / 84<br>44 / 68<br>109 / 124<br>107 / 120 |
+| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>6.72<br>4.76<br>1.36<br>2.85<br>1.14 | 367 / 390<br>200 / 206<br>200 / 206<br>167 / 210<br>236 / 244<br>393 / 480 |
+| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>11.2<br>10.2<br>3.26<br>6.88<br>2.98 | 1199 / 1212<br>617 / 640<br>616 / 626<br>615 / 628<br>655 / 666<br>1226 / 1418 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>16.0<br>14.1<br>8.85<br>13.6<br>7.86 | 3255 / 3276<br>1645 / 1816<br>1646 / 1666<br>1643 / 1670<br>1699 / 1726<br>3280 / 3628 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| dinov3-vith16plus | portable | 224x224 | RTX 5060 Ti | 2.14.1+cu130 | 14.10 ms / 1,662 MiB | 120.77 ms / 162 MiB |
 
 <details><summary>Details</summary>
 
@@ -555,20 +574,20 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m/blob/114c1379950215c8b35dfcd4e90a5c251dde0d32/LICENSE.md (DINOv3 License, the same file in every model repo; gated: accept on Hugging Face to download)
 - Training data: LVD-1689M: 1.689B images curated from 17B public Instagram images by retrieval / clustering, self-supervised (no labels), per the paper; not released
 - Licence note: Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.
-- Options: `fp16_accumulate` = False (precision only)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only)
+- Kernel libraries: `fastbb`, `dpt_fused`, `swiglu`
 - Variants: `dinov3-vits16`, `dinov3-vitb16`, `dinov3-vitl16`, `dinov3-vith16plus`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov3-vits16` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `dinov3-vitb16` 3000x4000 (1.6 GiB peak allocated, 2.0 reserved); `dinov3-vitl16` 3000x4000 (2.4 GiB peak allocated, 2.9 reserved); `dinov3-vith16plus` 3000x4000 (4.2 GiB peak allocated, 4.9 reserved)
-- `dinov3-vits16` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
-- `dinov3-vitb16` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
-- `dinov3-vitl16` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
-- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
-- `dinov3-vits16` original 224x224: torch.autocast(fp16) around the forward
-- `dinov3-vitb16` original 224x224: torch.autocast(fp16) around the forward
-- `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward
-- `dinov3-vith16plus` original 224x224: torch.autocast(fp16) around the forward
+- `dinov3-vits16` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
+- `dinov3-vitb16` 224x224, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
+- `dinov3-vitl16` 224x224, first call: portable + torch.compile 26 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
+- `dinov3-vits16` original 224x224: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; full kNN accuracy checked
+- `dinov3-vitb16` original 224x224: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; full kNN accuracy checked
+- `dinov3-vitl16` original 224x224: Transformers BF16 weights and inputs (not IEEE FP16); full kNN accuracy checked; timing uses direct load without adapter hooks
+- `dinov3-vith16plus` original 224x224: Transformers BF16 weights and inputs (not IEEE FP16); full kNN accuracy checked; timing uses direct load without adapter hooks
 - `dinov3-vits16` load / first call: original 0.48 s / 0.947 s, portable 0.07 s / 0.271 s, kernels 0.06 s / 0.259 s
 - `dinov3-vitb16` load / first call: original 0.68 s / 0.012 s, portable 0.38 s / 0.198 s, kernels 0.16 s / 0.291 s
 - `dinov3-vitl16` load / first call: original 2.37 s / 0.023 s, portable 0.54 s / 0.18 s, kernels 0.52 s / 0.246 s
@@ -579,14 +598,14 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.36 |  |
-| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.52 | 66.54 |  |
-| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.80 | 75.88 |  |
-| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.52 | 79.52 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.42 | 55.36 | 55.36 | 55.42 | 55.50 |  |
+| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.50 | 66.52 | 66.54 | 66.54 |  |  |  |
+| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.78 | 75.80 | 75.94 | 75.88 |  |  |  |
+| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.54 | 79.52 | 79.50 | 79.52 |  |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 
@@ -594,13 +613,16 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dinov3-vits16` | 0.00573 / 0.01974 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitb16` | 0.00548 / 0.01964 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitl16` | 0.00794 / 0.03182 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `dinov3-vith16plus` | 0.00635 / 0.03203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vits16` | 0.00573 / 0.01974 | RTX 5060 Ti, torch 2.10.0+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
+| `dinov3-vitb16` | 0.00548 / 0.01964 | RTX 5060 Ti, torch 2.10.0+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
+| `dinov3-vitl16` | 0.00794 / 0.03182 | RTX 5060 Ti, torch 2.10.0+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
+| `dinov3-vith16plus` | 0.00635 / 0.03203 | RTX 5060 Ti, torch 2.10.0+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
 
 ### Limitations
 
+- With all hidden states requested at 768 × 1024, ViT-L CUDA portable peak allocation fell from 1,242 to 1,001 MiB, and kernels from 1,243 to 1,099 MiB. All hidden states and final features matched bitwise in both modes.
+- With resident weights, loading ViT-H+ on an RTX 5060 Ti peaked at 1,604 MiB allocated in CUDA portable mode after host-side packing. The prior loader peaked at 6,542 MiB. Both produced bit-identical reference outputs.
+- CUDA portable and kernels accept stream=True to stage packed transformer blocks from pinned host RAM. This setting uses eager inference. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).
 - The graphs' shared memory pool (intermediates) comes on top of that limit and stays reserved: up to about 470 MB more PyTorch cache than eager for ViT-H+ at 512 px with all layers, usually under 75 MB; `model.release_graphs()` frees it on the device.
 
@@ -634,7 +656,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_pe_core_small_patch16_384.fb/blob/255fa76e26fdf8daa47e0d607da46b7051879045/README.md>
 - Training data: PE core: billions of web image-text pairs curated with the MetaCLIP pipeline, then video-text fine-tuning; PE spatial: PE core-G distilled with SAM 2 mask-feature alignment (Perception Encoder paper); not released
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `pe-core-t16-384`, `pe-core-s16-384`, `pe-core-b16-224`, `pe-core-l14-336`, `pe-core-g14-448`, `pe-spatial-t16-512`, `pe-spatial-s16-512`, `pe-spatial-b16-512`, `pe-spatial-l14-448`, `pe-spatial-g14-448`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -686,19 +708,20 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.38 |  |
-| `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.50 |  |
-| `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 | 66.28 |  |
-| `pe-core-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 60.42 | 60.48 | 60.40 | 60.48 |  |
-| `pe-spatial-t16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 5.52 | 5.54 | 5.50 | 5.46 |  |
-| `pe-spatial-s16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 8.02 | 8.06 | 8.02 | 7.98 |  |
-| `pe-spatial-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 13.58 | 13.64 | 13.56 | 13.58 |  |
-| `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 | 17.14 | 17.14 | 17.12 |  |
-| `pe-spatial-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 16.36 | 16.30 | 16.32 | 16.30 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 33.34 |  | 33.26 | 33.34 | 33.20 |  |
+| `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.52 | 45.38 |  |
+| `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.54 | 58.50 |  |
+| `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 | 66.06 | 66.28 |  |
+| `pe-core-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 60.42 | 60.48 | 60.40 | 60.42 | 60.48 |  |
+| `pe-spatial-t16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 5.52 | 5.54 | 5.50 | 5.54 | 5.46 |  |
+| `pe-spatial-s16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 8.02 | 8.06 | 8.02 | 8.00 | 7.98 |  |
+| `pe-spatial-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 13.58 | 13.64 | 13.56 | 13.62 | 13.58 |  |
+| `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 | 17.14 | 17.14 | 17.10 | 17.12 |  |
+| `pe-spatial-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 16.36 | 16.30 | 16.32 | 16.32 | 16.30 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0 / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 67dbea00e / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-20.
 
 ### Parity
 
@@ -719,6 +742,8 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Returning all PE Spatial G/14 hidden states at 448 × 448 uses 4,058 MiB peak GPU allocation in both CUDA modes, down from 4,345 MiB on the RTX 5060 Ti. All returned features matched bit for bit.
+- CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
@@ -754,7 +779,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_base_patch16_siglip_256.v2_webli/blob/ac4cc431026674dcac29e34a00d3bd2048390eb3/README.md>
 - Training data: WebLI (Google web image-text data, not released) (WebLI image-text pairs (multilingual), sigmoid contrastive loss plus captioning / self-distillation / masked prediction (SigLIP 2 paper); not released)
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `siglip2-b16-256`, `siglip2-b16-512`, `siglip2-l16-256`, `siglip2-l16-512`, `siglip2-so400m14-224`, `siglip2-so400m14-378`, `siglip2-so400m16-256`, `siglip2-so400m16-512`, `siglip2-g16-256`, `siglip2-g16-384`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -806,20 +831,20 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `siglip2-b16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 53.84 | 53.78 | 53.80 | 53.86 |  |
-| `siglip2-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 26.24 | 26.06 | 26.28 | 26.52 |  |
-| `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 | 64.62 |  |
-| `siglip2-l16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.18 | 65.12 | 65.14 | 65.10 |  |
-| `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 | 66.10 |  |
-| `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 | 59.92 |  |
-| `siglip2-so400m16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.52 | 59.46 | 59.34 | 59.50 |  |
-| `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 | 67.20 |  |
-| `siglip2-g16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.92 | 67.84 | 67.80 | 68.00 |  |
-| `siglip2-g16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.02 | 69.06 | 69.12 | 69.10 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `siglip2-b16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 53.84 | 53.78 | 53.80 | 53.88 | 53.86 |  |
+| `siglip2-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 26.24 | 26.06 | 26.28 | 26.20 | 26.52 |  |
+| `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 | 64.68 | 64.62 |  |
+| `siglip2-l16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.18 | 65.12 | 65.14 | 65.10 | 65.10 |  |
+| `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 | 66.14 | 66.10 |  |
+| `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 | 60.08 | 59.92 |  |
+| `siglip2-so400m16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.52 | 59.46 | 59.34 | 59.54 | 59.50 |  |
+| `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 | 67.12 | 67.20 |  |
+| `siglip2-g16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.92 | 67.84 | 67.80 | 67.80 | 68.00 |  |
+| `siglip2-g16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.02 | 69.06 | 69.12 | 69.04 | 69.10 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -840,6 +865,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
@@ -859,6 +885,15 @@ Commercial use: yes.
 | `tipsv2-b14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.03<br>7.21<br>2.93<br>1.49<br>2.18<br>1.33 | 373 / 386<br>529 / 548<br>204 / 224<br>206 / 226<br>239 / 266<br>398 / 422 |
 | `tipsv2-l14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.9<br>14.2<br>6.15<br>4.58<br>6.04<br>4.28 | 1207 / 1226<br>1776 / 1786<br>621 / 624<br>624 / 648<br>659 / 666<br>1236 / 1264 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| tipsv2-b14 | portable | 448x448 | RTX 5060 Ti | 2.14.1+cu130 | 6.21 ms / 234 MiB | 13.21 ms / 102 MiB |
+| tipsv2-l14 | portable | 448x448 | RTX 5060 Ti | 2.14.1+cu130 | 19.57 ms / 674 MiB | 45.28 ms / 126 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/google-deepmind/tips> at `bf10a73`
@@ -866,7 +901,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/google/tipsv2-b14/blob/ed1e4dc6b74bf3935ae099e9d5eb30fa96528454/README.md (license: apache-2.0); code: https://github.com/google-deepmind/tips/blob/bf10a73765b048edfbfcdf1f7e6ca8292542baae/LICENSE
 - Training data: image-text pairs; the dataset is not named in the repository README or on the model cards at the pinned revisions
-- Options: `fp16_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `tipsv2-b14`, `tipsv2-l14`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -884,12 +919,12 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `tipsv2-b14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.34 | 59.30 | 59.36 | 59.16 |  |
-| `tipsv2-l14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 63.48 | 63.44 | 63.42 | 63.42 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `tipsv2-b14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.34 | 59.30 | 59.36 | 59.40 | 59.16 |  |
+| `tipsv2-l14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 63.48 | 63.44 | 63.42 | 63.42 | 63.42 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
 
 ### Parity
 
@@ -902,6 +937,8 @@ CPU, float32: max |diff| <= 6.9e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- Returning all TIPSv2 ViT-L/14 hidden states at 768 × 1024 reduces peak GPU allocation from 1,443 to 1,113 MiB portable and from 1,445 to 1,134 MiB kernels on the RTX 5060 Ti. All returned features matched bit for bit.
+- On CUDA, stream=True stages the image encoder blocks from pinned host RAM. Streamed inference runs eagerly and supports intermediate feature layers.
 - Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.
 - last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 520k activations: ViT-B ~360 px, ViT-L ~310 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.

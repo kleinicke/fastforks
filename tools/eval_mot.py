@@ -34,14 +34,15 @@ PARAMS = {"track_thresh": 0.6, "track_buffer": 30, "match_thresh": 0.9}
 
 def detect(model: str, out: Path) -> None:
     """Person detections of every train frame -> `<out>/<seq>.npy`."""
-    from fastforks import detection  # noqa: PLC0415
+    from fastforks import detection, read_images  # noqa: PLC0415
 
     out.mkdir(parents=True, exist_ok=True)
     m = detection.load(model, score_threshold=0.05, max_detections=300)
     for seq in sorted(p.name for p in FRAMES.iterdir()):
         rows = []
-        for k, f in enumerate(sorted((FRAMES / seq / "img1").glob("*.jpg")), 1):
-            d = m(str(f))
+        files = sorted((FRAMES / seq / "img1").glob("*.jpg"))
+        for k, frame in enumerate(read_images(files, workers=2), 1):
+            d = m(frame)
             d = d[d.labels == 0].cpu()
             box, score = d.boxes.double().numpy(), d.scores.double().numpy()
             rows.append(np.concatenate([np.full((len(score), 1), k), box, score[:, None]], 1))
@@ -99,11 +100,11 @@ def track(dets: Path, out: Path) -> None:  # noqa: C901, PLR0912
                         lines[name].append(f"{k},{tid},{x0:.2f},{y0:.2f},{w:.2f},{h:.2f},1,-1,-1,-1\n")
         for name, rows in lines.items():
             (out / name / "data").mkdir(parents=True, exist_ok=True)
-            (out / name / "data" / f"{seq}-FRCNN.txt").write_text("".join(rows))
+            (out / name / "data" / f"{seq}-FRCNN.txt").write_text("".join(rows), encoding="utf-8")
         res[seq] = {"frames": n, "id_mismatch_frames": mismatch, "max_box_diff": maxdiff}
         res[seq].update({f"{k}_ms": 1e3 * float(np.median(v)) for k, v in times.items()})
         print(seq, res[seq], flush=True)
-    (out / "compare.json").write_text(json.dumps(res, indent=1))
+    (out / "compare.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
 
 
 def score(out: Path, gt: Path) -> None:
@@ -137,7 +138,7 @@ def score(out: Path, gt: Path) -> None:
         table[n] = hota | {"MOTA": 100 * c["CLEAR"]["MOTA"], "IDF1": 100 * c["Identity"]["IDF1"]}
         table[n]["IDSW"] = int(c["CLEAR"]["IDSW"])
     print(json.dumps(table, indent=1))
-    (out / "metrics.json").write_text(json.dumps(table, indent=1))
+    (out / "metrics.json").write_text(json.dumps(table, indent=1), encoding="utf-8")
 
 
 def main() -> None:

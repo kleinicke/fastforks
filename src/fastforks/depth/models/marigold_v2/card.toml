@@ -3,13 +3,18 @@ name = "Marigold V2"
 summary = "Marigold V2 (Pavlovic, Wandel, Obukhov et al. 2026): affine-invariant log depth by one rectified-flow step of Qwen-Image-Edit-2509's 20 B transformer (NF4 4-bit, as the authors run it) with a rank-128 depth LoRA and a fine-tuned Qwen VAE decoder (depth/Log-stage2)."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["host_blocks", "nf4"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
+uses = ["host_blocks", "nf4", "mlx_weights"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
 limitations = [
   "20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).",
-  "Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.",
+  "Diffusion model: the portable VAE draws its posterior noise with a CPU generator seeded with `seed`. The authors' default path draws from the device generator.",
+  "The first-ten iBims-1 and NYUv2 comparisons use the same seeded posterior noise for both implementations. The original uses the authors' NF4 weights with BF16 autocast.",
+  "On the 16 GB reference GPU with expandable allocator segments, the original BF16 stack fits the 518 x 770 speed input and runs out of memory at 994 x 1482.",
   "The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.",
   "The output is log depth up to scale and shift (`kind = \"affine_invariant_log\"`): align in log space, not with the other families' depth outputs.",
   "A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).",
+  "Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the recorded pair took 4.80 s compiled and 5.09 s portable on the compile run's source revision. The first compiled call took 119.2 s.",
+  "Apple MLX (`device=\"mlx\"`, bf16 only): the NF4 blocks are read lazily from the weight file one at a time, 51.3 s per 994 x 1482 call at a 2.3 GB peak footprint on a 16 GB M1 Pro (MPS cannot run this model).",
+  "At 480 x 640, the standalone BF16 TensorRT VAE plans took 1.16 s versus 1.18 s for paired portable inference. Estimated peak allocated device memory was 2042 versus 717 MiB. The streamed NF4 transformer ran in PyTorch for both measurements.",
 ]
 
 licence_notes = [
@@ -39,10 +44,11 @@ pad = "none"
 seed = 2026  # seed of the VAE posterior sample (CPU generator); the output depends on it
 long_side = { default = 0, min = 0 }  # longest side of the network input (then rounded up to a multiple of 16); 0 = the input size (the original)
 exact_mask = false  # pass the original's all-true attention mask: bit-equal to the authors' code on the same GPU, 3-13 % slower (the default differs by ~0.01 mean |d|)
-stream = true  # transformer blocks in pinned host memory, uploaded one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~1 % slower (1683 vs 1664 ms at 518 x 770); needs 8.4 GB free host RAM, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
+stream = true  # transformer blocks in pinned host memory, uploaded one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~1 % slower (1683 vs 1664 ms at 518 x 770); needs 8.4 GB free host RAM, load fails with a clear error otherwise; CUDA; on MLX the blocks are instead read lazily from the weight file one at a time, ~2 GB peak, and stream=false keeps ~9.5 GB resident). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs and attention, float32 norms, RoPE and gates
+mlx_dtypes = ["bfloat16"]  # MLX port (net/mlx_net.py): NF4 kept packed, blocks streamed from the file by default
 
 [modes.kernels]
 dtype = "bfloat16"

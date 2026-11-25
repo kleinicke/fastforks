@@ -3,7 +3,7 @@ name = "Cas-GwcNet"
 summary = "Cas-GwcNet (cascade stereo, Gu et al. 2020): two-stage cascade cost volume (48 then 24 disparity hypotheses, the second narrowed around the first result) on GwcNet-style 3-D hourglasses; group-wise correlation + concatenation (gc) or concatenation (c) volumes."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/alibaba/cascade-stereo"
@@ -27,9 +27,13 @@ disp_interval = [4.0, 1.0]  # px between hypotheses (README eval: --disp_inter_r
 base_channels = [32, 32, 16]  # cost-aggregation channels per stage (main.py default --cr_base_chs)
 ns_size = 3  # neighbour-search window of the stage-2 range (scripts/sceneflow.sh --using_ns --ns_size 3)
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 # The warp's grid_sample uses align_corners=True, the PyTorch 1.2 default the checkpoints were trained with (upstream's
 # code at the pinned commit leaves it unset, which current PyTorch reads as False); the goldens use the same setting
 # (tools/golden/cas_gwcnet.py, patches/cas-gwcnet-align-corners.patch).
@@ -48,6 +52,7 @@ venue = "CVPR 2020"
 [[variants]]
 id = "cas-gwcnet-gc-sceneflow"
 revision = 1
+planned = { tensorrt = "TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime." }
 # Cas-GwcNet-gc (`--model gwcnet`), Scene Flow
 params = { arch = "gc" }
 weights = [{ name = "casgwcnet.ckpt", size = 131672430, sha256 = "8a3638501cd5d4cb31d6ec523757134db967db8139715443d83f08913bffa8ab", url = "https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasStereoNet/gwcnet/casgwcnet.ckpt" }]
@@ -55,6 +60,7 @@ weights = [{ name = "casgwcnet.ckpt", size = 131672430, sha256 = "8a3638501cd5d4
 [[variants]]
 id = "cas-gwcnet-c-sceneflow"
 revision = 1
+planned = { tensorrt = "TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime." }
 # Cas-GwcNet-c (`--model gwcnet-c`, concatenation volume only, PSMNet-style features), Scene Flow
 params = { arch = "c" }
 io = { min_size = 225 }  # the 64 x 64 pyramid pooling at 1/4 resolution needs padded sizes >= 256

@@ -1,3 +1,6 @@
+import torch
+from fastforks.stereo._volume import stacked_volume
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 from torch import nn
 
 
@@ -14,6 +17,10 @@ def groupwise_correlation(fea1, fea2, num_groups):
 
 
 def build_correlation_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
+    if exporting_for_mlx():
+        return stacked_volume(
+            refimg_fea, targetimg_fea, maxdisp, lambda a, b: groupwise_correlation(a, b, num_groups)
+        )
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
     for i in range(maxdisp):

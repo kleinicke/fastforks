@@ -84,7 +84,7 @@ def main() -> None:
             continue
         size = variant.params.get("size", card.params.get("size"))
         scale = variant.params.get("scale", card.params["scale"])
-        cfg = json.loads((tree / "config/eval" / CONFIG[size]).read_text())
+        cfg = json.loads((tree / "config/eval" / CONFIG[size]).read_text(encoding="utf-8"))
         model = RAFT(argparse.Namespace(**cfg)).eval()
         (ckpt,) = registry.weights(card, variant)
         sd = load_state_dict(ckpt)

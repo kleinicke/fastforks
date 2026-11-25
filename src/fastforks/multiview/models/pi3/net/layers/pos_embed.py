@@ -114,15 +114,18 @@ if True:
             self.cache = {}
 
         def get_cos_sin(self, D, seq_len, device, dtype):
-            if (D,seq_len,device,dtype) not in self.cache:
+            cos_sin = self.cache.get((D,seq_len,device,dtype))
+            if cos_sin is None:
                 inv_freq = 1.0 / (self.base ** (torch.arange(0, D, 2).float().to(device) / D))
                 t = torch.arange(seq_len, device=device, dtype=inv_freq.dtype)
                 freqs = torch.einsum("i,j->ij", t, inv_freq).to(dtype)
                 freqs = torch.cat((freqs, freqs), dim=-1)
                 cos = freqs.cos() # (Seq, Dim)
                 sin = freqs.sin()
-                self.cache[D,seq_len,device,dtype] = (cos,sin)
-            return self.cache[D,seq_len,device,dtype]
+                cos_sin = (cos,sin)
+                if type(cos) is torch.Tensor:  # fastforks: not a traced one (an export's fake tensor)
+                    self.cache[D,seq_len,device,dtype] = cos_sin
+            return cos_sin
             
         @staticmethod
         def rotate_half(x):
@@ -162,9 +165,12 @@ class PositionGetter(object):
         self.cache_positions = {}
         
     def __call__(self, b, h, w, device):
-        if not (h,w) in self.cache_positions:
+        positions = self.cache_positions.get((h,w))
+        if positions is None:
             x = torch.arange(w, device=device)
             y = torch.arange(h, device=device)
-            self.cache_positions[h,w] = torch.cartesian_prod(y, x) # (h, w, 2)
-        pos = self.cache_positions[h,w].view(1, h*w, 2).expand(b, -1, 2).clone()
+            positions = torch.cartesian_prod(y, x) # (h, w, 2)
+            if type(positions) is torch.Tensor:  # fastforks: not a traced one (an export's fake tensor)
+                self.cache_positions[h,w] = positions
+        pos = positions.view(1, h*w, 2).expand(b, -1, 2).clone()
         return pos

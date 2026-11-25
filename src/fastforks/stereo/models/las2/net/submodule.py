@@ -1,5 +1,7 @@
 from __future__ import print_function
 import torch
+from fastforks._core.volume_ops import gwc_volume, normalized_groups
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
@@ -108,6 +110,8 @@ def groupwise_correlation(fea1, fea2, num_groups):
     return cost
 
 def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
+    if exporting_for_mlx():
+        return gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
     for i in range(maxdisp):
@@ -147,6 +151,10 @@ def groupwise_correlation_norm(fea1, fea2, num_groups):
 
 
 def build_gwc_volume_norm(refimg_fea, targetimg_fea, maxdisp, num_groups):
+    if exporting_for_mlx():
+        return gwc_volume(
+            normalized_groups(refimg_fea, num_groups), normalized_groups(targetimg_fea, num_groups), maxdisp, num_groups
+        )
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
     for i in range(maxdisp):
@@ -165,6 +173,8 @@ def norm_correlation(fea1, fea2):
 
 
 def build_norm_correlation_volume(refimg_fea, targetimg_fea, maxdisp):
+    if exporting_for_mlx():
+        return gwc_volume(normalized_groups(refimg_fea, 1), normalized_groups(targetimg_fea, 1), maxdisp, 1)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, 1, maxdisp, H, W])
     for i in range(maxdisp):

@@ -18,8 +18,10 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.midas_beit import HEAD_SCALE, dpt_beit_large, scale_head, use_sdpa_attention
 from fastforks.shared.midas_beit import load as load_state
 from fastforks.shared.midas_beit.fast import decoder, encode, fp16_accumulate, to_kernels
@@ -110,6 +112,25 @@ def _infer(run: Callable[[torch.Tensor], torch.Tensor], image: torch.Tensor, par
     return out
 
 
+class _Softplus(torch.nn.Module):
+    """`nn.Softplus()` as relu(x) + log1p(exp(-|x|)), finite in float16.
+
+    The export decomposes softplus into exp(x), which overflows float16 above x = 11 in a float16 MLX replay (the seed
+    bin centres reach 21).
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.relu(x) + torch.log1p(torch.exp(-x.abs()))
+
+
+def _stable_softplus(net: torch.nn.Module) -> None:
+    """Swap every `nn.Softplus` of `net` (bin centre and attractor heads) for `_Softplus`."""
+    for parent in list(net.modules()):
+        for name, child in parent.named_children():
+            if isinstance(child, torch.nn.Softplus):
+                setattr(parent, name, _Softplus())
+
+
 class Portable(Runner):
     """Upstream network (SDPA attention with the relative position bias as mask): float32, or fp16 autocast."""
 
@@ -122,6 +143,8 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         use_sdpa_attention(self.net)
+        if mlx_wrap.twin_dtype() == "float16":
+            _stable_softplus(self.net)
         self.half = ctx.dtype == "float16"
 
     def _pass(self, x: torch.Tensor) -> torch.Tensor:
@@ -169,7 +192,7 @@ def _head(zoe: ZoeDepthNK, feats: Sequence[torch.Tensor]) -> torch.Tensor:
         return _bins(zoe, HEADS[route[0]], x, last, blocks)
     out = torch.empty((x.shape[0], 1, *last.shape[-2:]), device=x.device)
     for k in set(route):
-        i = torch.tensor([j for j, r in enumerate(route) if r == k], device=x.device)
+        i = device_tensor([j for j, r in enumerate(route) if r == k], device=x.device)
         out[i] = _bins(zoe, HEADS[k], x[i], last[i], [b[i] for b in blocks]).float()
     return out
 
@@ -208,4 +231,9 @@ class Kernels(Runner):
         return {"depth": _infer(self._run, image, self.ctx.params)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

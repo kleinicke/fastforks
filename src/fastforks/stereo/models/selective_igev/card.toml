@@ -3,7 +3,7 @@ name = "Selective-IGEV"
 summary = "Selective-IGEV (Wang et al. 2024, Selective-Stereo): IGEV-Stereo with selective recurrent units, attention-blended small (1x1) and large (3x3) ConvGRUs on a channel- and spatially re-weighted context, 32 iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
 ]
@@ -26,15 +26,19 @@ pad = { multiple = 32, mode = "centre", fill = "replicate" }
 max_disp = 192  # cost-volume depth at full resolution
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
 iters = { default = 32, min = 1 }  # GRU update iterations
 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 
 # Upstream also publishes Selective-RAFT weights (another architecture): not part of this family.
 # All variants run with max_disp 192 (the cost-volume depth); the upstream Middlebury demo uses 768. It stays a

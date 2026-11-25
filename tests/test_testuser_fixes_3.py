@@ -37,7 +37,7 @@ def test_pil_resize_is_one_clean_graph_break():  # TE-7
 
 @pytest.mark.parametrize("path", ["vggt/model.py", "mapanything/model.py", "vggt_omega/model.py"])
 def test_multiview_portable_residual_is_out_of_place_under_grad(path):  # TG-2
-    src = (ROOT / "multiview/models" / path).read_text()
+    src = (ROOT / "multiview/models" / path).read_text(encoding="utf-8")
     assert re.search(r"torch\.addcmul\(x, o, [\w.]+\) if torch\.is_grad_enabled\(\) else x\.addcmul_\(", src)
 
 
@@ -128,7 +128,7 @@ def test_backend_provenance_not_in_equality_or_repr():  # TH-7
 
 
 def test_onnx_extra_has_onnxruntime():  # TF-8
-    text = (ROOT.parents[1] / "pyproject.toml").read_text()
+    text = (ROOT.parents[1] / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r'^onnx = \[.*"onnxruntime', text, re.MULTILINE)
 
 

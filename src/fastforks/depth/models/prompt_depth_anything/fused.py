@@ -16,6 +16,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.upload import device_tensor
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT, _Conv, _conv
 from fastforks.kernels.dpt_fused import ACT_RELU, DptFused
 
@@ -63,29 +64,39 @@ class PromptFusedHead(FusedHead):
         z = self._conv(t, c2, res=z)
         return self.k.bilinear(self.k.gemm(z, wo, bo), size, align_corners=True)
 
+    def _project(self, t: torch.Tensor, i: int, gh: int, gw: int) -> tuple[torch.Tensor, torch.Tensor]:
+        wp, bp = self.projects[i]
+        rz, rn = self.resize[i], self.rn[i]
+        x = self.k.gemm(t, wp, bp).view(t.shape[0], gh, gw, -1)
+        if rz is not None and rz[0] == "deconv":
+            _, wg, bg, scale = rz
+            x = self.k.gemm(x, wg, bg, shuffle=(gh, gw, scale, scale))
+        elif rz is not None:
+            x = self._conv(x, rz[1:])
+        r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
+        return self._conv(x, rn, y2=r), r
+
     def __call__(self, feats: list[torch.Tensor], gh: int, gw: int, prompt: torch.Tensor | None = None) -> torch.Tensor:
         """Tokens of the 4 layers + the prompt in [0, 1] (`[B, 1, h, w]`) -> `[B, 14 gh, 14 gw]` (fp32, sigmoid)."""
         assert prompt is not None  # noqa: S101 - a depth prompt is required
         k = self.k
         p = F.pad(prompt.half().permute(0, 2, 3, 1), (0, _CPAD - 1)).contiguous()  # NHWC, channels padded to 8
-        ls, rs = [], []
-        for t, (wp, bp), rz, rn in zip(feats, self.projects, self.resize, self.rn, strict=True):
-            x = k.gemm(t, wp, bp).view(t.shape[0], gh, gw, -1)
-            if rz is not None and rz[0] == "deconv":
-                _, wg, bg, s = rz
-                x = k.gemm(x, wg, bg, shuffle=(gh, gw, s, s))
-            elif rz is not None:
-                x = self._conv(x, rz[1:])
-            r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
-            ls.append(self._conv(x, rn, y2=r))
-            rs.append(r)
-        l1, l2, l3, l4 = ls
-        z = self._fuse(3, l4, rs[3], None, None, l3.shape[1:3], p)
-        z = self._fuse(2, z, None, l3, rs[2], l2.shape[1:3], p)
-        z = self._fuse(1, z, None, l2, rs[1], l1.shape[1:3], p)
-        z = self._fuse(0, z, None, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]), p)
-        o = k.bilinear(self._conv(z, self.oc1), (14 * gh, 14 * gw), align_corners=True)
+        l4, r4 = self._project(feats[3], 3, gh, gw)
+        l3, r3 = self._project(feats[2], 2, gh, gw)
+        z = self._fuse(3, l4, r4, None, None, (l3.shape[1], l3.shape[2]), p)
+        del l4, r4
+        l2, r2 = self._project(feats[1], 1, gh, gw)
+        z = self._fuse(2, z, None, l3, r3, (l2.shape[1], l2.shape[2]), p)
+        del l3, r3
+        l1, r1 = self._project(feats[0], 0, gh, gw)
+        z = self._fuse(1, z, None, l2, r2, (l1.shape[1], l1.shape[2]), p)
+        del l2, r2
+        z = self._fuse(0, z, None, l1, r1, (2 * l1.shape[1], 2 * l1.shape[2]), p)
+        del l1, r1, p
+        z = self._conv(z, self.oc1)
+        o = k.bilinear(z, (14 * gh, 14 * gw), align_corners=True)
+        del z
         o = self._conv(o, self.oc2, act=ACT_RELU)
-        return torch.sigmoid(F.linear(o.float(), self.w_last[None], o.new_tensor(self.b_last, dtype=torch.float32)))[
-            ..., 0
-        ]
+        return torch.sigmoid(
+            F.linear(o.float(), self.w_last[None], device_tensor(self.b_last, dtype=torch.float32, device=o.device))
+        )[..., 0]

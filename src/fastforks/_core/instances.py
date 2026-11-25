@@ -131,6 +131,6 @@ class Instances(NumpyOutputs):
         text = json.dumps(rows) + "\n"
 
         def write(tmp: Path) -> None:
-            tmp.write_text(text)
+            tmp.write_text(text, encoding="utf-8")
 
         atomic_write(path, write)

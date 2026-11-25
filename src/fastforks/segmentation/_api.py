@@ -87,7 +87,7 @@ class SegmentationModel(core.Model):
         Raises:
             InputError: Unsupported or too small image.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         (h, w), c = x.shape[-2:], len(self.class_names)
         log_space = self._runner.probabilities
@@ -103,7 +103,16 @@ class SegmentationModel(core.Model):
             out = self._runner(chunk)
             scores = self._check_outputs(out, {"logits": (chunk.shape[0], c, h, w)}, cast=False)["logits"]
             labels = scores.argmax(1)  # on the raw scores: the floor below cannot create ties
-            return {"labels": labels, "logits": scores.float().clamp_min(1e-30).log() if log_space else scores.float()}
+            if log_space:
+                # Allocate one float32 result while preserving the runner's output.
+                if scores.dtype == torch.float32:
+                    logits_result = scores.clamp_min(1e-30)
+                else:
+                    logits_result = scores.float().clamp_min_(1e-30)
+                logits_result.log_()
+            else:
+                logits_result = scores.float()
+            return {"labels": labels, "logits": logits_result}
 
         maps = unbatch(self._batched(run, x), image)
         return SegmentationResult(
@@ -113,7 +122,7 @@ class SegmentationModel(core.Model):
 
 def bench_inputs(model: SegmentationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, labels only (the default call)."""
-    return (synthetic_image(size.height, size.width, model.device),), {}
+    return (synthetic_image(size.height, size.width, model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, SegmentationModel)

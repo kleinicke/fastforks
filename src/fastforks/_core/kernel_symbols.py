@@ -201,6 +201,6 @@ def library_symbols(lib_dir: Path, build_toml: str, toolchain: Mapping[str, str]
     import tomllib  # noqa: PLC0415 - only the build tools and tests need it
 
     cfg = tomllib.loads(build_toml)
-    texts = [(lib_dir / s).read_text() for s in cfg["sources"]]
+    texts = [(lib_dir / s).read_text(encoding="utf-8") for s in cfg["sources"]]
     environment = build_toml + repr(sorted(toolchain.items()))
     return symbol_hashes(texts, exports(texts), environment)

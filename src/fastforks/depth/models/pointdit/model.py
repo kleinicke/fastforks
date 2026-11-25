@@ -16,17 +16,19 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import torch
 import torch.nn.functional as F
 
-from fastforks._core import kernels, registry
+from fastforks._core import registry
 from fastforks._core.checkpoint import check_fits, load_state_dict
-from fastforks._core.errors import InputError
+from fastforks._core.errors import OptionsError
 from fastforks._core.model import load_variant
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.features._api import TASK, FeaturesModel
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
-from fastforks.kernels.fastbb import load as load_kernels
+from fastforks.kernels.pointdit_norm import normalize_rope
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2.fast_vit import _flash, _fp16_accumulate
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net import (
     CONFIGS,
@@ -54,6 +56,7 @@ class Params:
     encoder: str  # fastforks.features DINOv3 id
     tokens: int  # target token count of the resize (upstream: (img_size / 16)^2)
     steps: int  # Euler steps (upstream eval: 3)
+    stream: bool  # stage backbone blocks once per image and denoiser blocks once per Euler step
 
 
 def network_size(h: int, w: int, tokens: int) -> tuple[int, int]:
@@ -64,7 +67,6 @@ def network_size(h: int, w: int, tokens: int) -> tuple[int, int]:
 
 _GRAPHS = 8  # fixed: graph cache policy (sampler graphs and RoPE tables kept per model)
 _GRAPH_WORK = 2**22  # fixed: largest token stream (B x N x C) sampled through a CUDA graph
-_INT32 = 2**31 - 1  # fixed: `rope_qk_h` indexes in int32
 _ALIGN = 64  # fixed: the FFN width is zero-padded to this multiple for the `dpt_fused` tiles (PointDiT-L: 2730)
 
 
@@ -91,39 +93,60 @@ class Portable(Runner):
         """Build the DINOv3 backbone from its checkpoint (read once, on the device) and the folded DiT."""
         super().__init__(ctx)
         p = ctx.params
+        if p.stream and ctx.device.type != "cuda":
+            msg = "PointDiT stream=True requires CUDA for block transfers"
+            raise OptionsError(msg)
         self.cfg = CONFIGS[p.arch]
         self.layers = encoder_layers(self.cfg)
         card, variant = registry.resolve(TASK, p.encoder)
         path = ctx.weights()[0]
-        state = {k: v.to(ctx.device) for k, v in load_state_dict(path).items()}
-        ln = (state["norm.weight"].clone(), state["norm.bias"].clone())
+        state = load_state_dict(path)  # DINOv3 transfers its folded encoder directly from the host
+        ln = (state["norm.weight"].to(ctx.device, copy=True), state["norm.bias"].to(ctx.device, copy=True))
         dtype = None if self.encoder_mode == "kernels" else ctx.dtype
         self.encoder = load_variant(
             TASK, card, variant, FeaturesModel, mode=self.encoder_mode, device=ctx.device, dtype=dtype,
-            weights=path, state=state,
+            weights=path, state=state, options={"stream": p.stream},
         )  # fmt: skip
         del state
         sd = ctx.state_dict(1, key="model_ema1", strip="net.")
         with torch.device("meta"):
             own = {k: torch.empty(s) for k, s in checkpoint_shapes(self.cfg).items()}
         check_fits(own, sd, f"{ctx.variant.ref} checkpoint")
-        sd = {k: v.to(ctx.device) for k, v in sd.items()}
         half = self.encoder_mode == "kernels" or ctx.dtype == "float16"
         with torch.no_grad():  # constants only
-            self.net = PointDiT(sd, ln, self.cfg, p.steps).cast(torch.float16 if half else torch.float32)
+            self.net = PointDiT(
+                sd,
+                ln,
+                self.cfg,
+                p.steps,
+                device=ctx.device,
+                dtype=torch.float16 if half else torch.float32,
+                stream=p.stream,
+            )
         del sd
+        if self.encoder_mode == "kernels":
+            for blk in self.net.layers:
+                _pad_ffn(blk)
+        if p.stream:
+            self.net.blocks = StreamedModuleList(self.net.layers, ctx.device)  # ty: ignore[invalid-assignment] - callable blocks
 
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
         return sample(self.net, cond, h, w)
+
+    def _encode(self, x: torch.Tensor) -> torch.Tensor:
+        """The DINOv3 backbone's hidden states of the resized, normalised image."""
+        return self.encoder._runner(scale(x, self.ctx.io), self.layers)["hidden_states"]  # noqa: SLF001
+
+    def _dit(self, hidden: torch.Tensor, gh: int, gw: int) -> torch.Tensor:
+        """The sampler on the backbone's states: points `[B, gh * 16, gw * 16, 3]`."""
+        return unpatchify(self._sample(self.net.condition(hidden, gh, gw), gh, gw), gh, gw)
 
     def points(self, image: torch.Tensor) -> torch.Tensor:
         """`[B, 3, H, W]` in `[0, 1]` -> points `[B, H, W, 3]` float32 at the input size."""
         size = image.shape[-2:]
         nh, nw = network_size(*size, self.ctx.params.tokens)
         x = image if (nh, nw) == tuple(size) else F.interpolate(image, (nh, nw), mode="bilinear", align_corners=False)
-        hidden = self.encoder._runner(scale(x, self.ctx.io), self.layers)["hidden_states"]  # noqa: SLF001
-        gh, gw = nh // PATCH, nw // PATCH
-        pts = unpatchify(self._sample(self.net.condition(hidden, gh, gw), gh, gw), gh, gw)
+        pts = self._dit(self._encode(x), nh // PATCH, nw // PATCH)
         if (nh, nw) != tuple(size):
             pts = F.interpolate(pts.permute(0, 3, 1, 2), size, mode="nearest").permute(0, 2, 3, 1)
         return pts.contiguous()
@@ -144,11 +167,11 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """`fastforks.features` DINOv3 kernels; the DiT on `dpt_fused` GEMMs, fastbb RoPE + flash attention, CUDA graphs.
+    """DINOv3 kernels and the DiT on `dpt_fused` GEMMs, fused RMSNorm/RoPE + flash attention, CUDA graphs.
 
     fp16 weights and stream. The GEMM epilogues take the folded biases, the per-step gates (`scale`) and the
-    residual; RoPE runs in place on the packed q / k (q also takes the softmax scale 2^-3) after their RMSNorm (PyTorch,
-    float32 statistics); SwiGLU's gate in place. The whole sampler (`steps` x blocks) replays one CUDA graph per input
+    residual; RoPE runs in place on the packed q / k (q also takes the softmax scale 2^-3) alongside their RMSNorm
+    (float32 statistics); SwiGLU's gate in place. The whole sampler (`steps` x blocks) replays one CUDA graph per input
     shape, captured on the shape's second call.
     """
 
@@ -157,9 +180,6 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable setup in fp16 + the kernels."""
         super().__init__(ctx)
-        for blk in self.net.layers:
-            _pad_ffn(blk)
-        self.kernels = load_kernels(ctx.device)
         self.k = DptFused(ctx.device)
         self.attn = Flash64("fh")
         self._cs: dict[tuple[int, int], torch.Tensor] = {}
@@ -169,21 +189,23 @@ class Kernels(Portable):
 
     def _table(self, h: int, w: int, device: torch.device) -> torch.Tensor:
         """fp32 `[h * w, 2, 32]`: cos | sin of the first half (the second half repeats it), as `rope_qk_h` reads it."""
-        if (h, w) not in self._cs:
-            if len(self._cs) >= _GRAPHS:
-                del self._cs[next(iter(self._cs))]
+        found = self._cs.get((h, w))
+        if found is None:
             a = rope_angles(h, w, device)
-            self._cs[h, w] = torch.stack((a.cos(), a.sin()), 1).contiguous()
-        return self._cs[h, w]
+            found = torch.stack((a.cos(), a.sin()), 1).contiguous()
+            if type(found) is torch.Tensor:  # not a traced one
+                if len(self._cs) >= _GRAPHS:
+                    del self._cs[next(iter(self._cs))]
+                self._cs[h, w] = found
+        return found
 
-    def _block(self, blk: Block, s: int, x: torch.Tensor, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
+    def _block(self, blk: Block, x: torch.Tensor, s: int, cs: torch.Tensor) -> torch.Tensor:
         b, n, _ = x.shape
         heads, k = self.cfg.heads, self.k
         qkv = k.gemm(rms(x, blk.a1[s]), blk.qkv_w, blk.qkv_b[s]).view(b, n, 3, heads, HEAD)
-        qk = qkv[:, :, :2]
-        qk.copy_(rms(qk, blk.qk_norm))
-        self.kernels.launch("rope_qk_h", *rope[0], qkv, cs, n, 0, heads, rope[1], HEAD**-0.5)
+        normalize_rope(qkv, blk.qk_norm, cs)
         x = k.gemm(_flash(qkv, 1.0, self.attn), blk.proj_w, blk.proj_b, scale=blk.g1[s], res=x)
+        del qkv
         g, u = k.gemm(rms(x, blk.a2[s]), blk.w12, blk.b12[s]).chunk(2, -1)
         hid = F.silu(g, inplace=True).mul_(u)
         if blk.w3.shape[1] >= DEEP_K:  # deep down GEMMs: cuBLAS (fp32 accumulate)
@@ -194,19 +216,12 @@ class Kernels(Portable):
         """`sample` on the kernels: `cond` `[B, N, C]` float32 -> point tokens float32."""
         net, k = self.net, self.k
         cs = self._table(h, w, cond.device)
-        b, n, _ = cond.shape
-        total = b * n * 2 * self.cfg.heads * (HEAD // 4)  # q / k half2 pairs per half head
-        grid = kernels.linear(total)
-        if total + grid[0][0] * grid[1][0] > _INT32:  # the grid-stride index must not overflow
-            msg = f"batch too large for the fastbb RoPE kernel ({b} x {n} tokens): split it"
-            raise InputError(msg)
-        rope = (grid, total)
         c16 = cond.half()
         z = None
         for s, (step, one_minus_t) in enumerate(net.schedule):
             x = c16 if z is None else k.gemm(z.half(), net.wp, res=c16, acc32=True)
-            for blk in net.layers:
-                x = self._block(blk, s, x, cs, rope)
+            for blk in net.blocks:
+                x = blk(x, self._block, s, cs)
             out = k.gemm(rms(x, 1.0), net.final_w[s], net.final_b[s], acc32=True).float()
             z = out.mul_(step / one_minus_t) if z is None else z.add_(out.sub_(z), alpha=step / one_minus_t)
         if z is None:  # steps >= 1 (the card's sampler)
@@ -220,12 +235,15 @@ class Kernels(Portable):
     def release_graphs(self) -> None:
         """Drop every CUDA graph and free its memory pool on the device (`torch.cuda.empty_cache`)."""
         self._cache.release()
+        self.encoder.release_graphs()
 
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
         self._table(h, w, cond.device)  # outside the capture
         with torch.autocast("cuda", enabled=False), _fp16_accumulate():
             z = None
-            if cond.numel() <= _GRAPH_WORK:  # larger calls: launches are cheap next to the GEMMs, no graph memory
+            if (
+                not self.ctx.params.stream and cond.numel() <= _GRAPH_WORK
+            ):  # larger calls: launches are cheap next to the GEMMs, no graph memory
                 with self._lock:  # `_hw` is the argument of the graph forward
                     self._hw = (h, w)
                     z = self._cache.run((tuple(cond.shape), h, w), cond)
@@ -240,4 +258,9 @@ class Kernels(Portable):
         return ()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_dit"), fp32_methods=("_encode",)),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_dit"), fp32_methods=("_encode",)),
+}

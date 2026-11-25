@@ -49,12 +49,16 @@ class Runner(core.Runner):
             length"); the call warns that the metres are then only right for it. Empty: it estimates the camera.
         video: A video model: `__call__` takes one video `[T, 3, H, W]` in time order (the model's `video`); a call
             of the model with a batch runs each image as a one-frame video (`batch = 1`).
+        clip_frames: The model's `video` passes a `Clip` instead of the video tensor: `clip.shape`, and
+            `clip[ids]` the frames `ids` as a `[len(ids), 3, H, W]` tensor on the device, converted and checked
+            when asked for (windowed video models: one window of frames on the device, not the whole video).
     """
 
     intrinsics: ClassVar[Literal["unused", "optional", "required"]] = "unused"
     prompt_depth: ClassVar[Literal["unused", "required"]] = "unused"
     prompt_sparse: ClassVar[bool] = False
     video: ClassVar[bool] = False
+    clip_frames: ClassVar[bool] = False
     assumed_camera: ClassVar[str] = ""
 
     @classmethod

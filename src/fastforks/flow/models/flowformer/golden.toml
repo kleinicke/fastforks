@@ -23,3 +23,57 @@ settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.p
 sha256 = "c162f12fc7cbaed6b593639cd1064f201f96ae2e1280114f8f766fbc69272ac8"
 upstream = "https://github.com/drinkingcoder/FlowFormer-Official@6ba7ea82b45394d3a7a25808399695427c9febd8"
 settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."flowformer-small-chairs@1"]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.00039
+p99_px = 0.00146
+
+[validated."flowformer-small-chairs@1".windows]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00081
+p99_px = 0.00403
+
+[validated."flowformer-small-sintel@1"]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.00031
+p99_px = 0.00148
+
+[validated."flowformer-small-sintel@1".windows]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00148
+p99_px = 0.00827
+
+[validated."flowformer-small-things@1"]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.00037
+p99_px = 0.00168
+
+[validated."flowformer-small-things@1".windows]
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00102
+p99_px = 0.00631

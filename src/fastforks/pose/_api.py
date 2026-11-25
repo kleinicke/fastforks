@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import numpy as np
 import torch
@@ -18,6 +18,7 @@ from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
 from fastforks._core.model import Backend
+from fastforks.pose._runner import PEOPLE
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -156,9 +157,15 @@ class PoseModel(core.Model):
             InputError: Unsupported image, missing, malformed or flipped boxes, or boxes for a model that finds the
                 people itself.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
-        results = [self._estimate(x[i : i + 1], b) for i, b in enumerate(per_image)]
+        if self._runner.batch == 1 or x.shape[0] == 1:
+            outs = [self._raw(x[i : i + 1], b) for i, b in enumerate(per_image)]
+        elif not self.needs_boxes:
+            outs = self._raw_images(x)
+        else:
+            outs = self._raw_batch(x, per_image)
+        results = [self._result(out, b) for out, b in zip(outs, per_image, strict=True)]
         return results if is_batch(image) else results[0]
 
     def _boxes(self, boxes: Any, n: int, *, batch: bool) -> list[torch.Tensor | None]:  # noqa: ANN401
@@ -174,27 +181,61 @@ class PoseModel(core.Model):
             )
             raise InputError(msg)
         if not batch:
-            return [_boxes_tensor(boxes, self.device)]
+            return [_boxes_tensor(boxes, self._device)]
         if isinstance(boxes, Instances | torch.Tensor | np.ndarray) or not isinstance(boxes, Sequence):
             msg = f"a batch of {n} images takes a list of {n} box arrays (one per image), got {type(boxes).__name__}"
             raise InputError(msg)
         if len(boxes) != n:
             msg = f"a batch of {n} images takes {n} box arrays, got {len(boxes)}"
             raise InputError(msg)
-        return [_boxes_tensor(b, self.device) for b in boxes]
+        return [_boxes_tensor(b, self._device) for b in boxes]
 
-    def _estimate(self, x: torch.Tensor, boxes: torch.Tensor | None) -> PoseResult:
+    def _empty(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         k = len(self.keypoint_names)
+        return {"keypoints": x.new_zeros(0, k, 2), "keypoint_scores": x.new_zeros(0, k), "scores": x.new_zeros(0)}
+
+    def _raw(self, x: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
         if boxes is not None and boxes.shape[0] == 0:
-            out = {"keypoints": x.new_zeros(0, k, 2), "keypoint_scores": x.new_zeros(0, k), "scores": x.new_zeros(0)}
-        else:
-            if boxes is not None and min(x.shape[-2:]) >= 32 and float(boxes.max()) <= 1:  # noqa: PLR2004 - fractions
-                warnings.warn(
-                    "all boxes are <= 1: they are pixels of the image, not fractions (multiply by the width / height)",
-                    stacklevel=4,
-                )
+            return self._empty(x)
+        _check_fractions(x, boxes)
+        with self._session():
+            return self._runner(x, boxes)
+
+    def _raw_images(self, x: torch.Tensor) -> list[dict[str, torch.Tensor]]:
+        """A one-stage runner on a batch: `batch` images per `estimate_batch` call (`None`: as `batch_pixels` allow)."""
+        pixels = self._runner.batch_pixels
+        step = self._runner.batch or (max(1, pixels // (x.shape[-2] * x.shape[-1])) if pixels else x.shape[0])
+        outs: list[dict[str, torch.Tensor]] = []
+        for s in range(0, x.shape[0], step):
+            chunk = x[s : s + step]
             with self._session():
-                out = self._runner(x, boxes)
+                outs += self._runner.estimate_batch(chunk, cast("list[torch.Tensor]", [None] * chunk.shape[0]))
+        return outs
+
+    def _raw_batch(self, x: torch.Tensor, boxes: list[torch.Tensor | None]) -> list[dict[str, torch.Tensor]]:
+        """A `TopDown` runner on a batch: the images with people in groups of up to `PEOPLE` boxes, one call each."""
+        outs = [self._empty(x) for _ in boxes]
+        groups: list[list[int]] = []
+        total = PEOPLE
+        for i, b in enumerate(boxes):
+            assert b is not None  # noqa: S101 - top-down: `_boxes` gave one tensor per image
+            if not b.shape[0]:
+                continue
+            _check_fractions(x, b)
+            if total + b.shape[0] > PEOPLE:
+                groups.append([])
+                total = 0
+            groups[-1].append(i)
+            total += b.shape[0]
+        for g in groups:
+            with self._session():
+                got = self._runner.estimate_batch(x[g], [cast("torch.Tensor", boxes[i]) for i in g])
+            for i, out in zip(g, got, strict=True):
+                outs[i] = out
+        return outs
+
+    def _result(self, out: dict[str, torch.Tensor], boxes: torch.Tensor | None) -> PoseResult:
+        k = len(self.keypoint_names)
         p = out["keypoints"].shape[0]
         shapes = {"keypoints": (p, k, 2), "keypoint_scores": (p, k), "boxes": (p, 4), "scores": (p,)}
         out = self._check_outputs(out, shapes)
@@ -208,6 +249,14 @@ class PoseModel(core.Model):
             model=self.variant.ref,
             backend=self.backend,
             options=self.options,
+        )
+
+
+def _check_fractions(x: torch.Tensor, boxes: torch.Tensor | None) -> None:
+    if boxes is not None and min(x.shape[-2:]) >= 32 and float(boxes.max()) <= 1:  # noqa: PLR2004 - fractions
+        warnings.warn(
+            "all boxes are <= 1: they are pixels of the image, not fractions (multiply by the width / height)",
+            stacklevel=5,
         )
 
 
@@ -243,11 +292,11 @@ def bench_inputs(model: PoseModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[3, H, W]` and (top-down) one person box per 128 px of width."""
     h, w = size.height, size.width
     if not model.needs_boxes:
-        return (synthetic_image(h, w, model.device)[0],), {}
+        return (synthetic_image(h, w, model._device)[0],), {}  # noqa: SLF001
     n = max(1, w // 128)
     x0 = torch.arange(n, dtype=torch.float32) * (w / n)
     boxes = torch.stack((x0, torch.full_like(x0, h * 0.1), x0 + w / n * 0.9, torch.full_like(x0, h * 0.95)), -1)
-    return (synthetic_image(h, w, model.device)[0],), {"boxes": boxes.to(model.device)}
+    return (synthetic_image(h, w, model._device)[0],), {"boxes": boxes.to(model._device)}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, PoseModel)

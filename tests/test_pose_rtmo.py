@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 import torch.nn.functional as F
 
@@ -60,3 +61,37 @@ def test_nms_drops_boxes_a_kept_one_overlaps():
     )
     assert rtmo.nms(boxes, 0.65).tolist() == [0, 2]
     assert rtmo.nms(boxes[:0], 0.65).tolist() == []
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("h", "w", "size"), [(63, 199, 64), (199, 63, 128), (64, 64, 64), (1, 13, 8)])
+def test_cuda_letterbox_matches_portable(h: int, w: int, size: int) -> None:
+    image = _image(w, h).cuda().transpose(2, 3)
+    expected, scale = rtmo.letterbox(image, size)
+    got, actual_scale = rtmo.Kernels.resize(image, size)
+    assert actual_scale == scale
+    assert torch.equal(got, expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("people", [1, 3, rtmo.DCC_ROWS, rtmo.DCC_ROWS + 6])  # graph (padded), graph, eager
+def test_graphed_dcc_matches_eager(people: int) -> None:
+    """Kernels' `_GraphedDCC` pads the people to `DCC_ROWS` copies: the real rows keep the eager values."""
+    from fastforks.pose.models.rtmo.net import DCC, Arch  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    dcc = DCC(Arch(deepen=0.33, widen=0.5, keypoints=17, size=640)).cuda().eval()
+    for p in dcc.parameters():
+        torch.nn.init.normal_(p, std=0.05)
+    dcc.x_bins.copy_(torch.linspace(0, 640, dcc.x_bins.numel()))
+    dcc.y_bins.copy_(torch.linspace(0, 640, dcc.y_bins.numel()))
+    dcc.dim_t.copy_(torch.logspace(0, 4, dcc.dim_t.numel()))
+    graphed = rtmo._GraphedDCC(dcc, enabled=True, capture_after=1)
+    with torch.inference_mode():
+        for _ in range(3):  # the first call runs eagerly, the second captures, the third replays
+            pos = torch.rand(people, 2, device="cuda") * 640
+            inputs = (torch.randn(people, 256, device="cuda"), pos, pos * 0.3 + 10, pos.flip(1))
+            got, want = graphed(*inputs), dcc(*inputs)
+            assert got.shape == want.shape == (people, 17, 2)
+            torch.testing.assert_close(got, want, rtol=1e-5, atol=1e-3)
+    assert (graphed.graphs.cache is not None and len(graphed.graphs.cache.graphs) == 1) == (people <= rtmo.DCC_ROWS)

@@ -229,9 +229,9 @@ def upflow4(flow, mode='bilinear'):
     with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=False):
         return  F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
 
-def coords_grid(batch, ht, wd):
+def coords_grid(batch, ht, wd, device=None):  # fastforks: device (the zeros were made on the CPU and uploaded per call)
     # coords = torch.meshgrid(torch.arange(ht), torch.arange(wd))
-    coords = (torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)))
+    coords = tuple(torch.zeros((ht, wd), device=device) for _ in range(6))  # fastforks: six zero planes, as upstream
     coords = torch.stack(coords[::-1], dim=0).float()
     return coords[None].repeat(batch, 1, 1, 1)
 
@@ -382,7 +382,8 @@ class BasicMultiUpdateBlock(nn.Module):
             nn.ReLU(inplace=True),
             Conv2dLoRA(hidden_dims[2], (factor**2)*9, 1, padding=0, r = 8 if tuning_mode == 'lora' else 0))
 
-    def forward(self, net, inp, corr=None, flow=None, iter08=True, iter16=True, iter32=True, update=True):
+    def forward(self, net, inp, corr=None, flow=None, iter08=True, iter16=True, iter32=True, update=True,
+                *, return_mask=True):
 
         if iter32:
             net[2] = self.gru32(net[2], *(inp[2]), pool2x(net[1]))
@@ -407,7 +408,7 @@ class BasicMultiUpdateBlock(nn.Module):
         delta_flow = self.flow_head(net[0])
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net[0])
+        mask = .25 * self.mask(net[0]) if return_mask else None
         return net, mask, delta_flow
 
 class LayerNorm2d(nn.LayerNorm):
@@ -868,8 +869,8 @@ class RAFTDepthNormalDPT5(nn.Module):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
         N, _, H, W = img.shape
 
-        coords0 = coords_grid(N, H, W).to(img.device)
-        coords1 = coords_grid(N, H, W).to(img.device)
+        coords0 = coords_grid(N, H, W, img.device)  # fastforks: made on the device
+        coords1 = coords_grid(N, H, W, img.device)  # fastforks: made on the device
 
         return coords0, coords1
     
@@ -878,7 +879,8 @@ class RAFTDepthNormalDPT5(nn.Module):
         """
         return interpolate_float32(x, scale_factor=scale_factor*self.up_scale/8, mode="nearest")
 
-    def forward(self, vit_features, **kwargs):
+    def forward(self, vit_features, *, final_only=False, **kwargs):
+        final_only = final_only and not self.training
         ## read vit token to multi-scale features
         B, H, W, _, _, num_register_tokens = vit_features[1]
         vit_features = vit_features[0]
@@ -944,14 +946,18 @@ class RAFTDepthNormalDPT5(nn.Module):
                 net_list = self.update_block(net_list, inp_list, iter32=True, iter16=False, iter08=False, update=False)
             if self.n_gru_layers >= 2 and self.slow_fast_gru:# Update low-res GRU and mid-res GRU
                 net_list = self.update_block(net_list, inp_list, iter32=self.n_gru_layers==3, iter16=True, iter08=False, update=False)
-            net_list, up_mask, delta_flow = self.update_block(net_list, inp_list, None, flow, iter32=self.n_gru_layers==3, iter16=self.n_gru_layers>=2)
+            want_output = not final_only or itr + 1 == self.iters
+            net_list, up_mask, delta_flow = self.update_block(
+                net_list, inp_list, None, flow, iter32=self.n_gru_layers==3, iter16=self.n_gru_layers>=2,
+                return_mask=want_output,
+            )
 
             # F(t+1) = F(t) + \Delta(t)
             coords1 = coords1 + delta_flow
 
-            # We do not need to upsample or output intermediate results in test_mode
-            #if (not self.training) and itr < self.iters-1:
-                #continue
+            # fastforks: only the low-resolution flow enters the next update.
+            if not want_output:
+                continue
 
             # upsample predictions
             if up_mask is None:

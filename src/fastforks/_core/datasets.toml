@@ -449,6 +449,12 @@ licence = "LicenseRef-noncommercial"  # "available for non-commercial research p
 commercial = "no"
 url = "https://github.com/switchablenorms/CelebAMask-HQ/blob/3f6c45df5e67130568f9459f24f8d6a5ff836d30/README.md"
 
+[totalsegmentator-ct-v3]
+name = "TotalSegmentator CT dataset v3"
+licence = "CC-BY-4.0"
+commercial = "yes"
+url = "https://doi.org/10.5281/zenodo.6802613"
+
 [totalsegmentator-ct]
 name = "TotalSegmentator dataset v2 (1228 CT scans, 117 structures)"
 licence = "CC-BY-4.0"

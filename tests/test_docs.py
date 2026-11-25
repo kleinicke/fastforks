@@ -28,6 +28,62 @@ def test_model_pages_current():
     subprocess.run([sys.executable, ROOT / "tools" / "gen_docs.py", "--check"], check=True)
 
 
+def test_measured_table_keeps_portable_precisions_separate():
+    card, variant = registry.resolve("detection", "grounding-dino-tiny")
+    common = {
+        "ref": variant.id,
+        "dataset": "coco-val2017-every10",
+        "mode": "portable",
+        "gpu": "test GPU",
+        "torch": "test torch",
+        "commit": "test",
+        "date": "2026-11-17",
+        "n": 500,
+    }
+    rows = [
+        {**common, "tier": "portable", "dtype": "float16", "metrics": {"box_map": 51.02}},
+        {
+            **common,
+            "tier": "portable32",
+            "dtype": "float32",
+            "metrics": {"box_map": 51.12},
+            "date": "2026-11-18",
+            "commit": "fp32",
+        },
+    ]
+    table = "\n".join(gen_docs._measured("detection", card, {variant.id: rows}))
+    assert "| portable | portable fp32 |" in table
+    assert "| 51.02 | 51.12 |" in table
+    assert "portable32: test GPU, torch test torch, fastforks fp32, 2026-11-18" in table
+    assert gen_docs._eval_mode({"mode": "upstream", "tier": "upstreamhalf"}) == "upstreamhalf"
+    assert gen_docs._eval_mode({"mode": "upstream", "dtype": "float16"}) == "upstream-fp16"
+
+
+def test_overview_prefers_default_portable_to_portable32():
+    rows = [
+        {"mode": "portable", "dataset": "kitti2015-train", "epe": 1.0},
+        {"mode": "portable", "tier": "portable32", "dataset": "kitti2015-train", "epe": 2.0},
+    ]
+    overview = gen_docs._overview_rows("flow", {}, {}, {"gmflow-scale1-things": rows})
+    assert next(r["error"] for r in overview if r["id"] == "gmflow-scale1-things") == 1.0
+
+
+def test_nnfoundation_engine_labels_preprocessing_scope():
+    assert (
+        gen_docs._engine_part("nnfoundation-cnn") == " (encoder on a normalized, padded volume only; memory estimated)"
+    )
+
+
+def test_anyline_engine_labels_memory_estimate():
+    assert gen_docs._engine_part("anyline") == " (full line map only; memory estimated)"
+
+
+def test_tensorrt_setup_requires_both_timings():
+    row = {"mode": "tensorrt", "engine_build_s": 3.5}
+    assert gen_docs._setup_seconds(row) is None
+    assert gen_docs._setup_seconds({**row, "onnx_export_s": 2.0}) == 5.5
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []
@@ -58,9 +114,9 @@ _TABLE = re.compile(rf"^\| .*`fastforks\.(\w+)` \|.*\| `{_ID}` \|$", re.MULTILIN
 
 def _quoted_model_ids() -> list[tuple[str, str | None, str]]:
     """(where, task or None, id) of every model id quoted in the docs and in the package's docstrings and messages."""
-    texts = {p.relative_to(ROOT).as_posix(): p.read_text() for p in _DOC_FILES}
+    texts = {p.relative_to(ROOT).as_posix(): p.read_text(encoding="utf-8") for p in _DOC_FILES}
     texts |= {
-        p.relative_to(ROOT).as_posix(): p.read_text()
+        p.relative_to(ROOT).as_posix(): p.read_text(encoding="utf-8")
         for p in sorted((ROOT / "src" / "fastforks").rglob("*.py"))
         if "models" not in p.relative_to(ROOT / "src" / "fastforks").parts
     }
@@ -112,14 +168,16 @@ def _extras_of(model_id: str) -> set[str]:
     if task is None:  # not in this tree (unknown ids fail test_quoted_model_ids_resolve)
         return set()
     card, _ = registry.resolve(task, model_id)
-    dist = tomllib.loads((ROOT / "src" / "fastforks" / task / "known_models.toml").read_text()).get(model_id)
+    dist = tomllib.loads((ROOT / "src" / "fastforks" / task / "known_models.toml").read_text(encoding="utf-8")).get(
+        model_id
+    )
     return set(card.extras) | ({dist.removeprefix("fastforks-")} if dist else set())
 
 
 def _core_extras() -> set[str]:
     """Extras of the released core wheel: the pyproject ones and one per dists.toml entry."""
-    extras = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
+    extras = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["optional-dependencies"]
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
     return {*extras, *(n.removeprefix("fastforks-") for n in dists)}
 
 
@@ -130,7 +188,7 @@ def test_documented_examples_run_with_the_extras_named_next_to_them():
     problems = []
     known = _core_extras()
     for path in [ROOT / "README.md", ROOT / "CONTRIBUTING.md", *sorted((ROOT / "docs").glob("*.md"))]:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         where = path.relative_to(ROOT).as_posix()
         unknown = {e for group in _EXTRA.findall(text) for e in group.split(",")} - known
         if unknown:
@@ -165,7 +223,7 @@ def test_documented_examples_with_noncommercial_weights_say_so():
     user's first run raises LicenceError."""
     problems = []
     for path in _DOC_FILES:
-        for _, block in _FENCE.findall(path.read_text()):
+        for _, block in _FENCE.findall(path.read_text(encoding="utf-8")):
             nc = sorted({m for pair in _LOADS.findall(block) for m in pair if m and _nc_weights(m)})
             if nc and "FASTFORKS_NONCOMMERCIAL=1" not in block:
                 where = path.relative_to(ROOT).as_posix()
@@ -174,10 +232,13 @@ def test_documented_examples_with_noncommercial_weights_say_so():
 
 
 def test_every_task_is_in_the_readme_table_and_the_install_extras_are_listed():
-    readme = (ROOT / "README.md").read_text()
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for task in registry.TASKS:
         assert f"`fastforks.{task}`" in readme, f"task {task} missing in the README task table"
-        assert f"fastforks.{task}" in (ROOT / "docs" / "usage.md").read_text() or task in ("stereo", "depth")
+        assert f"fastforks.{task}" in (ROOT / "docs" / "usage.md").read_text(encoding="utf-8") or task in (
+            "stereo",
+            "depth",
+        )
     for extra in _core_extras() - {"kernels"}:
         assert f'fastforks-core[{extra}]"' in readme, f"fastforks-core[{extra}] missing in the README install list"
     assert "pip install fastforks " in readme, "the full install (the fastforks metapackage) missing in the README"
@@ -185,7 +246,7 @@ def test_every_task_is_in_the_readme_table_and_the_install_extras_are_listed():
 
 def test_eval_overlap_marked_in_measured_columns():
     """Variants trained on the eval images get a note on that row, unstated ones "possibly ..."."""
-    page = (ROOT / "docs" / "models" / "stereo.md").read_text()
+    page = (ROOT / "docs" / "models" / "stereo.md").read_text(encoding="utf-8")
     rows: dict[tuple[str, str], str] = {}
     for m in re.finditer(r"^\| `([\w.\-]+)` \| ((?:ETH3D|Middlebury)[^|]*)\|.*\| ([^|]*) \|$", page, re.MULTILINE):
         rows[m.group(1), m.group(2).split()[0]] = m.group(3).strip()
@@ -199,7 +260,7 @@ def test_eval_overlap_marked_in_measured_columns():
 
 
 def _headings(task: str) -> set[str]:
-    text = (ROOT / "docs" / "models" / f"{task}.md").read_text()
+    text = (ROOT / "docs" / "models" / f"{task}.md").read_text(encoding="utf-8")
     return {gen_docs._slug(m[2]) for m in re.finditer(r"^(#{1,6}) (.+)$", text, re.MULTILINE)}
 
 
@@ -271,7 +332,7 @@ def test_summary_table_matches_the_speed_tables():
     """The summary's kernels ms is the kernels row of the speed table at the task's one summary input."""
     speed = gen_docs._speed_rows()
     row = next(r for r in speed["crestereo-eth3d"] if r["mode"] == "kernels" and r["input"] == "994x1482")
-    page = (ROOT / "docs" / "models" / "stereo.md").read_text()
+    page = (ROOT / "docs" / "models" / "stereo.md").read_text(encoding="utf-8")
     assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {gen_docs._ms_str(row['ms'])}, " in page
 
 
@@ -279,7 +340,7 @@ def test_summary_times_are_rounded_on_every_page():
     """Every model page's summary prints its kernels ms to 3 significant digits, like the speed tables."""
     checked = 0
     for page in sorted((ROOT / "docs" / "models").glob("*.md")):
-        table = page.read_text().split("kernels time (ms)", 1)[-1].split("\n\n", 1)[0]
+        table = page.read_text(encoding="utf-8").split("kernels time (ms)", 1)[-1].split("\n\n", 1)[0]
         for line in table.splitlines()[2:]:
             ms = line.split("|")[-3].strip().split(",")[0].split(" ")[0]
             if ms in (gen_docs._DASH, "OOM", "no"):  # "no kernels": the family has no kernels backend
@@ -291,7 +352,7 @@ def test_summary_times_are_rounded_on_every_page():
 
 def test_one_speed_table_per_task_and_scene():
     """benchmarks.md: one speed table per (task, scene); models at different inputs get an input column."""
-    text = (ROOT / "docs" / "benchmarks.md").read_text()
+    text = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8")
     block = text.split(gen_docs._TABLE_BEGIN, 1)[1].split("### Startup and first call")[0]
     titles = re.findall(r"^### (.+)$", block, re.MULTILINE)
     keys = [tuple(t.split(", ")[:2]) for t in titles]
@@ -349,7 +410,7 @@ def test_plain_licence_words_match_the_cards():
 
 def test_mps_section_names_every_metal_kernel_family():
     """R2-4: the Apple silicon section lists every family whose card has `mps_kernels`."""
-    text = (ROOT / "docs" / "usage.md").read_text()
+    text = (ROOT / "docs" / "usage.md").read_text(encoding="utf-8")
     section = text.split("## Apple silicon (MPS)", 1)[1].split("\n## ", 1)[0]
     families = {
         card.name for task in registry.TASKS for card, _ in registry.cards(task).values() if card.mps_kernel_libs
@@ -393,14 +454,25 @@ def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
 def test_original_eval_cells_come_from_their_tier():
     """The row a docs cell shows (the last per model, mode and dataset): original fp32 from the fp32 tier, original
     fp16 from an fp16 tier (an fp16 row labelled `upstream` overwrote the fp32 cell of moge-2-vitb-normal)."""
-    want = {"upstream": ("upstream",), "upstream-fp16": ("upstream16", "upstreamac")}
+    want = {
+        "upstream": ("upstream",),
+        "upstream-fp16": ("upstream16", "upstreamac"),
+        "upstreamhalf": ("upstreamhalf", "upstreambf16"),
+    }
     for path in (ROOT / "docs" / "data").glob("*_eval.jsonl"):
         last = {}
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
-            if r.get("mode") in want:
-                last[r["ref"], r["mode"], r.get("dataset")] = r
-        bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
+            mode = gen_docs._eval_mode(r) if "mode" in r else None
+            if mode in want:
+                last[r["ref"], mode, r.get("dataset")] = r
+        bad = []
+        for key, row in last.items():
+            tiers = want[key[1]]
+            if key[1] == "upstreamhalf" and row.get("dtype") == "bfloat16":
+                tiers = (*tiers, "upstream")  # some originals use BF16 by default
+            if "tier" in row and row["tier"] not in tiers:
+                bad.append((*key, row["tier"]))
         assert not bad, f"{path.name}: {bad}"
 
 
@@ -416,7 +488,7 @@ def _python_blocks() -> list[tuple[str, int, str]]:
     public = [p for p in src if "models" not in p.parts and (p.stem in {"__init__", "_api"} or p.stem[0] != "_")]
     blocks = []
     for path in [*_DOC_FILES, *sorted((ROOT / "docs" / "models").glob("*.md")), *public]:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         blocks += [
             (path.relative_to(ROOT).as_posix(), text.count("\n", 0, m.start()) + 2, textwrap.dedent(m[2]))
             for m in _PY_FENCE.finditer(text)
@@ -642,7 +714,7 @@ def test_oom_row_older_than_a_timed_row_is_stale(tmp_path, monkeypatch):
         {"ref": "b", "mode": "portable", "input": "1x1", "status": "oom", "date": "2026-11-15"},
         {"ref": "b", "mode": "portable", "input": "1x1", "ms": 5.0, "side": "lib", "date": "2026-11-14"},
     ]
-    (data / "speed.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    (data / "speed.jsonl").write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
     monkeypatch.setattr(gen_docs, "ROOT", tmp_path)
     gen_docs._oom.cache_clear()
     try:
@@ -657,7 +729,7 @@ def test_no_original_reason_only_without_an_original_row():
 
     timed = {
         json.loads(line)["ref"]
-        for line in (ROOT / "docs" / "data" / "speed.jsonl").read_text().splitlines()
+        for line in (ROOT / "docs" / "data" / "speed.jsonl").read_text(encoding="utf-8").splitlines()
         if '"upstream' in line and '"ms"' in line and json.loads(line).get("ms") is not None
     }
     for task in registry.TASKS:

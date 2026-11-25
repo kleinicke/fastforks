@@ -11,6 +11,7 @@ from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks.flow.models.memfof.model import _kernel_lookup
+from fastforks.flow.models.memfof.net import gma
 from fastforks.flow.models.memfof.net.corr import CorrBlock
 from fastforks.flow.models.memfof.net.model import MEMFOF
 
@@ -71,6 +72,29 @@ def test_batch_odd_size_scale_and_export(weights: Path) -> None:
 
 
 @pytest.mark.gpu
+def test_attention_softmax_groups_keep_cuda_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A byte budget ending on a misaligned odd row still gives aligned chunks and exact scores."""
+    attention = gma.Attention(16, 1, 16).eval().cuda().half()
+    features = torch.randn(1, 16, 7, 147, device="cuda", dtype=torch.float16)
+    with torch.inference_mode():
+        expected = attention(features)
+        tokens = features.shape[-2] * features.shape[-1]
+        monkeypatch.setattr(gma, "_SOFTMAX_GROUP_BYTES", 18 * tokens * features.element_size())
+        unpatched = torch.Tensor.softmax
+        alignments = []
+
+        def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+            alignments.append(x.data_ptr() % 16)
+            return unpatched(x, dim)
+
+        monkeypatch.setattr(torch.Tensor, "softmax", softmax)
+        actual = attention(features)
+    assert len(alignments) > 1
+    assert alignments == [0] * len(alignments)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize(("height", "width", "batch"), [(17, 21, 2), (68, 120, 1)])  # odd cells; the 1080p cells
 def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> None:
     """The on-the-fly windows equal upstream's volume lookup (fp32) up to fp16 operands and output rounding."""
@@ -84,3 +108,14 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), f1, f2)(coords)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want, rtol=0, atol=4e-3)  # fp16 pooling and output of |corr| < 8
+
+
+@pytest.mark.gpu
+def test_cuda_upsample_forward_flow() -> None:
+    from fastforks.kernels.flow_upsample import convex  # noqa: PLC0415
+
+    flow_field = torch.randn(2, 2, 5, 7, device="cuda")
+    info = torch.randn(2, 4, 5, 7, device="cuda")
+    mask = torch.randn(2, 9 * 16**2, 5, 7, device="cuda", dtype=torch.float16)
+    expected, _ = MEMFOF._upsample_data(None, flow_field, info, mask.float())
+    torch.testing.assert_close(convex(flow_field, mask, 16), expected, rtol=1e-5, atol=4e-6)

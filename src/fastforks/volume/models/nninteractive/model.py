@@ -32,8 +32,15 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
-from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of
-from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS, fused_norm_act
+from fastforks._core.upload import device_tensor
+from fastforks.shared import mlx_wrap
+from fastforks.volume._nnunet import Norm, Plan, UNet, _ConvNormAct, _network, configuration_of, nonzero_extent
+from fastforks.volume._nnunet_runner import (
+    CHECKPOINT_GLOBALS,
+    _biased_conv_norm,
+    _biased_conv_norm_,
+    fused_norm_act,
+)
 from fastforks.volume._runner import InteractiveRunner
 
 if TYPE_CHECKING:
@@ -47,6 +54,8 @@ Box = list[list[int]]  # [[start, end), ...] per axis
 _BORDER = (1500, 0.2, 100)  # fixed: upstream `_detect_change_at_border` (absolute, relative, minimum changed voxels)
 _MAX_ZOOM = 4.0  # fixed: upstream session constant (max zoom-out factor), not in inference_session_class.json
 _ZOOM_GROWTH = 1.5  # fixed: upstream session constant (zoom-out step), not in inference_session_class.json
+_POOL_ELEMENTS = 256 << 20  # fixed: cap the size of CUDA prompt groups
+_WIDE_POOL = 7  # fixed: measured crossover for separable max pooling
 
 
 @dataclass(frozen=True)
@@ -166,11 +175,11 @@ def _sat(mask: torch.Tensor) -> torch.Tensor:
 
 def _bounds(c: torch.Tensor, size: Sequence[int], margin: Sequence[int], shape: Sequence[int]) -> torch.Tensor:
     """The covered part `[lo, hi)` (`[N, 2, 3]`) of boxes of `size` centred on `c` (`[N, 3]`), `margin` left out."""
-    half = torch.tensor([s // 2 for s in size], device=c.device)
-    end = torch.tensor([s - s // 2 for s in size], device=c.device)
-    m = torch.tensor(list(margin), device=c.device)
+    half = device_tensor([s // 2 for s in size], device=c.device)
+    end = device_tensor([s - s // 2 for s in size], device=c.device)
+    m = device_tensor(list(margin), device=c.device)
     lo = (c - half + m).clamp(min=0)
-    hi = torch.minimum(c + end - m, torch.tensor(list(shape), device=c.device))
+    hi = torch.minimum(c + end - m, device_tensor(list(shape), device=c.device))
     return torch.stack((lo, hi), 1)
 
 
@@ -255,7 +264,7 @@ class Portable(InteractiveRunner):
         super().__init__(ctx)
         p: Params = ctx.params
         files = ctx.weights()
-        self.plan = _plan(json.loads(Path(files[0]).read_text()), p.configuration)
+        self.plan = _plan(json.loads(Path(files[0]).read_text(encoding="utf-8")), p.configuration)
         self.patch = list(self.plan.patch_size)
         self.net = self._build(UNet(self.plan, 8))
         sd = ctx.state_dict(1, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
@@ -272,13 +281,12 @@ class Portable(InteractiveRunner):
 
     def module(self) -> torch.nn.Module:
         """The U-Net: `[1, 8, 192, 192, 192]` (image, previous mask, six prompt maps) -> logits `[1, 2, ...]`."""
-        return Forward(self.net, lambda net, x: net(x))
+        return Forward(self.net, lambda net, x: net(x), output_names=("logits",))
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """The mask (argmax, uint8) of one network input `[8, *patch]`."""
-        x = x[None].to(self._dtype)
-        if self._channels_last:
-            x = x.contiguous(memory_format=torch.channels_last_3d)
+        layout = torch.channels_last_3d if self._channels_last else torch.preserve_format
+        x = x[None].to(dtype=self._dtype, memory_format=layout)
         return self.net(x)[0].argmax(0).to(torch.uint8)
 
     # the session (host code: prompt maps, zoom, refinement boxes; the network runs in `__call__`)
@@ -286,11 +294,11 @@ class Portable(InteractiveRunner):
     def start(self, volume: torch.Tensor) -> Session:
         """A session on a `[1, D, H, W]` float32 volume: crop to its nonzero box, z-score."""
         v = volume[0]
-        nz = [torch.nonzero((v != 0).any(dim=tuple(a for a in range(3) if a != d)))[:, 0] for d in range(3)]
-        if any(len(n) == 0 for n in nz):
+        extent = nonzero_extent(v != 0)
+        if any(e is None for e in extent):
             msg = "nnInteractive needs a volume with nonzero voxels (it crops to their bounding box)"
             raise InputError(msg)
-        lo, hi = [int(n[0]) for n in nz], [int(n[-1]) + 1 for n in nz]
+        lo, hi = [e[0] for e in extent], [e[1] for e in extent]  # ty: ignore[not-subscriptable]
         image = v[lo[0] : hi[0], lo[1] : hi[1], lo[2] : hi[2]].float().clone()
         image -= image.mean()
         image /= image.std()
@@ -351,19 +359,56 @@ class Portable(InteractiveRunner):
         torch.maximum(ch, crop.to(ch.dtype), out=ch)
         self._predict(s, centre, zoom)
 
+    def _cuda_patch(self, device: torch.device) -> torch.Tensor:
+        return torch.empty((1, 8, *self.patch), dtype=self._dtype, device=device, memory_format=torch.channels_last_3d)[
+            0
+        ]
+
+    def _zoomed_cuda_input(self, s: Session, box: Box, size: list[int], k: int) -> torch.Tensor:
+        """Write prompt groups into a single patch without cloning the full zoomed volume."""
+        x = self._cuda_patch(s.image.device)
+        image = _crop_pad(s.image, box)[None, None]
+        x[:1].copy_(F.interpolate(image, self.patch, mode="trilinear")[0])
+        del image
+        x[1:4].copy_(F.interpolate(_crop_pad(s.inter[:3], box)[None], self.patch, mode="area")[0])
+        # Large crops use a single pooled channel to bound the pool workspace.
+        group = max(1, min(2, _POOL_ELEMENTS // math.prod(size)))
+        pad = k // 2
+        pools = (
+            [((k, 1, 1), (pad, 0, 0)), ((1, k, 1), (0, pad, 0)), ((1, 1, k), (0, 0, pad))]
+            if k >= _WIDE_POOL
+            else [((k, k, k), (pad, pad, pad))]
+        )
+        for start in range(3, 7, group):
+            stop = min(start + group, 7)
+            planes = _crop_pad(s.inter[start:stop], box)[None]
+            for window, padding in pools:
+                planes = F.max_pool3d(planes, window, 1, padding)
+            x[1 + start : 1 + stop].copy_(F.interpolate(planes, self.patch, mode="area")[0])
+            del planes
+        return x
+
     def _input(self, s: Session, centre: Sequence[int], zoom: float) -> tuple[torch.Tensor, list[int], Box]:
         """`_build_network_input`: the 8-channel input around `centre`, the zoomed patch size and its box."""
         size = [round(p * zoom) for p in self.patch]
         box = [[c - n // 2, c + n // 2 + n % 2] for c, n in zip(centre, size, strict=True)]
+        k = _odd(zoom * 2 - 1) if size != self.patch else 1
+        if self._channels_last and k > 1:
+            return self._zoomed_cuda_input(s, box, size, k), size, box
         img, inter = _crop_pad(s.image, box)[None], _crop_pad(s.inter, box)
         if size != self.patch:
-            inter = inter.clone()  # the crop may be a view of the state
-            k = _odd(zoom * 2 - 1)
             if k > 1:  # == upstream's iterated 3^3 max pools on replicate padding
+                inter = inter.clone()  # the crop may be a view of the state
                 inter[3:7] = F.max_pool3d(inter[None, 3:7], k, 1, k // 2)[0]
             inter = F.interpolate(inter[None], self.patch, mode="area")[0]
             img = F.interpolate(img[None], self.patch, mode="trilinear")[0]
-        return torch.cat((img, inter.float())), size, box
+        if self._channels_last:
+            x = self._cuda_patch(img.device)
+            x[:1].copy_(img)
+            x[1:].copy_(inter)
+        else:
+            x = torch.cat((img, inter.float()))
+        return x, size, box
 
     def _border_change(self, pred: torch.Tensor, prev: torch.Tensor) -> bool:
         """`_detect_change_at_border`: the mask changed on a face of the patch by enough voxels."""
@@ -389,12 +434,14 @@ class Portable(InteractiveRunner):
         while True:
             x, size, box = self._input(s, centre, zoom)
             pred = self(x)
+            del x
             prev = _crop_pad(s.inter[0], box)
             if prev.shape != pred.shape:
                 prev = F.interpolate(prev[None, None].float(), pred.shape, mode="nearest")[0, 0]
             if not (self.ctx.params.autozoom and self._border_change(pred, prev)) or zoom >= _MAX_ZOOM:
                 break
             zoom = min(_MAX_ZOOM, zoom * _ZOOM_GROWTH)
+        del prev
         if zoom == 1:
             _paste(s.inter[0], pred, box)
             _paste(s.target, pred, [[a + o, b + o] for (a, b), o in zip(box, s.start, strict=True)])
@@ -423,11 +470,14 @@ class Portable(InteractiveRunner):
             s.positive_box = False
         boxes = cover_boxes(diff, self.patch, s.rng) or [_box_at(centre, self.patch)]
         del diff
-        x = torch.zeros((8, *self.patch), dtype=torch.float32, device=s.image.device)
+        if self._channels_last:
+            x = self._cuda_patch(s.image.device).zero_()
+        else:
+            x = torch.zeros((8, *self.patch), dtype=torch.float32, device=s.image.device)
         for box in boxes:
             vol, own = _clip(box, s.image.shape)
             x[(0, *own)] = s.image[vol]
-            x[(slice(1, None), *own)] = s.inter[(slice(None), *vol)].float()
+            x[(slice(1, None), *own)].copy_(s.inter[(slice(None), *vol)])
             pred = self(x)
             _paste(s.inter[0], pred, box)
             _paste(s.target, pred, [[a + o, b + o] for (a, b), o in zip(box, s.start, strict=True)])
@@ -435,7 +485,7 @@ class Portable(InteractiveRunner):
 
 
 class Kernels(Portable):
-    """Portable + InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`) on the float16 feature maps."""
+    """Portable + conv bias, InstanceNorm and LeakyReLU as one in-place kernel (`vol_norm`) on the fp16 feature maps."""
 
     def __init__(self, ctx: Context) -> None:
         """Load `vol_norm` first, then the network."""
@@ -446,9 +496,12 @@ class Kernels(Portable):
 
     def _build(self, net: UNet) -> UNet:
         for m in net.modules():
-            if hasattr(m, "norm_act"):
+            if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
+                if m.conv.bias is not None:  # the bias joins the norm kernel (no separate pass over the map)
+                    override(m, _biased_conv_norm)
+                    override(m, _biased_conv_norm_, "forward_")
         return net
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

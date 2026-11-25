@@ -30,7 +30,7 @@ Same network maths as upstream, different evaluation order (all runners, also fl
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -39,6 +39,9 @@ from torch import nn
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks.kernels import cotracker_corr
+from fastforks.shared import mlx_wrap
+from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.blocks import Attention
@@ -59,7 +62,6 @@ ITERS = 6  # fixed: upstream predictors' iterations
 SUPPORT_GRID = 6  # fixed: the offline predictor's support grid (6 x 6 frame-0 queries)
 THRESHOLD = {False: 0.9, True: 0.6}  # fixed: upstream predictors' visibility thresholds (offline, online)
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature CNN, not an architecture value
-CORR_ROWS = 16384  # fixed: (query, frame) rows per correlation chunk (memory)
 GELU, GELU_TANH = 5, 6  # fixed: fused-epilogue activation codes (fastforks._optimize.conv_ops)
 
 
@@ -111,6 +113,8 @@ def _calibrate(p: torch.Tensor, thr: float) -> torch.Tensor:
 class Core:
     """The network's tracking maths on one video (batch 1) in the compute dtype; see the module docstring."""
 
+    correlation_rows = 16384  # (query, frame) pairs per correlation chunk
+
     def __init__(self, net: CoTrackerThreeBase, *, half: bool) -> None:
         """Cast / patch the network for `half` (float16) or float32."""
         self.net, self.dt = net, torch.float16 if half else torch.float32
@@ -138,12 +142,15 @@ class Core:
 
     def time_embed(self, s: int) -> torch.Tensor:
         """Upstream `interpolate_time_embed` for `s` frames, `[s, 1110 + in_pad]` in the compute dtype (cached)."""
-        if s not in self.temb:
+        found = self.temb.get(s)
+        if found is None:
             te = cast("torch.Tensor", self.net.time_emb).float()
             if te.shape[1] != s:
                 te = F.interpolate(te.permute(0, 2, 1), size=s, mode="linear").permute(0, 2, 1)
-            self.temb[s] = F.pad(te[0], (0, self.in_pad)).to(self.dt)
-        return self.temb[s]
+            found = F.pad(te[0], (0, self.in_pad)).to(self.dt)
+            if type(found) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
+                self.temb[s] = found
+        return found
 
     def encode(self, video: torch.Tensor) -> list[torch.Tensor]:
         """Feature pyramid of `video` `[t, 3, 384, 512]` in `[0, 1]`: per level `[t, h, w, 128]` (compute dtype)."""
@@ -194,7 +201,7 @@ class Core:
         rr = (2 * self.r + 1) ** 2
         frame = torch.arange(s, device=cn.device).expand(n, s)
         embs = torch.empty(n, s, len(levels) * self.c2w.shape[0], device=cn.device, dtype=self.dt)
-        step = max(1, CORR_ROWS // s)
+        step = max(1, self.correlation_rows // s)
         for a in range(0, n, step):
             b = min(n, a + step)
             buf = torch.zeros((b - a) * s, rr * rr + self.k_pad, device=cn.device, dtype=self.dt)
@@ -204,6 +211,7 @@ class Core:
                 self._lerp(cw, fr, out=buf[:, : rr * rr].view(b - a, s, 7, 7, rr))
                 e = self.mlp(buf)
                 embs[a:b, :, i * e.shape[-1] : (i + 1) * e.shape[-1]] = e.view(b - a, s, -1)
+                del g, cw, e  # release this level before allocating the next window
         return embs
 
     def refine(  # noqa: PLR0913 - the window state (levels, support, coords, vis, conf)
@@ -219,7 +227,7 @@ class Core:
         """Upstream's iterations on one window: level-0 `coords` `[S, N, 2]`, logits `vis` / `conf` `[S, N]`."""
         s = coords.shape[0]
         net = self.net
-        scale = torch.tensor([net.model_resolution[1], net.model_resolution[0]], device=coords.device) / net.stride
+        scale = _pair(net.model_resolution[1], net.model_resolution[0], coords.device) / net.stride
         temb = self.time_embed(s)
         for _ in range(iters):
             cn = coords.transpose(0, 1)  # [N, S, 2]
@@ -249,7 +257,14 @@ def _frames(frames: Callable[[int], torch.Tensor], a: int, b: int) -> torch.Tens
 def _scale(size: tuple[int, int], device: torch.device) -> torch.Tensor:
     """Input pixels -> network pixels `(x, y)` (upstream: `(interp - 1) / (W - 1)`)."""
     h, w = size
-    return torch.tensor([(SIZE[1] - 1) / (w - 1), (SIZE[0] - 1) / (h - 1)], device=device)
+    return _pair((SIZE[1] - 1) / (w - 1), (SIZE[0] - 1) / (h - 1), device)
+
+
+def _pair(a: float, b: float, device: torch.device) -> torch.Tensor:
+    """float32 `[a, b]` filled on `device` (`torch.tensor` uploads from pageable memory, which waits for the device)."""
+    t = torch.full((2,), a, dtype=torch.float32, device=device)
+    t[1:].fill_(b)  # not t[1] = b: that uploads the scalar
+    return t
 
 
 def track_offline(
@@ -334,17 +349,36 @@ def track(
     return fn(core, frames, n, size, queries)
 
 
+class _KernelCore(Core):
+    """Gather only source windows and write interpolation results in the consuming layout."""
+
+    correlation_rows = 8192  # bound the gathered windows and correlation MLP buffers on long clips
+
+    def _window(self, feat: torch.Tensor, frame: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return cotracker_corr.window(feat, frame, c)
+
+    def _lerp(self, g: torch.Tensor, fr: torch.Tensor, out: torch.Tensor | None = None) -> torch.Tensor:
+        return cotracker_corr.interpolate(g, fr, out)
+
+    def support(self, levels: list[torch.Tensor], qf: torch.Tensor, qxy: torch.Tensor) -> list[torch.Tensor]:
+        return [cotracker_corr.support(f, qf, qxy / 2**i) for i, f in enumerate(levels)]
+
+
 class Portable(Runner):
     """Plain PyTorch."""
 
     dtypes = ("float32", "float16")
     Params = Params
 
+    core_type = Core
+
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
         net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
-        self.core = Core(net, half=ctx.dtype == "float16")
+        self.core = self.core_type(net, half=ctx.dtype == "float16")
+        if torch.device(ctx.device).type == "mps":  # the same time, half the memory (`_chunk_encode`)
+            _chunk_encode(self.core)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
@@ -452,6 +486,8 @@ def _updateformer(uf: EfficientUpdateFormer, in_pad: int) -> Callable[[torch.Ten
 class Kernels(Portable):
     """The fp16 portable pass with the correlation MLP and the update transformer on fused-GEMM kernels."""
 
+    core_type = _KernelCore
+
     def __init__(self, ctx: Context) -> None:
         """The portable network with kernel forwards (fp16 weights captured in closures)."""
         super().__init__(ctx)
@@ -483,4 +519,104 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+FNET_FRAMES = 2  # fixed: memory chunking of the feature CNN on MLX and MPS (see `_chunk_encode`)
+
+
+def _chunk_encode(core: Core) -> None:
+    """Make `core.encode` run the feature CNN `FNET_FRAMES` frames at a time (one CNN graph to export online).
+
+    MLX: see `_OnlineSteps`. MPS, 24 frames at 480 x 854, float32: online 1693 ms / 4762 MB -> 1698 / 2770, offline
+    1414 / 5811 -> 1429 / 2758 (the 8- and 16-frame CNN activations are the peak).
+    """
+    encode = core.encode
+
+    def chunked(video: torch.Tensor) -> list[torch.Tensor]:
+        parts = [encode(video[a : a + FNET_FRAMES]) for a in range(0, len(video), FNET_FRAMES)]
+        return [torch.cat(level) for level in zip(*parts, strict=True)]
+
+    core.encode = chunked  # ty: ignore[invalid-assignment]  # per-instance override
+
+
+class _OnlineSteps(Portable):
+    """The online loop is data-dependent (`torch.export` guards on it): it stays eager, its steps run on MLX.
+
+    The feature CNN is one graph of `FNET_FRAMES` frames, run over each window's new frames. One refinement
+    iteration (correlation, its MLP and the update transformer) is a step graph, exported once and run `ITERS` times
+    per window: every window has the same shapes (levels padded to `window_len`). The window's levels and support
+    features go to MLX once per window and the track state stays on MLX between iterations (`MlxModule.raw`). Before,
+    only the CNN and the update transformer ran on MLX and the correlation ran in PyTorch on the CPU (cotracker3-online
+    24 frames: 3150 -> 2460 ms at the same cache; the whole window as one graph was as fast, but 3.7 s more first call).
+
+    Two frames per CNN call instead of eight keep its transients (`[8, 64, 192, 256]` float32: 100 MB each) small enough
+    for the buffer cache to recycle; with the 1 GB cache the iterations reuse theirs too (24 frames: 1926 ms / 2538 MB
+    at 8 frames and 256 MB, 1588 ms / 2649 MB now; 8 frames at 1 GB: 1720 ms / 3307 MB).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable runner; `net` names the network the step graph computes with."""
+        super().__init__(ctx)
+        self.net = self.core.net
+        self.core.refine = self._steps  # ty: ignore[invalid-assignment]  # per-instance override
+        _chunk_encode(self.core)
+
+    def _iteration(
+        self,
+        levels: list[torch.Tensor],
+        sup: list[torch.Tensor],
+        coords: torch.Tensor,
+        vis: torch.Tensor,
+        conf: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return Core.refine(self.core, levels, sup, coords, vis, conf, iters=1)
+
+    def _steps(
+        self,
+        levels: list[torch.Tensor],
+        sup: list[torch.Tensor],
+        coords: torch.Tensor,
+        vis: torch.Tensor,
+        conf: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - MLX only
+
+        step = cast("Any", self._iteration).raw  # the `MlxModule` of `mlx_wrap.port(methods=("_iteration",))`
+        lv, sp = [to_mx(f) for f in levels], [to_mx(s) for s in sup]
+        state: tuple[Any, ...] = (coords, vis, conf)
+        for _ in range(ITERS):
+            state = step(lv, sp, *state)
+        c, v, f = (to_torch(s) for s in state)
+        return c, v, f
+
+
+class _OfflineChunks(Portable):
+    """The offline pass as one graph, its feature CNN `FNET_FRAMES` frames at a time (`_OnlineSteps`).
+
+    cotracker3-offline 24 frames: 2417 ms / 3355 MB at 16-frame chunks and the default cache, 1455 ms / 3201 MB now
+    (2-frame chunks at the default cache: 2411 ms / 1763 MB; at 1 GB: 1541 ms / 2709 MB).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable runner with the chunked feature CNN."""
+        super().__init__(ctx)
+        _chunk_encode(self.core)
+
+
+_MlxOnline = mlx_wrap.port(
+    _OnlineSteps,
+    attrs=("core.net.fnet",),
+    methods=("_iteration",),
+    prune=True,
+    cache_mb=1024,
+    fp32_inputs=("coords", "vis", "conf"),  # the track state stays float32 in a float16 replay
+)
+_MlxOffline = mlx_port(_OfflineChunks, cache_mb=1536)
+
+
+class MlxRunner(Portable):
+    """Apple MLX: the whole pass of cotracker3-offline as one graph; cotracker3-online with its window loop eager."""
+
+    def __new__(cls, ctx: Context) -> Runner:  # noqa: D102
+        return cast("Runner", (_MlxOnline if cast("Params", ctx.params).online else _MlxOffline)(ctx))
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}

@@ -8,21 +8,21 @@ Input: one RGB image. Output: ImageNet-1k class logits.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228, 0.8x |
-| [`coatnet_0_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_0_rw_224`](#coatnet) | yes | 1.74, 4.4x | 144, 0.8x |
+| [`coatnet_1_rw_224`](#coatnet) | yes | 2.89, 4.3x | 196, 0.77x |
+| [`coatnet_2_rw_224`](#coatnet) | yes | 4.01, 3.6x | 240, 0.59x |
+| [`coatnet_nano_rw_224`](#coatnet) | yes | 1.62, 4.8x | 106, 0.93x |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | 3.01, 4.6x | 178, 0.7x |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | 3.04, 4.6x | 178, 0.76x |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | 12.8, 1.4x (384x384) | 356, 0.67x |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | 1.75, 5.1x | 106, 0.73x |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.05, 3.7x | 232, 0.53x |
@@ -36,19 +36,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
 | [`convnextv2_base`](#convnextv2) | no | 2.96, 3.6x | 238, 0.57x |
-| [`davit_base`](#davit) | yes | no kernels | no kernels |
-| [`davit_small`](#davit) | yes | no kernels | no kernels |
-| [`davit_tiny`](#davit) | yes | no kernels | no kernels |
+| [`davit_base`](#davit) | yes | 2.09, 6.4x | 244, 0.59x |
+| [`davit_small`](#davit) | yes | 1.88, 6.9x | 168, 0.64x |
+| [`davit_tiny`](#davit) | yes | 1.17, 5.9x | 134, 0.77x |
 | [`deit_base_patch16_224`](#deit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`densenet121`](#densenet) | yes | 1.29, 8.3x | 92, 1.0x |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
-| [`efficientformer_l1`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformer_l3`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformer_l7`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformerv2_l`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s0`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s1`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s2`](#efficientformerv2) | yes | no kernels | no kernels |
+| [`efficientformer_l1`](#efficientformer) | yes | 0.704, 6.9x | 126, 1.3x |
+| [`efficientformer_l3`](#efficientformer) | yes | 1.21, 6.9x | 218, 1.3x |
+| [`efficientformer_l7`](#efficientformer) | yes | 2.04, 6.0x | 346, 0.92x |
+| [`efficientformerv2_l`](#efficientformerv2) | yes | 3.05, 6.5x | 188, 1.1x |
+| [`efficientformerv2_s0`](#efficientformerv2) | yes | 1.20, 6.8x | 66, 1.1x |
+| [`efficientformerv2_s1`](#efficientformerv2) | yes | 1.39, 7.3x | 88, 1.2x |
+| [`efficientformerv2_s2`](#efficientformerv2) | yes | 2.17, 7.0x | 104, 0.9x |
 | [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
 | [`efficientnet_b4`](#efficientnet) | yes | 2.02, 5.5x | 118, 0.68x |
 | [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.91, 6.4x | 128, 0.81x |
@@ -58,19 +58,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`fastvit_sa24`](#fastvit) | yes | 1.41, 5.0x (256x256) | 132, 0.93x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
-| [`focalnet_base_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_base_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_small_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_small_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_tiny_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_tiny_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`hgnetv2_b0`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b1`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b2`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b3`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b4`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b5`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b6`](#hgnetv2) | yes | no kernels | no kernels |
+| [`focalnet_base_lrf`](#focalnet) | yes | 5.44, 3.3x | 258, 0.62x |
+| [`focalnet_base_srf`](#focalnet) | yes | 4.99, 3.4x | 256, 0.62x |
+| [`focalnet_small_lrf`](#focalnet) | yes | 4.18, 4.0x | 154, 0.61x |
+| [`focalnet_small_srf`](#focalnet) | yes | 3.73, 4.3x | 154, 0.61x |
+| [`focalnet_tiny_lrf`](#focalnet) | yes | 2.39, 3.7x | 138, 0.77x |
+| [`focalnet_tiny_srf`](#focalnet) | yes | 2.19, 3.8x | 138, 0.78x |
+| [`hgnetv2_b0`](#hgnetv2) | yes | 0.568, 7.8x | 72, 1.0x |
+| [`hgnetv2_b1`](#hgnetv2) | yes | 0.603, 7.6x | 70, 0.76x |
+| [`hgnetv2_b2`](#hgnetv2) | yes | 0.765, 8.2x | 94, 0.82x |
+| [`hgnetv2_b3`](#hgnetv2) | yes | 0.909, 7.9x | 116, 0.87x |
+| [`hgnetv2_b4`](#hgnetv2) | yes | 0.864, 8.2x | 138, 0.99x |
+| [`hgnetv2_b5`](#hgnetv2) | yes | 1.29, 8.9x | 156, 0.7x |
+| [`hgnetv2_b6`](#hgnetv2) | yes | 2.10, 7.9x | 232, 0.62x |
 | [`inception_v3`](#inception_v3) | yes | 1.31, 6.0x | 208, 1.2x |
 | [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
 | [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
@@ -91,10 +91,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`resnet18`](#resnet) | yes | 0.472, 4.0x | 110, 0.85x |
 | [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.804, 6.0x | 76, 1.6x |
-| [`shvit_s1`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s2`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s3`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s4`](#shvit) | yes | no kernels | no kernels |
+| [`shvit_s1`](#shvit) | yes | 0.805, 10.4x | 62, 0.94x |
+| [`shvit_s2`](#shvit) | yes | 0.949, 8.8x | 88, 0.86x |
+| [`shvit_s3`](#shvit) | yes | 1.01, 9.3x | 112, 1.0x |
+| [`shvit_s4`](#shvit) | yes | 1.78, 6.4x (256x256) | 102, 0.86x |
 | [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
@@ -147,11 +147,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `alexnet.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 57.72 / 80.54 | 57.66 / 80.54 | 57.80 / 80.50 | 57.82 / 80.42 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `alexnet.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 57.72 / 80.54 | 57.66 / 80.54 | 57.80 / 80.50 | 57.72 / 80.54 | 57.82 / 80.42 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -173,16 +173,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>no kernels<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>no kernels<br>96 / 126<br>102 / 124 |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>no kernels<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>no kernels<br>110 / 126<br>122 / 144 |
-| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>no kernels<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>no kernels<br>120 / 142<br>158 / 170 |
-| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>no kernels<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>no kernels<br>149 / 176<br>231 / 250 |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>no kernels<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>no kernels<br>155 / 176<br>243 / 262 |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>no kernels<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>no kernels<br>162 / 176<br>257 / 276 |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>no kernels<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>211 / 240<br>374 / 416 |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>no kernels<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>no kernels<br>238 / 260<br>404 / 446 |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>no kernels<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>238 / 260<br>402 / 444 |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>no kernels<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>no kernels<br>326 / 370<br>464 / 500 |
+| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>1.62<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>72 / 106<br>96 / 126<br>102 / 124 |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>1.75<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>77 / 106<br>110 / 126<br>122 / 144 |
+| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>1.74<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>100 / 144<br>120 / 142<br>158 / 170 |
+| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>2.89<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>130 / 196<br>149 / 176<br>231 / 250 |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>3.04<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>129 / 178<br>155 / 176<br>243 / 262 |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>3.01<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>130 / 178<br>162 / 176<br>257 / 276 |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>4.01<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>211 / 240<br>374 / 416 |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>4.24<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>204 / 240<br>238 / 260<br>404 / 446 |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>4.24<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>238 / 260<br>402 / 444 |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>12.8<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>288 / 356<br>326 / 370<br>464 / 500 |
 
 <details><summary>Details</summary>
 
@@ -195,7 +195,7 @@ Commercial use: yes.
   - `coatnet_2_rw_224.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
   - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
   - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: MBConv stages plus attention with a relative position bias: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `coatnet_nano_rw_224.sw_in1k` (default of `coatnet_nano_rw_224`), `coatnet_rmlp_nano_rw_224.sw_in1k` (default of `coatnet_rmlp_nano_rw_224`), `coatnet_0_rw_224.sw_in1k` (default of `coatnet_0_rw_224`), `coatnet_1_rw_224.sw_in1k` (default of `coatnet_1_rw_224`), `coatnet_rmlp_1_rw_224.sw_in1k` (default of `coatnet_rmlp_1_rw_224`), `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` (default of `coatnet_rmlp_1_rw2_224`), `coatnet_2_rw_224.sw_in12k_ft_in1k` (default of `coatnet_2_rw_224`), `coatnet_rmlp_2_rw_224.sw_in1k`, `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` (default of `coatnet_rmlp_2_rw_224`), `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` (default of `coatnet_rmlp_2_rw_384`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size:
@@ -203,7 +203,6 @@ Commercial use: yes.
   - `coatnet_0_rw_224.sw_in1k`, `coatnet_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`, `coatnet_2_rw_224.sw_in12k_ft_in1k`, `coatnet_rmlp_2_rw_224.sw_in1k`, `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
   - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`: fixed 384x384: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `coatnet_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_0_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` 384x384 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: not implemented: MBConv stages plus attention with a relative position bias: needs its own runner.
 - `coatnet_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `coatnet_0_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
@@ -215,45 +214,55 @@ Commercial use: yes.
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` 384x384, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `coatnet_nano_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_nano_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_nano_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_nano_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_0_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_0_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_1_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_1_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_1_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_1_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_2_rw_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_2_rw_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_2_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` original 384x384: torch.autocast(float16) around the call
-- `coatnet_nano_rw_224.sw_in1k` load / first call: original 0.28 s / 0.539 s, portable 1.37 s / 0.422 s
-- `coatnet_rmlp_nano_rw_224.sw_in1k` load / first call: original 0.26 s / 0.187 s, portable 1.36 s / 0.393 s
-- `coatnet_0_rw_224.sw_in1k` load / first call: original 0.38 s / 0.312 s, portable 1.37 s / 0.378 s
-- `coatnet_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.15 s, portable 1.44 s / 0.366 s
-- `coatnet_rmlp_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.47 s / 0.373 s
-- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.49 s / 0.366 s
-- `coatnet_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.314 s, portable 1.52 s / 0.505 s
-- `coatnet_rmlp_2_rw_224.sw_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.54 s / 0.506 s
-- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.8 s / 0.504 s
-- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.053 s (384x384), portable 1.52 s / 0.435 s (384x384)
+- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` kernels 384x384: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `coatnet_nano_rw_224.sw_in1k` load / first call: original 0.28 s / 0.539 s, portable 1.37 s / 0.422 s, kernels 2.25 s / 0.45 s
+- `coatnet_rmlp_nano_rw_224.sw_in1k` load / first call: original 0.26 s / 0.187 s, portable 1.36 s / 0.393 s, kernels 2.04 s / 0.311 s
+- `coatnet_0_rw_224.sw_in1k` load / first call: original 0.38 s / 0.312 s, portable 1.37 s / 0.378 s, kernels 1.94 s / 0.285 s
+- `coatnet_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.15 s, portable 1.44 s / 0.366 s, kernels 2.45 s / 0.284 s
+- `coatnet_rmlp_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.47 s / 0.373 s, kernels 2.46 s / 0.291 s
+- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.49 s / 0.366 s, kernels 2.82 s / 0.291 s
+- `coatnet_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.314 s, portable 1.52 s / 0.505 s, kernels 2.88 s / 0.441 s
+- `coatnet_rmlp_2_rw_224.sw_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.54 s / 0.506 s, kernels 2.58 s / 0.434 s
+- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.8 s / 0.504 s, kernels 2.61 s / 0.43 s
+- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.053 s (384x384), portable 1.52 s / 0.435 s (384x384), kernels 2.41 s / 0.395 s (384x384)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.58 / 95.82 | 82.58 / 95.80 | 82.56 / 95.78 |  |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.48 / 95.98 | 82.54 / 95.98 | 82.44 / 95.96 |  |
-| `coatnet_0_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.34 / 96.30 | 83.32 / 96.30 | 83.38 / 96.30 |  |
-| `coatnet_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.32 / 96.54 | 84.38 / 96.56 | 84.44 / 96.56 |  |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.58 / 96.74 | 84.58 / 96.74 | 84.46 / 96.56 |  |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.34 / 97.02 | 85.36 / 97.02 | 85.30 / 97.04 |  |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.16 | 87.04 / 98.14 | 87.18 / 98.16 |  |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.12 / 96.86 | 85.08 / 96.86 | 85.16 / 96.80 |  |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.18 | 87.02 / 98.18 | 87.02 / 98.12 |  |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.72 / 98.64 | 87.72 / 98.68 | 87.84 / 98.54 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `coatnet_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.58 / 95.82 | 82.58 / 95.80 | 82.56 / 95.78 | 82.60 / 95.78 | 82.56 / 95.78 |  |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.48 / 95.98 | 82.54 / 95.98 | 82.44 / 95.96 | 82.40 / 95.96 | 82.44 / 95.96 |  |
+| `coatnet_0_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.34 / 96.30 | 83.32 / 96.30 | 83.38 / 96.30 | 83.40 / 96.28 | 83.38 / 96.30 |  |
+| `coatnet_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.32 / 96.54 | 84.38 / 96.56 | 84.44 / 96.56 | 84.46 / 96.56 | 84.44 / 96.56 |  |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.58 / 96.74 | 84.58 / 96.74 | 84.46 / 96.56 | 84.50 / 96.56 | 84.46 / 96.56 |  |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.34 / 97.02 | 85.36 / 97.02 | 85.30 / 97.04 | 85.30 / 97.02 | 85.30 / 97.04 |  |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.16 | 87.04 / 98.14 | 87.18 / 98.16 | 87.18 / 98.16 | 87.18 / 98.16 |  |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.12 / 96.86 | 85.08 / 96.86 | 85.16 / 96.80 | 85.16 / 96.78 | 85.16 / 96.80 |  |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.18 | 87.02 / 98.18 | 87.02 / 98.12 | 87.02 / 98.12 | 87.02 / 98.12 |  |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.72 / 98.64 | 87.72 / 98.68 | 87.84 / 98.54 | 87.82 / 98.54 | 87.84 / 98.54 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948 / 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -261,16 +270,16 @@ CPU, float32: max |diff| <= 8.6e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_0_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_1_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | no kernels backend | - | - |
+| `coatnet_nano_rw_224.sw_in1k` | 0.00121 / 0.0057 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | 0.00112 / 0.00488 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_0_rw_224.sw_in1k` | 0.00169 / 0.00689 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_1_rw_224.sw_in1k` | 0.00075 / 0.00309 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | 0.00159 / 0.00642 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | 0.00143 / 0.00522 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | 0.00148 / 0.00543 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | 0.00134 / 0.00632 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | 0.00144 / 0.0055 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | 0.00128 / 0.00505 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -369,22 +378,22 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `convnext_tiny.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.32 / 96.40 | 82.28 / 96.40 | 82.34 / 96.28 | 82.28 / 96.32 |  |
-| `convnext_small.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.66 / 96.64 | 83.68 / 96.64 | 83.64 / 96.56 | 83.66 / 96.56 |  |
-| `convnext_base.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.66 / 96.88 | 84.64 / 96.86 | 84.58 / 96.82 | 84.54 / 96.82 |  |
-| `convnext_large.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.44 / 96.78 | 85.40 / 96.78 | 85.54 / 96.78 | 85.56 / 96.84 |  |
-| `convnext_tiny.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.64 / 96.82 | 83.66 / 96.82 | 83.46 / 96.78 | 83.44 / 96.80 |  |
-| `convnext_small.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.78 / 97.66 | 84.76 / 97.66 | 84.96 / 97.66 | 84.96 / 97.66 |  |
-| `convnext_base.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.42 / 97.96 | 86.48 / 97.96 | 86.26 / 97.94 | 86.30 / 97.94 |  |
-| `convnext_large.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.54 / 98.26 | 87.54 / 98.26 | 87.38 / 98.26 | 87.38 / 98.26 |  |
-| `convnext_tiny.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.98 / 97.40 | 84.96 / 97.40 | 85.00 / 97.22 | 84.94 / 97.22 |  |
-| `convnext_small.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.36 / 98.04 | 86.36 / 98.04 | 86.16 / 98.18 | 86.16 / 98.18 |  |
-| `convnext_base.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.48 / 98.50 | 87.52 / 98.50 | 87.34 / 98.40 | 87.32 / 98.40 |  |
-| `convnext_large.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 88.36 / 98.50 | 88.34 / 98.50 | 88.08 / 98.50 | 88.08 / 98.50 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `convnext_tiny.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.32 / 96.40 | 82.28 / 96.40 | 82.34 / 96.28 | 82.30 / 96.28 | 82.28 / 96.32 |  |
+| `convnext_small.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.66 / 96.64 | 83.68 / 96.64 | 83.64 / 96.56 | 83.62 / 96.56 | 83.66 / 96.56 |  |
+| `convnext_base.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.66 / 96.88 | 84.64 / 96.86 | 84.58 / 96.82 | 84.56 / 96.80 | 84.54 / 96.82 |  |
+| `convnext_large.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.44 / 96.78 | 85.40 / 96.78 | 85.54 / 96.78 | 85.56 / 96.80 | 85.56 / 96.84 |  |
+| `convnext_tiny.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.64 / 96.82 | 83.66 / 96.82 | 83.46 / 96.78 | 83.46 / 96.80 | 83.44 / 96.80 |  |
+| `convnext_small.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.78 / 97.66 | 84.76 / 97.66 | 84.96 / 97.66 | 84.98 / 97.66 | 84.96 / 97.66 |  |
+| `convnext_base.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.42 / 97.96 | 86.48 / 97.96 | 86.26 / 97.94 | 86.34 / 97.94 | 86.30 / 97.94 |  |
+| `convnext_large.fb_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.54 / 98.26 | 87.54 / 98.26 | 87.38 / 98.26 | 87.36 / 98.26 | 87.38 / 98.26 |  |
+| `convnext_tiny.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.98 / 97.40 | 84.96 / 97.40 | 85.00 / 97.22 | 84.94 / 97.22 | 84.94 / 97.22 |  |
+| `convnext_small.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.36 / 98.04 | 86.36 / 98.04 | 86.16 / 98.18 | 86.14 / 98.18 | 86.16 / 98.18 |  |
+| `convnext_base.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.48 / 98.50 | 87.52 / 98.50 | 87.34 / 98.40 | 87.32 / 98.40 | 87.32 / 98.40 |  |
+| `convnext_large.fb_in22k_ft_in1k_384` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 88.36 / 98.50 | 88.34 / 98.50 | 88.08 / 98.50 | 88.06 / 98.50 | 88.08 / 98.50 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
 
 ### Parity
 
@@ -440,11 +449,11 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `convnextv2_base.fcmae_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.32 / 98.18 | 87.32 / 98.18 | 87.10 / 98.14 | 87.10 / 98.14 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `convnextv2_base.fcmae_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.32 / 98.18 | 87.32 / 98.18 | 87.10 / 98.14 | 87.10 / 98.14 | 87.10 / 98.14 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -466,9 +475,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>no kernels<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>no kernels<br>125 / 136<br>159 / 166 |
-| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>no kernels<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>no kernels<br>166 / 190<br>234 / 254 |
-| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>no kernels<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>no kernels<br>242 / 262<br>403 / 422 |
+| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>1.17<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>93 / 134<br>125 / 136<br>159 / 166 |
+| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>1.88<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>134 / 168<br>166 / 190<br>234 / 254 |
+| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>2.09<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>209 / 244<br>242 / 262<br>403 / 422 |
 
 <details><summary>Details</summary>
 
@@ -477,34 +486,36 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/davit_tiny.msft_in1k/blob/982f32c73d98f9966df4a7178b32b820bed3c1b1/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `davit_tiny.msft_in1k` (default of `davit_tiny`), `davit_small.msft_in1k` (default of `davit_small`), `davit_base.msft_in1k` (default of `davit_base`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `davit_tiny.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_small.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_base.msft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner.
 - `davit_tiny.msft_in1k` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `davit_small.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `davit_base.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 71 s (ONNX + engine).
 - `davit_tiny.msft_in1k` original 224x224: torch.autocast(float16) around the call
+- `davit_tiny.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `davit_small.msft_in1k` original 224x224: torch.autocast(float16) around the call
+- `davit_small.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `davit_base.msft_in1k` original 224x224: torch.autocast(float16) around the call
-- `davit_tiny.msft_in1k` load / first call: original 0.39 s / 0.85 s, portable 1.47 s / 0.254 s
-- `davit_small.msft_in1k` load / first call: original 0.53 s / 0.021 s, portable 1.6 s / 0.235 s
-- `davit_base.msft_in1k` load / first call: original 0.99 s / 0.565 s, portable 1.84 s / 0.265 s
+- `davit_base.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `davit_tiny.msft_in1k` load / first call: original 0.39 s / 0.85 s, portable 1.47 s / 0.254 s, kernels 2.35 s / 0.117 s
+- `davit_small.msft_in1k` load / first call: original 0.53 s / 0.021 s, portable 1.6 s / 0.235 s, kernels 2.91 s / 0.079 s
+- `davit_base.msft_in1k` load / first call: original 0.99 s / 0.565 s, portable 1.84 s / 0.265 s, kernels 3.74 s / 0.081 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `davit_tiny.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.94 / 96.50 | 83.92 / 96.50 | 83.94 / 96.56 |  |
-| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 |  |
-| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `davit_tiny.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.94 / 96.50 | 83.92 / 96.50 | 83.94 / 96.56 | 83.92 / 96.60 | 83.92 / 96.58 |  |
+| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 | 85.22 / 97.20 | 85.22 / 97.20 |  |
+| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 | 85.70 / 97.12 | 85.64 / 97.12 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -512,9 +523,9 @@ CPU, float32: max |diff| <= 3.3e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `davit_tiny.msft_in1k` | no kernels backend | - | - |
-| `davit_small.msft_in1k` | no kernels backend | - | - |
-| `davit_base.msft_in1k` | no kernels backend | - | - |
+| `davit_tiny.msft_in1k` | 0.00196 / 0.00753 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `davit_small.msft_in1k` | 0.00171 / 0.00613 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `davit_base.msft_in1k` | 0.00125 / 0.00535 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -551,11 +562,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `deit_base_patch16_224.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 95.92 | 83.14 / 95.88 | 83.22 / 95.84 | 83.16 / 95.84 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `deit_base_patch16_224.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 95.92 | 83.14 / 95.88 | 83.22 / 95.84 | 83.20 / 95.84 | 83.16 / 95.84 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -600,11 +611,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `densenet121.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.60 / 92.12 | 75.58 / 92.14 | 75.64 / 92.14 | 75.74 / 92.14 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `densenet121.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.60 / 92.12 | 75.58 / 92.14 | 75.64 / 92.14 | 75.66 / 92.16 | 75.74 / 92.14 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -649,11 +660,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov2_vitl14_lc` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.68 / 97.78 | 86.62 / 97.78 | 86.68 / 97.80 | 86.74 / 97.78 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov2_vitl14_lc` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.68 / 97.78 | 86.62 / 97.78 | 86.68 / 97.80 | 86.74 / 97.82 | 86.74 / 97.78 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -675,9 +686,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>no kernels<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>no kernels<br>125 / 144<br>128 / 142 |
-| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>no kernels<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>no kernels<br>193 / 216<br>227 / 286 |
-| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>no kernels<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>no kernels<br>332 / 364<br>460 / 490 |
+| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>0.704<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>91 / 126<br>125 / 144<br>128 / 142 |
+| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>1.21<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>160 / 218<br>193 / 216<br>227 / 286 |
+| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>2.04<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>298 / 346<br>332 / 364<br>460 / 490 |
 
 <details><summary>Details</summary>
 
@@ -686,34 +697,36 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/blob/8738a58190800aaf5995f453b05f643df453a565/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `efficientformer_l1.snap_dist_in1k` (default of `efficientformer_l1`), `efficientformer_l3.snap_dist_in1k` (default of `efficientformer_l3`), `efficientformer_l7.snap_dist_in1k` (default of `efficientformer_l7`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformer_l1.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformer_l3.snap_dist_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `efficientformer_l7.snap_dist_in1k` 224x224 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner.
 - `efficientformer_l1.snap_dist_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientformer_l3.snap_dist_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformer_l7.snap_dist_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `efficientformer_l1.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformer_l1.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformer_l3.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformer_l3.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformer_l7.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
-- `efficientformer_l1.snap_dist_in1k` load / first call: original 0.22 s / 0.219 s, portable 1.71 s / 0.071 s
-- `efficientformer_l3.snap_dist_in1k` load / first call: original 0.37 s / 0.029 s, portable 1.86 s / 0.076 s
-- `efficientformer_l7.snap_dist_in1k` load / first call: original 0.93 s / 0.03 s, portable 2.27 s / 0.074 s
+- `efficientformer_l7.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `efficientformer_l1.snap_dist_in1k` load / first call: original 0.22 s / 0.219 s, portable 1.71 s / 0.071 s, kernels 1.99 s / 0.072 s
+- `efficientformer_l3.snap_dist_in1k` load / first call: original 0.37 s / 0.029 s, portable 1.86 s / 0.076 s, kernels 2.28 s / 0.055 s
+- `efficientformer_l7.snap_dist_in1k` load / first call: original 0.93 s / 0.03 s, portable 2.27 s / 0.074 s, kernels 2.87 s / 0.057 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 |  |
-| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 |  |
-| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 | 81.14 / 95.14 | 81.12 / 95.12 |  |
+| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 |  |
+| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 | 84.38 / 96.66 | 84.40 / 96.68 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -721,9 +734,9 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformer_l3.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformer_l7.snap_dist_in1k` | no kernels backend | - | - |
+| `efficientformer_l1.snap_dist_in1k` | 0.00293 / 0.01165 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformer_l3.snap_dist_in1k` | 0.00344 / 0.01248 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformer_l7.snap_dist_in1k` | 0.00193 / 0.00768 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -737,10 +750,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>no kernels<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>no kernels<br>76 / 104<br>78 / 100 |
-| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>no kernels<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>no kernels<br>82 / 108<br>86 / 126 |
-| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>no kernels<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>no kernels<br>96 / 124<br>100 / 142 |
-| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>no kernels<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>no kernels<br>125 / 184<br>161 / 214 |
+| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>1.20<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>44 / 66<br>76 / 104<br>78 / 100 |
+| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>1.39<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>50 / 88<br>82 / 108<br>86 / 126 |
+| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>2.17<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>64 / 104<br>96 / 124<br>100 / 142 |
+| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>3.05<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>94 / 188<br>125 / 184<br>161 / 214 |
 
 <details><summary>Details</summary>
 
@@ -749,38 +762,41 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/blob/aa226e91a076e760bc7957e5990f19f6ae322c5f/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `efficientformerv2_s0.snap_dist_in1k` (default of `efficientformerv2_s0`), `efficientformerv2_s1.snap_dist_in1k` (default of `efficientformerv2_s1`), `efficientformerv2_s2.snap_dist_in1k` (default of `efficientformerv2_s2`), `efficientformerv2_l.snap_dist_in1k` (default of `efficientformerv2_l`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformerv2_s0.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s1.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s2.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformerv2_l.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved)
-- no kernels: not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner.
 - `efficientformerv2_s0.snap_dist_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `efficientformerv2_s1.snap_dist_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `efficientformerv2_s2.snap_dist_in1k` 224x224, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformerv2_l.snap_dist_in1k` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
 - `efficientformerv2_s0.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s0.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_s1.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s1.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_s2.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s2.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_l.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
-- `efficientformerv2_s0.snap_dist_in1k` load / first call: original 0.17 s / 1.757 s, portable 1.88 s / 0.502 s
-- `efficientformerv2_s1.snap_dist_in1k` load / first call: original 0.19 s / 0.586 s, portable 1.96 s / 0.433 s
-- `efficientformerv2_s2.snap_dist_in1k` load / first call: original 0.24 s / 0.861 s, portable 2.68 s / 0.438 s
-- `efficientformerv2_l.snap_dist_in1k` load / first call: original 0.32 s / 0.73 s, portable 2.74 s / 0.432 s
+- `efficientformerv2_l.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `efficientformerv2_s0.snap_dist_in1k` load / first call: original 0.17 s / 1.757 s, portable 1.88 s / 0.502 s, kernels 2.03 s / 0.084 s
+- `efficientformerv2_s1.snap_dist_in1k` load / first call: original 0.19 s / 0.586 s, portable 1.96 s / 0.433 s, kernels 2.14 s / 0.085 s
+- `efficientformerv2_s2.snap_dist_in1k` load / first call: original 0.24 s / 0.861 s, portable 2.68 s / 0.438 s, kernels 2.53 s / 0.087 s
+- `efficientformerv2_l.snap_dist_in1k` load / first call: original 0.32 s / 0.73 s, portable 2.74 s / 0.432 s, kernels 2.91 s / 0.089 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 |  |
-| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 |  |
-| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 |  |
-| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 | 77.02 / 92.88 | 77.32 / 92.82 |  |
+| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 | 80.84 / 95.06 | 80.78 / 94.98 |  |
+| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 | 83.22 / 96.24 | 83.26 / 96.34 |  |
+| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 | 83.98 / 96.62 | 84.06 / 96.48 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -788,10 +804,10 @@ CPU, float32: max |diff| <= 4.7e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_s1.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_s2.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_l.snap_dist_in1k` | no kernels backend | - | - |
+| `efficientformerv2_s0.snap_dist_in1k` | 0.04356 / 0.13661 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_s1.snap_dist_in1k` | 0.02079 / 0.06618 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_s2.snap_dist_in1k` | 0.0744 / 0.27361 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_l.snap_dist_in1k` | 0.01908 / 0.07145 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -835,12 +851,12 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `efficientnet_b0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.62 / 93.86 | 78.62 / 93.86 | 78.60 / 93.86 | 78.56 / 93.88 |  |
-| `efficientnet_b4.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.04 / 96.82 | 84.02 / 96.86 | 84.02 / 96.86 | 84.02 / 96.86 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientnet_b0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.62 / 93.86 | 78.62 / 93.86 | 78.60 / 93.86 | 78.56 / 93.86 | 78.56 / 93.88 |  |
+| `efficientnet_b4.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.04 / 96.82 | 84.02 / 96.86 | 84.02 / 96.86 | 84.00 / 96.84 | 84.02 / 96.86 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -886,11 +902,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `efficientnet_v2_s.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.00 / 96.90 | 84.96 / 96.90 | 84.96 / 96.86 | 84.92 / 96.84 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientnet_v2_s.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.00 / 96.90 | 84.96 / 96.90 | 84.96 / 96.86 | 84.94 / 96.86 | 84.92 / 96.84 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -935,11 +951,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.28 / 96.64 | 84.26 / 96.64 | 84.22 / 96.64 | 84.28 / 96.60 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientvit_b2.r288_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.28 / 96.64 | 84.26 / 96.64 | 84.22 / 96.64 | 84.26 / 96.62 | 84.28 / 96.60 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -988,11 +1004,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.62 / 99.10 | 90.62 / 99.10 | 90.46 / 99.08 | 90.50 / 99.08 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.62 / 99.10 | 90.62 / 99.10 | 90.46 / 99.08 | 90.46 / 99.08 | 90.50 / 99.08 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1037,6 +1053,16 @@ Commercial use: yes.
 - `falconsai-nsfw-vit` load / first call: original 2.95 s / 0.273 s, portable 2.63 s / 0.094 s, kernels 2.42 s / 0.085 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 257e02f4d, 2026-11-20.
+
 ### Parity
 
 CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.009 and p99 <= 0.011 (absolute error of the output `logits`).
@@ -1047,7 +1073,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: the weights' training set (Falconsai's private labelled NSFW images) is not published and no public labelled NSFW test set is part of the evaluation data here; tiers are compared by output parity and speed only.
+- The accuracy comparison covers the Sexual category of the official UnsafeBench test split. Falconsai's training set is private, so overlap with the evaluation images is unknown.
 - The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.
 
 </details>
@@ -1097,13 +1123,13 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `fastvit_sa24.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.78 / 96.48 | 83.80 / 96.46 | 83.78 / 96.44 | 83.80 / 96.42 |  |
-| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.34 | 78.66 / 93.38 |  |
-| `fastvit_t12.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.98 | 81.08 / 94.92 | 81.02 / 94.96 | 81.08 / 94.96 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `fastvit_sa24.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.78 / 96.48 | 83.80 / 96.46 | 83.78 / 96.44 | 83.78 / 96.44 | 83.80 / 96.42 |  |
+| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.34 | 78.76 / 93.36 | 78.66 / 93.38 |  |
+| `fastvit_t12.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.98 | 81.08 / 94.92 | 81.02 / 94.96 | 81.16 / 94.98 | 81.08 / 94.96 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7c91993, 2026-10-31 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
@@ -1127,12 +1153,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>no kernels<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>no kernels<br>120 / 136<br>159 / 188 |
-| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>no kernels<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>no kernels<br>161 / 190<br>234 / 256 |
-| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>no kernels<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>no kernels<br>234 / 272<br>401 / 430 |
-| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>no kernels<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>no kernels<br>120 / 138<br>158 / 186 |
-| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>no kernels<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>no kernels<br>162 / 192<br>265 / 286 |
-| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>no kernels<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>no kernels<br>235 / 274<br>404 / 432 |
+| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>2.19<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>93 / 138<br>120 / 136<br>159 / 188 |
+| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>3.73<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>134 / 154<br>161 / 190<br>234 / 256 |
+| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>4.99<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>210 / 256<br>234 / 272<br>401 / 430 |
+| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>2.39<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>93 / 138<br>120 / 138<br>158 / 186 |
+| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>4.18<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>136 / 154<br>162 / 192<br>265 / 286 |
+| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>5.44<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>212 / 258<br>235 / 274<br>404 / 432 |
 
 <details><summary>Details</summary>
 
@@ -1141,12 +1167,11 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/blob/de75c3a73e9ed84fee554a7138d4bac119751645/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `focalnet_tiny_srf.ms_in1k` (default of `focalnet_tiny_srf`), `focalnet_small_srf.ms_in1k` (default of `focalnet_small_srf`), `focalnet_base_srf.ms_in1k` (default of `focalnet_base_srf`), `focalnet_tiny_lrf.ms_in1k` (default of `focalnet_tiny_lrf`), `focalnet_small_lrf.ms_in1k` (default of `focalnet_small_lrf`), `focalnet_base_lrf.ms_in1k` (default of `focalnet_base_lrf`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `focalnet_tiny_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_srf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `focalnet_tiny_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_lrf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner.
 - `focalnet_tiny_srf.ms_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `focalnet_small_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `focalnet_base_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
@@ -1154,33 +1179,39 @@ Commercial use: yes.
 - `focalnet_small_lrf.ms_in1k` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 62 s (ONNX + engine).
 - `focalnet_base_lrf.ms_in1k` 224x224, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `focalnet_tiny_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_tiny_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_small_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_small_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_base_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_base_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_tiny_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_tiny_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_small_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_small_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_base_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
-- `focalnet_tiny_srf.ms_in1k` load / first call: original 0.4 s / 0.445 s, portable 1.49 s / 0.495 s
-- `focalnet_small_srf.ms_in1k` load / first call: original 0.54 s / 0.023 s, portable 1.73 s / 0.49 s
-- `focalnet_base_srf.ms_in1k` load / first call: original 0.89 s / 0.052 s, portable 1.92 s / 0.487 s
-- `focalnet_tiny_lrf.ms_in1k` load / first call: original 0.36 s / 0.154 s, portable 2.56 s / 0.771 s
-- `focalnet_small_lrf.ms_in1k` load / first call: original 0.54 s / 0.025 s, portable 1.86 s / 0.687 s
-- `focalnet_base_lrf.ms_in1k` load / first call: original 0.91 s / 0.033 s, portable 1.89 s / 0.616 s
+- `focalnet_base_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `focalnet_tiny_srf.ms_in1k` load / first call: original 0.4 s / 0.445 s, portable 1.49 s / 0.495 s, kernels 2.61 s / 0.139 s
+- `focalnet_small_srf.ms_in1k` load / first call: original 0.54 s / 0.023 s, portable 1.73 s / 0.49 s, kernels 3.08 s / 0.124 s
+- `focalnet_base_srf.ms_in1k` load / first call: original 0.89 s / 0.052 s, portable 1.92 s / 0.487 s, kernels 3.27 s / 0.139 s
+- `focalnet_tiny_lrf.ms_in1k` load / first call: original 0.36 s / 0.154 s, portable 2.56 s / 0.771 s, kernels 2.86 s / 0.138 s
+- `focalnet_small_lrf.ms_in1k` load / first call: original 0.54 s / 0.025 s, portable 1.86 s / 0.687 s, kernels 3.29 s / 0.124 s
+- `focalnet_base_lrf.ms_in1k` load / first call: original 0.91 s / 0.033 s, portable 1.89 s / 0.616 s, kernels 3.85 s / 0.14 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.86 / 96.28 | 82.88 / 96.30 | 82.90 / 96.28 |  |
-| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 |  |
-| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 |  |
-| `focalnet_tiny_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.88 / 96.12 | 82.86 / 96.10 | 82.86 / 96.20 |  |
-| `focalnet_small_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.36 / 96.80 | 84.34 / 96.80 | 84.32 / 96.80 |  |
-| `focalnet_base_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.64 / 96.64 | 84.64 / 96.64 | 84.56 / 96.56 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `focalnet_tiny_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.86 / 96.28 | 82.88 / 96.30 | 82.90 / 96.28 | 82.88 / 96.28 | 82.84 / 96.26 |  |
+| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 | 84.40 / 96.74 | 84.40 / 96.76 |  |
+| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 | 84.16 / 96.84 | 84.16 / 96.84 |  |
+| `focalnet_tiny_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.88 / 96.12 | 82.86 / 96.10 | 82.86 / 96.20 | 82.82 / 96.20 | 82.88 / 96.18 |  |
+| `focalnet_small_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.36 / 96.80 | 84.34 / 96.80 | 84.32 / 96.80 | 84.38 / 96.80 | 84.34 / 96.80 |  |
+| `focalnet_base_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.64 / 96.64 | 84.64 / 96.64 | 84.56 / 96.56 | 84.56 / 96.58 | 84.58 / 96.56 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -1188,12 +1219,12 @@ CPU, float32: max |diff| <= 2.9e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_small_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_base_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_tiny_lrf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_small_lrf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_base_lrf.ms_in1k` | no kernels backend | - | - |
+| `focalnet_tiny_srf.ms_in1k` | 0.00167 / 0.00581 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_small_srf.ms_in1k` | 0.00124 / 0.00466 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_base_srf.ms_in1k` | 0.00131 / 0.00626 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_tiny_lrf.ms_in1k` | 0.00128 / 0.00548 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_small_lrf.ms_in1k` | 0.00179 / 0.00799 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_base_lrf.ms_in1k` | 0.00106 / 0.0054 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1207,13 +1238,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>no kernels<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>no kernels<br>78 / 110<br>77 / 100 |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>no kernels<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>no kernels<br>80 / 108<br>81 / 104 |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>no kernels<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>no kernels<br>89 / 134<br>91 / 128 |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>no kernels<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>no kernels<br>99 / 152<br>100 / 150 |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>no kernels<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>no kernels<br>107 / 134<br>139 / 182 |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>no kernels<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>no kernels<br>146 / 190<br>209 / 250 |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>no kernels<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>no kernels<br>217 / 264<br>347 / 394 |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>0.568<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>46 / 72<br>78 / 110<br>77 / 100 |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>0.603<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>48 / 70<br>80 / 108<br>81 / 104 |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>0.765<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>57 / 94<br>89 / 134<br>91 / 128 |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>0.909<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>67 / 116<br>99 / 152<br>100 / 150 |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>0.864<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>75 / 138<br>107 / 134<br>139 / 182 |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>1.29<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>115 / 156<br>146 / 190<br>209 / 250 |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>2.10<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>188 / 232<br>217 / 264<br>347 / 394 |
 
 <details><summary>Details</summary>
 
@@ -1222,12 +1253,11 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/blob/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/README.md>
 - Training data: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `hgnetv2_b0.ssld_stage2_ft_in1k` (default of `hgnetv2_b0`), `hgnetv2_b1.ssld_stage2_ft_in1k` (default of `hgnetv2_b1`), `hgnetv2_b2.ssld_stage2_ft_in1k` (default of `hgnetv2_b2`), `hgnetv2_b3.ssld_stage2_ft_in1k` (default of `hgnetv2_b3`), `hgnetv2_b4.ssld_stage2_ft_in1k` (default of `hgnetv2_b4`), `hgnetv2_b5.ssld_stage2_ft_in1k` (default of `hgnetv2_b5`), `hgnetv2_b6.ssld_stage2_ft_in1k` (default of `hgnetv2_b6`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b3.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b4.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b5.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b6.ssld_stage2_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner.
 - `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 21 s (ONNX + engine).
 - `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
 - `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
@@ -1236,36 +1266,43 @@ Commercial use: yes.
 - `hgnetv2_b5.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `hgnetv2_b6.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
 - `hgnetv2_b0.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b0.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b1.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b1.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b2.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b2.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b3.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b3.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b4.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b4.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b5.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b5.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b6.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
-- `hgnetv2_b0.ssld_stage2_ft_in1k` load / first call: original 0.19 s / 1.357 s, portable 1.67 s / 0.735 s
-- `hgnetv2_b1.ssld_stage2_ft_in1k` load / first call: original 0.31 s / 0.313 s, portable 1.87 s / 0.396 s
-- `hgnetv2_b2.ssld_stage2_ft_in1k` load / first call: original 0.23 s / 0.59 s, portable 1.79 s / 0.39 s
-- `hgnetv2_b3.ssld_stage2_ft_in1k` load / first call: original 0.27 s / 0.165 s, portable 1.81 s / 0.395 s
-- `hgnetv2_b4.ssld_stage2_ft_in1k` load / first call: original 0.32 s / 0.297 s, portable 1.74 s / 0.389 s
-- `hgnetv2_b5.ssld_stage2_ft_in1k` load / first call: original 0.49 s / 0.305 s, portable 1.95 s / 0.4 s
-- `hgnetv2_b6.ssld_stage2_ft_in1k` load / first call: original 0.86 s / 0.453 s, portable 2.21 s / 0.46 s
+- `hgnetv2_b6.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `hgnetv2_b0.ssld_stage2_ft_in1k` load / first call: original 0.19 s / 1.357 s, portable 1.67 s / 0.735 s, kernels 1.74 s / 0.05 s
+- `hgnetv2_b1.ssld_stage2_ft_in1k` load / first call: original 0.31 s / 0.313 s, portable 1.87 s / 0.396 s, kernels 1.73 s / 0.052 s
+- `hgnetv2_b2.ssld_stage2_ft_in1k` load / first call: original 0.23 s / 0.59 s, portable 1.79 s / 0.39 s, kernels 1.89 s / 0.053 s
+- `hgnetv2_b3.ssld_stage2_ft_in1k` load / first call: original 0.27 s / 0.165 s, portable 1.81 s / 0.395 s, kernels 1.96 s / 0.054 s
+- `hgnetv2_b4.ssld_stage2_ft_in1k` load / first call: original 0.32 s / 0.297 s, portable 1.74 s / 0.389 s, kernels 2.11 s / 0.05 s
+- `hgnetv2_b5.ssld_stage2_ft_in1k` load / first call: original 0.49 s / 0.305 s, portable 1.95 s / 0.4 s, kernels 2.17 s / 0.053 s
+- `hgnetv2_b6.ssld_stage2_ft_in1k` load / first call: original 0.86 s / 0.453 s, portable 2.21 s / 0.46 s, kernels 2.65 s / 0.053 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.50 / 93.98 | 78.40 / 93.96 | 78.50 / 94.04 |  |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 |  |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 |  |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 |  |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 |  |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.50 / 97.14 | 85.52 / 97.14 | 85.52 / 97.18 |  |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.60 / 97.94 | 86.60 / 97.94 | 86.74 / 98.00 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.50 / 93.98 | 78.40 / 93.96 | 78.50 / 94.04 | 78.50 / 94.04 | 78.58 / 94.04 |  |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 | 80.16 / 94.42 | 80.14 / 94.40 |  |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 | 82.50 / 95.92 | 82.48 / 95.92 |  |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 | 83.64 / 96.06 | 83.62 / 96.06 |  |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 | 84.02 / 96.64 | 84.04 / 96.64 |  |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.50 / 97.14 | 85.52 / 97.14 | 85.52 / 97.18 | 85.52 / 97.16 | 85.56 / 97.16 |  |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.60 / 97.94 | 86.60 / 97.94 | 86.74 / 98.00 | 86.66 / 98.00 | 86.72 / 98.00 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948 / 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -1273,13 +1310,13 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | no kernels backend | - | - |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | 0.0054 / 0.02154 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | 0.00362 / 0.01274 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | 0.00244 / 0.01084 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | 0.00242 / 0.01019 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | 0.00152 / 0.00782 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | 0.00146 / 0.00686 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | 0.00201 / 0.00906 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1316,11 +1353,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `inception_v3.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.00 / 93.50 | 77.98 / 93.52 | 77.98 / 93.48 | 78.04 / 93.56 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `inception_v3.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.00 / 93.50 | 77.98 / 93.52 | 77.98 / 93.48 | 78.04 / 93.44 | 78.04 / 93.56 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1365,11 +1402,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mobilenet_v2.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 73.72 / 91.16 | 73.72 / 91.14 | 73.88 / 91.20 | 73.88 / 91.18 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mobilenet_v2.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 73.72 / 91.16 | 73.72 / 91.14 | 73.88 / 91.20 | 73.82 / 91.18 | 73.88 / 91.18 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1414,11 +1451,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mobilenet_v3_large.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.36 / 92.94 | 76.28 / 92.96 | 76.20 / 93.06 | 76.24 / 93.04 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mobilenet_v3_large.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.36 / 92.94 | 76.28 / 92.96 | 76.20 / 93.06 | 76.28 / 93.10 | 76.24 / 93.04 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1463,11 +1500,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mobilenetv1_100.ra4_e3600_r224_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.44 / 92.02 | 76.46 / 92.08 | 76.48 / 92.04 | 76.50 / 92.12 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mobilenetv1_100.ra4_e3600_r224_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.44 / 92.02 | 76.46 / 92.08 | 76.48 / 92.04 | 76.38 / 92.02 | 76.50 / 92.12 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1512,11 +1549,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mobilenetv4_conv_medium.e500_r256_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.36 | 80.80 / 95.32 | 80.86 / 95.38 | 80.84 / 95.38 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mobilenetv4_conv_medium.e500_r256_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.36 | 80.80 / 95.32 | 80.86 / 95.38 | 80.84 / 95.38 | 80.84 / 95.38 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1561,11 +1598,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `regnety_160.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.62 / 96.56 | 83.62 / 96.54 | 83.64 / 96.64 | 83.70 / 96.64 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `regnety_160.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.62 / 96.56 | 83.62 / 96.54 | 83.64 / 96.64 | 83.62 / 96.64 | 83.70 / 96.64 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1646,20 +1683,20 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `repvit_m0_9.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.44 / 94.20 | 79.48 / 94.16 | 79.44 / 94.08 | 79.42 / 94.08 |  |
-| `repvit_m0_9.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.52 / 94.22 | 79.56 / 94.26 | 79.52 / 94.24 | 79.52 / 94.24 |  |
-| `repvit_m1_0.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.78 | 81.12 / 94.76 | 81.10 / 94.74 | 81.10 / 94.80 |  |
-| `repvit_m1_0.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.10 / 94.86 | 81.10 / 94.88 | 81.16 / 94.90 | 81.14 / 94.92 |  |
-| `repvit_m1_1.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.40 / 95.10 | 81.40 / 95.10 | 81.32 / 95.02 | 81.34 / 95.02 |  |
-| `repvit_m1_1.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.32 / 95.70 | 82.28 / 95.72 | 82.18 / 95.66 | 82.18 / 95.62 |  |
-| `repvit_m1_5.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.94 / 96.22 | 82.98 / 96.24 | 82.96 / 96.24 | 83.00 / 96.26 |  |
-| `repvit_m1_5.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.18 / 96.38 | 83.20 / 96.38 | 83.24 / 96.36 | 83.24 / 96.36 |  |
-| `repvit_m2_3.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.12 / 96.54 | 84.14 / 96.52 | 84.22 / 96.54 | 84.20 / 96.54 |  |
-| `repvit_m2_3.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.30 / 96.58 | 84.30 / 96.60 | 84.26 / 96.62 | 84.20 / 96.62 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `repvit_m0_9.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.44 / 94.20 | 79.48 / 94.16 | 79.44 / 94.08 | 79.42 / 94.08 | 79.42 / 94.08 |  |
+| `repvit_m0_9.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.52 / 94.22 | 79.56 / 94.26 | 79.52 / 94.24 | 79.48 / 94.26 | 79.52 / 94.24 |  |
+| `repvit_m1_0.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.78 | 81.12 / 94.76 | 81.10 / 94.74 | 81.12 / 94.74 | 81.10 / 94.80 |  |
+| `repvit_m1_0.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.10 / 94.86 | 81.10 / 94.88 | 81.16 / 94.90 | 81.12 / 94.96 | 81.14 / 94.92 |  |
+| `repvit_m1_1.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.40 / 95.10 | 81.40 / 95.10 | 81.32 / 95.02 | 81.34 / 95.02 | 81.34 / 95.02 |  |
+| `repvit_m1_1.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.32 / 95.70 | 82.28 / 95.72 | 82.18 / 95.66 | 82.14 / 95.62 | 82.18 / 95.62 |  |
+| `repvit_m1_5.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.94 / 96.22 | 82.98 / 96.24 | 82.96 / 96.24 | 82.98 / 96.24 | 83.00 / 96.26 |  |
+| `repvit_m1_5.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.18 / 96.38 | 83.20 / 96.38 | 83.24 / 96.36 | 83.28 / 96.34 | 83.24 / 96.36 |  |
+| `repvit_m2_3.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.12 / 96.54 | 84.14 / 96.52 | 84.22 / 96.54 | 84.22 / 96.56 | 84.20 / 96.54 |  |
+| `repvit_m2_3.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.30 / 96.58 | 84.30 / 96.60 | 84.26 / 96.62 | 84.26 / 96.62 | 84.20 / 96.62 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
 
 ### Parity
 
@@ -1728,13 +1765,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.74 / 89.10 |  |
-| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.96 / 95.34 |  |
-| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.90 / 96.24 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.72 / 89.12 | 70.74 / 89.10 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.98 / 95.32 | 81.96 / 95.34 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, one image per class (1,000), top-1 / top-5 % |  |  | 80.20 / 96.40 |  |  | 80.20 / 96.40 | 80.20 / 96.40 |  |
+| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.94 / 96.24 | 82.90 / 96.24 |  |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / c45a2130, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19.
 
 ### Parity
 
@@ -1781,11 +1819,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `shufflenet_v2_x1_0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 71.00 / 88.72 | 71.06 / 88.74 | 71.04 / 88.80 | 71.10 / 88.78 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `shufflenet_v2_x1_0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 71.00 / 88.72 | 71.06 / 88.74 | 71.04 / 88.80 | 71.04 / 88.78 | 71.10 / 88.78 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1811,10 +1849,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>no kernels<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>no kernels<br>78 / 98<br>77 / 90 |
-| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>no kernels<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>no kernels<br>88 / 128<br>87 / 120 |
-| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>no kernels<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>no kernels<br>94 / 132<br>92 / 144 |
-| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>no kernels<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>no kernels<br>99 / 138<br>101 / 154 |
+| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>0.805<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>47 / 62<br>78 / 98<br>77 / 90 |
+| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>0.949<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>57 / 88<br>88 / 128<br>87 / 120 |
+| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>1.01<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>62 / 112<br>94 / 132<br>92 / 144 |
+| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>1.78<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>68 / 102<br>99 / 138<br>101 / 154 |
 
 <details><summary>Details</summary>
 
@@ -1823,40 +1861,43 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/shvit_s1.in1k/blob/d5c0c27b0d05c630284a3946882590e4054f1108/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `shvit_s1.in1k` (default of `shvit_s1`), `shvit_s2.in1k` (default of `shvit_s2`), `shvit_s3.in1k` (default of `shvit_s3`), `shvit_s4.in1k` (default of `shvit_s4`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size:
   - `shvit_s1.in1k`, `shvit_s2.in1k`, `shvit_s3.in1k`: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
   - `shvit_s4.in1k`: fixed 256x256: the input is resized (short side 292) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shvit_s1.in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `shvit_s2.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s3.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s4.in1k` 256x256 (0.1 GiB peak allocated, 0.1 reserved)
-- no kernels: not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner.
 - `shvit_s1.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `shvit_s2.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `shvit_s3.in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `shvit_s4.in1k` 256x256, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `shvit_s1.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s1.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s2.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s2.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s3.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s3.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s4.in1k` original 256x256: torch.autocast(float16) around the call
-- `shvit_s1.in1k` load / first call: original 0.31 s / 0.921 s, portable 2.16 s / 0.412 s
-- `shvit_s2.in1k` load / first call: original 0.2 s / 0.299 s, portable 2.32 s / 0.478 s
-- `shvit_s3.in1k` load / first call: original 0.21 s / 0.566 s, portable 2.8 s / 0.544 s
-- `shvit_s4.in1k` load / first call: original 0.23 s / 0.307 s (256x256), portable 2.49 s / 0.436 s (256x256)
+- `shvit_s4.in1k` kernels 256x256: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `shvit_s1.in1k` load / first call: original 0.31 s / 0.921 s, portable 2.16 s / 0.412 s, kernels 2.91 s / 0.401 s
+- `shvit_s2.in1k` load / first call: original 0.2 s / 0.299 s, portable 2.32 s / 0.478 s, kernels 2.31 s / 0.454 s
+- `shvit_s3.in1k` load / first call: original 0.21 s / 0.566 s, portable 2.8 s / 0.544 s, kernels 2.22 s / 0.452 s
+- `shvit_s4.in1k` load / first call: original 0.23 s / 0.307 s (256x256), portable 2.49 s / 0.436 s (256x256), kernels 2.38 s / 0.402 s (256x256)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `shvit_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.26 / 91.10 | 74.22 / 91.16 | 74.26 / 91.00 |  |
-| `shvit_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.74 / 92.40 | 76.82 / 92.40 | 76.82 / 92.44 |  |
-| `shvit_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.06 / 93.48 | 78.04 / 93.44 | 77.96 / 93.50 |  |
-| `shvit_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.38 / 94.50 | 80.38 / 94.52 | 80.40 / 94.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `shvit_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.26 / 91.10 | 74.22 / 91.16 | 74.26 / 91.00 | 74.22 / 90.98 | 74.26 / 91.00 |  |
+| `shvit_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.74 / 92.40 | 76.82 / 92.40 | 76.82 / 92.44 | 76.78 / 92.40 | 76.76 / 92.38 |  |
+| `shvit_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.06 / 93.48 | 78.04 / 93.44 | 77.96 / 93.50 | 77.96 / 93.50 | 77.98 / 93.48 |  |
+| `shvit_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.38 / 94.50 | 80.38 / 94.52 | 80.40 / 94.52 | 80.40 / 94.52 | 80.42 / 94.54 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -1864,10 +1905,10 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `shvit_s1.in1k` | no kernels backend | - | - |
-| `shvit_s2.in1k` | no kernels backend | - | - |
-| `shvit_s3.in1k` | no kernels backend | - | - |
-| `shvit_s4.in1k` | no kernels backend | - | - |
+| `shvit_s1.in1k` | 0.00575 / 0.0216 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s2.in1k` | 0.00341 / 0.01293 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s3.in1k` | 0.00396 / 0.01611 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s4.in1k` | 0.00337 / 0.01262 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1904,11 +1945,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `squeezenet1_1.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 59.02 / 81.26 | 58.98 / 81.28 | 59.18 / 81.32 | 59.18 / 81.30 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `squeezenet1_1.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 59.02 / 81.26 | 58.98 / 81.28 | 59.18 / 81.32 | 59.22 / 81.34 | 59.18 / 81.30 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1965,14 +2006,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `starnet_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.50 / 91.94 | 74.50 / 91.96 | 74.48 / 91.92 | 74.52 / 91.92 |  |
-| `starnet_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.82 / 92.14 | 75.84 / 92.12 | 75.84 / 92.10 | 75.88 / 92.12 |  |
-| `starnet_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.08 / 93.72 | 78.14 / 93.74 | 78.10 / 93.80 | 78.06 / 93.80 |  |
-| `starnet_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.56 | 80.06 / 94.56 | 79.98 / 94.58 | 79.92 / 94.58 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `starnet_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.50 / 91.94 | 74.50 / 91.96 | 74.48 / 91.92 | 74.48 / 91.92 | 74.52 / 91.92 |  |
+| `starnet_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.82 / 92.14 | 75.84 / 92.12 | 75.84 / 92.10 | 75.82 / 92.10 | 75.88 / 92.12 |  |
+| `starnet_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.08 / 93.72 | 78.14 / 93.74 | 78.10 / 93.80 | 78.06 / 93.82 | 78.06 / 93.80 |  |
+| `starnet_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.56 | 80.06 / 94.56 | 79.98 / 94.58 | 79.98 / 94.58 | 79.92 / 94.58 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e68b313, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e68b313, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e68b313, 2026-11-11.
 
 ### Parity
 
@@ -2020,11 +2061,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.28 / 97.82 | 86.30 / 97.82 | 86.24 / 97.86 | 86.24 / 97.86 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.28 / 97.82 | 86.30 / 97.82 | 86.24 / 97.86 | 86.20 / 97.86 | 86.24 / 97.86 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -2088,15 +2129,15 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `tiny_vit_5m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.16 / 95.98 | 82.18 / 95.96 | 82.20 / 95.92 | 82.20 / 95.94 |  |
-| `tiny_vit_11m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.14 / 96.78 | 84.10 / 96.78 | 84.10 / 96.80 | 84.16 / 96.82 |  |
-| `tiny_vit_21m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.02 / 97.56 | 86.02 / 97.56 | 85.96 / 97.54 | 85.96 / 97.54 |  |
-| `tiny_vit_21m_384.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 97.84 | 87.06 / 97.84 | 86.90 / 97.84 | 86.96 / 97.84 |  |
-| `tiny_vit_21m_512.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.98 / 98.04 | 87.04 / 98.04 | 87.14 / 97.90 | 87.14 / 97.88 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `tiny_vit_5m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.16 / 95.98 | 82.18 / 95.96 | 82.20 / 95.92 | 82.22 / 95.94 | 82.20 / 95.94 |  |
+| `tiny_vit_11m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.14 / 96.78 | 84.10 / 96.78 | 84.10 / 96.80 | 84.16 / 96.80 | 84.16 / 96.82 |  |
+| `tiny_vit_21m_224.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.02 / 97.56 | 86.02 / 97.56 | 85.96 / 97.54 | 85.94 / 97.54 | 85.96 / 97.54 |  |
+| `tiny_vit_21m_384.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 97.84 | 87.06 / 97.84 | 86.90 / 97.84 | 86.92 / 97.84 | 86.96 / 97.84 |  |
+| `tiny_vit_21m_512.dist_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.98 / 98.04 | 87.04 / 98.04 | 87.14 / 97.90 | 87.12 / 97.90 | 87.14 / 97.88 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
 
 ### Parity
 
@@ -2145,11 +2186,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vgg16.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 72.86 / 90.68 | 72.84 / 90.68 | 72.90 / 90.64 | 72.96 / 90.62 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vgg16.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 72.86 / 90.68 | 72.84 / 90.68 | 72.90 / 90.64 | 72.88 / 90.62 | 72.96 / 90.62 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -2194,11 +2235,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.88 / 97.70 | 85.90 / 97.70 | 85.84 / 97.70 | 85.88 / 97.68 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.88 / 97.70 | 85.90 / 97.70 | 85.84 / 97.70 | 85.86 / 97.68 | 85.88 / 97.68 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -2243,11 +2284,11 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.04 / 98.90 | 90.02 / 98.88 | 89.98 / 98.94 | 90.00 / 98.92 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.04 / 98.90 | 90.02 / 98.88 | 89.98 / 98.94 | 90.02 / 98.90 | 90.00 / 98.92 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -2302,16 +2343,16 @@ Commercial use: yes.
 
 ### Measured
 
-fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Taggers have no public benchmark with their tag set, so the original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely tag. The original fp16 row shows the difference of the original itself in half precision. Original = the original code named under Details, same checkpoint and protocol.
+Tagger agreement uses the original FP32 network as the reference on the same COCO images with white square padding and tensor resizing. Tag F1 compares the tags above probability 0.35, micro-averaged over the images. Top-1 agreement counts images with the same most likely tag. The original FP16 measurement casts both the network and inputs directly to half precision. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 99.90 / 99.20 |  |
-| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.88 / 99.80 |  |
-| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 99.88 / 99.80 |  |
-| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 99.84 / 99.40 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 100.00 / 100.00 | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.99 / 100.00 | 99.88 / 99.80 |  |
+| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 100.00 / 100.00 | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 100.00 / 100.00 | 99.84 / 99.40 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 96cbc5e57, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
 
 ### Parity
 
@@ -2340,16 +2381,16 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`alexnet`](#alexnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
-| [`coatnet_0_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_1_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_2_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_nano_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_0_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_1_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_2_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_nano_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`convnext_base.fb_in1k`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`convnext_base`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
@@ -2363,19 +2404,19 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnextv2_base`](#convnextv2) | portable, kernels | Apache-2.0 | CC-BY-NC-4.0 | imagenet-21k, imagenet-1k | **no** (weights: CC-BY-NC-4.0) | logits |
-| [`davit_base`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`davit_small`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`davit_tiny`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_base`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_small`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_tiny`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`deit_base_patch16_224`](#deit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`densenet121`](#densenet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | portable, kernels | Apache-2.0 | Apache-2.0 | lvd-142m, imagenet-1k | yes | logits |
-| [`efficientformer_l1`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformer_l3`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformer_l7`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_l`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s0`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s1`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s2`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l1`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l3`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l7`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_l`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s0`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s1`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s2`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`efficientnet_b0`](#efficientnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`efficientnet_b4`](#efficientnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`efficientnet_v2_s`](#efficientnetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
@@ -2385,19 +2426,19 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`fastvit_sa24`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
-| [`focalnet_base_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_base_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_small_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_small_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_tiny_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_tiny_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`hgnetv2_b0`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b1`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b2`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b3`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b4`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b5`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b6`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`focalnet_base_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_base_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_small_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_small_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_tiny_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_tiny_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`hgnetv2_b0`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b1`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b2`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b3`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b4`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b5`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b6`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`inception_v3`](#inception_v3) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`mobilenet_v2`](#mobilenetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`mobilenet_v3_large`](#mobilenetv3) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
@@ -2418,10 +2459,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`resnet18`](#resnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`resnet50`](#resnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
-| [`shvit_s1`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s2`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s3`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s4`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s1`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s2`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s3`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s4`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
 | [`squeezenet1_1`](#squeezenet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`starnet_s1`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`starnet_s2`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |

@@ -11,7 +11,9 @@ import torch
 
 from fastforks import BackendUnavailableError, InputError, WeightsError, depth
 from fastforks._core import registry
+from fastforks.depth.models.depth_anything_v2 import model as dav2_model
 from fastforks.depth.models.depth_anything_v2.model import network_size
+from fastforks.depth.models.moge import model as moge_model
 from fastforks.depth.models.unidepth_v2.model import RATIO_BOUNDS, _geometry, _prepare, _restore
 from fastforks.depth.models.unidepth_v2.net.utils import PinholeCamera
 from fastforks.depth.models.unik3d import model as unik3d_model
@@ -56,6 +58,101 @@ def _map(result: depth.DepthResult) -> torch.Tensor:
 )
 def test_dav2_network_size(h, w, short_side, want):
     assert network_size(h, w, short_side) == want
+
+
+@pytest.mark.parametrize(
+    ("shape", "short_side", "graphed"),
+    [
+        ((1, 3, 512, 512), 518, True),  # network 518 x 518
+        ((1, 3, 1080, 1920), 518, True),  # 518 x 924: the network size counts, not the image's
+        ((2, 3, 518, 770), 518, False),  # a batch of two: 2 x 518 x 770
+        ((1, 3, 518, 770), 1036, False),  # 1036 x 1540
+        ((1, 3, 2160, 3840), 518, False),  # 4K: the graph's copy of the image would cost 133 MB
+    ],
+)
+def test_dav2_kernels_graph_size(shape, short_side, graphed):
+    """Kernels replays CUDA graphs by network size (the fused patch kernel resizes), within an image-size bound."""
+    ctx = types.SimpleNamespace(params=types.SimpleNamespace(short_side=short_side))
+    size = dav2_model.Kernels._size(types.SimpleNamespace(ctx=ctx), torch.empty(shape, device="meta"))  # ty: ignore[invalid-argument-type]
+    assert (size <= dav2_model._GRAPH_PIXELS) is graphed
+
+
+@pytest.mark.model
+@pytest.mark.gpu
+def test_dav2_kernels_graph_replay_matches_eager():
+    """A repeated shape replays a CUDA graph: the eager map bit for bit, fresh outputs, `release_graphs`, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        m = depth.load("depth-anything-v2-s", mode="kernels", device="cuda")
+    except (WeightsError, BackendUnavailableError) as e:
+        pytest.skip(f"depth-anything-v2-s kernels: {e}")
+    r = m._runner
+    g = r._graphs
+    assert g.cache is not None
+    gen = torch.Generator("cuda").manual_seed(0)
+    a, b = (torch.rand(1, 3, 300, 400, device="cuda", generator=gen) for _ in range(2))
+
+    def eager(x: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return m(x).inverse_depth
+        finally:
+            g.pixels = pixels
+
+    want_a, want_b = eager(a), eager(b)
+    m(a)  # first call: eager
+    assert not g.cache.graphs
+    first = m(a).inverse_depth  # captures
+    assert len(g.cache.graphs) == 1
+    second = m(b).inverse_depth  # replays with new data; `first` must not change
+    torch.testing.assert_close(first, want_a, rtol=0, atol=0)
+    torch.testing.assert_close(second, want_b, rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    m.release_graphs()
+    assert not g.cache.graphs
+    off = depth.load("depth-anything-v2-s", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner._graphs.cache is None
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+def test_any2full_kernels_graph_replay_matches_eager():
+    """Any2Full replays its whole pass (embedding, prompt branches, fit) from a graph: eager bit for bit, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        m = depth.load("any2full-s", mode="kernels", device="cuda")
+    except (WeightsError, BackendUnavailableError) as e:
+        pytest.skip(f"any2full-s kernels: {e}")
+    g = m._runner._graphs
+    assert g.cache is not None
+    gen = torch.Generator("cuda").manual_seed(0)
+    a, b = (torch.rand(1, 3, 300, 400, device="cuda", generator=gen) for _ in range(2))
+    da, db = (
+        torch.where(torch.rand(300, 400, device="cuda", generator=gen) < 0.05, 1 + 9 * x[0, 0], 0) for x in (a, b)
+    )
+
+    def eager(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return m(x, prompt_depth=d).depth
+        finally:
+            g.pixels = pixels
+
+    want_a, want_b = eager(a, da), eager(b, db)
+    m(a, prompt_depth=da)  # first call: eager
+    assert not g.cache.graphs
+    first = m(a, prompt_depth=da).depth  # captures
+    assert len(g.cache.graphs) == 1
+    second = m(b, prompt_depth=db).depth  # replays with new data; `first` must not change
+    torch.testing.assert_close(first, want_a, rtol=0, atol=0)
+    torch.testing.assert_close(second, want_b, rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    m.release_graphs()
+    assert not g.cache.graphs
+    off = depth.load("any2full-s", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner._graphs.cache is None
 
 
 @pytest.mark.parametrize(("h", "w"), [(352, 480), (480, 640), (375, 1242), (994, 1482), (1000, 400), (97, 131)])
@@ -404,3 +501,69 @@ def test_zoedepth_sizes_are_python_ints(h, w):
         assert all(type(s) is int and s % 32 == 0 for s in size), size
     assert all(type(p) is int for p in _pads(h, w))
     assert _pads(h, w) == (int(np.sqrt(h / 2) * 3), int(np.sqrt(w / 2) * 3))  # the upstream NumPy values
+
+
+@pytest.mark.parametrize("given_focal", [False, True])
+def test_moge_shift_solver_eager_matches_traced(*, given_focal: bool) -> None:
+    """The eager per-item Levenberg-Marquardt of `focal_shift` (valid points) finds the traced batched one's shift.
+
+    The sums run in another order and the two stop on `|step| <= 1e-13 |s|` at different iterates of a flat minimum:
+    they agree to about 1e-10, far below the float32 the shift is returned in.
+    """
+    gen = torch.Generator().manual_seed(0)
+    uv = torch.rand(2, 4096, 2, generator=gen, dtype=torch.float64) * 2 - 1
+    z = torch.rand(2, 4096, 1, generator=gen, dtype=torch.float64) + 0.5
+    xyz = torch.cat([uv * (z + 0.3) / 1.7 + 1e-3 * torch.randn(2, 4096, 2, generator=gen, dtype=torch.float64), z], -1)
+    w = (torch.rand(2, 4096, generator=gen) > 0.2).double()
+    w[1, :4000] = 0  # a sparse item: the masked points divide 0 / 0
+    focal = torch.tensor([1.7, 2.0], dtype=torch.float64) if given_focal else None
+    want = moge_model._solve_shift(uv, xyz, w, focal)
+    keep = w.numpy() > 0
+    got = [
+        moge_model._solve_shift_item(
+            uv[i].numpy()[keep[i]], xyz[i].numpy()[keep[i]], None if focal is None else float(focal[i])
+        )
+        for i in range(2)
+    ]
+    torch.testing.assert_close(torch.tensor(got, dtype=torch.float64), want, rtol=1e-9, atol=1e-12)
+
+
+@pytest.mark.parametrize("name", ["points", "mask", "normal"])
+def test_moge_folded_top_level_matches_the_conv_stack(name: str) -> None:
+    """The MLX port's half-resolution fold of a head's last level (`_FoldedTop`) equals the plain neck + head."""
+    from fastforks.depth.models.moge.net import MoGeNet  # noqa: PLC0415 - only this test builds the bare network
+
+    torch.manual_seed(0)
+    net = MoGeNet("vits", 2).eval().double()
+    for p in net.parameters():
+        if p.ndim == 1:
+            torch.nn.init.normal_(p, std=0.3)  # zero-initialised biases would hide the folded bias
+    rows, cols, aspect = 5, 7, 7 / 5
+    with torch.no_grad():
+        enc = torch.randn(2, 386, rows, cols, dtype=torch.float64)
+        uv = [
+            moge_model.view_plane_uv(cols << i, rows << i, aspect, "cpu").permute(2, 0, 1)[None].expand(2, -1, -1, -1)
+            for i in range(5)
+        ]
+        uv = [u.double() for u in uv]
+        head = getattr(net, f"{name}_head")
+        want = head(net.neck([enc, *uv[1:]]))[-1]
+
+        def below_top(cs, feats):  # `ConvStack.forward` without its last level: the outputs, the last resampler's input
+            outs, x = [], feats[0]
+            for i in range(4):
+                f = cs.input_blocks[i](feats[i])
+                x = cs.res_blocks[i](f if i == 0 else x + f)
+                outs.append(cs.output_blocks[i](x))
+                x = cs.resamplers[i](x) if i < 3 else x
+            return outs, x
+
+        pad = lambda x: torch.nn.functional.pad(x.float(), (1, 1, 1, 1), mode="replicate")  # noqa: E731
+        levels, _ = below_top(net.neck, [enc, *uv[1:4]])
+        got = moge_model._FoldedTop(net.neck, head)(
+            pad(below_top(head, levels)[1]),
+            pad(levels[-1]),
+            *moge_model._plane_axes(cols << 4, rows << 4, aspect, "cpu"),
+        )
+    assert got.shape == want.shape
+    torch.testing.assert_close(got.double(), want, rtol=0, atol=2e-5 * float(want.abs().max()))

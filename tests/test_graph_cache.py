@@ -2,12 +2,95 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
+
+import numpy as np
 import pytest
 import torch
 
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, graph_request
 
 pytestmark = pytest.mark.gpu
+
+# A forward that fails during capture after allocating (intermediates, cuBLAS workspace), and graphs that are evicted
+# and released: under cudaMallocAsync, a captured allocation freed after a failed capture aborted the process.
+_ASYNC_SCRIPT = textwrap.dedent(
+    """
+    import warnings
+
+    import torch
+    from fastforks.shared.cuda_graphs import GraphCache
+
+    assert torch.cuda.memory.get_allocator_backend() == "cudaMallocAsync"
+    w = torch.randn(256, 256, device="cuda")
+
+    def failing(x):
+        y = torch.relu(x @ w)
+        d = torch.empty(2, device=x.device)
+        d[0] = 1.5  # a CPU scalar copy: rejected during capture (RIFE's warp did this)
+        return y * d[0]
+
+    def fine(x):
+        return torch.relu(x @ w) + 1
+
+    for forward, captures in ((failing, False), (fine, True)):
+        cache = GraphCache(forward, graphs=1, stale=1)
+        for rows in (64, 64, 128, 128):  # the second shape evicts the first graph
+            x = torch.randn(rows, 256, device="cuda")
+            for _ in range(3):
+                out = cache.run(rows, x)
+                if out is not None:
+                    torch.testing.assert_close(out, forward(x))
+            assert bool(cache.graphs) == captures
+        cache.release()
+        torch.cuda.synchronize()
+
+    # A second live shape can free a prior graph's cuBLAS workspace during capture warm-up. Both replays still work.
+    cache = GraphCache(fine, graphs=2)
+    x = torch.randn(64, 256, device="cuda")
+    want = fine(x)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message="Attempting uncaptured free of a captured allocation")
+        for key in ("a", "a", "b", "b", "a"):
+            out = cache.run(key, x)
+            if out is not None:
+                torch.testing.assert_close(out, want)
+        assert len(cache.graphs) == 2
+    cache.release()
+    torch.cuda.synchronize()
+    print("survived")
+    """
+)
+
+
+def test_failed_capture_under_cuda_malloc_async_does_not_abort():
+    """ComfyUI's default allocator: a failed capture stays eager instead of aborting the process (RIFE kernels)."""
+    env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "backend:cudaMallocAsync"}
+    p = subprocess.run(
+        [sys.executable, "-c", _ASYNC_SCRIPT], env=env, capture_output=True, text=True, timeout=300, check=False
+    )
+    assert p.returncode == 0, p.stderr[-4000:]
+    assert "survived" in p.stdout
+
+
+def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture):
+    def forward(x: torch.Tensor) -> torch.Tensor:
+        y = x * 2  # the graph is not empty (an empty one warns, an error under pytest's filters)
+        if torch.cuda.is_current_stream_capturing():
+            msg = "unsupported op during capture"
+            raise RuntimeError(msg)
+        return y
+
+    cache = GraphCache(forward)
+    x = torch.ones(4, device="cuda")
+    with caplog.at_level("WARNING", logger="fastforks"):
+        cache.run("k", x)
+        cache.run("k", x)
+    assert "CUDA graph capture failed" in caplog.text
+    assert "unsupported op during capture" in caplog.text
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +113,24 @@ def test_structured_outputs_replay_fresh_copies():
     assert torch.equal(second["a"], (x + 10) * 2)
     assert torch.equal(second["b"][1], x + 9)
     assert first["a"].data_ptr() != second["a"].data_ptr()  # fresh tensors, not the static buffers
+
+
+def test_repeated_steps_wait_until_the_next_request():
+    cache = GraphCache(lambda x: x * 2)
+    x = torch.ones(4, device="cuda")
+    with graph_request():
+        for _ in range(4):
+            assert cache.run("k", x) is None
+        with graph_request():
+            assert cache.run("k", x) is None
+        assert cache.defer_first_request("lazy")
+    with graph_request():
+        torch.testing.assert_close(cache.run("k", x), x * 2)
+        assert not cache.defer_first_request("lazy")
+        torch.testing.assert_close(cache.run("lazy", x), x * 2)
+        for _ in range(2):
+            assert cache.run("new size", x) is None
+    cache.release()
 
 
 def test_capture_failure_falls_back_to_eager():
@@ -104,3 +205,58 @@ def test_a_much_larger_shape_frees_the_small_graphs():
     assert not cache.graphs
     cache.run("s", small)  # a returning shape captures again on its repeat
     assert cache.run("s", small) is not None
+
+
+def test_shared_input_requires_matching_layout_and_survives_eviction():
+    cache = GraphCache(lambda x, image: x + image, graphs=2, stale=1, share_inputs=(1,))
+
+    def capture(key, x, image):
+        assert cache.run(key, x, image) is None
+        assert torch.equal(cache.run(key, x, image), x + image)
+        return cache.graphs[key][1][1].data_ptr()
+
+    x = torch.arange(9.0, device="cuda").reshape(3, 3)
+    a = torch.full_like(x, 4)
+    first = capture("a", x, a)
+    assert capture("b", x, a + 2) == first
+    # "a" is evicted, while "b" still owns the shared buffer.
+    assert capture("c", x, (a + 3).T) != first
+    assert torch.equal(cache.run("b", x, a + 9), x + a + 9)
+    cache.release()
+    assert not cache.graphs
+
+
+@pytest.mark.parametrize("data", [[1.0, -1.0], np.array([1.0, -1.0])], ids=["list", "numpy"])
+def test_uploads_in_a_capture_outlive_the_staging_allocator(data):
+    from fastforks._core.upload import device_tensor, to_device  # noqa: PLC0415
+
+    def forward(x):
+        scale = to_device(torch.tensor([2.0, 3.0]), x.device)
+        shift = device_tensor(data, device=x.device, dtype=x.dtype)
+        return x * scale + shift
+
+    cache = GraphCache(forward)
+    x = torch.ones(4, 2, device="cuda")
+    assert cache.run("k", x) is None  # first call of a key: the caller runs eagerly
+    cache.run("k", x)  # captured
+    graph = cache.graphs["k"][0]
+    assert len(graph.uploads) == 2  # the pinned staging buffers, held with the graph
+    for _ in range(8):  # freed pinned blocks are reused with other values
+        to_device(torch.full((2,), 9.0), "cuda")
+    torch.cuda.synchronize()
+    torch.testing.assert_close(cache.run("k", x), torch.tensor([[3.0, 2.0]] * 4, device="cuda"))
+
+
+def test_uploads_in_a_bare_capture_raise():
+    from fastforks._core.upload import to_device  # noqa: PLC0415
+
+    graph = torch.cuda.CUDAGraph()
+    side = torch.cuda.Stream()
+    x = torch.zeros(2, device="cuda")
+    with torch.cuda.stream(side), pytest.raises(RuntimeError, match="capture_uploads"):  # noqa: PT012
+        graph.capture_begin(capture_error_mode="thread_local")
+        try:
+            x.add_(1)  # not an empty graph
+            to_device(torch.ones(2), "cuda")
+        finally:
+            graph.capture_end()

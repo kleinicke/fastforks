@@ -6,9 +6,14 @@ device as two separable tap gathers with OpenCV's weights:
 - `INTER_CUBIC`: Keys kernel a = -0.75, replicated borders
 - `INTER_AREA` (shrinking): OpenCV's `computeResizeAreaTab` box-overlap weights
 
-Horizontal pass first, rounded once at the end; cubic in float64 (float32 on MPS), area in float32 as OpenCV. Matches
-OpenCV 5.0 up to a few rounding ties (one level); OpenCV 4 computes uint8 cubic in 11-bit fixed point, which differs by
-one level on a few percent of the pixels.
+Horizontal pass first, rounded once at the end; cubic in float64 (float32 on MPS), area in float32 as OpenCV.
+The floating-point cubic path matches OpenCV up to rounding ties. OpenCV builds that use 11-bit fixed point for
+uint8 cubic can differ from the floating-point result by one level on several percent of the pixels.
+
+Eager cubic off MPS is PyTorch's bicubic `interpolate` in float64: the same kernel (Keys, a = -0.75), source
+coordinates and clamped borders in one pass instead of two gathers of `[..., n_out, 4]` float64 products
+(1024 x 1024 -> 1280 x 1280 on an RTX 5060 Ti: 4.4 -> 1.6 ms). Its sums differ from the taps' by float64 rounding:
+the same levels on every pixel of the tested sizes, float images within a float32 ulp.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ import math
 from typing import Literal
 
 import torch
+import torch.nn.functional as F
 
 _CUBIC_A = -0.75  # fixed: OpenCV's bicubic kernel parameter
 _AREA_EPS = 1e-3  # fixed: OpenCV computeResizeAreaTab's threshold for partial source cells
@@ -70,9 +76,23 @@ def _area(n_in: int, n_out: int) -> tuple[torch.Tensor, torch.Tensor]:
     return idx, torch.tensor([[w for _, w in row] for row in pad], dtype=torch.float32)  # OpenCV's float tables
 
 
+@functools.lru_cache(maxsize=64)
+def _on_device(kind: Kind, n_in: int, n_out: int, device: torch.device, dtype: torch.dtype) -> tuple[torch.Tensor, ...]:
+    """The tables of `kind` on `device` (weights in `dtype`), uploaded once: a pageable upload per call syncs."""
+    idx, wts = (_cubic if kind == "cubic" else _area)(n_in, n_out)
+    return idx.to(device), wts.to(device, dtype)
+
+
 def _gather(x: torch.Tensor, idx: torch.Tensor, wts: torch.Tensor) -> torch.Tensor:
     """Resample the last axis of `x`: `out[..., o] = sum_k x[..., idx[o, k]] * wts[o, k]`."""
     return (x[..., idx.to(x.device)] * wts.to(x.device, x.dtype)).sum(-1)
+
+
+def _separable(
+    x: torch.Tensor, horizontal: tuple[torch.Tensor, ...], vertical: tuple[torch.Tensor, ...]
+) -> torch.Tensor:
+    """The horizontal taps, then the vertical ones."""
+    return _gather(_gather(x, *horizontal).transpose(-1, -2), *vertical).transpose(-1, -2)
 
 
 def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = True) -> torch.Tensor:
@@ -81,13 +101,17 @@ def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = Tr
     `levels`: `x` holds uint8 levels (any dtype, values 0..255), rounded and clamped as OpenCV's uint8 path; else a
     float32 image, resized without rounding as OpenCV's float path. `kind` applies to both axes, as OpenCV's flag does.
     """
-    taps, dtype = (_cubic, torch.float64) if kind == "cubic" else (_area, torch.float32)
+    dtype = torch.float64 if kind == "cubic" else torch.float32
     if x.device.type == "mps":  # no float64 there; 4 taps of levels <= 255 differ by ~1e-5, only exact ties round apart
         dtype = torch.float32
     if torch.compiler.is_compiling():  # dynamo cannot trace through lru_cache; the graph holds the tables anyway
-        taps = taps.__wrapped__
-    (ix, wx), (iy, wy) = taps(x.shape[-1], w), taps(x.shape[-2], h)
-    v = _gather(_gather(x.to(dtype), ix, wx).transpose(-1, -2), iy, wy).transpose(-1, -2)
+        taps = (_cubic if kind == "cubic" else _area).__wrapped__
+        v = _separable(x.to(dtype), taps(x.shape[-1], w), taps(x.shape[-2], h))
+    elif kind == "cubic" and dtype == torch.float64:
+        v = F.interpolate(x.to(dtype), size=(h, w), mode="bicubic", align_corners=False)
+    else:
+        tables = (_on_device(kind, n, m, x.device, dtype) for n, m in ((x.shape[-1], w), (x.shape[-2], h)))
+        v = _separable(x.to(dtype), *tables)
     if not levels:
         return v.float()
     if kind == "area" and x.shape[-1] % w == 0 and x.shape[-2] % h == 0:  # OpenCV's integer-factor path: ties round up

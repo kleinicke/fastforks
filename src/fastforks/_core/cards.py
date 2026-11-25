@@ -9,6 +9,7 @@ CONTRIBUTING.md ("Model cards").
 from __future__ import annotations
 
 import dataclasses
+import importlib.metadata
 import re
 import tomllib
 from dataclasses import dataclass, field
@@ -42,10 +43,8 @@ OptionEffect = Literal["speed", "precision"]
 Feature = Literal["load", "kernels", "compile", "onnx", "tensorrt"]
 """What a card can mark as not working yet (`[planned]`): loading at all, the kernels backend, `Model.compile()`,
 `export_onnx` (also blocks `export_tensorrt`, which exports ONNX first) or `export_tensorrt`."""
-RELEASE = "0.2.0"
-"""The release these cards describe; `[planned]` features are not available in it."""
-PLANNED_RELEASE = "0.2.1"
-"""The release the `[planned]` features are planned for (internal list: docs/plans/KNOWN_BROKEN_0.2.1.md)."""
+RELEASE = importlib.metadata.version("fastforks-core")
+"""The installed release; the cards' `[planned]` features are not available in it (docs/plans/KNOWN_BROKEN_0.2.1.md)."""
 
 SCHEMA = 2
 _T = TypeVar("_T")
@@ -231,7 +230,7 @@ class Variant:
             `<name>` loads, as `timm.create_model("resnet50")` picks its default pretrained tag. At most one variant
             per `<name>` and task (checked by the registry).
         planned: Features known not to work yet -> why (the family's card `[planned]` with the variant's `planned`
-            overrides); using one raises `BackendUnavailableError` "not available in 0.2.0, planned for 0.2.1".
+            overrides); using one raises `BackendUnavailableError` "not available in <release> yet".
     """
 
     id: str
@@ -272,6 +271,8 @@ class ModelCard:
         option_choices: Allowed values of options with a fixed set (card `choices = [...]`); checked at load.
         option_aliases: Accepted alternative names of options (card `aliases = [...]`, e.g. the upstream name), mapped
             to the canonical name; giving both is an error.
+        option_renamed: The aliases that are old names (card `renamed = [...]`): they still work, with a
+            `FutureWarning` until the removal date of renamed names.
         option_effect: What an option changes if not the results (card `effect`): `"speed"` (the same
             computation; results equal up to floating-point rounding) or `"precision"` (lower-precision arithmetic:
             faster, larger rounding error); options not listed change the outputs.
@@ -286,6 +287,13 @@ class ModelCard:
             mps_kernels`); empty if kernels does not run there.
         mps_kernels_dtype: The kernels backend's dtype on Apple MPS if it differs from `kernels_dtype` (card
             `[modes.kernels] mps_dtype`).
+        portable_mlx_dtypes: Dtypes of the family's Apple MLX port in portable mode, `load(..., device="mlx")` (card
+            `[modes.portable] mlx_dtypes`, the default first: float32, or `portable_cuda_dtype` if float32 is not
+            listed); empty if the family has no MLX port.
+        mlx_kernel_libs: MLX kernel libraries (Metal kernels run through MLX) of the kernels backend on `"mlx"` (card
+            `[modes.kernels] mlx_kernels`); empty if kernels does not run there.
+        kernels_mlx_dtypes: Dtypes of the kernels backend on `"mlx"` (card `[modes.kernels] mlx_dtypes`, float32
+            first: the default).
         no_kernels_reason: Why the family has no kernels backend (card `[modes.kernels] status = "none"`, `reason`);
             empty if it has one.
         outputs: Output maps of the family, e.g. `("disparity", "confidence", "occlusion")` (variants may override
@@ -334,6 +342,9 @@ class ModelCard:
     portable_mps_dtypes: tuple[Dtype, ...] = ()
     mps_kernel_libs: tuple[str, ...] = ()
     mps_kernels_dtype: Dtype | None = None
+    portable_mlx_dtypes: tuple[Dtype, ...] = ()
+    mlx_kernel_libs: tuple[str, ...] = ()
+    kernels_mlx_dtypes: tuple[Dtype, ...] = ()
     option_max: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
     option_choices: Mapping[str, tuple[Any, ...]] = field(default_factory=lambda: MappingProxyType({}))
     option_effect: Mapping[str, OptionEffect] = field(default_factory=lambda: MappingProxyType({}))
@@ -341,6 +352,7 @@ class ModelCard:
     official: tuple[Official, ...] = ()
     no_original_reason: str = ""
     option_aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    option_renamed: frozenset[str] = frozenset()
     variant_ref: str | None = None
 
     def option_bounds(self, name: str) -> str:
@@ -396,6 +408,24 @@ class ModelCard:
         """
         return (self.mps_kernels_dtype if device.type == "mps" else None) or self.kernels_dtype
 
+    def mlx_dtypes(self, mode: Mode) -> tuple[Dtype, ...]:
+        """The dtypes `mode` runs in on Apple MLX (`device="mlx"`), the default first.
+
+        Args:
+            mode: The backend.
+
+        Returns:
+            The card's `mlx_dtypes` of that mode; empty if the family has no MLX port of it.
+        """
+        return self.kernels_mlx_dtypes if mode == "kernels" else self.portable_mlx_dtypes
+
+    def _mlx_summary(self) -> str:
+        """The Apple MLX port in one line: modes with their dtypes and kernel libraries."""
+        parts = [f"portable ({', '.join(self.portable_mlx_dtypes)})"]
+        if self.mlx_kernel_libs:
+            parts.append(f"kernels ({', '.join(self.kernels_mlx_dtypes)}; {', '.join(self.mlx_kernel_libs)})")
+        return ", ".join(parts)
+
     @property
     def requires(self) -> tuple[str, ...]:
         """Optional libraries (import names, sorted) the family needs beyond a bare install, e.g. `("timm",)`.
@@ -426,6 +456,7 @@ class ModelCard:
             f"  modes     {', '.join(self.modes)}"
             + (f" (kernel libs: {', '.join(self.kernel_libs)})" if self.kernel_libs else "")
             + (f" (on Apple MPS: {', '.join(self.mps_kernel_libs)})" if self.mps_kernel_libs else ""),
+            *([f"  mlx       {self._mlx_summary()}"] if self.portable_mlx_dtypes else []),
             f"  outputs   {', '.join(self.outputs)}",
             *([f"  requires  {', '.join(self.requires)} ({install_hint(*self.extras)})"] if self.requires else []),
             "  options   "
@@ -677,7 +708,7 @@ def _floats3(value: object, where: str) -> tuple[float, float, float]:
     return (float(value[0]), float(value[1]), float(value[2]))
 
 
-def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> ModelCard:
+def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> ModelCard:  # noqa: PLR0915 - card schema fields
     """Validate a parsed `card.toml` and build the card.
 
     Raises:
@@ -710,13 +741,17 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         msg = f"{where}: every model needs a portable backend"
         raise CardError(msg)
     portable = _get(modes_t, "portable", dict, f"{where} [modes.portable]")
-    _unknown_keys(portable, {"cuda_dtype", "mps_dtypes"}, f"{where} [modes.portable]")
-    mps_dtypes = tuple(
-        _literal(d, Dtype, f"{where} [modes.portable] mps_dtypes")
-        for d in _str_tuple(portable.get("mps_dtypes", []), f"{where} [modes.portable] mps_dtypes")
-    )
-    if mps_dtypes and mps_dtypes[0] != "float32":
-        msg = f"{where} [modes.portable]: mps_dtypes must start with float32 (the default on MPS)"
+    _unknown_keys(portable, {"cuda_dtype", "mps_dtypes", "mlx_dtypes"}, f"{where} [modes.portable]")
+    mps_dtypes = _dtype_list(portable, "mps_dtypes", f"{where} [modes.portable]", "on MPS")
+    cuda_dtype = _literal(_get(portable, "cuda_dtype", str, where), Dtype, f"{where} [modes.portable]")
+    mlx_dtypes = _dtype_list(portable, "mlx_dtypes", f"{where} [modes.portable]", "on MLX", cuda_dtype)
+    mlx_kernel_libs = _str_tuple(max_t.get("mlx_kernels", []), f"{where} [modes.kernels] mlx_kernels")
+    kernels_mlx_dtypes = _dtype_list(max_t, "mlx_dtypes", f"{where} [modes.kernels]", "on MLX")
+    if bool(mlx_kernel_libs) != bool(kernels_mlx_dtypes) or (mlx_kernel_libs and not mlx_dtypes):
+        msg = (
+            f"{where} [modes.kernels]: mlx_kernels and mlx_dtypes come together, and only with"
+            " [modes.portable] mlx_dtypes (an MLX port has a portable mode)"
+        )
         raise CardError(msg)
     io = _io(_get(data, "io", dict, where) if "io" in data else {}, f"{where} [io]", task)
     variants = []
@@ -785,9 +820,10 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         option_choices=_freeze({k: v.choices for k, v in options.items() if v.choices}),
         option_effect=_freeze({k: v.effect for k, v in options.items() if v.effect != "output"}),
         option_aliases=_aliases(options, where),
+        option_renamed=frozenset(a for o in options.values() for a in o.renamed),
         uses=_str_tuple(data.get("uses", []), f"{where} uses"),
         modes=modes,
-        portable_cuda_dtype=_literal(_get(portable, "cuda_dtype", str, where), Dtype, f"{where} [modes.portable]"),
+        portable_cuda_dtype=cuda_dtype,
         kernels_dtype=_literal(max_t.get("dtype", "float16"), Dtype, f"{where} [modes.kernels]"),
         kernel_libs=_str_tuple(max_t.get("kernels", []), f"{where} [modes.kernels] kernels"),
         outputs=outputs,
@@ -804,6 +840,9 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         papers=papers,
         official=official,
         no_original_reason=no_original_reason.strip(),
+        portable_mlx_dtypes=mlx_dtypes,
+        mlx_kernel_libs=mlx_kernel_libs,
+        kernels_mlx_dtypes=kernels_mlx_dtypes,
     )
 
 
@@ -861,15 +900,12 @@ def require_available(variant: Variant, feature: Feature) -> None:
     """Raise if the card marks `feature` of `variant` as `[planned]` (known not to work in this release).
 
     Raises:
-        BackendUnavailableError: "`<ref>`: <feature> is not available in 0.2.0, planned for 0.2.1: <reason>".
+        BackendUnavailableError: "`<ref>`: <feature> is not available in <release> yet: <reason>".
     """
     reason = planned_reason(variant, feature)
     if reason is not None:
         what = {"load": "loading", "compile": "compile()", "onnx": "export_onnx", "tensorrt": "export_tensorrt"}
-        msg = (
-            f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE}, planned for"
-            f" {PLANNED_RELEASE}: {reason.rstrip('.')}"
-        )
+        msg = f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE} yet: {reason.rstrip('.')}"
         if feature == "kernels":
             msg += "; use mode='portable'"
         elif feature in {"onnx", "tensorrt", "compile"}:
@@ -877,10 +913,26 @@ def require_available(variant: Variant, feature: Feature) -> None:
         raise BackendUnavailableError(msg)
 
 
+def _dtype_list(
+    table: dict[str, Any], key: str, where: str, place: str, reference: Dtype = "float32"
+) -> tuple[Dtype, ...]:
+    """`mps_dtypes` / `mlx_dtypes` of a mode table: dtype names, the default first; `()` if absent.
+
+    The default is float32; a list without float32 starts with `reference` instead (for a portable MLX port the
+    portable `cuda_dtype`: a bf16 transformer whose float32 weights would not fit, e.g. SeedVR2).
+    """
+    dtypes = tuple(_literal(d, Dtype, f"{where} {key}") for d in _str_tuple(table.get(key, []), f"{where} {key}"))
+    if dtypes and dtypes[0] != "float32" and ("float32" in dtypes or dtypes[0] != reference):
+        what = "float32" if reference == "float32" else f"float32, or {reference} (cuda_dtype) if float32 is not listed"
+        msg = f"{where}: {key} must start with {what} (the default {place})"
+        raise CardError(msg)
+    return dtypes
+
+
 def _no_kernels_reason(max_t: dict[str, Any], where: str) -> str:
     """`[modes.kernels]`: either a backend (`kernels`, `dtype`) or `status = "none"` with the measured `reason`."""
     if "status" not in max_t:
-        _unknown_keys(max_t, {"kernels", "dtype", "mps_kernels", "mps_dtype"}, where)
+        _unknown_keys(max_t, {"kernels", "dtype", "mps_kernels", "mps_dtype", "mlx_kernels", "mlx_dtypes"}, where)
         return ""
     _unknown_keys(max_t, {"status", "reason"}, where)
     if max_t["status"] != "none" or not isinstance(max_t.get("reason"), str) or not max_t["reason"].strip():
@@ -946,6 +998,7 @@ class _Opt(NamedTuple):
     choices: tuple[Any, ...] = ()
     effect: str = "output"
     aliases: tuple[str, ...] = ()
+    renamed: tuple[str, ...] = ()
 
 
 def _number(x: object) -> bool:
@@ -965,10 +1018,10 @@ def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
     """`alias -> option` of all options; an alias must not be an option name or belong to two options."""
     out: dict[str, str] = {}
     for name, opt in options.items():
-        if clash := {name, *opt.aliases} & LOAD_ARGUMENTS:
+        if clash := {name, *opt.aliases, *opt.renamed} & LOAD_ARGUMENTS:
             msg = f"{where} [options] {name}: {sorted(clash)} is a load() argument (options are load keywords)"
             raise CardError(msg)
-        for a in opt.aliases:
+        for a in (*opt.aliases, *opt.renamed):
             if a in options or a in out:
                 msg = f"{where} [options] {name}: alias {a!r} is already an option name or alias"
                 raise CardError(msg)
@@ -979,11 +1032,12 @@ def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
 def _option(value: object, where: str) -> _Opt:
     """An option as a plain value or `{ default = ..., min = ..., max = ..., choices = [...], effect = ... }`.
 
-    `aliases = ["old_name"]` lists accepted alternative names.
+    `aliases = ["upstream_name"]` lists accepted alternative names; `renamed = ["old_name"]` names this option had in
+    an earlier release (accepted with a `FutureWarning`).
     """
     if not isinstance(value, dict):
         return _Opt(value)
-    _unknown_keys(value, {"default", "min", "max", "choices", "effect", "aliases"}, where)
+    _unknown_keys(value, {"default", "min", "max", "choices", "effect", "aliases", "renamed"}, where)
     if "default" not in value:
         msg = f"{where}: needs a `default`"
         raise CardError(msg)
@@ -1010,7 +1064,8 @@ def _option(value: object, where: str) -> _Opt:
         msg = f"{where}: `effect` must be output (the default), speed or precision, got {effect!r}"
         raise CardError(msg)
     aliases = _str_tuple(value.get("aliases", []), f"{where} aliases")
-    return _Opt(default, low, high, tuple(choices), effect, aliases)
+    renamed = _str_tuple(value.get("renamed", []), f"{where} renamed")
+    return _Opt(default, low, high, tuple(choices), effect, aliases, renamed)
 
 
 def read_card(path: Path, *, task: str) -> ModelCard:

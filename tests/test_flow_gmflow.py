@@ -12,6 +12,8 @@ from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks.flow.models.gmflow import model as family
+from fastforks.flow.models.gmflow.net import matching
+from fastforks.flow.models.gmflow.net.attention import sdpa
 from fastforks.flow.models.gmflow.net.unimatch import UniMatch
 from fastforks.flow.models.gmflow.net.utils import normalize_img
 
@@ -56,7 +58,7 @@ def test_card_variants() -> None:
 @pytest.mark.parametrize(("scales", "refine"), [(1, 0), (2, 0), (2, 2)])
 def test_forward_shape(scales: int, refine: int) -> None:
     net = _net(scales, refine)
-    params = family.Params(scales=scales, refine=refine)
+    params = family.Params(scales=scales, refine=refine, cuda_graphs=False)
     a, b = _pair(64, 96, batch=2)
     with torch.inference_mode():
         out = family.forward(net, a, b, params, fp16=False)
@@ -72,7 +74,9 @@ def test_forward_is_upstreams() -> None:
     net = _net(2, 3)
     a, b = _pair(64, 96)
     with torch.inference_mode():
-        ours = family.forward(net, *normalize_img(a * 255, b * 255), family.Params(scales=2, refine=3), fp16=False)
+        ours = family.forward(
+            net, *normalize_img(a * 255, b * 255), family.Params(scales=2, refine=3, cuda_graphs=False), fp16=False
+        )
         ref = net(
             a * 255,
             b * 255,
@@ -96,6 +100,60 @@ def test_fused_attention_is_softmax_matmul() -> None:
     torch.testing.assert_close(family.attend(query, key, value), plain, rtol=0, atol=1e-5)
 
 
+@pytest.mark.parametrize("mask_kind", ["full", "broadcast"])
+def test_cpu_attention_chunks_match_upstream(mask_kind: str) -> None:
+    """Multiple query chunks preserve upstream attention, including broadcast masks."""
+    gen = torch.Generator().manual_seed(3)
+    query = torch.randn(2, 530, 16, generator=gen)
+    key = torch.randn(2, 80, 16, generator=gen)
+    value = torch.randn(2, 80, 2, generator=gen)
+    mask = torch.randn(2, 1 if mask_kind == "broadcast" else 530, 80, generator=gen)
+    expected = torch.softmax(query @ key.transpose(-2, -1) / 16**0.5 + mask, dim=-1) @ value
+    torch.testing.assert_close(sdpa(query, key, value, mask), expected, rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+def test_cuda_local_correlation_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    gen = torch.Generator(device="cuda").manual_seed(3)
+    first, second = (torch.randn(2, 16, 11, 17, device="cuda", generator=gen) for _ in range(2))
+    displacement = torch.randn(2, 2, 11, 17, device="cuda", generator=gen)
+
+    with torch.inference_mode():
+        expected_flow, expected_prob = matching.local_correlation_softmax(first, second, 4)
+        expected_refine = matching.local_correlation_with_flow(first, second, displacement, 4)
+        monkeypatch.setattr(matching, "_LOCAL_SAMPLE_BYTES", 128 * 1024)
+        actual_flow, actual_prob = matching.local_correlation_softmax(first, second, 4)
+        actual_refine = matching.local_correlation_with_flow(first, second, displacement, 4)
+
+    for actual, expected in (
+        (actual_flow, expected_flow),
+        (actual_prob, expected_prob),
+        (actual_refine, expected_refine),
+    ):
+        torch.testing.assert_close(actual, expected, rtol=1e-5, atol=8e-6)
+
+
+@pytest.mark.slow
+def test_cpu_attention_exports_dynamic_query_length() -> None:
+    """The bounded eager path must not specialize the exported query length."""
+
+    class Attention(torch.nn.Module):
+        def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+            return sdpa(query, key, value)
+
+    model = Attention()
+    query, key, value = torch.randn(2, 300, 16), torch.randn(2, 80, 16), torch.randn(2, 80, 2)
+    length = torch.export.Dim("query_length", min=1, max=600)
+    exported = torch.export.export(
+        model, (query, key, value), dynamic_shapes={"query": {1: length}, "key": {}, "value": {}}, strict=False
+    ).module()
+    for size in (120, 530):
+        query = torch.randn(2, size, 16)
+        torch.testing.assert_close(exported(query, key, value), model(query, key, value), rtol=1e-5, atol=1e-5)
+
+
 @pytest.fixture(scope="module")
 def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A scale1 checkpoint with random weights, as `load(weights=...)` takes it."""
@@ -114,3 +172,48 @@ def test_odd_size_is_padded_and_exports(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)  # export does what the call does
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
+
+
+@pytest.mark.gpu
+def test_cuda_single_head_attention_onnx(tmp_path: Path) -> None:
+    """CUDA ONNX export accepts a rank-three head and retains its masking and output."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    ort = pytest.importorskip("onnxruntime")
+    pytest.importorskip("onnxscript")
+
+    class Attention(torch.nn.Module):
+        def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+            return sdpa(q, k, v, mask)
+
+    torch.manual_seed(14)
+    q = torch.randn(2, 8, 16, device="cuda", dtype=torch.float16)
+    k = torch.randn(2, 8, 16, device="cuda", dtype=torch.float16)
+    v = torch.randn(2, 8, 2, device="cuda", dtype=torch.float16)
+    mask = torch.zeros(2, 8, 8, device="cuda", dtype=torch.float16)
+    mask[:, :, -1] = -100
+    model = Attention().eval()
+    with torch.inference_mode():
+        want = model(q, k, v, mask)
+        torch.onnx.export(model, (q, k, v, mask), tmp_path / "attention.onnx", dynamo=True)
+    session = ort.InferenceSession(str(tmp_path / "attention.onnx"), providers=["CPUExecutionProvider"])
+    got = session.run(
+        None, {i.name: x.cpu().numpy() for i, x in zip(session.get_inputs(), (q, k, v, mask), strict=True)}
+    )
+    torch.testing.assert_close(torch.from_numpy(got[0]), want.cpu(), rtol=3e-3, atol=3e-3)
+
+
+@pytest.mark.parametrize(("splits", "size"), [(2, (16, 24)), (2, (18, 30)), (4, (16, 24))])
+def test_window_order_transformer_is_upstreams(splits: int, size: tuple[int, int]) -> None:
+    """Kernels' transformer (window order, shifted windows as unmasked regions) against upstream's (rolls, -100 mask).
+
+    Odd windows (18 x 30 in 2 x 2: 9 x 15) give regions of four different sizes.
+    """
+    transformer = _net(1, 0).transformer
+    gen = torch.Generator().manual_seed(4)
+    f0, f1 = (torch.randn(2, 128, *size, generator=gen) for _ in range(2))
+    with torch.inference_mode():
+        want = transformer(f0, f1, attn_type="swin", attn_num_splits=splits)
+        got = family._window_transformer(transformer, f0, f1, attn_type="swin", attn_num_splits=splits)
+    for g, w in zip(got, want, strict=True):  # features up to ~17: float32 rounding over 6 layers, as with the mask
+        torch.testing.assert_close(g, w, rtol=0, atol=1e-3)

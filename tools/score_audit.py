@@ -23,10 +23,15 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "docs" / "data"
 ORIG_MODES = ("upstream", "upstream-default")
+ORIG_EVAL_MODES = (*ORIG_MODES, "upstream-fp16", "upstream-bf16", "upstreamhalf", "upstream16")
 PRIM = {
     "stereo": "bad",
     "depth": "rel_absrel",
@@ -51,7 +56,6 @@ PRIM = {
 EXPLAINED = {
     ("anycalib-pinhole", "portable"): 1,
     ("anycalib-pinhole", "kernels"): 1,
-    ("flowseek-t", "portable"): 1,
     # n=150 every10 subset: loftr-outdoor on all 1500 pairs portable32 50.75 vs original 50.14; dedode-v2-b auc10/auc20
     # are
     # +0.2/+0.5 above the original on the same pairs, only auc5 (the 5 degree bin, n=150) differs
@@ -72,19 +76,59 @@ def _latest(rows: list[dict]) -> dict:
     return max(reversed(rows), key=lambda r: r.get("date", ""))
 
 
+def _portable_reference(compiled: dict, portable: list[dict]) -> float | None:
+    """Use the measured portable arm of a scoped backend comparison when present."""
+    paired = compiled.get("paired_portable_ms")
+    if isinstance(paired, (int, float)) and paired > 0:
+        return paired
+    same_input = [row for row in portable if row["input"] == compiled["input"]]
+    return _latest(same_input)["ms"] if same_input else None
+
+
+def _accuracy_pairs(evals: dict[str, list[dict]]) -> Iterator[tuple[str, dict, dict]]:
+    """Pair reported scores on the same dataset and precision, and match cohort metadata when available."""
+    originals = collections.defaultdict(list)
+    for mode in ORIG_EVAL_MODES:
+        for row in evals.get(mode, ()):
+            if not row.get("error") and row.get("metrics"):
+                originals[row["dataset"], row.get("dtype")].append(row)
+    keys = ("n", "dataset_manifest_sha256")
+    for mode in ("portable", "kernels"):
+        latest = {
+            (row["dataset"], row.get("dtype"), *(row.get(key) for key in keys)): row
+            for row in evals.get(mode, ())
+            if not row.get("error") and row.get("metrics")
+        }
+        for (dataset, dtype, *_), row in latest.items():
+            candidates = [
+                original
+                for original in originals[dataset, dtype]
+                if all(not original.get(key) or not row.get(key) or original[key] == row[key] for key in keys)
+            ]
+            if candidates:
+                yield mode, row, _latest(candidates)
+
+
 def jl(p: Path) -> list[dict]:
-    return [json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.is_file() else []
+    return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()] if p.is_file() else []
 
 
 def load_cards() -> dict[str, dict]:
     """Ref -> {task, family, card (dict), variant (dict)}."""
     out = {}
     for p in sorted((ROOT / "src/fastforks").glob("*/models/*/card.toml")):
-        t = tomllib.loads(p.read_text())
+        t = tomllib.loads(p.read_text(encoding="utf-8"))
         parts = p.parts
         task, fam = parts[-4], parts[-2]
         for v in t.get("variants", []):
-            out[v["id"]] = {"task": task, "family": fam, "card": t, "variant": v, "path": str(p), "text": p.read_text()}
+            out[v["id"]] = {
+                "task": task,
+                "family": fam,
+                "card": t,
+                "variant": v,
+                "path": str(p),
+                "text": p.read_text(encoding="utf-8"),
+            }
     return out
 
 
@@ -114,9 +158,9 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     ap.add_argument("--no-stale", action="store_true", help="skip the git-based stale-row check")
     a = ap.parse_args()
     cards = load_cards()
-    allow = json.loads((DATA / "speed_allowlist.json").read_text())
+    allow = json.loads((DATA / "speed_allowlist.json").read_text(encoding="utf-8"))
     speed = jl(DATA / "speed.jsonl")
-    comp = jl(DATA / "speed_compile.jsonl")
+    comp = [{**row, "input": row.get("comparison_input", row["input"])} for row in jl(DATA / "speed_compile.jsonl")]
     fdates = {} if a.no_stale else family_dates()
 
     stale: dict = collections.defaultdict(list)
@@ -144,10 +188,10 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     spd = collections.defaultdict(lambda: collections.defaultdict(list))
     for r in speed:
         spd[r["ref"]][r["mode"]].append(r)
-    comp_rows = collections.defaultdict(dict)
+    comp_rows = collections.defaultdict(lambda: collections.defaultdict(dict))
     for r in comp:
         if r["mode"] in ("compile", "tensorrt"):
-            comp_rows[r["ref"]][r["mode"]] = r  # latest wins (as gen_docs)
+            comp_rows[r["ref"]][r["mode"]][r["input"]] = r  # latest for each measured input
     # ---- eval rows per ref
     evals = collections.defaultdict(lambda: collections.defaultdict(list))
     for p in sorted(DATA.glob("*_eval.jsonl")):
@@ -196,19 +240,26 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
             prob(ref, "contradiction", "kernels", "card says kernels status none but kernels speed rows exist")
         if not k_none and "kernels" in planned:
             pass
-        cr = comp_rows.get(ref, {})
+        portable_sizes = {r["input"] for r in st["portable"]}
+        checked = {}
         for m in ("compile", "tensorrt"):
-            r = cr.get(m)
-            ok = r is not None and ("ms" in r and not r.get("fails"))
-            deferred = r is not None and str(r.get("fails", "")).startswith("deferred")
-            expl = (
-                (r is not None and r.get("fails") and not deferred)
-                or m in planned
-                or (m == "tensorrt" and "onnx" in planned)
-            )
+            profiles = comp_rows[ref][m].values()
+            gated = m in planned or (m == "tensorrt" and "onnx" in planned)
+            ok = [
+                r
+                for r in profiles
+                if (r.get("ms") or 0) > 0
+                and not r.get("fails")
+                and (not gated or (m == "tensorrt" and r.get("standalone_build")))
+            ]
+            failures = [r["fails"] for r in profiles if r.get("fails")]
+            expl = gated or any(not str(reason).startswith("deferred") for reason in failures)
+            deferred = failures and not expl
             why = "deferred build, never measured" if deferred else "none, no fails reason, not planned on the card"
             present((cc, ref), m, ok, f"no {m} row ({why})", expl)
-            if r is not None and r.get("fails") and not (m in planned or (m == "tensorrt" and "onnx" in planned)):
+            if ok:
+                checked[m] = _latest([r for r in ok if r["input"] in portable_sizes] or ok)
+            if failures and not ok and not gated:
                 cc[f"{m} fails"] += 1
         # memory presence
         for m, rows in (("original", orig_t), ("portable", st["portable"]), ("kernels", st["kernels"])):
@@ -246,9 +297,10 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
             o_err = [r for mm in ("upstream", "upstream-fp16") for r in e.get(mm, []) if r.get("error")]
             sib = (not e) and fam in fam_eval
             present((cc, ref), "accuracy original", o_e or o_err, "no original accuracy row", no_orig or not e)
-            no_acc = re.search(
+            # An old dataset limitation cannot explain a missing tier once the checkpoint has measured accuracy.
+            no_acc = not (o_e or p_e or k_e) and re.search(
                 r"No accuracy measurement", " ".join(card.get("limitations", []))
-            )  # the card names why (no public evaluation set)
+            )
             present((cc, ref), "accuracy portable", p_e, "no portable accuracy row", sib or no_acc)
             present(
                 (cc, ref),
@@ -362,11 +414,10 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
                         stale[ref, x["mode"]].append(f"{inp} {x.get('date', '')[:10]}")
         # compile / TRT plausibility
         for m in ("compile", "tensorrt"):
-            r = cr.get(m)
+            r = checked.get(m)
             if r and r.get("ms") and not r.get("fails"):
-                at = [x for x in st["portable"] if x["input"] == r["input"]]
-                if at:
-                    pm = _latest(at)["ms"]
+                pm = _portable_reference(r, st["portable"])
+                if pm is not None:
                     if r["ms"] > pm * 3 + 0.3:
                         prob(ref, "implausible", m, f"{r['input']}: {m} {r['ms']} ms vs portable {pm} ms (> 3x)")
                         cc[f"{m} slower than portable"] += 1
@@ -400,41 +451,24 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
         # --- accuracy plausibility
         if eval_task and e:
             prim = PRIM.get(c["task"])
-            by_ds = collections.defaultdict(dict)
-            for mm, rows in e.items():
-                for r in rows:
-                    if not r.get("error") and r.get("metrics"):
-                        by_ds[r["dataset"]].setdefault(mm, r)  # first = ok? take last below
-            for ds in by_ds:
-                for mm in by_ds[ds]:
-                    by_ds[ds][mm] = [
-                        r for r in e[mm] if r.get("dataset") == ds and not r.get("error") and r.get("metrics")
-                    ][-1]
-            for ds, d in by_ds.items():
-                o = d.get("upstream") or d.get("upstream-fp16")
-                if not o:
-                    continue
-                om = o["metrics"]
+            for mm, target, original in _accuracy_pairs(e):
+                om = original["metrics"]
                 key = prim if prim in om else next((k for k, x in om.items() if isinstance(x, (int, float))), None)
-                for mm in ("portable", "kernels"):
-                    t = d.get(mm)
-                    if not t or key not in t["metrics"] or not isinstance(om.get(key), (int, float)) or not om[key]:
-                        continue
-                    rel = (t["metrics"][key] - om[key]) / abs(om[key])
-                    cc["accuracy comparisons"] += 1
-                    worse = (rel > 0) == (key in LOWER_BETTER)
-                    if abs(rel) > _DRIFT and worse and (ref, mm) not in EXPLAINED:
-                        cc["accuracy drift > 2 %"] += 1
-                        prob(
-                            ref,
-                            "implausible",
-                            mm,
-                            f"{ds}: {key} {t['metrics'][key]} vs original {om[key]} ({100 * rel:+.1f} %, worse)",
-                        )
-                    for rr in (o, t):
-                        if rr.get("n") and t.get("n") and rr["n"] != t["n"] and rr is t:
-                            prob(ref, "sizes", mm, f"{ds}: n {t['n']} vs original n {o['n']}")
-                            break
+                value = target["metrics"].get(key)
+                if not isinstance(value, (int, float)) or not isinstance(om.get(key), (int, float)) or not om[key]:
+                    continue
+                rel = (value - om[key]) / abs(om[key])
+                cc["accuracy comparisons"] += 1
+                worse = (rel > 0) == (key in LOWER_BETTER)
+                if abs(rel) > _DRIFT and worse and (ref, mm) not in EXPLAINED:
+                    cc["accuracy drift > 2 %"] += 1
+                    prob(
+                        ref,
+                        "implausible",
+                        mm,
+                        f"{target['dataset']} ({target.get('dtype', 'unknown precision')}): "
+                        f"{key} {value} vs original {om[key]} ({100 * rel:+.1f} %, worse)",
+                    )
     for (ref, m), old_rows in stale.items():
         last_commit = fdates[cards[ref]["task"], cards[ref]["family"]]
         prob(
@@ -460,14 +494,14 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
         ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
     ).stdout.strip()
     lines = [
-        "# Score audit, 2026-11-16",
+        "# Score audit",
         "",
         (
             f"Generated by `tools/score_audit.py` (CPU only). Data: docs/data/*.jsonl at `{head}`; "
             "cards `src/fastforks/*/models/*/card.toml`. Cell: present / explained by a card reason or fails row / "
             "MISSING. Implausible = rule violated (portable vs original beyond 3 % / 5 % + 64 MB, kernels vs portable "
             "(reserved memory only above +25 % and +256 MB: allocator workspace),  compile/TRT > 3x portable, "
-            "accuracy > 2 % worse, stale, units, sizes)."
+            "accuracy > 2 % worse at matched precision and cohort, stale, units, sizes)."
         ),
         "",
         "| family | refs | " + " | ".join(labels) + " | implausible | other problems |",
@@ -498,41 +532,21 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     )
     lines += [
         "",
-        "## Notes (2026-11-16 run)",
+        "## How to read the report",
         "",
-        (
-            "- The `implausible` column counts `stale?` rows too (informational: row older than the family's last "
-            "source commit; `--no-stale` skips them). Real violations of the rules: 0 after the run."
-        ),
-        (
-            "- Gap-fill measured 2026-11-16 on RTX 5060 Ti (a GPU job, one process at a time) with "
-            "`results/raw/2026-11-16_score_audit/kernels_speed.py` via `queue_runner*.sh` / `eval_queue.sh`; rows "
-            "merged by `merge.py`, `merge_fails.py` (placeholders 'deferred: measure later' replaced by the real "
-            "failure). Base commit `5ea6bb9d`."
-        ),
-        (
-            "- Dropped as superseded: stale video-depth-anything-s compile 1080x1920 row (compile/TRT jobs run the "
-            "standard 480x640 input only)."
-        ),
-        (
-            "- Explained, not fixed: loftr-outdoor / dedode-v2-b auc5 on the n=150 subset (EXPLAINED in this script), "
-            "track-on2 reserved memory (speed_allowlist.json)."
-        ),
-        (
-            "- Open: accuracy rows for portable/kernels of families without any eval row (listed below), original "
-            "accuracy of marigold-v2-depth (no runnable upstream harness). "
-            "`tests/test_policy.py::test_no_architecture_constants_in_model_code[matting]` fails on origin/work/ports "
-            "(ben2 `_TINY`), unrelated."
-        ),
+        "- A later backend attempt replaces the earlier record for the same input size.",
+        "- Standalone TensorRT measurements can count when a card still gates public export.",
+        "- The `implausible` column includes `stale?` notices for rows older than the family's last source commit.",
+        "  Use `--no-stale` to skip the git history check.",
         "",
     ]
     lines += ["", f"## Problems ({len(probs)})", "", "| ref | family | kind | mode | issue |", "|---|---|---|---|---|"]
     for p in sorted(probs, key=lambda p: (p["kind"], p["family"], p["ref"])):
         lines.append(f"| {p['ref']} | {p['family']} | {p['kind']} | {p['mode']} | {p['issue'].replace('|', '/')} |")
-    Path(a.out).write_text("\n".join(lines) + "\n")
+    Path(a.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     if a.csv:
         Path(a.csv).mkdir(parents=True, exist_ok=True)
-        with (Path(a.csv) / "problems.csv").open("w", newline="") as f:
+        with (Path(a.csv) / "problems.csv").open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, ["ref", "family", "kind", "mode", "issue"])
             w.writeheader()
             w.writerows(probs)

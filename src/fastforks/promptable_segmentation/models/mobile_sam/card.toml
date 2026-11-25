@@ -3,10 +3,11 @@ name = "MobileSAM"
 summary = "MobileSAM (Zhang et al. 2023, Kyung Hee University): Segment Anything with the ViT-H image encoder replaced by a TinyViT-5M (an MBConv stage, then window attention with depthwise convs) distilled from it; SAM's own prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
 tier = "experimental"
 outputs = ["pred_masks", "iou_scores"]
-uses = ["cuda_graphs", "sam_prompt"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "sam_prompt", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
-  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+  "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, MobileSAM used 583 MiB portable and 584 MiB kernels, down from 1,509 and 1,510 MiB. Masks, scores and logits matched bit for bit. Paired latency was 39.6 to 41.2 ms portable and 38.2 to 39.7 ms kernels.",
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~110 MiB above portable at 1024 x 1024 (318 vs 210 MiB, RTX 5060 Ti, Windows; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -30,9 +31,13 @@ image_size = 1024
 [modes.portable]
 cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 convolutions of the image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay CUDA graphs of the image encoder and of the decode of up to 4 prompts (false: eager, no extra memory)
 
 [[papers]]
 title = "Faster Segment Anything: Towards Lightweight SAM for Mobile Applications"

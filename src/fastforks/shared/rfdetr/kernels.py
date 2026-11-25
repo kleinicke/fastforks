@@ -13,28 +13,21 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks._optimize.conv_ops import dwconv
 from fastforks.kernels.fastbb import Flash64
+from fastforks.shared.rfdetr.attention import PackedAttention
 from fastforks.shared.rfdetr.build import export_path
 
 LIBRARY = "fastbb"
 HEAD_DIM = 64  # fixed: fastbb's supported head dimension
 
 
-class _Attention(nn.Module):
+class _Attention(PackedAttention):
     """One packed projection and fp32-accumulating flash attention, preserving the upstream tuple API."""
 
     def __init__(self, source: Any) -> None:  # noqa: ANN401 - vendored attention module
-        super().__init__()
-        self.heads = source.num_attention_heads
-        self.dim = source.all_head_size
+        super().__init__(source)
         if source.attention_head_size != HEAD_DIM:
             msg = f"RF-DETR fastbb needs head dimension {HEAD_DIM}, got {source.attention_head_size}"
             raise KernelUnavailableError(LIBRARY, msg)
-        w = source.query.weight
-        self.qkv = nn.Linear(self.dim, 3 * self.dim, bias=source.query.bias is not None, device=w.device, dtype=w.dtype)
-        with torch.no_grad():
-            self.qkv.weight.copy_(torch.cat([source.query.weight, source.key.weight, source.value.weight]))
-            if self.qkv.bias is not None:
-                self.qkv.bias.copy_(torch.cat([source.query.bias, source.key.bias, source.value.bias]))
         self.flash = Flash64("ff")
 
     def forward(self, hidden_states: torch.Tensor, output_attentions: bool = False) -> tuple[torch.Tensor, None]:  # noqa: FBT001, FBT002 - upstream attention signature

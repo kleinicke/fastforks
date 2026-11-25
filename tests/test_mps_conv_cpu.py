@@ -62,6 +62,33 @@ def test_output_size_per_axis(stride: int, kernel: int, nd: int):
     _pair(cls(2, 2, kernel, stride, p), torch.randn(1, 2, *([3] * nd)).double(), size, tol=1e-9 if nd == 2 else 1e-4)
 
 
+@pytest.mark.parametrize(
+    ("kernel", "stride", "padding", "depth", "bias"),
+    [
+        ((3, 3, 3), (1, 1, 1), (1, 1, 1), 5, True),
+        ((1, 3, 3), (1, 1, 1), (0, 1, 1), 4, True),
+        ((3, 3, 3), (2, 2, 2), (1, 1, 1), 7, True),
+        ((4, 3, 3), (2, 1, 1), (1, 1, 1), 6, False),
+        ((3, 1, 1), (1, 1, 1), (0, 0, 0), 5, True),
+        ((17, 1, 1), (1, 1, 1), (8, 0, 0), 20, True),  # depth-only kernel: one (kd, 1) conv2d
+        ((5, 1, 1), (2, 1, 1), (2, 0, 0), 9, False),
+        ((5, 3, 3), (1, 1, 1), (3, 1, 1), 2, True),  # padding past the input: taps off every plane
+        ((3, 3, 3), (3, 1, 1), (2, 1, 1), 1, False),
+    ],
+)
+def test_conv3d_matches_torch(kernel: tuple, stride: tuple, padding: tuple, depth: int, bias: bool):  # noqa: FBT001 - pytest parameters
+    """`mps.conv3d` (one 2-D convolution over the depth planes per depth tap) against `F.conv3d`."""
+    torch.manual_seed(0)
+    ref = nn.Conv3d(3, 4, kernel, stride, padding, bias=bias).double()
+    m = nn.Conv3d(3, 4, kernel, stride, padding, bias=bias).double()
+    m.load_state_dict(ref.state_dict())
+    mps.adapt(m)
+    for x in (torch.randn(2, 3, depth, 5, 6).double(), torch.randn(3, depth, 5, 6).double()):
+        want, got = ref(x), m(x)
+        assert got.shape == want.shape
+        torch.testing.assert_close(got, want, atol=1e-9, rtol=1e-9)
+
+
 def test_per_axis_output_padding_stride4():
     torch.manual_seed(0)
     _pair(nn.ConvTranspose2d(2, 2, 4, 4, 0, (1, 0)), torch.randn(1, 2, 3, 3).double())
@@ -97,7 +124,7 @@ def test_metal_runners_adapt():
 
     found = 0
     for path in Path(fastforks.__file__).parent.rglob("model.py"):
-        src = path.read_text()
+        src = path.read_text(encoding="utf-8")
         if "class MetalKernels(Portable)" in src:
             if path.parent.name in OWN_DECONV:
                 continue
@@ -127,7 +154,7 @@ def test_metal_sources_have_no_infinity_compare():
     import fastforks  # noqa: PLC0415
 
     for path in (Path(fastforks.__file__).parent / "kernels").rglob("*.metal"):
-        src = path.read_text()
+        src = path.read_text(encoding="utf-8")
         assert "== -INFINITY" not in src, path
         assert "m = -INFINITY" not in src, path
 

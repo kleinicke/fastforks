@@ -6,6 +6,28 @@ from torch import Tensor
 RAD2DEG = 180 / pi
 
 
+def solve_small_export(a: Tensor, b: Tensor) -> tuple[Tensor, Tensor]:
+    """Solve tiny normal equations with partial pivoting using ONNX-supported operations."""
+    n = a.shape[-1]
+    rows = [torch.cat((a[..., i, :], b[..., i, None]), dim=-1) for i in range(n)]
+    singular = torch.zeros_like(b[..., 0], dtype=torch.bool)
+    for k in range(n):
+        candidates = torch.stack([rows[j][..., k].abs() for j in range(k, n)], dim=-1)
+        pivot_index = candidates.argmax(dim=-1) + k
+        pivot_row = sum(
+            torch.where((pivot_index == j)[..., None], rows[j], torch.zeros_like(rows[j])) for j in range(k, n)
+        )
+        old_row = rows[k]
+        rows = [torch.where((pivot_index == j)[..., None], old_row, rows[j]) if j > k else rows[j] for j in range(n)]
+        rows[k] = pivot_row
+        pivot = pivot_row[..., k]
+        singular = singular | (pivot == 0)
+        safe = torch.where(pivot == 0, torch.ones_like(pivot), pivot)
+        rows[k] = rows[k] / safe[..., None]
+        rows = [rows[j] - rows[j][..., k, None] * rows[k] if j != k else rows[k] for j in range(n)]
+    return torch.stack([row[..., -1] for row in rows], dim=-1), singular.to(torch.int32)
+
+
 def fast_small_matmul(a: Tensor, b: Tensor) -> Tensor:
     """Fast batched matrix multiplication for small matrices (size < 8x8).
 
@@ -45,10 +67,10 @@ def solve_2dweighted_lstsq(
     """
     WAs = As if Ws is None else fast_small_matmul(Ws, As)
     WAs = WAs if mask is None else WAs * mask[..., None, None]
-    AtW = WAs.flatten(-3, -2).transpose(-1, -2)  # (..., D, 2*N)
-    AtWA = AtW @ As.flatten(-3, -2)  # (..., D, D)
-    AtWb = AtW @ bs.flatten(-2, -1)[..., None]  # (..., D, 1)
-    sol, info = torch.linalg.solve_ex(AtWA, AtWb.squeeze(-1))
+    # fastforks: sums of the per-observation products in one reduction each (a GEMM over every pixel is split-K cuBLAS)
+    AtWA = (WAs[..., None] * As[..., None, :]).sum((-4, -3))  # (..., D, D)
+    AtWb = (WAs * bs[..., None]).sum((-3, -2))[..., None]  # (..., D, 1)
+    sol, info = (solve_small_export if torch.compiler.is_exporting() else torch.linalg.solve_ex)(AtWA, AtWb.squeeze(-1))
     sol = sol.nan_to_num(1, 1, 1)
     return sol, info
 

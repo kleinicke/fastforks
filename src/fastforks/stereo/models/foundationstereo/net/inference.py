@@ -23,6 +23,7 @@ import math
 from dataclasses import dataclass
 
 import torch
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.tracing import in_onnx_export
 from fastforks._core.patch import override
 import torch.nn as nn
@@ -88,7 +89,7 @@ def _instance_norm_nhwc(self, x):
     # == F.instance_norm (affine=False, no running stats), statistics in fp32, keeps the memory layout
     dims = tuple(range(2, x.dim()))
     var, mean = torch.var_mean(x.float(), dim=dims, keepdim=True, unbiased=False)
-    return ((x.float() - mean) * torch.rsqrt(var + self.eps)).to(x.dtype)
+    return to_run_dtype((x.float() - mean) * torch.rsqrt(var + self.eps), x.dtype)
 
 
 def prepare_inference(model, o: Opts = Opts()):
@@ -145,7 +146,7 @@ class _Ctx:
         return contextlib.nullcontext()
 
     def act(self, x):  # input activation layout/dtype
-        x = x.to(self.dt)
+        x = to_run_dtype(x, self.dt)
         return x.contiguous(memory_format=_mf(x)) if self.o.cl else x
 
     def empty(self, shape, like):
@@ -193,9 +194,9 @@ def feature_fast(ft, x, ctx):
     xin = F.interpolate(x, size=(Hr, Wr), mode="bicubic", align_corners=False)
     if ctx.o.dino_amp:
         with torch.autocast("cuda", dtype=torch.float16):
-            vit = ft.dino(xin)["out"].to(ctx.dt)
+            vit = to_run_dtype(ft.dino(xin)["out"], ctx.dt)
     else:
-        vit = ft.dino(xin.to(ctx.dt))["out"]
+        vit = ft.dino(to_run_dtype(xin, ctx.dt))["out"]
     vit = F.interpolate(vit, size=(H // 4, W // 4), mode="bilinear", align_corners=True)
     x = ctx.act(x)
     x = ft.stem(x)
@@ -223,7 +224,7 @@ def _gwc_concat_shifted(model, fl, fr, l12, r12, D, ctx):
     gwc = torch.stack([(f1 * f2[..., D - 1 - d:D - 1 - d + W]).sum(2) for d in range(D)], 2)          # (B, G, D, H, W)
     cr = torch.stack([r12p[..., D - 1 - d:D - 1 - d + W] for d in range(D)], 2)                    # (B, 12, D, H, W)
     cl = l12.unsqueeze(2).expand(-1, -1, D, -1, -1)
-    vol = torch.cat([gwc.to(ctx.dt), cl.to(ctx.dt), cr.to(ctx.dt)], 1)
+    vol = torch.cat([to_run_dtype(gwc, ctx.dt), to_run_dtype(cl, ctx.dt), to_run_dtype(cr, ctx.dt)], 1)
     return vol.contiguous(memory_format=torch.channels_last_3d) if ctx.o.cl else vol
 
 
@@ -286,9 +287,13 @@ def hourglass_fast(hg, xs, features, model, ctx):
     if ctx.export:
         c1 = first(x)
     else:
+        rows = _rows_for(model, B, D, W)
+        if x.is_cuda:
+            # The hourglass keeps its skip volumes live while each strip is filtered.
+            rows = max(8, rows // 2)
         # first stride-2 conv over the full-resolution volume in H-strips: cuDNN copies a 28-ch NDHWC input into a
         # channel-padded (32) buffer, i.e. a full-volume transient (+2.5 GB at Midd-F) if run in one call
-        orows = max(4, _rows_for(model, B, D, W) // 2)
+        orows = max(4, rows // 2)
         c1 = None
         for o0 in range(0, H // 2, orows):
             o1 = min(H // 2, o0 + orows)
@@ -311,10 +316,14 @@ def hourglass_fast(hg, xs, features, model, ctx):
     conv3 = hg.conv3(conv2)
     conv3 = hg.feature_att_32(conv3, features[3])
     conv3_up = hg.conv3_up(conv3)
+    del conv3
     conv2 = hg.agg_0(torch.cat((conv3_up, conv2), dim=1))
+    del conv3_up
     conv2 = hg.feature_att_up_16(conv2, features[2])
     conv2_up = hg.conv2_up(conv2)
+    del conv2
     conv1 = hg.agg_1(torch.cat((conv2_up, conv1), dim=1))
+    del conv2_up
     conv1 = hg.feature_att_up_8(conv1, features[1])
     xp = transformer_fast(hg.atts["4"], xp, ctx)
     if ctx.export:
@@ -323,7 +332,7 @@ def hourglass_fast(hg, xs, features, model, ctx):
     out = ctx.empty((B, C, D, H, W), conv1)
     halo = 2  # conv_out: 2 x (1,3,3)
     H8, H16 = conv1.shape[3], xp.shape[3]
-    for h0, h1 in _strips(H, _rows_for(model, B, D, W)):
+    for h0, h1 in _strips(H, rows):
         r0, r1 = max(0, h0 - halo), min(H, h1 + halo)
         # transposed conv (k4 s2 p1): rows [r0, r1) need conv1 rows [r0//2 - 1, (r1+1)//2 + 1)
         a, b = max(0, r0 // 2 - 1), min(H8, (r1 + 1) // 2 + 1)
@@ -344,7 +353,7 @@ def transformer_fast(att, cv, ctx):
     sequence length 4, head dim 7: the math backend is 4x faster than flash here)."""
     B, C, D, H, W = cv.shape
     x = cv.permute(0, 3, 4, 2, 1).reshape(B * H * W, D, C)
-    x = x + att.pos_embed0.pe.to(x.device, x.dtype)[:, :D]
+    x = x + to_run_dtype(att.pos_embed0.pe.to(x.device), x.dtype)[:, :D]
     for layer in att.sa:
         a = layer.self_attn
         q, k, v = a.q_proj(x), a.k_proj(x), a.v_proj(x)
@@ -366,7 +375,7 @@ def _conv_k7_to1(conv, x):
     outs = []
     for bi in range(B):
         xb = x[bi].permute(1, 0, 2, 3)                                       # (D, C, H, W)
-        y = F.conv2d(xb.contiguous(memory_format=torch.channels_last), conv._w2.to(xb.dtype), None, 1, k // 2)
+        y = F.conv2d(xb.contiguous(memory_format=torch.channels_last), to_run_dtype(conv._w2, xb.dtype), None, 1, k // 2)
         yp = F.pad(y[:, :k].float().permute(1, 0, 2, 3), (0, 0, 0, 0, k // 2, k // 2))   # (k, D + k - 1, H, W)
         o = conv.bias.float().view(1, 1, 1)
         for kd in range(k):                                                  # out[d] += y[d + kd - 3, kd]
@@ -406,8 +415,8 @@ class GeoFast:
             g = self.geo[-1]
             Dn = g.shape[1] // 2
             self.geo.append((0.5 * (g[:, 0:2 * Dn:2] + g[:, 1:2 * Dn:2])).contiguous())
-        f1 = F.normalize(fl.float(), dim=1).to(comb.dtype)
-        f2 = F.normalize(fr.float(), dim=1).to(comb.dtype)
+        f1 = to_run_dtype(F.normalize(fl.float(), dim=1), comb.dtype)
+        f2 = to_run_dtype(F.normalize(fr.float(), dim=1), comb.dtype)
         f1 = f1.permute(0, 2, 3, 1).reshape(B * H, W, -1)
         f2 = f2.permute(0, 2, 3, 1).reshape(B * H, W, -1)
         corr = torch.bmm(f1, f2.transpose(1, 2)).view(B, H, W, W)   # (B,H,W1,W2)
@@ -449,14 +458,14 @@ class GeoFast:
             r0, r1, w0, w1 = self._lerp_index(base, H * W, pos, Di)
             gf = g.reshape(-1, C)
             dt = g.dtype
-            val = gf[r0] * w0.unsqueeze(-1).to(dt) + gf[r1] * w1.unsqueeze(-1).to(dt)   # (B,H,W,K,C)
+            val = gf[r0] * to_run_dtype(w0.unsqueeze(-1), dt) + gf[r1] * to_run_dtype(w1.unsqueeze(-1), dt)   # (B,H,W,K,C)
             outs.append(val.reshape(B, H, W, -1))
             c = self.corr[i]                                 # (B,H,W,W2i)
             W2 = c.shape[-1]
             pos = self.wpos / s - d / s + self.dx
             r0, r1, w0, w1 = self._lerp_index(self.bhw * W2, 1, pos, W2)
             cf = c.reshape(-1)
-            outs.append(cf[r0] * w0.to(dt) + cf[r1] * w1.to(dt))
+            outs.append(cf[r0] * to_run_dtype(w0, dt) + cf[r1] * to_run_dtype(w1, dt))
         out = torch.cat(outs, dim=-1)                        # (B,H,W,522)
         return out.permute(0, 3, 1, 2)                       # channels_last view
 
@@ -485,7 +494,7 @@ def update_fast(ub, net, inp, corr, disp, att, dt):
     net[2] = _sel_gru(ub.gru16, att[2], net[2], inp[2], update.pool2x(net[1]))
     net[1] = _sel_gru(ub.gru08, att[1], net[1], inp[1], update.pool2x(net[0]), _interp(net[2], net[1]))
     e = ub.encoder
-    d16 = disp.to(dt).contiguous(memory_format=torch.channels_last)   # (C=1: else the cat below may come out NCHW)
+    d16 = to_run_dtype(disp, dt).contiguous(memory_format=torch.channels_last)   # (C=1: else the cat below may come out NCHW)
     cor = F.relu(e.convc2(F.relu(e.convc1(corr))))
     dsp = F.relu(e.convd2(F.relu(e.convd1(d16))))
     out = F.relu(e.conv(torch.cat([cor, dsp], dim=1)))

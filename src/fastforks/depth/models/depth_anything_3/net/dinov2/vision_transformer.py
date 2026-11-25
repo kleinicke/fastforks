@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 # fastforks: einops (rearrange -> reshape below) and the package logger (log lines dropped) are not dependencies
 
 from .layers import LayerScale
@@ -240,7 +241,7 @@ class DinoVisionTransformer(nn.Module):
         )
         assert (w0, h0) == patch_pos_embed.shape[-2:]
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
+        return to_run_dtype(torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1), previous_dtype)  # fastforks: to_run_dtype (.to is a no-op in the float32 MLX twin)
 
     def prepare_cls_token(self, B, S):
         cls_token = self.cls_token.expand(B, S, -1)
@@ -279,7 +280,8 @@ class DinoVisionTransformer(nn.Module):
             pos_nodiff = torch.zeros_like(pos).to(pos.dtype)
             if self.patch_start_idx > 0:
                 pos = pos + 1
-                pos_special = torch.zeros(B * S, self.patch_start_idx, 2).to(device).to(pos.dtype)
+                # fastforks: made on the device (was zeros on the CPU, then uploaded: a host sync per call)
+                pos_special = pos.new_zeros(B * S, self.patch_start_idx, 2)
                 pos_special = pos_special.reshape(B, S, *pos_special.shape[1:])  # fastforks: rearrange
                 pos = torch.cat([pos_special, pos], dim=2)
                 pos_nodiff = pos_nodiff + 1

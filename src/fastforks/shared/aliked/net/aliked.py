@@ -39,7 +39,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
+from fastforks._core.mlx_cast import float32_call  # fastforks
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
+from fastforks._core.upload import device_tensor  # fastforks
+
+
+def _call(module: nn.Module, x: torch.Tensor) -> torch.Tensor:  # fastforks: `float32_call`'s plain twin
+    return module(x)
 
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
@@ -51,9 +58,7 @@ def _conv3x3(in_planes: int, out_planes: int) -> nn.Conv2d:
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=1, padding=1, bias=False)
 
 
-def get_patches(
-    tensor: torch.Tensor, required_corners: torch.Tensor, ps: int
-) -> torch.Tensor:
+def get_patches(tensor: torch.Tensor, required_corners: torch.Tensor, ps: int) -> torch.Tensor:
     c, h, w = tensor.shape
     corner = (required_corners - ps / 2 + 1).long()
     corner[:, 0] = corner[:, 0].clamp(min=0, max=w - 1 - ps)
@@ -126,15 +131,14 @@ class DKD(nn.Module):
         x = torch.linspace(-self.radius, self.radius, self.kernel_size)
         # (kernel_size*kernel_size) x 2 : (w,h)
         kw = {"indexing": "ij"} if torch.__version__ >= "1.10" else {}
-        self.hw_grid = (
-            torch.stack(torch.meshgrid([x, x], **kw)).view(2, -1).t()[:, [1, 0]]
-        )
+        self.hw_grid = torch.stack(torch.meshgrid([x, x], **kw)).view(2, -1).t()[:, [1, 0]]
 
     def forward(
         self,
         scores_map: torch.Tensor,
         sub_pixel: bool = True,
         image_size: Optional[torch.Tensor] = None,
+        nms_scores: Optional[torch.Tensor] = None,  # fastforks: `simple_nms` of the scores, computed by the caller
     ):
         """
         :param scores_map: Bx1xHxW
@@ -144,7 +148,8 @@ class DKD(nn.Module):
         """
         b, c, h, w = scores_map.shape
         scores_nograd = scores_map.detach()
-        nms_scores = simple_nms(scores_nograd, self.radius)
+        if nms_scores is None:
+            nms_scores = simple_nms(scores_nograd, self.radius)
 
         # remove border
         nms_scores[:, :, : self.radius, :] = 0
@@ -184,7 +189,7 @@ class DKD(nn.Module):
                     indices = indices[sel_idx]
                 indices_keypoints.append(indices)
 
-        wh = torch.tensor([w - 1, h - 1], device=scores_nograd.device)
+        wh = device_tensor([w - 1, h - 1], device=scores_nograd.device)  # fastforks: no host sync (a pageable upload syncs the host)
 
         keypoints = []
         scoredispersitys = []
@@ -195,9 +200,7 @@ class DKD(nn.Module):
             self.hw_grid = self.hw_grid.to(scores_map)  # to device
             for b_idx in range(b):
                 patch = patches[b_idx].t()  # (H*W) x (kernel**2)
-                indices_kpt = indices_keypoints[
-                    b_idx
-                ]  # one dimension vector, say its size is M
+                indices_kpt = indices_keypoints[b_idx]  # one dimension vector, say its size is M
                 patch_scores = patch[indices_kpt]  # M x (kernel**2)
                 keypoints_xy_nms = torch.stack(
                     [indices_kpt % w, torch.div(indices_kpt, w, rounding_mode="trunc")],
@@ -206,19 +209,14 @@ class DKD(nn.Module):
 
                 # max is detached to prevent undesired backprop loops in the graph
                 max_v = patch_scores.max(dim=1).values.detach()[:, None]
-                x_exp = (
-                    (patch_scores - max_v) / self.temperature
-                ).exp()  # M * (kernel**2), in [0, 1]
+                x_exp = ((patch_scores - max_v) / self.temperature).exp()  # M * (kernel**2), in [0, 1]
 
                 # \frac{ \sum{(i,j) \times \exp(x/T)} }{ \sum{\exp(x/T)} }
-                xy_residual = (
-                    x_exp @ self.hw_grid / x_exp.sum(dim=1)[:, None]
-                )  # Soft-argmax, Mx2
+                xy_residual = x_exp @ self.hw_grid / x_exp.sum(dim=1)[:, None]  # Soft-argmax, Mx2
 
                 hw_grid_dist2 = (
                     torch.norm(
-                        (self.hw_grid[None, :, :] - xy_residual[:, None, :])
-                        / self.radius,
+                        (self.hw_grid[None, :, :] - xy_residual[:, None, :]) / self.radius,
                         dim=-1,
                     )
                     ** 2
@@ -234,18 +232,14 @@ class DKD(nn.Module):
                     keypoints_xy.view(1, 1, -1, 2),
                     mode="bilinear",
                     align_corners=True,
-                )[
-                    0, 0, 0, :
-                ]  # CxN
+                )[0, 0, 0, :]  # CxN
 
                 keypoints.append(keypoints_xy)
                 scoredispersitys.append(scoredispersity)
                 kptscores.append(kptscore)
         else:
             for b_idx in range(b):
-                indices_kpt = indices_keypoints[
-                    b_idx
-                ]  # one dimension vector, say its size is M
+                indices_kpt = indices_keypoints[b_idx]  # one dimension vector, say its size is M
                 # To avoid warning: UserWarning: __floordiv__ is deprecated
                 keypoints_xy_nms = torch.stack(
                     [indices_kpt % w, torch.div(indices_kpt, w, rounding_mode="trunc")],
@@ -257,9 +251,7 @@ class DKD(nn.Module):
                     keypoints_xy.view(1, 1, -1, 2),
                     mode="bilinear",
                     align_corners=True,
-                )[
-                    0, 0, 0, :
-                ]  # CxN
+                )[0, 0, 0, :]  # CxN
                 keypoints.append(keypoints_xy)
                 scoredispersitys.append(kptscore)  # for jit.script compatability
                 kptscores.append(kptscore)
@@ -310,9 +302,7 @@ class DeformableConv2d(nn.Module):
         self.padding = padding
         self.mask = mask
 
-        self.channel_num = (
-            3 * kernel_size * kernel_size if mask else 2 * kernel_size * kernel_size
-        )
+        self.channel_num = 3 * kernel_size * kernel_size if mask else 2 * kernel_size * kernel_size
         self.offset_conv = nn.Conv2d(
             in_channels,
             self.channel_num,
@@ -346,9 +336,7 @@ class DeformableConv2d(nn.Module):
         offset = offset.clamp(-max_offset, max_offset)
         # fastforks: `deform_op` (ALIKED's argument; the families pass fastforks.shared.deform_conv's plain-PyTorch op,
         # same offset layout and zero padding as torchvision.ops.deform_conv2d)
-        x = self.deform_op(
-            x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding
-        )
+        x = self.deform_op(x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding)
         # fastforks: the op returns a channels-last view; the NCHW layout keeps the upsample + cat of the four
         # feature levels on their fast kernels (channels-last cost 2.4x on the cat, 1.4x on the upsample)
         return x.contiguous()
@@ -405,13 +393,9 @@ class ConvBlock(nn.Module):
             self.gate = gate
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-        self.conv1 = get_conv(
-            in_channels, out_channels, kernel_size=3, conv_type=conv_type, mask=mask
-        )
+        self.conv1 = get_conv(in_channels, out_channels, kernel_size=3, conv_type=conv_type, mask=mask)
         self.bn1 = norm_layer(out_channels)
-        self.conv2 = get_conv(
-            out_channels, out_channels, kernel_size=3, conv_type=conv_type, mask=mask
-        )
+        self.conv2 = get_conv(out_channels, out_channels, kernel_size=3, conv_type=conv_type, mask=mask)
         self.bn2 = norm_layer(out_channels)
 
     def forward(self, x):
@@ -451,13 +435,9 @@ class ResBlock(nn.Module):
             raise NotImplementedError("Dilation > 1 not supported in ResBlock")
         # Both self.conv1 and self.downsample layers
         # downsample the input when stride != 1
-        self.conv1 = get_conv(
-            inplanes, planes, kernel_size=3, conv_type=conv_type, mask=mask
-        )
+        self.conv1 = get_conv(inplanes, planes, kernel_size=3, conv_type=conv_type, mask=mask)
         self.bn1 = norm_layer(planes)
-        self.conv2 = get_conv(
-            planes, planes, kernel_size=3, conv_type=conv_type, mask=mask
-        )
+        self.conv2 = get_conv(planes, planes, kernel_size=3, conv_type=conv_type, mask=mask)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
@@ -522,9 +502,7 @@ class SDDH(nn.Module):
         )
 
         # sampled feature conv
-        self.sf_conv = nn.Conv2d(
-            dims, dims, kernel_size=1, stride=1, padding=0, bias=False
-        )
+        self.sf_conv = nn.Conv2d(dims, dims, kernel_size=1, stride=1, padding=0, bias=False)
 
         # convM
         if not conv2D:
@@ -532,15 +510,13 @@ class SDDH(nn.Module):
             agg_weights = torch.nn.Parameter(torch.rand(n_pos, dims, dims))
             self.register_parameter("agg_weights", agg_weights)
         else:
-            self.convM = nn.Conv2d(
-                dims * n_pos, dims, kernel_size=1, stride=1, padding=0, bias=False
-            )
+            self.convM = nn.Conv2d(dims * n_pos, dims, kernel_size=1, stride=1, padding=0, bias=False)
 
     def forward(self, x, keypoints):
         # x: [B,C,H,W]
         # keypoints: list, [[N_kpts,2], ...] (w,h)
         b, c, h, w = x.shape
-        wh = torch.tensor([[w - 1, h - 1]], device=x.device)
+        wh = device_tensor([[w - 1, h - 1]], device=x.device)  # fastforks: no host sync (a pageable upload syncs the host)
         max_offset = max(h, w) / 4.0
 
         offsets = []
@@ -552,30 +528,18 @@ class SDDH(nn.Module):
             N_kpts = len(kptsi)
 
             if self.kernel_size > 1:
-                patch = self.get_patches_func(
-                    xi, kptsi_wh.long(), self.kernel_size
-                )  # [N_kpts, C, K, K]
+                patch = self.get_patches_func(xi, kptsi_wh.long(), self.kernel_size)  # [N_kpts, C, K, K]
             else:
                 kptsi_wh_long = kptsi_wh.long()
-                patch = (
-                    xi[:, kptsi_wh_long[:, 1], kptsi_wh_long[:, 0]]
-                    .permute(1, 0)
-                    .reshape(N_kpts, c, 1, 1)
-                )
+                patch = xi[:, kptsi_wh_long[:, 1], kptsi_wh_long[:, 0]].permute(1, 0).reshape(N_kpts, c, 1, 1)
 
-            offset = self.offset_conv(patch).clamp(
-                -max_offset, max_offset
-            )  # [N_kpts, 2*n_pos, 1, 1]
+            offset = self.offset_conv(patch).clamp(-max_offset, max_offset)  # [N_kpts, 2*n_pos, 1, 1]
             if self.mask:
-                offset = (
-                    offset[:, :, 0, 0].view(N_kpts, 3, self.n_pos).permute(0, 2, 1)
-                )  # [N_kpts, n_pos, 3]
+                offset = offset[:, :, 0, 0].view(N_kpts, 3, self.n_pos).permute(0, 2, 1)  # [N_kpts, n_pos, 3]
                 offset = offset[:, :, :-1]  # [N_kpts, n_pos, 2]
                 mask_weight = torch.sigmoid(offset[:, :, -1])  # [N_kpts, n_pos]
             else:
-                offset = (
-                    offset[:, :, 0, 0].view(N_kpts, 2, self.n_pos).permute(0, 2, 1)
-                )  # [N_kpts, n_pos, 2]
+                offset = offset[:, :, 0, 0].view(N_kpts, 2, self.n_pos).permute(0, 2, 1)  # [N_kpts, n_pos, 2]
             offsets.append(offset)  # for visualization
 
             # get sample positions
@@ -584,27 +548,17 @@ class SDDH(nn.Module):
             pos = pos.reshape(1, N_kpts * self.n_pos, 1, 2)
 
             # sample features
-            features = grid_sample(
-                xi.unsqueeze(0), pos, mode="bilinear", align_corners=True
-            )  # [1,C,(N_kpts*n_pos),1]
-            features = features.reshape(c, N_kpts, self.n_pos, 1).permute(
-                1, 0, 2, 3
-            )  # [N_kpts, C, n_pos, 1]
+            features = grid_sample(xi.unsqueeze(0), pos, mode="bilinear", align_corners=True)  # [1,C,(N_kpts*n_pos),1]
+            features = features.reshape(c, N_kpts, self.n_pos, 1).permute(1, 0, 2, 3)  # [N_kpts, C, n_pos, 1]
             if self.mask:
                 features = torch.einsum("ncpo,np->ncpo", features, mask_weight)
 
-            features = torch.selu_(self.sf_conv(features)).squeeze(
-                -1
-            )  # [N_kpts, C, n_pos]
+            features = torch.selu_(self.sf_conv(features)).squeeze(-1)  # [N_kpts, C, n_pos]
             # convM
             if not self.conv2D:
-                descs = torch.einsum(
-                    "ncp,pcd->nd", features, self.agg_weights
-                )  # [N_kpts, C]
+                descs = torch.einsum("ncp,pcd->nd", features, self.agg_weights)  # [N_kpts, C]
             else:
-                features = features.reshape(N_kpts, -1)[
-                    :, :, None, None
-                ]  # [N_kpts, C*n_pos, 1, 1]
+                features = features.reshape(N_kpts, -1)[:, :, None, None]  # [N_kpts, C*n_pos, 1, 1]
                 descs = self.convM(features).squeeze()  # [N_kpts, C]
 
             # normalize
@@ -631,6 +585,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         "aliked-n16rot": [16, 32, 64, 128, 128, 3, 16],
         "aliked-n32": [16, 32, 64, 128, 128, 3, 32],
     }
+
     def __init__(self, deform_op: Callable, **conf):
         super().__init__()
         # fastforks: the Extractor configuration (origin "center": coords_offset 0); the caller resizes
@@ -654,18 +609,10 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         self.conv2 = _conv1x1(c2, dim // 4)
         self.conv3 = _conv1x1(c3, dim // 4)
         self.conv4 = _conv1x1(dim, dim // 4)
-        self.upsample2 = nn.Upsample(
-            scale_factor=2, mode="bilinear", align_corners=True
-        )
-        self.upsample4 = nn.Upsample(
-            scale_factor=4, mode="bilinear", align_corners=True
-        )
-        self.upsample8 = nn.Upsample(
-            scale_factor=8, mode="bilinear", align_corners=True
-        )
-        self.upsample32 = nn.Upsample(
-            scale_factor=32, mode="bilinear", align_corners=True
-        )
+        self.upsample2 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.upsample4 = nn.Upsample(scale_factor=4, mode="bilinear", align_corners=True)
+        self.upsample8 = nn.Upsample(scale_factor=8, mode="bilinear", align_corners=True)
+        self.upsample32 = nn.Upsample(scale_factor=32, mode="bilinear", align_corners=True)
         self.score_head = nn.Sequential(
             _conv1x1(dim, 8),
             self.gate,
@@ -682,11 +629,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
             radius=conf.nms_radius,
             top_k=-1 if conf.detection_threshold > 0 else conf.max_num_keypoints,
             scores_th=conf.detection_threshold,
-            n_limit=(
-                conf.max_num_keypoints
-                if conf.max_num_keypoints > 0
-                else self.n_limit_max
-            ),
+            n_limit=(conf.max_num_keypoints if conf.max_num_keypoints > 0 else self.n_limit_max),
         )
 
         # fastforks: no download; the caller loads the weights (strict)
@@ -712,27 +655,33 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         padder = InputPadder(image.shape[-2], image.shape[-1], div_by)
         image = padder.pad(image)
 
+        # fastforks: in an MLX float16 replay the convolutions are float32 islands (float16 feature maps move keypoints
+        # across the detection threshold: recall 0.9963 on the golden pair, 1.0 with the islands)
+        call = float32_call if exporting_for_mlx() else _call
         # ================================== feature encoder
-        x1 = self.block1(image)  # B x c1 x H x W
+        x1 = call(self.block1, image)  # B x c1 x H x W
         x2 = self.pool2(x1)
-        x2 = self.block2(x2)  # B x c2 x H/2 x W/2
+        x2 = call(self.block2, x2)  # B x c2 x H/2 x W/2
         x3 = self.pool4(x2)
-        x3 = self.block3(x3)  # B x c3 x H/8 x W/8
+        x3 = call(self.block3, x3)  # B x c3 x H/8 x W/8
         x4 = self.pool4(x3)
-        x4 = self.block4(x4)  # B x dim x H/32 x W/32
+        x4 = call(self.block4, x4)  # B x dim x H/32 x W/32
         # ================================== feature aggregation
-        x1 = self.gate(self.conv1(x1))  # B x dim//4 x H x W
-        x2 = self.gate(self.conv2(x2))  # B x dim//4 x H//2 x W//2
-        x3 = self.gate(self.conv3(x3))  # B x dim//4 x H//8 x W//8
-        x4 = self.gate(self.conv4(x4))  # B x dim//4 x H//32 x W//32
+        x1 = self.gate(call(self.conv1, x1))  # B x dim//4 x H x W
+        x2 = self.gate(call(self.conv2, x2))  # B x dim//4 x H//2 x W//2
+        x3 = self.gate(call(self.conv3, x3))  # B x dim//4 x H//8 x W//8
+        x4 = self.gate(call(self.conv4, x4))  # B x dim//4 x H//32 x W//32
         x2_up = self.upsample2(x2)  # B x dim//4 x H x W
         x3_up = self.upsample8(x3)  # B x dim//4 x H x W
         x4_up = self.upsample32(x4)  # B x dim//4 x H x W
         x1234 = torch.cat([x1, x2_up, x3_up, x4_up], dim=1)
         # ================================== score head
-        with torch.autocast(image.device.type, enabled=False):  # fastforks: the score head in float32 (AUC@5 -1.3 in fp16)
-            score_map = torch.sigmoid(self.score_head(x1234.float()))
-        feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1)
+        with torch.autocast(
+            image.device.type, enabled=False
+        ):  # fastforks: the score head in float32 (AUC@5 -1.3 in fp16)
+            score_map = torch.sigmoid(call(self.score_head, x1234.float()))
+        # fastforks: without `describe` (FlexGlue) the normalized map is not read: not computed (2 ms at 768 x 1024)
+        feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1) if self.describe else x1234
 
         # Unpads images
         feature_map = padder.unpad(feature_map)
@@ -740,18 +689,27 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
 
         return feature_map, score_map
 
+    def detection_maps(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """fastforks: the fixed-shape part of `forward` (dense maps and the score NMS), one graph for MLX.
+
+        Without `describe` the feature map is not returned (an empty tensor): a graph does not compute or copy it.
+        """
+        with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
+            feature_map, score_map = self.extract_dense_map(image)
+        score_map = score_map.float()
+        feature_map = feature_map.float() if self.describe else score_map.new_zeros(0)
+        return feature_map, score_map, simple_nms(score_map, self.dkd.radius)
+
     def forward(self, data: dict) -> dict:
         image = data["image"]  # fastforks: RGB only (the grayscale conversion removed)
         # fastforks: the dense maps in float16 when `half` (autocast: the convs in half, the norms and the sigmoid in
         # float32); detection, sub-pixel refinement and description stay float32
-        with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
-            feature_map, score_map = self.extract_dense_map(image)
-        feature_map, score_map = feature_map.float(), score_map.float()
+        feature_map, score_map, nms_scores = self.detection_maps(image)
         keypoints, kptscores, scoredispersitys = self.dkd(
-            score_map, image_size=data.get("image_size")
+            score_map, image_size=data.get("image_size"), nms_scores=nms_scores
         )
         _, _, h, w = image.shape
-        wh = torch.tensor([w - 1, h - 1], device=image.device)
+        wh = device_tensor([w - 1, h - 1], device=image.device)  # fastforks: no host sync (a pageable upload syncs the host)
         # no padding required
         # we can set detection_threshold=-1 and conf.max_num_keypoints > 0
         out = {

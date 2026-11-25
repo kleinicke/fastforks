@@ -221,9 +221,10 @@ class DPTHead(nn.Module):
             x = self.resize_layers[dpt_idx](x)
 
             out.append(x)
+            del x
             dpt_idx += 1
 
-        # Fuse features from multiple layers.
+        # The fusion consumes the feature list from coarse to fine.
         out = self.scratch_forward(out)
         # Interpolate fused output to match target image resolution.
         out = custom_interpolate(
@@ -263,32 +264,26 @@ class DPTHead(nn.Module):
         Forward pass through the fusion blocks.
 
         Args:
-            features (List[Tensor]): List of feature maps from different layers.
+            features (List[Tensor]): Owned list of feature maps from fine to coarse.
 
         Returns:
             Tensor: Fused feature map.
         """
-        layer_1, layer_2, layer_3, layer_4 = features
+        scratch = self.scratch
+        layer = scratch.layer4_rn(features.pop())
+        out = scratch.refinenet4(layer, size=features[2].shape[2:])
+        del layer
 
-        layer_1_rn = self.scratch.layer1_rn(layer_1)
-        layer_2_rn = self.scratch.layer2_rn(layer_2)
-        layer_3_rn = self.scratch.layer3_rn(layer_3)
-        layer_4_rn = self.scratch.layer4_rn(layer_4)
+        layer = scratch.layer3_rn(features.pop())
+        out = scratch.refinenet3(out, layer, size=features[1].shape[2:])
+        del layer
 
-        out = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
-        del layer_4_rn, layer_4
+        layer = scratch.layer2_rn(features.pop())
+        out = scratch.refinenet2(out, layer, size=features[0].shape[2:])
+        del layer
 
-        out = self.scratch.refinenet3(out, layer_3_rn, size=layer_2_rn.shape[2:])
-        del layer_3_rn, layer_3
-
-        out = self.scratch.refinenet2(out, layer_2_rn, size=layer_1_rn.shape[2:])
-        del layer_2_rn, layer_2
-
-        out = self.scratch.refinenet1(out, layer_1_rn)
-        del layer_1_rn, layer_1
-
-        out = self.scratch.output_conv1(out)
-        return out
+        out = scratch.refinenet1(out, scratch.layer1_rn(features.pop()))
+        return scratch.output_conv1(out)
 
 
 ################################################################################

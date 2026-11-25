@@ -8,7 +8,7 @@ import torch
 from fastforks import matching
 from fastforks._core import registry
 from fastforks.matching.models.loftr.model import Matcher, Params, resized_size
-from fastforks.matching.models.loftr.net.loftr import sine_encoding
+from fastforks.matching.models.loftr.net.loftr import FinePreprocess, LocalFeatureTransformer, sine_encoding
 
 
 def test_cards() -> None:
@@ -41,3 +41,17 @@ def test_sine_encoding_bug_fix() -> None:
     assert fixed.shape == buggy.shape == (1, 8, 2, 3)
     torch.testing.assert_close(fixed[0, 0, 0], torch.arange(1, 4.0).sin())  # x + 1, frequency 1
     assert not torch.allclose(fixed[0, 4], buggy[0, 4])
+
+
+@pytest.mark.parametrize("indices", [[], [0, 2]])
+def test_fine_windows_support_empty_matches(indices: list[int]) -> None:
+    preprocess = FinePreprocess(d_model_c=8, d_model_f=4, window=3)
+    fine = torch.randn(1, 4, 4, 4)
+    coarse = torch.randn(1, 4, 8)
+    ids = torch.tensor(indices, dtype=torch.long)
+    left, right = preprocess(fine, fine, coarse, coarse, ids, ids, stride=2)
+    assert left.shape == right.shape == (len(indices), 9, 4)
+    torch.testing.assert_close(left, right)
+    transformer = LocalFeatureTransformer(4, 1, ("self", "cross"))
+    left, right = transformer(left, right)
+    assert left.shape == right.shape == (len(indices), 9, 4)

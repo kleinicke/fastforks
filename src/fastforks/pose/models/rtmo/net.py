@@ -17,10 +17,15 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import cast
 
 import torch
 import torch.nn.functional as F
 from torch import nn
+
+from fastforks._core.checkpoint import check_foldable_batchnorm
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.tracing import exporting_for_mlx
 
 STAGES = ((64, 128, 3), (128, 256, 9), (256, 512, 9), (512, 1024, 3))  # fixed: CSPDarknet P5 (in, out, blocks)
 SPP_KERNELS = (5, 9, 13)  # fixed: reference SPP max-pool sizes
@@ -261,7 +266,14 @@ class Head(nn.Module):
         for i, f in enumerate(feats):
             cls, reg = f.chunk(2, 1)
             pose = self.conv_pose[i](reg)
-            maps = (self.out_cls[i](self.conv_cls[i](cls)), self.out_bbox[i](pose))
+            o, logit = cast("nn.Conv2d", self.out_cls[i]), self.conv_cls[i](cls)
+            if exporting_for_mlx() or logit.device.type == "mps":
+                # the person score logit in float32 (one channel): a float16 logit near 3 rounds by 2e-3, ~1e-4 of
+                # score. MLX and MPS only: their float16 runs need it for the limits; CUDA keeps the module's conv
+                logit = F.conv2d(to_float32(logit), to_float32(o.weight), to_float32(cast("torch.Tensor", o.bias)))
+            else:
+                logit = o(logit)
+            maps = (logit, self.out_bbox[i](pose))
             for out, m in zip(outs, (*maps, self.out_kpt_vis[i](pose), self.out_pose[i](pose)), strict=True):
                 out.append(m.flatten(2).transpose(1, 2))
         cls, box, vis, vec = (torch.cat(o, 1) for o in outs)
@@ -339,6 +351,7 @@ def _fold(
     w: torch.Tensor, sd: dict[str, torch.Tensor], bn: str, eps: float, own: torch.Tensor | None = None
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """(weight, bias) of a conv / linear `w` (its bias `own`) followed by the BatchNorm at `bn`, in double precision."""
+    check_foldable_batchnorm(w, sd, bn)
     scale = sd[bn + ".weight"].double() / (sd[bn + ".running_var"].double() + eps).sqrt()
     bias = sd[bn + ".bias"].double() - sd[bn + ".running_mean"].double() * scale
     if own is not None:

@@ -18,8 +18,9 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks.kernels.group_silu import group_silu
 from fastforks.shared import cnn_kernels
-from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
+from fastforks.shared.cnn_kernels import CL, conv_ep
 
 from ..net.codeformer_arch import calc_mean_std
 from ..net.vqgan_arch import Downsample, ResBlock
@@ -28,28 +29,11 @@ if TYPE_CHECKING:
     from ..net import CodeFormer
 
 
-def _gn_silu(gn: nn.GroupNorm, x: torch.Tensor, *, inplace: bool) -> torch.Tensor:
-    """`silu(GroupNorm(x))` of a channels-last fp16 `x`: statistics in fp32, one per-channel scale / shift epilogue."""
-    y = x if inplace else x.clone(memory_format=CL)
-    n, c = y.shape[:2]
-    hw = y.shape[2] * y.shape[3]
-    mean = y.mean((2, 3), dtype=torch.float32)  # per channel, accumulated in fp32 without an fp32 copy of `y`
-    var = torch.linalg.vector_norm(y, 2, (2, 3), dtype=torch.float32).square() / hw - mean * mean
-    mean, var = mean.view(n, gn.num_groups, -1), var.view(n, gn.num_groups, -1)
-    gmean = mean.mean(2, keepdim=True)
-    rstd = torch.rsqrt((var + mean * mean).mean(2, keepdim=True) - gmean * gmean + gn.eps)
-    rstd, shift = rstd.expand_as(mean).reshape(n, c), (gmean * rstd).expand_as(mean).reshape(n, c)
-    w, b = gn.weight.float(), gn.bias.float()
-    for i in range(n):  # the epilogue's scale / shift are per channel, so one launch per sample
-        cnn_kernels.epilogue(y[i : i + 1], (rstd[i] * w).contiguous(), (b - shift[i] * w).contiguous(), ACT["silu"])
-    return y
-
-
 def _resblock_forward(self: ResBlock, x_in: torch.Tensor) -> torch.Tensor:
     """GroupNorm -> SiLU -> conv -> GroupNorm -> SiLU -> conv, + skip (1 x 1 conv or identity), the sum in the epilogue."""
     skip = x_in if self.in_channels == self.out_channels else conv_ep(self.conv_out, x_in)
-    x = conv_ep(self.conv1, _gn_silu(self.norm1, x_in, inplace=False))
-    return conv_ep(self.conv2, _gn_silu(self.norm2, x, inplace=True), r=skip.contiguous(memory_format=CL))
+    x = conv_ep(self.conv1, group_silu(self.norm1, x_in, inplace=False))
+    return conv_ep(self.conv2, group_silu(self.norm2, x, inplace=True), r=skip.contiguous(memory_format=CL))
 
 
 def _downsample_forward(self: Downsample, x: torch.Tensor) -> torch.Tensor:
@@ -87,7 +71,7 @@ def forward_kernels(net: CodeFormer, x: torch.Tensor, w: float) -> torch.Tensor:
     taps = {m.fuse_encoder_block[s] for s in m.connect_list}
     for i, block in enumerate(m.encoder.blocks):
         x = block(x)
-        if i in taps:
+        if w > 0 and i in taps:
             enc[str(x.shape[-1])] = x
     lq = x
     b = x.shape[0]
@@ -106,5 +90,5 @@ def forward_kernels(net: CodeFormer, x: torch.Tensor, w: float) -> torch.Tensor:
     for i, block in enumerate(m.generator.blocks):
         x = block(x)
         if i in fuse and w > 0:
-            x = m.fuse_convs_dict[str(x.shape[-1])](enc[str(x.shape[-1])], x, w)
+            x = m.fuse_convs_dict[str(x.shape[-1])](enc.pop(str(x.shape[-1])), x, w)
     return x

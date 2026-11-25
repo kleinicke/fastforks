@@ -8,12 +8,14 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 
 from fastforks._core.checkpoint import config_globals
+from fastforks.shared import mlx_wrap
+from fastforks.shared.depth_anything_v2 import sdpa_attention
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
 from .net.fast_foundation_stereo.fast_foundation_stereo import FastFoundationStereo
 from .net.foundation_stereo.foundation_stereo import FoundationStereo
-from .portable import prepare_portable
+from .portable import classifier_taps, mps_half, prepare_portable
 
 if TYPE_CHECKING:
     from torch import nn
@@ -164,7 +166,7 @@ def iters(p: Params) -> int:
 
 
 class Portable(Runner):
-    """Plain PyTorch: TAO's forward (its fp16 AMP on CUDA), the disparity transformer chunked over its sequences."""
+    """Plain PyTorch: TAO's forward (its fp16 AMP on CUDA, pure fp16 on MPS), the disparity transformer chunked."""
 
     deterministic_cudnn = True
 
@@ -177,7 +179,9 @@ class Portable(Runner):
         self.net = build(ctx).to(ctx.device)
         # TAO's own AMP switch: fp16 autocast inside the network's AUTOCAST blocks, the GRU lookups in fp32
         cast("_Args", self.net.args)["mixed_precision"] = ctx.device.type == "cuda" and ctx.dtype == "float16"
-        prepare_portable(self.net, channels_last=ctx.device.type == "cuda")
+        prepare_portable(self.net, channels_last=ctx.device.type == "cuda", mps=ctx.device.type == "mps")
+        if ctx.device.type == "mps" and ctx.dtype == "float16":
+            mps_half(self.net)
 
     def _run(self, net: nn.Module, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         return net(left, right, iters=iters(self.ctx.params), test_mode=True)[:, 0].float()
@@ -208,4 +212,21 @@ class Kernels(Runner):
         return {"disparity": self._forward(left, right, iters(self.ctx.params))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _PortableMlx(Portable):
+    """`Portable` with DINOv2's attention as one `scaled_dot_product_attention` (MLX's fused kernel).
+
+    Upstream's `q @ k^T` and softmax materialise the `[2, 6, 6913, 6913]` scores at 994x1482 (2.2 GB in fp32).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network."""
+        super().__init__(ctx)
+        sdpa_attention(self.net)
+        classifier_taps(self.net)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_PortableMlx, whole="disparity"),
+}

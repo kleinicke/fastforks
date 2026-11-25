@@ -203,7 +203,7 @@ class Unit3:
         """
         chordal_dist = torch.linalg.norm(x - y, dim=-1)
         eps = torch.finfo(chordal_dist.dtype).eps
-        geodesic_dist = 2 * torch.asin((0.5 * chordal_dist).clamp(0, 1 - eps))
+        geodesic_dist = 2 * torch.asin((0.5 * chordal_dist).clamp_min(0).clamp_max(1 - eps))
         return geodesic_dist
 
     @staticmethod

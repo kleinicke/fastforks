@@ -3,6 +3,10 @@ name = "PatchmatchNet"
 summary = "PatchmatchNet (Wang et al. 2021): learned PatchMatch multi-view stereo, the depth of a reference view from posed, calibrated source views and a depth search range. Three coarse-to-fine PatchMatch stages (random initialisation, adaptive propagation, group-wise correlation with pixel-wise view weights, adaptive spatial cost aggregation) on FPN features, then a depth refinement net at full resolution."
 tier = "stable"
 outputs = ["depth", "confidence"]  # confidence: original photometric confidence (probability mass around the regressed depth)
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = [
+  "Kernels keep a CUDA graph per input size and depth range: its private pool and static outputs stay reserved, ~120 MiB at the 1536 x 1024 survey input (894 vs 772 MiB peak reserved, peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
 
 licence_notes = [
   "The code is MIT; the checkpoint ships in the repository without a licence of its own (MIT assumed) and is trained on DTU, whose terms of use are not stated.",
@@ -27,9 +31,13 @@ evidence = "https://github.com/FangjinhuaWang/PatchmatchNet/blob/8dc6cb4/LICENSE
 input = "0-1"  # original reads images / 255; the runner resizes to multiples of 8 itself (bilinear, as original)
 pad = "none"
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the features and PatchMatch stages from a CUDA graph per input shape and depth range (false: eager, no graph pool)
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["patchmatchnet"]

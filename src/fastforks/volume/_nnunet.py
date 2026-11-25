@@ -24,6 +24,8 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import InputError, WeightsError
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
+from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
@@ -32,6 +34,9 @@ if TYPE_CHECKING:
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
+# fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
+# channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
+_SLAB_BYTES = 64 << 20
 _DNA = "dynamic_network_architectures.architectures.unet."
 _ARCHS = {_DNA + "PlainConvUNet": "plain", _DNA + "ResidualEncoderUNet": "resenc"}
 _NORMS = (
@@ -279,7 +284,11 @@ class _ConvNormAct(nn.Module):
         self.slope = plan.slope if act else 1.0
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.norm_act(self.conv(x))
+        conv = self.conv
+        if conv.bias is not None and exporting_for_mlx():
+            # The instance norm removes any per-channel constant: on MLX the bias is one more pass over the map.
+            return self.norm_act(F.conv3d(x, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups))
+        return self.norm_act(conv(x))
 
     def norm_act(self, y: torch.Tensor) -> torch.Tensor:
         """`leaky_relu(norm(y))` as one scale / shift per channel: `InstanceNorm3d` on `channels_last_3d` is slow."""
@@ -287,8 +296,69 @@ class _ConvNormAct(nn.Module):
         w, b = (t.view(1, -1, 1, 1, 1) for t in (self.norm.weight, self.norm.bias))
         scale = w.float() * torch.rsqrt(var.float() + self.norm.eps)
         shift = b.float() - mean.float() * scale
-        y = torch.addcmul(shift.to(y.dtype), y, scale.to(y.dtype))
+        scale, shift = scale.to(y.dtype), shift.to(y.dtype)
+        if y.is_cuda and not (torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()):
+            # This input is the fresh convolution output. The broadcast affine reads each voxel once.
+            torch.addcmul(shift, y, scale, out=y)
+        else:
+            y = torch.addcmul(shift, y, scale)
         return y if self.slope == 1.0 else F.leaky_relu_(y, self.slope)
+
+    def forward_(self, y: torch.Tensor, depth: int) -> torch.Tensor:
+        """`forward(y)` written over `y`, the convolution `depth` slices at a time (`slab_depth`)."""
+        return self.norm_act(_conv_slabs_(self.conv, y, self.conv.bias, depth))
+
+
+def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
+    """Depth slices per slab for `_ConvNormAct.forward_(y)`; 0 where it does not apply or `y` is under four slabs.
+
+    It applies to an inference-mode CUDA map and a same-width, stride-1 convolution with a depth kernel of 3.
+    """
+    if (
+        y.dim() != len(conv.kernel_size) + 2
+        or not y.is_cuda
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+    ):
+        return 0
+    if torch.jit.is_tracing() or in_onnx_export() or exporting_for_mlx():
+        return 0
+    same = conv.in_channels == conv.out_channels and conv.groups == 1 and conv.padding_mode == "zeros"
+    if (
+        not same
+        or any(s != 1 for s in (*conv.stride, *conv.dilation))
+        or (conv.kernel_size[0], conv.padding[0]) != (3, 1)
+    ):
+        return 0
+    depth = max(2, _SLAB_BYTES // (y[:, :, 0].numel() * y.element_size()))
+    return depth if depth * 4 <= y.shape[2] else 0
+
+
+def _conv_slabs_(conv: nn.Conv3d, y: torch.Tensor, bias: torch.Tensor | None, depth: int) -> torch.Tensor:
+    """`F.conv3d(y, conv.weight, bias)` (`conv`'s padding) written over `y`, `depth` (`slab_depth`) slices at a time.
+
+    A slab reads one slice beyond either end. Its output overwrites the slices no later slab reads; its last slice,
+    which the next slab still reads, is written once that slab has run. Peak: `y` and about two slabs, not two maps.
+    """
+    d, w, pad = y.shape[2], conv.weight, tuple(int(p) for p in conv.padding)  # `slab_depth`: no string padding
+    inner = (0, *pad[1:])
+    held: torch.Tensor | None = None
+    for a in range(0, d, depth):
+        b = min(a + depth, d)
+        if a == 0:  # the volume's ends: zero padding, the slice past the slab dropped
+            out = F.conv3d(y[:, :, : b + 1], w, bias, 1, pad)[:, :, :b]
+        elif b == d:
+            out = F.conv3d(y[:, :, a - 1 :], w, bias, 1, pad)[:, :, 1:]
+        else:
+            out = F.conv3d(y[:, :, a - 1 : b + 1], w, bias, 1, inner)
+        if held is not None:
+            y[:, :, a - 1].copy_(held)
+        y[:, :, a : b - 1].copy_(out[:, :, :-1])
+        held = out[:, :, -1].clone()
+        del out
+    if held is not None:
+        y[:, :, d - 1].copy_(held)
+    return y
 
 
 class _Stacked(nn.Module):
@@ -347,7 +417,10 @@ class _BasicBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = x if self.skip is None else self.skip(x)
-        return F.leaky_relu_(self.conv2(self.conv1(x)).add_(res), self.slope)
+        y = self.conv1(x)
+        depth = slab_depth(self.conv2.conv, y)  # conv2 over conv1's map: one map less at the peak
+        y = self.conv2.forward_(y, depth) if depth else self.conv2(y)
+        return F.leaky_relu_(y.add_(res), self.slope)
 
 
 class _ResStage(nn.Module):
@@ -422,11 +495,29 @@ class _Decoder(nn.Module):
         )
         self.seg_layers = nn.ModuleList(nn.Conv3d(f[-(s + 2)], plan.n_outputs, 1) for s in range(n - 1))
 
-    def forward(self, skips: Sequence[torch.Tensor]) -> torch.Tensor:
-        x = skips[-1]
-        for s, (up, stage) in enumerate(zip(self.transpconvs, self.stages, strict=True)):
-            x = stage(torch.cat((up(x), skips[-(s + 2)]), 1))
+    def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
+        pending = skips if consume and isinstance(skips, list) else list(skips)
+        x = pending.pop()
+        for up, stage in zip(self.transpconvs, self.stages, strict=True):
+            x = stage(_cat_consuming(up, x, pending.pop()))
         return self.seg_layers[-1](x)
+
+
+def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+    """`torch.cat((up(x), skip), 1)`, the skip copied in (and, when consumed, freed) before `up(x)` is made.
+
+    The skip, the upsampled map and their concatenation are never alive together: at the full-resolution stage of
+    nnInteractive (192^3 patch, 32 + 32 channels, float16) peak 2429 -> 1997 MiB.
+    """
+    c = skip.shape[1]
+    fmt = (
+        torch.channels_last_3d if skip.is_contiguous(memory_format=torch.channels_last_3d) else torch.contiguous_format
+    )
+    out = torch.empty((skip.shape[0], 2 * c, *skip.shape[2:]), dtype=skip.dtype, device=skip.device, memory_format=fmt)
+    out[:, c:].copy_(skip)
+    del skip
+    out[:, :c].copy_(up(x))  # the transposed conv makes the skip's channel count
+    return out
 
 
 class UNet(nn.Module):
@@ -444,7 +535,7 @@ class UNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Logits `[B, heads, *patch]` of `[B, C, *patch]`."""
-        return self.decoder(self.encoder(x))
+        return self.decoder(self.encoder(x), consume=True)
 
     @staticmethod
     def state_dict_of(weights: Mapping[str, torch.Tensor], dims: int = 3) -> dict[str, torch.Tensor]:
@@ -472,11 +563,11 @@ def gaussian(patch: Sequence[int], device: torch.device, dtype: torch.dtype = to
         w /= w.sum()
         axes.append(torch.where(x.abs() <= radius, w[(x + radius).clamp(0, 2 * radius).long()], 0.0))
     g = axes[0][:, None, None] * axes[1][None, :, None] * axes[2][None, None, :]
-    g = (g / (g.max() / 10)).to(device, dtype)
+    g = (g / (g.max() / 10)).to(dtype)  # cast and zero fix on the CPU: on the device each was a host sync
     zero = g == 0
     if zero.any():
         g[zero] = g[~zero].min()
-    return g
+    return to_device(g, device)
 
 
 def sliding_steps(size: Sequence[int], patch: Sequence[int], step: float) -> list[list[int]]:
@@ -492,13 +583,19 @@ def sliding_steps(size: Sequence[int], patch: Sequence[int], step: float) -> lis
     return out
 
 
+def nonzero_extent(nz: torch.Tensor) -> list[tuple[int, int] | None]:
+    """Per axis of a mask, `(first, last + 1)` of its nonzero entries (`None`: none), with one host sync."""
+    rows = []
+    for d in range(nz.dim()):
+        hit = nz.any(dim=tuple(a for a in range(nz.dim()) if a != d)).to(torch.uint8)
+        # whether there is a nonzero entry, the first and the last one (argmax gives the first maximum)
+        rows.append(torch.stack((hit.amax().long(), hit.argmax(), hit.numel() - hit.flip(0).argmax())))
+    return [(i, j) if any_ else None for any_, i, j in torch.stack(rows).tolist()]
+
+
 def _bbox(nz: torch.Tensor) -> tuple[slice, ...]:
     """nnU-Net's `crop_to_nonzero` box of a nonzero mask (all of the volume if it is empty)."""
-    out = []
-    for d in range(nz.dim()):
-        hit = nz.any(dim=tuple(a for a in range(nz.dim()) if a != d)).nonzero()
-        out.append(slice(int(hit[0]), int(hit[-1]) + 1) if hit.numel() else slice(0, nz.shape[d]))
-    return tuple(out)
+    return tuple(slice(*e) if e else slice(0, n) for e, n in zip(nonzero_extent(nz), nz.shape, strict=True))
 
 
 def _normalise(x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None) -> torch.Tensor:
@@ -540,6 +637,16 @@ def _labels_dtype(n: int) -> torch.dtype:
     return torch.uint8 if n <= 256 else torch.int16  # noqa: PLR2004
 
 
+def _depth_slices(start: int, length: int, capacity: int) -> tuple[tuple[slice, slice], ...]:
+    """Pair each physical ring-buffer span with its corresponding span in the incoming window."""
+    at = start % capacity
+    lead = min(length, capacity - at)
+    first = (slice(at, at + lead), slice(0, lead))
+    if lead == length:
+        return (first,)
+    return first, (slice(0, length - lead), slice(lead, length))
+
+
 @dataclass
 class Predictor:
     """nnU-Net v2's `predict_single_npy_array` for one configuration and a list of fold networks.
@@ -572,10 +679,10 @@ class Predictor:
 
     def _logits(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> torch.Tensor:
         """Window logits `[folds, B, heads, *patch]` of `nets`, each averaged over the mirrorings."""
-        if self.dtype is not None:
-            x = x.to(self.dtype)
-        if self.channels_last:
-            x = x.contiguous(memory_format=torch.channels_last_3d)
+        x = x.to(
+            dtype=self.dtype or x.dtype,
+            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
+        )
         amp = self.amp is not None and x.device.type == "cuda"
         combos = [c for i in range(len(self.mirror_axes)) for c in itertools.combinations(self.mirror_axes, i + 1)]
         with torch.autocast("cuda", self.amp or torch.float16, enabled=amp):
@@ -714,7 +821,7 @@ class Predictor:
             out = None
             for f, net in enumerate(self.nets):
                 acc = torch.zeros((1, p.n_outputs, d, h, w), dtype=dt, device=x.device)
-                self._sweep(x, acc, n if f == 0 else None, starts, 0, [net])
+                self._sweep(x, acc, n if f == 0 else None, starts, [net])
                 y = acc[0].div_(n)
                 out = y if out is None else out.add_(y)
                 del acc, y
@@ -727,37 +834,38 @@ class Predictor:
         n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if ensemble else None
         labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)
         for i, a in enumerate(steps[0]):
-            self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], a, self.nets)
+            self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], self.nets)
             end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
-            r = end - a
-            done = self._average(acc[:, :, :r].clone(), n[:r]) if n is not None else acc[0, :, :r]
-            labels[a:end] = self.decide(done)  # final: later rows start at >= end
-            if i + 1 < len(steps[0]):
-                acc[:, :, : k0 - r] = acc[:, :, r:].clone()
-                acc[:, :, k0 - r :] = 0
-                if n is not None:
-                    n[: k0 - r] = n[r:].clone()
-                    n[k0 - r :] = 0
+            for physical, local in _depth_slices(a, end - a, k0):
+                done = acc[:, :, physical]
+                values = self._average(done, n[physical]) if n is not None else done[0]
+                labels[a + local.start : a + local.stop] = self.decide(values)
+                if i + 1 < len(steps[0]):
+                    done.zero_()
+                    if n is not None:
+                        n[physical].zero_()
         return labels
 
-    def _sweep(  # noqa: PLR0913, PLR0917
+    def _sweep(
         self,
         x: torch.Tensor,
         acc: torch.Tensor,
         n: torch.Tensor | None,
         starts: Sequence[tuple[int, int, int]],
-        base: int,
         nets: Sequence[nn.Module],
     ) -> None:
         """Add the weighted logits of `nets` at `starts` to `acc` `[folds, heads, ...]` and the weights to `n`.
 
-        Depth 0 of `acc` and `n` is `base`.
+        Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
         for j in range(0, len(starts), self.batch):
             chunk = starts[j : j + self.batch]
             y = self._windows(x, chunk, nets)
             for i, (a, b, c) in enumerate(chunk):
-                acc[:, :, a - base : a - base + k0, b : b + k1, c : c + k2] += y[:, i]
-                if n is not None:
-                    n[a - base : a - base + k0, b : b + k1, c : c + k2] += self._gauss
+                ys, xs = slice(b, b + k1), slice(c, c + k2)
+                for physical, local in _depth_slices(a, k0, acc.shape[2]):
+                    acc[:, :, physical, ys, xs] += y[:, i, :, local]
+                    if n is not None:
+                        n[physical, ys, xs] += self._gauss[local]
+            del y  # free this batch of window logits before running the next network forward

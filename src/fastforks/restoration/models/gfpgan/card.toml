@@ -3,7 +3,8 @@ name = "GFPGAN"
 summary = "GFPGAN v1.4 (Wang et al., CVPR 2021): blind face restoration with a generative facial prior: a U-Net encoder whose features modulate (spatial feature transform) a pretrained StyleGAN2 face generator. Input: an aligned 512 x 512 face crop (FFHQ alignment); detecting, aligning and pasting the face back are not part of the model."
 tier = "experimental"
 outputs = ["image"]
-limitations = ["No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only."]
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = ["The labeled comparison reports PSNR and SSIM on DAEFR's paired 512 x 512 CelebA-Test face crops."]
 
 [upstream]
 repo = "https://github.com/TencentARC/GFPGAN"
@@ -21,6 +22,9 @@ evidence = "https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe56
 input = "0-1"  # the runner maps [0, 1] to the network's [-1, 1] and back (upstream: normalize(0.5, 0.5), tensor2img(min_max=(-1, 1)))
 min_size = 512  # exactly the aligned 512 x 512 crop (the runner rejects other sizes)
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the faces from a CUDA graph per input shape (false: eager, no graph pool)
+
 [params]
 scale = 1
 size = 512
@@ -29,9 +33,10 @@ key = "params_ema"
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]
+kernels = ["cudnn_hacc", "style_weights"]
 
 [[papers]]
 title = "Towards Real-World Blind Face Restoration with Generative Facial Prior"

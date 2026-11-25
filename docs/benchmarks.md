@@ -44,7 +44,8 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 553 models, 2178 rows, measured 2026-11-06 to 2026-11-15.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1548 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -57,609 +58,634 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 #### Stereo, 994x1482
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`aanet-plus-sceneflow`](models/stereo.md#aanet) | 88.9 ms · kernels fp16 | 818 ms · kernels fp16 | 111 ms · kernels fp16 | 46.0 ms · kernels fp16 | 97.6 ms · kernels fp16 | 50.8 ms · kernels fp16 | 22.1 ms · kernels fp16 |
-| [`aanet-sceneflow`](models/stereo.md#aanet) | 101 ms · kernels fp16 | 631 ms · kernels fp16 | 140 ms · kernels fp16 | 44.7 ms · kernels fp16 | 105 ms · kernels fp16 | 49.6 ms · kernels fp16 | 20.9 ms · kernels fp16 |
-| [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | 354 ms · kernels fp16 | 3756 ms · kernels fp16 | – | – | – | 143 ms · kernels fp16 | 68.8 ms · kernels fp16 |
-| [`bridgedepth-sf`](models/stereo.md#bridgedepth) | 348 ms · kernels fp16 | 3693 ms · kernels fp16 | 430 ms · kernels fp16 | 122 ms · kernels fp16 | 333 ms · kernels fp16 | 141 ms · kernels fp16 | 68.8 ms · kernels fp16 |
-| [`c-fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 4881 ms · portable fp32 | – | – | – | 85.1 ms · kernels fp16 | 37.3 ms · kernels fp16 |
-| [`c-foundationstereo-s`](models/stereo.md#c_foundationstereo) | – | OOM | 1908 ms · kernels fp16 | 551 ms · kernels fp16 | 1537 ms · kernels fp16 | 668 ms · kernels fp16 | 319 ms · kernels fp16 |
-| [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas_gwcnet) | 225 ms · kernels fp16 | 2489 ms · portable fp16 | – | – | – | 87.9 ms · kernels fp16 | 46.7 ms · kernels fp16 |
-| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas_gwcnet) | 358 ms · kernels fp16 | 2995 ms · portable fp16 | 500 ms · kernels fp16 | 159 ms · kernels fp16 | 345 ms · kernels fp16 | 136 ms · kernels fp16 | 78.8 ms · kernels fp16 |
-| [`cfnet-sceneflow`](models/stereo.md#cfnet) | – | 2206 ms · kernels fp16 | 484 ms · kernels fp16 | 152 ms · kernels fp16 | 432 ms · kernels fp16 | 145 ms · kernels fp16 | 76.4 ms · kernels fp16 |
-| [`coex-sceneflow`](models/stereo.md#coex) | – | 411 ms · portable fp16 | 32.4 ms · kernels fp16 | 11.9 ms · kernels fp16 | 27.3 ms · kernels fp16 | 16.3 ms · kernels fp16 | 6.43 ms · kernels fp16 |
-| [`crestereo-eth3d`](models/stereo.md#crestereo) | 229 ms · kernels fp16 | 3342 ms · kernels fp16 | 318 ms · kernels fp16 | 102 ms · kernels fp16 | 255 ms · kernels fp16 | 108 ms · kernels fp16 | 60.9 ms · kernels fp16 |
-| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom_stereo) | 659 ms · kernels fp16 | 8224 ms · kernels fp16 | 921 ms · kernels fp16 | 271 ms · kernels fp16 | 689 ms · kernels fp16 | 248 ms · kernels fp16 | 146 ms · kernels fp16 |
-| [`dlnr-middlebury`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 | – | – | – | – | 48.6 ms · kernels fp16 |
-| [`dlnr-sceneflow`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 | 293 ms · kernels fp16 | 94.6 ms · kernels fp16 | 224 ms · kernels fp16 | 95.4 ms · kernels fp16 | 48.6 ms · kernels fp16 |
-| [`fast-acvnet-generalization`](models/stereo.md#fast_acvnet) | – | 478 ms · portable fp16 | 51.7 ms · kernels fp16 | 19.2 ms · kernels fp16 | 43.6 ms · kernels fp16 | 21.5 ms · kernels fp16 | 9.33 ms · kernels fp16 |
-| [`fast-acvnet-kitti12`](models/stereo.md#fast_acvnet) | – | 464 ms · portable fp16 | – | – | – | – | 9.58 ms · kernels fp16 |
-| [`fast-acvnet-kitti15`](models/stereo.md#fast_acvnet) | – | 463 ms · portable fp16 | – | – | – | – | 9.34 ms · kernels fp16 |
-| [`fast-acvnet-plus-generalization`](models/stereo.md#fast_acvnet) | – | 625 ms · portable fp16 | – | – | – | – | 11.7 ms · kernels fp16 |
-| [`fast-acvnet-plus-kitti12`](models/stereo.md#fast_acvnet) | – | 624 ms · portable fp16 | – | – | – | – | 11.5 ms · kernels fp16 |
-| [`fast-acvnet-plus-kitti15`](models/stereo.md#fast_acvnet) | – | 624 ms · portable fp16 | – | – | – | – | 11.6 ms · kernels fp16 |
-| [`fast-acvnet-plus-sceneflow`](models/stereo.md#fast_acvnet) | – | 624 ms · portable fp16 | 62.8 ms · kernels fp16 | 20.3 ms · kernels fp16 | 51.2 ms · kernels fp16 | 28.7 ms · kernels fp16 | 11.8 ms · kernels fp16 |
-| [`fast-acvnet-sceneflow`](models/stereo.md#fast_acvnet) | – | 463 ms · portable fp16 | – | – | – | – | 9.55 ms · kernels fp16 |
-| [`fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 5083 ms · portable fp16 | 201 ms · kernels fp16 | 70.2 ms · kernels fp16 | 170 ms · kernels fp16 | 85.3 ms · kernels fp16 | 36.8 ms · kernels fp16 |
-| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | 1513 ms · kernels fp16 | 24480 ms · kernels fp16 | 2035 ms · kernels fp16 | 605 ms · kernels fp16 | 1674 ms · kernels fp16 | 680 ms · kernels fp16 | 337 ms · kernels fp16 |
-| [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | 1120 ms · kernels fp16 | 19496 ms · kernels fp16 | 1713 ms · kernels fp16 | 487 ms · kernels fp16 | 1369 ms · kernels fp16 | 561 ms · kernels fp16 | 270 ms · kernels fp16 |
-| [`great-igev-eth3d`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9636 ms · kernels fp16 | – | – | – | – | 97.2 ms · kernels fp16 |
-| [`great-igev-kitti`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9634 ms · kernels fp16 | – | – | – | – | 97.4 ms · kernels fp16 |
-| [`great-igev-middlebury`](models/stereo.md#great_igev) | 579 ms · kernels fp16 | 25368 ms · kernels fp16 | – | – | – | – | 143 ms · kernels fp16 |
-| [`great-igev-sceneflow`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9861 ms · kernels fp16 | 579 ms · kernels fp16 | 176 ms · kernels fp16 | 477 ms · kernels fp16 | 196 ms · kernels fp16 | 98.3 ms · kernels fp16 |
-| [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | 238 ms · kernels fp16 | 2378 ms · portable fp16 | – | – | – | – | 50.5 ms · kernels fp16 |
-| [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | 257 ms · kernels fp16 | 2455 ms · portable fp16 | 342 ms · kernels fp16 | 109 ms · kernels fp16 | 244 ms · kernels fp16 | 97.7 ms · kernels fp16 | 56.7 ms · kernels fp16 |
-| [`hitnet-eth3d`](models/stereo.md#hitnet) | – | 136 ms · kernels fp16 | 31.4 ms · kernels fp16 | 11.0 ms · kernels fp16 | 28.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 6.22 ms · kernels fp16 |
-| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | – | 440 ms · kernels fp16 | – | – | – | – | 14.3 ms · kernels fp16 |
-| [`igev-plusplus-eth3d`](models/stereo.md#igev_plusplus) | – | 6139 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
-| [`igev-plusplus-kitti12`](models/stereo.md#igev_plusplus) | – | 6124 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
-| [`igev-plusplus-kitti15`](models/stereo.md#igev_plusplus) | – | 6125 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
-| [`igev-plusplus-middlebury`](models/stereo.md#igev_plusplus) | – | 6130 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
-| [`igev-plusplus-sceneflow`](models/stereo.md#igev_plusplus) | – | 6135 ms · kernels fp16 | 547 ms · kernels fp16 | 177 ms · kernels fp16 | 463 ms · kernels fp16 | 186 ms · kernels fp16 | 104 ms · kernels fp16 |
-| [`igev-stereo-eth3d`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 3998 ms · kernels fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
-| [`igev-stereo-kitti12`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4006 ms · kernels fp16 | – | – | – | – | 72.2 ms · kernels fp16 |
-| [`igev-stereo-kitti15`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4008 ms · kernels fp16 | – | – | – | – | 72.3 ms · kernels fp16 |
-| [`igev-stereo-middlebury`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4007 ms · kernels fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
-| [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 | 430 ms · kernels fp16 | 134 ms · kernels fp16 | 349 ms · kernels fp16 | 137 ms · kernels fp16 | 72.6 ms · kernels fp16 |
-| [`las2-h`](models/stereo.md#las2) | – | 734 ms · kernels fp16 | 77.0 ms · kernels fp16 | 36.3 ms · kernels fp16 | 65.1 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.5 ms · kernels fp16 |
-| [`las2-l`](models/stereo.md#las2) | 29.9 ms · kernels fp16 | 400 ms · portable fp16 | – | – | – | – | 8.96 ms · kernels fp16 |
-| [`las2-m`](models/stereo.md#las2) | 18.3 ms · kernels fp16 | 237 ms · portable fp16 | – | – | – | – | 6.91 ms · kernels fp16 |
-| [`las2-s`](models/stereo.md#las2) | – | 192 ms · portable fp16 | 23.0 ms · kernels fp16 | 15.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 15.7 ms · kernels fp16 | 4.99 ms · kernels fp16 |
-| [`mocha-v1-sceneflow`](models/stereo.md#mocha_stereo) | 455 ms · kernels fp16 | 6693 ms · kernels fp16 | 631 ms · kernels fp16 | 224 ms · kernels fp16 | 527 ms · kernels fp16 | 227 ms · kernels fp16 | 116 ms · kernels fp16 |
-| [`mocha-v2-sceneflow`](models/stereo.md#mocha_stereo) | 448 ms · kernels fp16 | 6501 ms · kernels fp16 | – | – | – | – | 115 ms · kernels fp16 |
-| [`monster-mix-all`](models/stereo.md#monster) | – | 9646 ms · kernels fp16 | – | – | – | – | 164 ms · kernels fp16 |
-| [`monster-plusplus-mix-all`](models/stereo.md#monster_plusplus) | 698 ms · kernels fp16 | 10202 ms · kernels fp16 | 949 ms · kernels fp16 | 288 ms · kernels fp16 | 792 ms · kernels fp16 | 289 ms · kernels fp16 | 167 ms · kernels fp16 |
-| [`monster-sceneflow`](models/stereo.md#monster) | – | 9642 ms · kernels fp16 | 951 ms · kernels fp16 | 287 ms · kernels fp16 | 783 ms · kernels fp16 | 286 ms · kernels fp16 | 164 ms · kernels fp16 |
-| [`nmrf-sceneflow`](models/stereo.md#nmrf) | 196 ms · kernels fp16 | 1204 ms · kernels fp16 | 239 ms · kernels fp16 | 64.6 ms · kernels fp16 | 173 ms · kernels fp16 | 84.4 ms · kernels fp16 | 37.7 ms · kernels fp16 |
-| [`psmnet-sceneflow`](models/stereo.md#psmnet) | – | 2579 ms · portable fp16 | 290 ms · kernels fp16 | 90.6 ms · kernels fp16 | 218 ms · kernels fp16 | 91.3 ms · kernels fp16 | 48.9 ms · kernels fp16 |
-| [`raft-stereo-eth3d`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3638 ms · kernels fp16 | – | – | – | – | 63.6 ms · kernels fp16 |
-| [`raft-stereo-middlebury`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3634 ms · kernels fp16 | 416 ms · kernels fp16 | 121 ms · kernels fp16 | 313 ms · kernels fp16 | 110 ms · kernels fp16 | 63.6 ms · kernels fp16 |
-| [`raft-stereo-sceneflow`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3637 ms · kernels fp16 | – | – | – | – | 63.6 ms · kernels fp16 |
-| [`rt-monster-plusplus-mix-all`](models/stereo.md#rt_monster_plusplus) | – | 663 ms · portable fp32 | 125 ms · kernels fp16 | 48.3 ms · portable fp16 | 105 ms · kernels fp16 | 49.4 ms · portable fp16 | 23.6 ms · kernels fp16 |
-| [`s2m2-l`](models/stereo.md#s2m2) | 376 ms · kernels fp16 | 6590 ms · portable fp16 | – | – | – | – | 91.7 ms · kernels fp16 |
-| [`s2m2-m`](models/stereo.md#s2m2) | 248 ms · kernels fp16 | 3620 ms · portable fp16 | – | – | – | – | 61.1 ms · kernels fp16 |
-| [`s2m2-s`](models/stereo.md#s2m2) | 113 ms · kernels fp16 | 1607 ms · portable fp16 | 163 ms · kernels fp16 | 56.8 ms · kernels fp16 | 137 ms · kernels fp16 | 62.4 ms · kernels fp16 | 29.0 ms · kernels fp16 |
-| [`s2m2-xl`](models/stereo.md#s2m2) | 682 ms · kernels fp16 | 13398 ms · portable fp16 | 1152 ms · kernels fp16 | 310 ms · kernels fp16 | 822 ms · kernels fp16 | 312 ms · kernels fp16 | 168 ms · kernels fp16 |
-| [`selective-igev-eth3d-finetune`](models/stereo.md#selective_igev) | – | 5708 ms · kernels fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
-| [`selective-igev-eth3d-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
-| [`selective-igev-kitti12`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5709 ms · kernels fp16 | – | – | – | – | 89.2 ms · kernels fp16 |
-| [`selective-igev-kitti15`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | – | – | – | – | 89.1 ms · kernels fp16 |
-| [`selective-igev-middlebury-finetune`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5778 ms · kernels fp16 | – | – | – | – | 89.4 ms · kernels fp16 |
-| [`selective-igev-middlebury-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5738 ms · kernels fp16 | – | – | – | – | 89.2 ms · kernels fp16 |
-| [`selective-igev-sceneflow`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | 515 ms · kernels fp16 | 163 ms · kernels fp16 | 410 ms · kernels fp16 | 168 ms · kernels fp16 | 89.2 ms · kernels fp16 |
-| [`waft-stereo-b`](models/stereo.md#waft_stereo) | 393 ms · kernels fp16 | 11022 ms · portable fp32 | 574 ms · kernels fp16 | 146 ms · kernels fp16 | 422 ms · kernels fp16 | 173 ms · kernels fp16 | 85.7 ms · kernels fp16 |
-| [`waft-stereo-s`](models/stereo.md#waft_stereo) | 284 ms · kernels fp16 | 3360 ms · portable fp32 | 358 ms · kernels fp16 | 100 ms · kernels fp16 | 283 ms · kernels fp16 | 125 ms · kernels fp16 | 60.1 ms · kernels fp16 |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`aanet-plus-sceneflow`](models/stereo.md#aanet) | 88.9 ms · kernels fp16 | 818 ms · kernels fp16 | 687 ms · portable fp16 | 111 ms · kernels fp16 | 46.0 ms · kernels fp16 | 97.6 ms · kernels fp16 | 50.8 ms · kernels fp16 | 22.1 ms · kernels fp16 |
+| [`aanet-sceneflow`](models/stereo.md#aanet) | 101 ms · kernels fp16 | 631 ms · kernels fp16 | 492 ms · portable fp16 | 140 ms · kernels fp16 | 44.7 ms · kernels fp16 | 105 ms · kernels fp16 | 49.6 ms · kernels fp16 | 20.9 ms · kernels fp16 |
+| [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | 354 ms · kernels fp16 | 3756 ms · kernels fp16 | 3179 ms · portable fp16 | – | – | – | 143 ms · kernels fp16 | 68.8 ms · kernels fp16 |
+| [`bridgedepth-sf`](models/stereo.md#bridgedepth) | 348 ms · kernels fp16 | 3693 ms · kernels fp16 | 3977 ms · portable fp16 | 430 ms · kernels fp16 | 122 ms · kernels fp16 | 333 ms · kernels fp16 | 141 ms · kernels fp16 | 68.8 ms · kernels fp16 |
+| [`c-fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 2472 ms · portable fp16 | 2737 ms · portable fp16 | – | – | – | 85.1 ms · kernels fp16 | 37.3 ms · kernels fp16 |
+| [`c-foundationstereo-s`](models/stereo.md#c_foundationstereo) | – | 23526 ms · portable fp16 | 18737 ms · portable fp16 | 1908 ms · kernels fp16 | 551 ms · kernels fp16 | 1537 ms · kernels fp16 | 668 ms · kernels fp16 | 319 ms · kernels fp16 |
+| [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas_gwcnet) | 225 ms · kernels fp16 | 2489 ms · portable fp16 | 2934 ms · portable fp16 | – | – | – | 87.9 ms · kernels fp16 | 46.7 ms · kernels fp16 |
+| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas_gwcnet) | 358 ms · kernels fp16 | 2731 ms · portable fp16 | 3841 ms · portable fp16 | 500 ms · kernels fp16 | 159 ms · kernels fp16 | 345 ms · kernels fp16 | 136 ms · kernels fp16 | 78.8 ms · kernels fp16 |
+| [`cfnet-sceneflow`](models/stereo.md#cfnet) | – | 2206 ms · kernels fp16 | 3178 ms · portable fp16 | 484 ms · kernels fp16 | 152 ms · kernels fp16 | 432 ms · kernels fp16 | 145 ms · kernels fp16 | 76.4 ms · kernels fp16 |
+| [`coex-sceneflow`](models/stereo.md#coex) | – | 241 ms · portable fp16 | 215 ms · portable fp16 | 32.4 ms · kernels fp16 | 11.9 ms · kernels fp16 | 27.3 ms · kernels fp16 | 16.3 ms · kernels fp16 | 6.43 ms · kernels fp16 |
+| [`crestereo-eth3d`](models/stereo.md#crestereo) | 229 ms · kernels fp16 | 4127 ms · kernels fp16 | 3558 ms · kernels fp16 | 318 ms · kernels fp16 | 102 ms · kernels fp16 | 255 ms · kernels fp16 | 108 ms · kernels fp16 | 60.9 ms · kernels fp16 |
+| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom_stereo) | 659 ms · kernels fp16 | 8224 ms · kernels fp16 | 10693 ms · portable fp16 | 921 ms · kernels fp16 | 271 ms · kernels fp16 | 689 ms · kernels fp16 | 248 ms · kernels fp16 | 146 ms · kernels fp16 |
+| [`dlnr-middlebury`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 | 1711 ms · portable fp16 | – | – | – | – | 48.6 ms · kernels fp16 |
+| [`dlnr-sceneflow`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2195 ms · portable fp16 | 1662 ms · portable fp16 | 293 ms · kernels fp16 | 94.6 ms · kernels fp16 | 224 ms · kernels fp16 | 95.4 ms · kernels fp16 | 48.6 ms · kernels fp16 |
+| [`fast-acvnet-generalization`](models/stereo.md#fast_acvnet) | – | 410 ms · portable fp16 | 475 ms · portable fp16 | 51.7 ms · kernels fp16 | 19.2 ms · kernels fp16 | 43.6 ms · kernels fp16 | 21.5 ms · kernels fp16 | 9.33 ms · kernels fp16 |
+| [`fast-acvnet-kitti12`](models/stereo.md#fast_acvnet) | – | 397 ms · portable fp16 | 457 ms · portable fp16 | – | – | – | – | 9.58 ms · kernels fp16 |
+| [`fast-acvnet-kitti15`](models/stereo.md#fast_acvnet) | – | 397 ms · portable fp16 | 455 ms · portable fp16 | – | – | – | – | 9.34 ms · kernels fp16 |
+| [`fast-acvnet-plus-generalization`](models/stereo.md#fast_acvnet) | – | 401 ms · portable fp16 | 541 ms · portable fp16 | – | – | – | – | 11.7 ms · kernels fp16 |
+| [`fast-acvnet-plus-kitti12`](models/stereo.md#fast_acvnet) | – | 401 ms · portable fp16 | 564 ms · portable fp16 | – | – | – | – | 11.5 ms · kernels fp16 |
+| [`fast-acvnet-plus-kitti15`](models/stereo.md#fast_acvnet) | – | 402 ms · portable fp16 | 562 ms · portable fp16 | – | – | – | – | 11.6 ms · kernels fp16 |
+| [`fast-acvnet-plus-sceneflow`](models/stereo.md#fast_acvnet) | – | 402 ms · portable fp16 | 540 ms · portable fp16 | 62.8 ms · kernels fp16 | 20.3 ms · kernels fp16 | 51.2 ms · kernels fp16 | 28.7 ms · kernels fp16 | 11.8 ms · kernels fp16 |
+| [`fast-acvnet-sceneflow`](models/stereo.md#fast_acvnet) | – | 396 ms · portable fp16 | 459 ms · portable fp16 | – | – | – | – | 9.55 ms · kernels fp16 |
+| [`fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 2477 ms · portable fp16 | 2875 ms · portable fp16 | 201 ms · kernels fp16 | 70.2 ms · kernels fp16 | 170 ms · kernels fp16 | 85.3 ms · kernels fp16 | 36.8 ms · kernels fp16 |
+| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | 1513 ms · kernels fp16 | 24480 ms · kernels fp16 | 25847 ms · portable fp16 | 2035 ms · kernels fp16 | 605 ms · kernels fp16 | 1674 ms · kernels fp16 | 680 ms · kernels fp16 | 337 ms · kernels fp16 |
+| [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | 1120 ms · kernels fp16 | 19059 ms · portable fp16 | 17814 ms · kernels fp16 | 1713 ms · kernels fp16 | 487 ms · kernels fp16 | 1369 ms · kernels fp16 | 561 ms · kernels fp16 | 270 ms · kernels fp16 |
+| [`great-igev-eth3d`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9113 ms · portable fp32 | 7613 ms · portable fp16 | – | – | – | – | 97.2 ms · kernels fp16 |
+| [`great-igev-kitti`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9634 ms · kernels fp16 | 7588 ms · portable fp16 | – | – | – | – | 97.4 ms · kernels fp16 |
+| [`great-igev-middlebury`](models/stereo.md#great_igev) | 579 ms · kernels fp16 | 15640 ms · portable fp32 | 14680 ms · portable fp16 | – | – | – | – | 143 ms · kernels fp16 |
+| [`great-igev-sceneflow`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9090 ms · portable fp16 | 8028 ms · portable fp16 | 579 ms · kernels fp16 | 176 ms · kernels fp16 | 477 ms · kernels fp16 | 196 ms · kernels fp16 | 98.3 ms · kernels fp16 |
+| [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | 238 ms · kernels fp16 | 2378 ms · portable fp16 | 2450 ms · portable fp16 | – | – | – | – | 50.5 ms · kernels fp16 |
+| [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | 257 ms · kernels fp16 | 2759 ms · portable fp16 | 2933 ms · portable fp16 | 342 ms · kernels fp16 | 109 ms · kernels fp16 | 244 ms · kernels fp16 | 97.7 ms · kernels fp16 | 56.7 ms · kernels fp16 |
+| [`hitnet-eth3d`](models/stereo.md#hitnet) | – | 136 ms · kernels fp16 | 289 ms · portable fp16 | 31.4 ms · kernels fp16 | 11.0 ms · kernels fp16 | 28.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 6.22 ms · kernels fp16 |
+| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | – | 440 ms · kernels fp16 | 686 ms · portable fp16 | – | – | – | – | 14.3 ms · kernels fp16 |
+| [`igev-plusplus-eth3d`](models/stereo.md#igev_plusplus) | – | 6139 ms · kernels fp16 | 5478 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
+| [`igev-plusplus-kitti12`](models/stereo.md#igev_plusplus) | – | 6124 ms · kernels fp16 | 5297 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
+| [`igev-plusplus-kitti15`](models/stereo.md#igev_plusplus) | – | 6125 ms · kernels fp16 | 5268 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
+| [`igev-plusplus-middlebury`](models/stereo.md#igev_plusplus) | – | 6130 ms · kernels fp16 | 5290 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
+| [`igev-plusplus-sceneflow`](models/stereo.md#igev_plusplus) | – | 6135 ms · kernels fp16 | 6039 ms · kernels fp16 | 547 ms · kernels fp16 | 177 ms · kernels fp16 | 463 ms · kernels fp16 | 186 ms · kernels fp16 | 104 ms · kernels fp16 |
+| [`igev-stereo-eth3d`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 3998 ms · kernels fp16 | 3628 ms · portable fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
+| [`igev-stereo-kitti12`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4006 ms · kernels fp16 | 3654 ms · portable fp16 | – | – | – | – | 72.2 ms · kernels fp16 |
+| [`igev-stereo-kitti15`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4008 ms · kernels fp16 | 3674 ms · portable fp16 | – | – | – | – | 72.3 ms · kernels fp16 |
+| [`igev-stereo-middlebury`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4007 ms · kernels fp16 | 3649 ms · portable fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
+| [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 | 3598 ms · portable fp16 | 430 ms · kernels fp16 | 134 ms · kernels fp16 | 349 ms · kernels fp16 | 137 ms · kernels fp16 | 72.6 ms · kernels fp16 |
+| [`las2-h`](models/stereo.md#las2) | – | 588 ms · portable fp16 | 537 ms · portable fp16 | 77.0 ms · kernels fp16 | 36.3 ms · kernels fp16 | 65.1 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.5 ms · kernels fp16 |
+| [`las2-l`](models/stereo.md#las2) | 29.9 ms · kernels fp16 | 426 ms · portable fp16 | 355 ms · portable fp16 | – | – | – | – | 8.96 ms · kernels fp16 |
+| [`las2-m`](models/stereo.md#las2) | 18.3 ms · kernels fp16 | 232 ms · portable fp16 | 190 ms · portable fp16 | – | – | – | – | 6.91 ms · kernels fp16 |
+| [`las2-s`](models/stereo.md#las2) | – | 167 ms · portable fp16 | 230 ms · portable fp16 | 23.0 ms · kernels fp16 | 15.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 15.7 ms · kernels fp16 | 4.99 ms · kernels fp16 |
+| [`mocha-v1-sceneflow`](models/stereo.md#mocha_stereo) | 455 ms · kernels fp16 | 6693 ms · kernels fp16 | 6508 ms · portable fp16 | 631 ms · kernels fp16 | 224 ms · kernels fp16 | 527 ms · kernels fp16 | 227 ms · kernels fp16 | 116 ms · kernels fp16 |
+| [`mocha-v2-sceneflow`](models/stereo.md#mocha_stereo) | 448 ms · kernels fp16 | 6501 ms · kernels fp16 | 6354 ms · portable fp16 | – | – | – | – | 115 ms · kernels fp16 |
+| [`monster-mix-all`](models/stereo.md#monster) | – | 9646 ms · kernels fp16 | 10082 ms · portable fp16 | – | – | – | – | 164 ms · kernels fp16 |
+| [`monster-plusplus-mix-all`](models/stereo.md#monster_plusplus) | 698 ms · kernels fp16 | 10202 ms · kernels fp16 | 10647 ms · portable fp16 | 949 ms · kernels fp16 | 288 ms · kernels fp16 | 792 ms · kernels fp16 | 289 ms · kernels fp16 | 167 ms · kernels fp16 |
+| [`monster-sceneflow`](models/stereo.md#monster) | – | 9642 ms · kernels fp16 | 10064 ms · portable fp16 | 951 ms · kernels fp16 | 287 ms · kernels fp16 | 783 ms · kernels fp16 | 286 ms · kernels fp16 | 164 ms · kernels fp16 |
+| [`nmrf-sceneflow`](models/stereo.md#nmrf) | 196 ms · kernels fp16 | 1204 ms · kernels fp16 | 1438 ms · portable fp16 | 239 ms · kernels fp16 | 64.6 ms · kernels fp16 | 173 ms · kernels fp16 | 84.4 ms · kernels fp16 | 37.7 ms · kernels fp16 |
+| [`psmnet-sceneflow`](models/stereo.md#psmnet) | – | 2022 ms · portable fp16 | 2597 ms · portable fp16 | 290 ms · kernels fp16 | 90.6 ms · kernels fp16 | 218 ms · kernels fp16 | 91.3 ms · kernels fp16 | 48.9 ms · kernels fp16 |
+| [`raft-stereo-eth3d`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3638 ms · kernels fp16 | 2361 ms · kernels fp16 | – | – | – | – | 63.6 ms · kernels fp16 |
+| [`raft-stereo-middlebury`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3634 ms · kernels fp16 | 2370 ms · kernels fp16 | 416 ms · kernels fp16 | 121 ms · kernels fp16 | 313 ms · kernels fp16 | 110 ms · kernels fp16 | 63.6 ms · kernels fp16 |
+| [`raft-stereo-sceneflow`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3637 ms · kernels fp16 | 2361 ms · kernels fp16 | – | – | – | – | 63.6 ms · kernels fp16 |
+| [`rt-monster-plusplus-mix-all`](models/stereo.md#rt_monster_plusplus) | – | 612 ms · portable fp16 | 511 ms · kernels fp16 | 125 ms · kernels fp16 | 48.3 ms · portable fp16 | 105 ms · kernels fp16 | 49.4 ms · portable fp16 | 23.6 ms · kernels fp16 |
+| [`s2m2-l`](models/stereo.md#s2m2) | 376 ms · kernels fp16 | 6590 ms · portable fp16 | 5464 ms · portable fp16 | – | – | – | – | 91.7 ms · kernels fp16 |
+| [`s2m2-m`](models/stereo.md#s2m2) | 248 ms · kernels fp16 | 3620 ms · portable fp16 | 4085 ms · portable fp16 | – | – | – | – | 61.1 ms · kernels fp16 |
+| [`s2m2-s`](models/stereo.md#s2m2) | 113 ms · kernels fp16 | 1606 ms · portable fp16 | 1835 ms · portable fp16 | 163 ms · kernels fp16 | 56.8 ms · kernels fp16 | 137 ms · kernels fp16 | 62.4 ms · kernels fp16 | 29.0 ms · kernels fp16 |
+| [`s2m2-xl`](models/stereo.md#s2m2) | 682 ms · kernels fp16 | 13398 ms · portable fp16 | 10264 ms · portable fp16 | 1152 ms · kernels fp16 | 310 ms · kernels fp16 | 822 ms · kernels fp16 | 312 ms · kernels fp16 | 168 ms · kernels fp16 |
+| [`selective-igev-eth3d-finetune`](models/stereo.md#selective_igev) | – | 5708 ms · kernels fp16 | 5218 ms · kernels fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
+| [`selective-igev-eth3d-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | 5353 ms · kernels fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
+| [`selective-igev-kitti12`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5709 ms · kernels fp16 | 5422 ms · kernels fp16 | – | – | – | – | 89.2 ms · kernels fp16 |
+| [`selective-igev-kitti15`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | 5238 ms · kernels fp16 | – | – | – | – | 89.1 ms · kernels fp16 |
+| [`selective-igev-middlebury-finetune`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5778 ms · kernels fp16 | 5222 ms · kernels fp16 | – | – | – | – | 89.4 ms · kernels fp16 |
+| [`selective-igev-middlebury-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5738 ms · kernels fp16 | 5266 ms · kernels fp16 | – | – | – | – | 89.2 ms · kernels fp16 |
+| [`selective-igev-sceneflow`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | 6296 ms · kernels fp16 | 515 ms · kernels fp16 | 163 ms · kernels fp16 | 410 ms · kernels fp16 | 168 ms · kernels fp16 | 89.2 ms · kernels fp16 |
+| [`waft-stereo-b`](models/stereo.md#waft_stereo) | 393 ms · kernels fp16 | 11022 ms · portable fp32 | 5040 ms · portable fp16 | 574 ms · kernels fp16 | 146 ms · kernels fp16 | 422 ms · kernels fp16 | 173 ms · kernels fp16 | 85.7 ms · kernels fp16 |
+| [`waft-stereo-s`](models/stereo.md#waft_stereo) | 284 ms · kernels fp16 | 3236 ms · portable fp32 | 3509 ms · portable fp16 | 358 ms · kernels fp16 | 100 ms · kernels fp16 | 283 ms · kernels fp16 | 125 ms · kernels fp16 | 60.1 ms · kernels fp16 |
 
 #### Depth, 994x1482
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 63.2 ms · kernels fp16 | 22.5 ms · kernels fp16 | 60.1 ms · kernels fp16 | 25.0 ms · kernels fp16 | 14.2 ms · kernels fp16 |
-| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 318 ms · portable fp16 | 22.4 ms · kernels fp16 | 8.49 ms · kernels fp16 | 21.1 ms · kernels fp16 | – | 6.59 ms · kernels fp16 |
-| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 280 ms · portable fp16 | 19.5 ms · kernels fp16 | 7.78 ms · kernels fp16 | 18.6 ms · kernels fp16 | – | 6.04 ms · kernels fp16 |
-| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 280 ms · portable fp16 | 19.2 ms · kernels fp16 | 7.66 ms · kernels fp16 | 18.5 ms · kernels fp16 | 12.8 ms · kernels fp16 | 5.81 ms · kernels fp16 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 | 81.9 ms · kernels fp16 | 30.0 ms · kernels fp16 | 78.1 ms · kernels fp16 | – | 19.7 ms · kernels fp16 |
-| [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 199 ms · portable fp16 | 14.6 ms · kernels fp16 | 4.67 ms · kernels fp16 | 13.7 ms · kernels fp16 | – | 4.00 ms · kernels fp16 |
-| [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 579 ms · portable fp16 | 42.7 ms · kernels fp16 | 13.6 ms · kernels fp16 | 40.1 ms · kernels fp16 | 16.1 ms · kernels fp16 | 8.61 ms · kernels fp16 |
-| [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-metric-hypersim-l`](models/depth.md#depth_anything_v2) | – | 579 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-metric-hypersim-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | – | – | – | – | – |
-| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
-| [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
-| [`distill-any-depth-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | – | – | – | – | – |
-| [`distill-any-depth-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | – | – | – | – | – |
-| [`distill-any-depth-s`](models/depth.md#depth_anything_v2) | – | 79.3 ms · portable fp16 | – | – | – | – | – |
-| [`lotus-normal-d-v1-1`](models/depth.md#lotus) | – | 1459 ms · portable fp16 | – | – | – | – | – |
-| [`lotus-normal-g-v1-1`](models/depth.md#lotus) | – | 1553 ms · portable fp16 | – | – | – | – | – |
-| [`marigold-depth-v1-1`](models/depth.md#marigold) | – | 2498 ms · portable fp16 | 346 ms · kernels fp16 | 128 ms · kernels fp16 | 260 ms · kernels fp16 | 177 ms · portable fp16 | 74.8 ms · kernels fp16 |
-| [`marigold-normals-lcm-v0-1`](models/depth.md#marigold_normals) | – | 1655 ms · portable fp16 | – | – | – | – | – |
-| [`metric3d-vit-large`](models/depth.md#metric3d) | – | 1822 ms · portable fp32 | 193 ms · kernels fp16 | 56.9 ms · kernels fp16 | 166 ms · kernels fp16 | 61.5 ms · kernels fp16 | 38.9 ms · kernels fp16 |
-| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 | 28.5 ms · kernels fp16 | 17.8 ms · portable fp16 |
-| [`moge-2-vitb-normal`](models/depth.md#moge) | – | 585 ms · portable fp32 | – | – | – | – | – |
-| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1343 ms · portable fp32 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
-| [`moge-2-vits-normal`](models/depth.md#moge) | – | 361 ms · portable fp32 | 44.0 ms · kernels fp16 | 18.0 ms · kernels fp16 | 35.6 ms · kernels fp16 | 22.1 ms · kernels fp16 | 11.0 ms · kernels fp16 |
-| [`moge-3-vitl`](models/depth.md#moge) | – | 2415 ms · kernels fp32 | 284 ms · kernels fp16 | 93.5 ms · kernels fp16 | 276 ms · kernels fp16 | 114 ms · kernels fp16 | 61.5 ms · kernels fp16 |
-| [`pointdit-b-512`](models/depth.md#pointdit) | – | 337 ms · portable fp16 | – | – | – | – | – |
-| [`pointdit-l-512`](models/depth.md#pointdit) | – | 1013 ms · portable fp16 | – | – | – | – | – |
-| [`stablenormal-turbo`](models/depth.md#stablenormal) | – | 1690 ms · portable fp16 | – | – | – | – | – |
-| [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1252 ms · portable fp32 | 85.8 ms · kernels fp16 | 25.4 ms · kernels fp16 | 77.0 ms · kernels fp16 | 26.6 ms · kernels fp16 | 18.4 ms · portable fp16 |
-| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1217 ms · portable fp32 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
-| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 | 41.2 ms · kernels fp16 | 19.2 ms · kernels fp16 |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`any2full-b`](models/depth.md#any2full) | – | 268 ms · portable fp16 | 379 ms · portable fp16 | – | – | – | – | – |
+| [`any2full-l`](models/depth.md#any2full) | – | 684 ms · portable fp16 | 864 ms · portable fp32 | – | – | – | – | – |
+| [`any2full-s`](models/depth.md#any2full) | – | 118 ms · portable fp16 | 160 ms · portable fp16 | – | – | – | – | – |
+| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 606 ms · portable fp16 | 63.2 ms · kernels fp16 | 22.5 ms · kernels fp16 | 60.1 ms · kernels fp16 | 25.0 ms · kernels fp16 | 14.2 ms · kernels fp16 |
+| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 318 ms · portable fp16 | 226 ms · portable fp16 | 22.4 ms · kernels fp16 | 8.49 ms · kernels fp16 | 21.1 ms · kernels fp16 | – | 6.59 ms · kernels fp16 |
+| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 280 ms · portable fp16 | 227 ms · portable fp16 | 19.5 ms · kernels fp16 | 7.78 ms · kernels fp16 | 18.6 ms · kernels fp16 | – | 6.04 ms · kernels fp16 |
+| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 280 ms · portable fp16 | 227 ms · portable fp16 | 19.2 ms · kernels fp16 | 7.66 ms · kernels fp16 | 18.5 ms · kernels fp16 | 12.8 ms · kernels fp16 | 5.81 ms · kernels fp16 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 | 840 ms · portable fp16 | 81.9 ms · kernels fp16 | 30.0 ms · kernels fp16 | 78.1 ms · kernels fp16 | – | 19.7 ms · kernels fp16 |
+| [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 199 ms · portable fp16 | 169 ms · kernels fp16 | 14.6 ms · kernels fp16 | 4.67 ms · kernels fp16 | 13.7 ms · kernels fp16 | – | 4.00 ms · kernels fp16 |
+| [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 579 ms · portable fp16 | 498 ms · kernels fp16 | 42.7 ms · kernels fp16 | 13.6 ms · kernels fp16 | 40.1 ms · kernels fp16 | 16.1 ms · kernels fp16 | 8.61 ms · kernels fp16 |
+| [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 170 ms · kernels fp16 | – | – | – | – | – |
+| [`depth-anything-v2-metric-hypersim-l`](models/depth.md#depth_anything_v2) | – | 579 ms · portable fp16 | 527 ms · portable fp16 | – | – | – | – | – |
+| [`depth-anything-v2-metric-hypersim-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | 68.5 ms · kernels fp16 | – | – | – | – | – |
+| [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 188 ms · portable fp16 | – | – | – | – | – |
+| [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | 527 ms · portable fp16 | – | – | – | – | – |
+| [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | 67.4 ms · kernels fp16 | – | – | – | – | – |
+| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 66.2 ms · kernels fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
+| [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 4271 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
+| [`depthfm-v1`](models/depth.md#depthfm) | – | OOM | 39312 ms · portable fp16 | – | – | – | – | – |
+| [`distill-any-depth-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 170 ms · kernels fp16 | – | – | – | – | – |
+| [`distill-any-depth-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | 529 ms · portable fp16 | – | – | – | – | – |
+| [`distill-any-depth-s`](models/depth.md#depth_anything_v2) | – | 79.3 ms · portable fp16 | 66.9 ms · kernels fp16 | – | – | – | – | – |
+| [`lingbot-depth`](models/depth.md#lingbot_depth) | – | 3363 ms · portable fp32 | 4367 ms · portable fp32 | – | – | – | – | – |
+| [`lingbot-depth-dc`](models/depth.md#lingbot_depth) | – | 3363 ms · portable fp32 | 4414 ms · portable fp32 | – | – | – | – | – |
+| [`lotus-normal-d-v1-1`](models/depth.md#lotus) | – | 1459 ms · portable fp16 | 1973 ms · portable fp16 | – | – | – | – | – |
+| [`lotus-normal-g-v1-1`](models/depth.md#lotus) | – | 1461 ms · portable fp16 | 2005 ms · portable fp16 | – | – | – | – | – |
+| [`marigold-depth-v1-1`](models/depth.md#marigold) | – | 2492 ms · portable fp16 | 2868 ms · portable fp16 | 346 ms · kernels fp16 | 128 ms · kernels fp16 | 260 ms · kernels fp16 | 177 ms · portable fp16 | 74.8 ms · kernels fp16 |
+| [`marigold-normals-lcm-v0-1`](models/depth.md#marigold_normals) | – | 1514 ms · portable fp16 | 1772 ms · portable fp16 | – | – | – | – | – |
+| [`marigold-v2-depth`](models/depth.md#marigold_v2) | – | unsupported | 51319 ms · portable bf16 | – | – | – | – | – |
+| [`metric3d-vit-large`](models/depth.md#metric3d) | – | 1822 ms · portable fp32 | 2337 ms · portable fp16 | 193 ms · kernels fp16 | 56.9 ms · kernels fp16 | 166 ms · kernels fp16 | 61.5 ms · kernels fp16 | 38.9 ms · kernels fp16 |
+| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 785 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 | 28.5 ms · kernels fp16 | 17.8 ms · portable fp16 |
+| [`moge-2-vitb-normal`](models/depth.md#moge) | – | 494 ms · portable fp16 | 443 ms · portable fp16 | – | – | – | – | – |
+| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1176 ms · portable fp16 | 1036 ms · portable fp16 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
+| [`moge-2-vits-normal`](models/depth.md#moge) | – | 303 ms · portable fp16 | 282 ms · portable fp16 | 44.0 ms · kernels fp16 | 18.0 ms · kernels fp16 | 35.6 ms · kernels fp16 | 22.1 ms · kernels fp16 | 11.0 ms · kernels fp16 |
+| [`moge-3-vitl`](models/depth.md#moge) | – | 2415 ms · kernels fp32 | 2543 ms · portable fp16 | 284 ms · kernels fp16 | 93.5 ms · kernels fp16 | 276 ms · kernels fp16 | 114 ms · kernels fp16 | 61.5 ms · kernels fp16 |
+| [`omni-dc`](models/depth.md#omni_dc) | – | 2349 ms · portable fp32 | 3873 ms · portable fp16 | – | – | – | – | – |
+| [`pointdit-b-512`](models/depth.md#pointdit) | – | 337 ms · portable fp16 | 343 ms · portable fp32 | – | – | – | – | – |
+| [`pointdit-l-512`](models/depth.md#pointdit) | – | 1013 ms · portable fp16 | 1047 ms · portable fp32 | – | – | – | – | – |
+| [`prompt-depth-anything-l`](models/depth.md#prompt_depth_anything) | – | 1143 ms · portable fp16 | 1022 ms · portable fp16 | – | – | – | – | – |
+| [`stablenormal-turbo`](models/depth.md#stablenormal) | – | 1652 ms · portable fp16 | 2299 ms · portable fp16 | – | – | – | – | – |
+| [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1252 ms · portable fp32 | 1173 ms · portable fp16 | 85.8 ms · kernels fp16 | 25.4 ms · kernels fp16 | 77.0 ms · kernels fp16 | 26.6 ms · kernels fp16 | 18.4 ms · portable fp16 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1129 ms · portable fp16 | 947 ms · portable fp16 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
+| [`video-depth-anything-metric-s`](models/depth.md#video_depth_anything) | – | 780 ms · portable fp16 | – | – | – | – | – | – |
+| [`video-depth-anything-s`](models/depth.md#video_depth_anything) | – | 779 ms · portable fp16 | – | – | – | – | – | – |
+| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 837 ms · portable fp16 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 | 41.2 ms · kernels fp16 | 19.2 ms · kernels fp16 |
 
 #### Classification, 224x224
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`alexnet.tv_in1k`](models/classification.md#alexnet) | 0.660 ms · kernels fp16 | 3.04 ms · portable fp16 | 1.03 ms · kernels fp16 | 0.544 ms · kernels fp16 | 0.616 ms · kernels fp16 | 0.591 ms · kernels fp16 | 0.240 ms · kernels fp16 |
-| [`coatnet_0_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 20.1 ms · portable fp32 | – | – | – | – | – |
-| [`coatnet_1_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 32.4 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 42.4 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_nano_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 19.6 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 34.8 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_rmlp_1_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 34.6 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 45.7 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 45.4 ms · portable fp16 | – | – | – | – | – |
-| [`coatnet_rmlp_nano_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 21.2 ms · portable fp32 | – | – | – | – | – |
-| [`convnext_base.fb_in1k`](models/classification.md#convnext) | – | 24.8 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_base.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 24.9 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_base.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 45.2 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_large.fb_in1k`](models/classification.md#convnext) | – | 38.0 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_large.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 39.0 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 79.6 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_small.fb_in1k`](models/classification.md#convnext) | – | 18.2 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 18.7 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 31.0 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | – | 10.2 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 10.8 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 18.1 ms · portable fp16 | – | – | – | – | – |
-| [`convnextv2_base.fcmae_ft_in22k_in1k`](models/classification.md#convnextv2) | 3.07 ms · kernels fp16 | 35.8 ms · portable fp16 | 3.68 ms · kernels fp16 | 2.64 ms · kernels fp16 | 3.79 ms · kernels fp16 | 5.03 ms · kernels fp16 | 2.83 ms · kernels fp16 |
-| [`davit_base.msft_in1k`](models/classification.md#davit) | – | 31.8 ms · portable fp16 | – | – | – | – | – |
-| [`davit_small.msft_in1k`](models/classification.md#davit) | – | 25.4 ms · portable fp32 | – | – | – | – | – |
-| [`davit_tiny.msft_in1k`](models/classification.md#davit) | – | 14.2 ms · portable fp16 | – | – | – | – | – |
-| [`deit_base_patch16_224.fb_in1k`](models/classification.md#deit) | 1.79 ms · kernels fp16 | 16.4 ms · portable fp16 | 1.90 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
-| [`densenet121.tv_in1k`](models/classification.md#densenet) | – | 25.4 ms · portable fp32 | 1.80 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.91 ms · kernels fp16 | 2.69 ms · kernels fp16 | 1.31 ms · kernels fp16 |
-| [`dinov2_vitl14_lc`](models/classification.md#dinov2_linear_cls) | 5.24 ms · kernels fp16 | 59.3 ms · portable fp16 | 6.65 ms · kernels fp16 | 2.76 ms · kernels fp16 | 5.94 ms · portable fp16 | 4.71 ms · kernels fp16 | 2.22 ms · portable fp16 |
-| [`efficientformer_l1.snap_dist_in1k`](models/classification.md#efficientformer) | – | 8.57 ms · portable fp32 | – | – | – | – | – |
-| [`efficientformer_l3.snap_dist_in1k`](models/classification.md#efficientformer) | – | 15.5 ms · portable fp16 | – | – | – | – | – |
-| [`efficientformer_l7.snap_dist_in1k`](models/classification.md#efficientformer) | – | 27.4 ms · portable fp16 | – | – | – | – | – |
-| [`efficientformerv2_l.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 34.7 ms · portable fp32 | – | – | – | – | – |
-| [`efficientformerv2_s0.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 13.9 ms · portable fp32 | – | – | – | – | – |
-| [`efficientformerv2_s1.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 17.4 ms · portable fp32 | – | – | – | – | – |
-| [`efficientformerv2_s2.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 25.4 ms · portable fp32 | – | – | – | – | – |
-| [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 | 1.14 ms · kernels fp16 | 0.844 ms · kernels fp16 | 1.09 ms · kernels fp16 | 1.51 ms · kernels fp16 | 0.736 ms · kernels fp16 |
-| [`efficientnet_b4.tv_in1k`](models/classification.md#efficientnet) | – | 38.3 ms · portable fp32 | 2.45 ms · kernels fp16 | 1.70 ms · kernels fp16 | 2.55 ms · kernels fp16 | 3.30 ms · kernels fp16 | 1.61 ms · kernels fp16 |
-| [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | – | 34.0 ms · portable fp32 | 2.43 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.47 ms · kernels fp16 | 3.29 ms · kernels fp16 | 1.62 ms · kernels fp16 |
-| [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | – | 18.6 ms · portable fp32 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
-| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | – | 235 ms · portable fp16 | 19.6 ms · kernels fp16 | 6.82 ms · kernels fp16 | 16.9 ms · kernels fp16 | 10.3 ms · kernels fp16 | 5.46 ms · kernels fp16 |
-| [`falconsai-nsfw-vit`](models/classification.md#nsfw_vit) | – | 15.9 ms · portable fp16 | – | – | – | – | – |
-| [`fastvit_sa24.apple_dist_in1k`](models/classification.md#fastvit) | – | – | 1.76 ms · kernels fp16 | 1.27 ms · kernels fp16 | 1.73 ms · kernels fp16 | 2.49 ms · kernels fp16 | 1.31 ms · kernels fp16 |
-| [`focalnet_base_lrf.ms_in1k`](models/classification.md#focalnet) | – | 43.2 ms · portable fp16 | – | – | – | – | – |
-| [`focalnet_base_srf.ms_in1k`](models/classification.md#focalnet) | – | 40.1 ms · portable fp16 | – | – | – | – | – |
-| [`focalnet_small_lrf.ms_in1k`](models/classification.md#focalnet) | – | 33.7 ms · portable fp16 | – | – | – | – | – |
-| [`focalnet_small_srf.ms_in1k`](models/classification.md#focalnet) | – | 31.1 ms · portable fp16 | – | – | – | – | – |
-| [`focalnet_tiny_lrf.ms_in1k`](models/classification.md#focalnet) | – | 19.0 ms · portable fp16 | – | – | – | – | – |
-| [`focalnet_tiny_srf.ms_in1k`](models/classification.md#focalnet) | – | 18.0 ms · portable fp32 | – | – | – | – | – |
-| [`hgnetv2_b0.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.34 ms · portable fp32 | – | – | – | – | – |
-| [`hgnetv2_b1.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.58 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b2.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 9.18 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b3.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 10.7 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b4.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 11.8 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b5.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 18.3 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b6.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 31.0 ms · portable fp16 | – | – | – | – | – |
-| [`inception_v3.tv_in1k`](models/classification.md#inception_v3) | – | 17.4 ms · portable fp32 | 1.76 ms · kernels fp16 | 1.31 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.40 ms · kernels fp16 | 1.26 ms · kernels fp16 |
-| [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 | 0.695 ms · kernels fp16 | 0.506 ms · kernels fp16 | 0.580 ms · kernels fp16 | 0.768 ms · kernels fp16 | 0.346 ms · kernels fp16 |
-| [`mobilenet_v3_large.tv2_in1k`](models/classification.md#mobilenetv3) | 0.630 ms · kernels fp16 | 8.54 ms · portable fp32 | 0.853 ms · kernels fp16 | 0.632 ms · kernels fp16 | 0.777 ms · kernels fp16 | 1.05 ms · kernels fp16 | 0.489 ms · kernels fp16 |
-| [`mobilenetv1_100.ra4_e3600_r224_in1k`](models/classification.md#mobilenetv1) | – | 4.29 ms · portable fp32 | 0.593 ms · kernels fp16 | 0.413 ms · kernels fp16 | 0.448 ms · kernels fp16 | 0.574 ms · kernels fp16 | 0.253 ms · kernels fp16 |
-| [`mobilenetv4_conv_medium.e500_r256_in1k`](models/classification.md#mobilenetv4) | 0.750 ms · kernels fp16 | 9.58 ms · portable fp32 | 0.955 ms · kernels fp16 | 0.722 ms · kernels fp16 | 0.900 ms · kernels fp16 | 1.19 ms · kernels fp16 | 0.592 ms · kernels fp16 |
-| [`regnety_160.tv2_in1k`](models/classification.md#regnet) | – | 33.1 ms · portable fp16 | 2.37 ms · kernels fp16 | 1.58 ms · kernels fp16 | 2.27 ms · kernels fp16 | 2.70 ms · kernels fp16 | 1.46 ms · kernels fp16 |
-| [`repvit_m0_9.dist_300e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m0_9.dist_450e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_0.dist_300e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_0.dist_450e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_1.dist_300e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_1.dist_450e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_5.dist_300e_in1k`](models/classification.md#repvit) | – | 19.3 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m1_5.dist_450e_in1k`](models/classification.md#repvit) | – | 19.1 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m2_3.dist_300e_in1k`](models/classification.md#repvit) | – | 27.3 ms · portable fp32 | – | – | – | – | – |
-| [`repvit_m2_3.dist_450e_in1k`](models/classification.md#repvit) | – | 27.2 ms · portable fp32 | – | – | – | – | – |
-| [`resnet152.tv2_in1k`](models/classification.md#resnet) | – | 24.3 ms · portable fp16 | 2.32 ms · kernels fp16 | 1.84 ms · kernels fp16 | 2.48 ms · kernels fp16 | 3.42 ms · kernels fp16 | 1.82 ms · kernels fp16 |
-| [`resnet18.tv_in1k`](models/classification.md#resnet) | – | 4.67 ms · portable fp32 | 0.718 ms · kernels fp16 | 0.519 ms · kernels fp16 | 0.609 ms · kernels fp16 | 0.797 ms · kernels fp16 | 0.370 ms · kernels fp16 |
-| [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 10.2 ms · portable fp16 | – | – | – | – | 0.666 ms · kernels fp16 |
-| [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | – | 6.33 ms · portable fp32 | 1.13 ms · kernels fp16 | 0.874 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.63 ms · kernels fp16 | 0.811 ms · kernels fp16 |
-| [`shvit_s1.in1k`](models/classification.md#shvit) | – | 10.3 ms · portable fp32 | – | – | – | – | – |
-| [`shvit_s2.in1k`](models/classification.md#shvit) | – | 10.9 ms · portable fp32 | – | – | – | – | – |
-| [`shvit_s3.in1k`](models/classification.md#shvit) | – | 11.8 ms · portable fp32 | – | – | – | – | – |
-| [`squeezenet1_1.tv_in1k`](models/classification.md#squeezenet) | – | 3.72 ms · portable fp16 | 0.590 ms · kernels fp16 | 0.437 ms · kernels fp16 | 0.461 ms · kernels fp16 | 0.592 ms · kernels fp16 | 0.269 ms · kernels fp16 |
-| [`starnet_s1.in1k`](models/classification.md#starnet) | – | 8.33 ms · portable fp32 | – | – | – | – | – |
-| [`starnet_s2.in1k`](models/classification.md#starnet) | – | 7.21 ms · portable fp16 | – | – | – | – | – |
-| [`starnet_s3.in1k`](models/classification.md#starnet) | – | 9.55 ms · portable fp16 | – | – | – | – | – |
-| [`starnet_s4.in1k`](models/classification.md#starnet) | – | 12.7 ms · portable fp32 | – | – | – | – | – |
-| [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](models/classification.md#swin) | 2.45 ms · kernels fp16 | 28.2 ms · portable fp32 | 2.92 ms · kernels fp16 | 2.02 ms · kernels fp16 | 2.80 ms · kernels fp16 | 3.79 ms · kernels fp16 | 1.91 ms · kernels fp16 |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 9.49 ms · portable fp32 | – | – | – | – | – |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 11.6 ms · portable fp32 | – | – | – | – | – |
-| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 8.61 ms · portable fp32 | – | – | – | – | – |
-| [`vgg16.tv_in1k`](models/classification.md#vgg) | 1.56 ms · kernels fp16 | 11.7 ms · portable fp16 | 2.10 ms · kernels fp16 | 1.03 ms · kernels fp16 | 1.47 ms · kernels fp16 | 1.15 ms · kernels fp16 | 0.622 ms · kernels fp16 |
-| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 | 1.92 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
-| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](models/classification.md#siglip) | 12.9 ms · kernels fp16 | 197 ms · portable fp16 | 15.8 ms · kernels fp16 | 6.99 ms · kernels fp16 | 16.0 ms · kernels fp16 | 7.96 ms · portable fp16 | 4.80 ms · portable fp16 |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`alexnet.tv_in1k`](models/classification.md#alexnet) | 0.660 ms · kernels fp16 | 3.04 ms · portable fp16 | 2.85 ms · portable fp16 | 1.03 ms · kernels fp16 | 0.544 ms · kernels fp16 | 0.616 ms · kernels fp16 | 0.591 ms · kernels fp16 | 0.240 ms · kernels fp16 |
+| [`coatnet_0_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 20.1 ms · portable fp32 | 9.65 ms · kernels fp16 | – | – | – | – | – |
+| [`coatnet_1_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 32.4 ms · portable fp16 | 16.0 ms · portable fp16 | – | – | – | – | – |
+| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 42.4 ms · portable fp16 | 23.0 ms · kernels fp16 | – | – | – | – | – |
+| [`coatnet_nano_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 19.6 ms · portable fp16 | 7.62 ms · portable fp16 | – | – | – | – | – |
+| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 34.8 ms · portable fp16 | 16.3 ms · portable fp16 | – | – | – | – | – |
+| [`coatnet_rmlp_1_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 34.6 ms · portable fp16 | 16.1 ms · kernels fp16 | – | – | – | – | – |
+| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](models/classification.md#coatnet) | – | 45.7 ms · portable fp16 | 23.3 ms · portable fp16 | – | – | – | – | – |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 45.4 ms · portable fp16 | 23.0 ms · kernels fp16 | – | – | – | – | – |
+| [`coatnet_rmlp_nano_rw_224.sw_in1k`](models/classification.md#coatnet) | – | 21.2 ms · portable fp32 | 8.05 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_base.fb_in1k`](models/classification.md#convnext) | – | 24.8 ms · portable fp16 | 16.2 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_base.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 24.9 ms · portable fp16 | 16.2 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_base.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 45.2 ms · portable fp16 | 34.1 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_large.fb_in1k`](models/classification.md#convnext) | – | 38.0 ms · portable fp16 | 29.0 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_large.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 39.0 ms · portable fp16 | 29.1 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 79.6 ms · portable fp16 | 63.4 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_small.fb_in1k`](models/classification.md#convnext) | – | 18.2 ms · portable fp16 | 12.3 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 18.7 ms · portable fp16 | 12.2 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 31.0 ms · portable fp16 | 25.0 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | – | 10.2 ms · portable fp16 | 7.33 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 10.8 ms · portable fp16 | 7.51 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 18.1 ms · portable fp16 | 15.2 ms · portable fp16 | – | – | – | – | – |
+| [`convnextv2_base.fcmae_ft_in22k_in1k`](models/classification.md#convnextv2) | 3.07 ms · kernels fp16 | 35.8 ms · portable fp16 | 19.7 ms · kernels fp16 | 3.68 ms · kernels fp16 | 2.64 ms · kernels fp16 | 3.79 ms · kernels fp16 | 5.03 ms · kernels fp16 | 2.83 ms · kernels fp16 |
+| [`davit_base.msft_in1k`](models/classification.md#davit) | – | 31.8 ms · portable fp16 | 18.9 ms · portable fp16 | – | – | – | – | – |
+| [`davit_small.msft_in1k`](models/classification.md#davit) | – | 25.4 ms · portable fp32 | 14.4 ms · portable fp16 | – | – | – | – | – |
+| [`davit_tiny.msft_in1k`](models/classification.md#davit) | – | 14.2 ms · portable fp16 | 8.23 ms · portable fp16 | – | – | – | – | – |
+| [`deit_base_patch16_224.fb_in1k`](models/classification.md#deit) | 1.79 ms · kernels fp16 | 16.4 ms · portable fp16 | 14.4 ms · portable fp16 | 1.90 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
+| [`densenet121.tv_in1k`](models/classification.md#densenet) | – | 25.4 ms · portable fp32 | 9.93 ms · portable fp16 | 1.80 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.91 ms · kernels fp16 | 2.69 ms · kernels fp16 | 1.31 ms · kernels fp16 |
+| [`dinov2_vitl14_lc`](models/classification.md#dinov2_linear_cls) | 5.24 ms · kernels fp16 | 59.3 ms · portable fp16 | 57.6 ms · portable fp16 | 6.65 ms · kernels fp16 | 2.76 ms · kernels fp16 | 5.94 ms · portable fp16 | 4.71 ms · kernels fp16 | 2.22 ms · portable fp16 |
+| [`efficientformer_l1.snap_dist_in1k`](models/classification.md#efficientformer) | – | 8.57 ms · portable fp32 | 5.22 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformer_l3.snap_dist_in1k`](models/classification.md#efficientformer) | – | 15.5 ms · portable fp16 | 8.92 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformer_l7.snap_dist_in1k`](models/classification.md#efficientformer) | – | 27.4 ms · portable fp16 | 17.2 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformerv2_l.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 34.7 ms · portable fp32 | 11.7 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformerv2_s0.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 13.9 ms · portable fp32 | 4.22 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformerv2_s1.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 17.4 ms · portable fp32 | 5.66 ms · portable fp16 | – | – | – | – | – |
+| [`efficientformerv2_s2.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 25.4 ms · portable fp32 | 8.50 ms · portable fp16 | – | – | – | – | – |
+| [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 | 3.64 ms · kernels fp16 | 1.14 ms · kernels fp16 | 0.844 ms · kernels fp16 | 1.09 ms · kernels fp16 | 1.51 ms · kernels fp16 | 0.736 ms · kernels fp16 |
+| [`efficientnet_b4.tv_in1k`](models/classification.md#efficientnet) | – | 38.3 ms · portable fp32 | 16.0 ms · kernels fp16 | 2.45 ms · kernels fp16 | 1.70 ms · kernels fp16 | 2.55 ms · kernels fp16 | 3.30 ms · kernels fp16 | 1.61 ms · kernels fp16 |
+| [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | – | 34.0 ms · portable fp32 | 16.7 ms · kernels fp16 | 2.43 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.47 ms · kernels fp16 | 3.29 ms · kernels fp16 | 1.62 ms · kernels fp16 |
+| [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | – | 18.6 ms · portable fp32 | 10.2 ms · portable fp16 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
+| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | – | 235 ms · portable fp16 | 199 ms · portable fp16 | 19.6 ms · kernels fp16 | 6.82 ms · kernels fp16 | 16.9 ms · kernels fp16 | 10.3 ms · kernels fp16 | 5.46 ms · kernels fp16 |
+| [`falconsai-nsfw-vit`](models/classification.md#nsfw_vit) | – | 15.9 ms · portable fp16 | 14.0 ms · portable fp16 | – | – | – | – | – |
+| [`fastvit_sa24.apple_dist_in1k`](models/classification.md#fastvit) | – | – | – | 1.76 ms · kernels fp16 | 1.27 ms · kernels fp16 | 1.73 ms · kernels fp16 | 2.49 ms · kernels fp16 | 1.31 ms · kernels fp16 |
+| [`focalnet_base_lrf.ms_in1k`](models/classification.md#focalnet) | – | 43.2 ms · portable fp16 | 23.4 ms · portable fp16 | – | – | – | – | – |
+| [`focalnet_base_srf.ms_in1k`](models/classification.md#focalnet) | – | 40.1 ms · portable fp16 | 22.4 ms · portable fp16 | – | – | – | – | – |
+| [`focalnet_small_lrf.ms_in1k`](models/classification.md#focalnet) | – | 33.7 ms · portable fp16 | 18.0 ms · portable fp16 | – | – | – | – | – |
+| [`focalnet_small_srf.ms_in1k`](models/classification.md#focalnet) | – | 31.1 ms · portable fp16 | 16.9 ms · portable fp16 | – | – | – | – | – |
+| [`focalnet_tiny_lrf.ms_in1k`](models/classification.md#focalnet) | – | 19.0 ms · portable fp16 | 10.2 ms · portable fp16 | – | – | – | – | – |
+| [`focalnet_tiny_srf.ms_in1k`](models/classification.md#focalnet) | – | 18.0 ms · portable fp32 | 9.53 ms · portable fp16 | – | – | – | – | – |
+| [`hgnetv2_b0.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.34 ms · portable fp32 | 2.96 ms · portable fp16 | – | – | – | – | – |
+| [`hgnetv2_b1.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.58 ms · portable fp16 | 3.45 ms · portable fp16 | – | – | – | – | – |
+| [`hgnetv2_b2.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 9.18 ms · portable fp16 | 4.23 ms · kernels fp16 | – | – | – | – | – |
+| [`hgnetv2_b3.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 10.7 ms · portable fp16 | 6.64 ms · portable fp32 | – | – | – | – | – |
+| [`hgnetv2_b4.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 11.8 ms · portable fp16 | 6.27 ms · portable fp16 | – | – | – | – | – |
+| [`hgnetv2_b5.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 18.3 ms · portable fp16 | 11.1 ms · portable fp16 | – | – | – | – | – |
+| [`hgnetv2_b6.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 31.0 ms · portable fp16 | 21.8 ms · portable fp16 | – | – | – | – | – |
+| [`inception_v3.tv_in1k`](models/classification.md#inception_v3) | – | 17.4 ms · portable fp32 | 11.2 ms · portable fp16 | 1.76 ms · kernels fp16 | 1.31 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.40 ms · kernels fp16 | 1.26 ms · kernels fp16 |
+| [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 | 2.48 ms · kernels fp16 | 0.695 ms · kernels fp16 | 0.506 ms · kernels fp16 | 0.580 ms · kernels fp16 | 0.768 ms · kernels fp16 | 0.346 ms · kernels fp16 |
+| [`mobilenet_v3_large.tv2_in1k`](models/classification.md#mobilenetv3) | 0.630 ms · kernels fp16 | 8.54 ms · portable fp32 | 2.65 ms · kernels fp16 | 0.853 ms · kernels fp16 | 0.632 ms · kernels fp16 | 0.777 ms · kernels fp16 | 1.05 ms · kernels fp16 | 0.489 ms · kernels fp16 |
+| [`mobilenetv1_100.ra4_e3600_r224_in1k`](models/classification.md#mobilenetv1) | – | 4.29 ms · portable fp32 | 2.29 ms · portable fp16 | 0.593 ms · kernels fp16 | 0.413 ms · kernels fp16 | 0.448 ms · kernels fp16 | 0.574 ms · kernels fp16 | 0.253 ms · kernels fp16 |
+| [`mobilenetv4_conv_medium.e500_r256_in1k`](models/classification.md#mobilenetv4) | 0.750 ms · kernels fp16 | 9.58 ms · portable fp32 | 4.65 ms · portable fp16 | 0.955 ms · kernels fp16 | 0.722 ms · kernels fp16 | 0.900 ms · kernels fp16 | 1.19 ms · kernels fp16 | 0.592 ms · kernels fp16 |
+| [`regnety_160.tv2_in1k`](models/classification.md#regnet) | – | 33.1 ms · portable fp16 | 17.9 ms · kernels fp16 | 2.37 ms · kernels fp16 | 1.58 ms · kernels fp16 | 2.27 ms · kernels fp16 | 2.70 ms · kernels fp16 | 1.46 ms · kernels fp16 |
+| [`repvit_m0_9.dist_300e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | 4.31 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m0_9.dist_450e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | 4.30 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_0.dist_300e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | 4.44 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_0.dist_450e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | 5.29 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_1.dist_300e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | 4.38 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_1.dist_450e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | 4.41 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_5.dist_300e_in1k`](models/classification.md#repvit) | – | 19.3 ms · portable fp32 | 8.98 ms · portable fp32 | – | – | – | – | – |
+| [`repvit_m1_5.dist_450e_in1k`](models/classification.md#repvit) | – | 19.1 ms · portable fp32 | 6.88 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m2_3.dist_300e_in1k`](models/classification.md#repvit) | – | 27.3 ms · portable fp32 | 11.1 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m2_3.dist_450e_in1k`](models/classification.md#repvit) | – | 27.2 ms · portable fp32 | 10.7 ms · portable fp16 | – | – | – | – | – |
+| [`resnet152.tv2_in1k`](models/classification.md#resnet) | – | 24.3 ms · portable fp16 | 17.0 ms · kernels fp16 | 2.32 ms · kernels fp16 | 1.84 ms · kernels fp16 | 2.48 ms · kernels fp16 | 3.42 ms · kernels fp16 | 1.82 ms · kernels fp16 |
+| [`resnet18.tv_in1k`](models/classification.md#resnet) | – | 4.67 ms · portable fp32 | 3.75 ms · kernels fp16 | 0.718 ms · kernels fp16 | 0.519 ms · kernels fp16 | 0.609 ms · kernels fp16 | 0.797 ms · kernels fp16 | 0.370 ms · kernels fp16 |
+| [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 10.2 ms · portable fp16 | 6.49 ms · kernels fp16 | – | – | – | – | 0.666 ms · kernels fp16 |
+| [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | – | 6.33 ms · portable fp32 | 3.27 ms · portable fp16 | 1.13 ms · kernels fp16 | 0.874 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.63 ms · kernels fp16 | 0.811 ms · kernels fp16 |
+| [`shvit_s1.in1k`](models/classification.md#shvit) | – | 10.3 ms · portable fp32 | 4.43 ms · portable fp16 | – | – | – | – | – |
+| [`shvit_s2.in1k`](models/classification.md#shvit) | – | 10.9 ms · portable fp32 | 5.11 ms · portable fp16 | – | – | – | – | – |
+| [`shvit_s3.in1k`](models/classification.md#shvit) | – | 11.8 ms · portable fp32 | 5.69 ms · portable fp16 | – | – | – | – | – |
+| [`squeezenet1_1.tv_in1k`](models/classification.md#squeezenet) | – | 3.72 ms · portable fp16 | 1.96 ms · portable fp16 | 0.590 ms · kernels fp16 | 0.437 ms · kernels fp16 | 0.461 ms · kernels fp16 | 0.592 ms · kernels fp16 | 0.269 ms · kernels fp16 |
+| [`starnet_s1.in1k`](models/classification.md#starnet) | – | 8.33 ms · portable fp32 | 3.15 ms · portable fp16 | – | – | – | – | – |
+| [`starnet_s2.in1k`](models/classification.md#starnet) | – | 7.21 ms · portable fp16 | 2.74 ms · portable fp16 | – | – | – | – | – |
+| [`starnet_s3.in1k`](models/classification.md#starnet) | – | 9.55 ms · portable fp16 | 3.31 ms · portable fp16 | – | – | – | – | – |
+| [`starnet_s4.in1k`](models/classification.md#starnet) | – | 12.7 ms · portable fp32 | 4.37 ms · portable fp16 | – | – | – | – | – |
+| [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](models/classification.md#swin) | 2.45 ms · kernels fp16 | 28.2 ms · portable fp32 | 19.2 ms · portable fp16 | 2.92 ms · kernels fp16 | 2.02 ms · kernels fp16 | 2.80 ms · kernels fp16 | 3.79 ms · kernels fp16 | 1.91 ms · kernels fp16 |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 9.49 ms · portable fp32 | 5.22 ms · portable fp16 | – | – | – | – | – |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 11.6 ms · portable fp32 | 7.44 ms · portable fp16 | – | – | – | – | – |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 8.61 ms · portable fp32 | 4.64 ms · portable fp16 | – | – | – | – | – |
+| [`vgg16.tv_in1k`](models/classification.md#vgg) | 1.56 ms · kernels fp16 | 11.7 ms · portable fp16 | 13.8 ms · portable fp16 | 2.10 ms · kernels fp16 | 1.03 ms · kernels fp16 | 1.47 ms · kernels fp16 | 1.15 ms · kernels fp16 | 0.622 ms · kernels fp16 |
+| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 | 14.2 ms · portable fp16 | 1.92 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](models/classification.md#siglip) | 12.9 ms · kernels fp16 | 197 ms · portable fp16 | 179 ms · kernels fp16 | 15.8 ms · kernels fp16 | 6.99 ms · kernels fp16 | 16.0 ms · kernels fp16 | 7.96 ms · portable fp16 | 4.80 ms · portable fp16 |
 
 #### Segmentation, 1024x2048
 
-| model | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg) | 528 ms · portable fp16 | – | – | – | – | 6.03 ms · kernels fp16 |
-| [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg) | 430 ms · portable fp16 | 24.9 ms · kernels fp16 | 7.55 ms · kernels fp16 | 20.8 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.21 ms · kernels fp16 |
-| [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2_linear) | 361 ms · portable fp16 | – | – | – | – | 6.86 ms · kernels fp16 |
-| [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2_linear) | 927 ms · portable fp16 | 81.8 ms · kernels fp16 | 22.8 ms · kernels fp16 | 67.1 ms · kernels fp16 | 22.3 ms · kernels fp16 | 13.8 ms · kernels fp16 |
-| [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2_linear) | 195 ms · portable fp16 | 16.6 ms · kernels fp16 | 6.60 ms · kernels fp16 | 13.1 ms · kernels fp16 | 7.64 ms · kernels fp16 | 3.90 ms · kernels fp16 |
-| [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | 540 ms · portable fp16 | 47.3 ms · kernels fp16 | 13.9 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.0 ms · kernels fp16 | 8.51 ms · kernels fp16 |
-| [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | 575 ms · portable fp16 | 54.3 ms · kernels fp16 | 15.4 ms · kernels fp16 | 44.6 ms · kernels fp16 | 17.8 ms · kernels fp16 | 9.54 ms · kernels fp16 |
-| [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg) | 405 ms · portable fp16 | 21.8 ms · kernels fp16 | 6.92 ms · kernels fp16 | 19.5 ms · kernels fp16 | 11.8 ms · kernels fp16 | 5.21 ms · kernels fp16 |
-| [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg) | 228 ms · portable fp16 | – | – | – | – | 4.64 ms · kernels fp16 |
-| [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | 909 ms · portable fp32 | 77.8 ms · kernels fp16 | 32.8 ms · kernels fp16 | 67.4 ms · kernels fp16 | 35.3 ms · kernels fp16 | 16.9 ms · kernels fp16 |
-| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | 1127 ms · portable fp32 | 134 ms · kernels fp16 | 47.2 ms · kernels fp16 | 109 ms · kernels fp16 | 58.9 ms · kernels fp16 | 31.4 ms · kernels fp16 |
-| [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg) | 411 ms · portable fp16 | – | – | – | – | 10.3 ms · kernels fp16 |
-| [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens) | 1517 ms · portable fp16 | 135 ms · kernels fp16 | 39.7 ms · kernels fp16 | 97.7 ms · kernels fp16 | 34.4 ms · kernels fp16 | 24.4 ms · portable fp16 |
-| [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens) | 3113 ms · portable fp16 | 305 ms · kernels fp16 | 81.4 ms · kernels fp16 | 200 ms · kernels fp16 | 67.8 ms · kernels fp16 | 45.5 ms · portable fp16 |
-| [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 | 3.91 ms · kernels fp16 | 1.76 ms · kernels fp16 | 3.79 ms · kernels fp16 | 3.43 ms · kernels fp16 | 1.24 ms · kernels fp16 |
-| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 375 ms · portable fp16 | 34.5 ms · kernels fp16 | 9.82 ms · kernels fp16 | 28.5 ms · kernels fp16 | 18.3 ms · kernels fp16 | 8.22 ms · kernels fp16 |
-| [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | 184 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | 268 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | 118 ms · portable fp16 | – | – | – | – | – |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|
+| [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg) | 528 ms · portable fp16 | 441 ms · kernels fp16 | – | – | – | – | 6.03 ms · kernels fp16 |
+| [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg) | 430 ms · portable fp16 | 333 ms · kernels fp16 | 24.9 ms · kernels fp16 | 7.55 ms · kernels fp16 | 20.8 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.21 ms · kernels fp16 |
+| [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2_linear) | 361 ms · portable fp16 | 256 ms · portable fp16 | – | – | – | – | 6.86 ms · kernels fp16 |
+| [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2_linear) | 927 ms · portable fp16 | 761 ms · portable fp16 | 81.8 ms · kernels fp16 | 22.8 ms · kernels fp16 | 67.1 ms · kernels fp16 | 22.3 ms · kernels fp16 | 13.8 ms · kernels fp16 |
+| [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2_linear) | 195 ms · portable fp16 | 112 ms · portable fp16 | 16.6 ms · kernels fp16 | 6.60 ms · kernels fp16 | 13.1 ms · kernels fp16 | 7.64 ms · kernels fp16 | 3.90 ms · kernels fp16 |
+| [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | 540 ms · portable fp16 | 574 ms · portable fp16 | 47.3 ms · kernels fp16 | 13.9 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.0 ms · kernels fp16 | 8.51 ms · kernels fp16 |
+| [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | 575 ms · portable fp16 | 599 ms · portable fp16 | 54.3 ms · kernels fp16 | 15.4 ms · kernels fp16 | 44.6 ms · kernels fp16 | 17.8 ms · kernels fp16 | 9.54 ms · kernels fp16 |
+| [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg) | 405 ms · portable fp16 | 353 ms · portable fp16 | 21.8 ms · kernels fp16 | 6.92 ms · kernels fp16 | 19.5 ms · kernels fp16 | 11.8 ms · kernels fp16 | 5.21 ms · kernels fp16 |
+| [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg) | 228 ms · portable fp16 | 220 ms · portable fp16 | – | – | – | – | 4.64 ms · kernels fp16 |
+| [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | 909 ms · portable fp32 | 850 ms · portable fp16 | 77.8 ms · kernels fp16 | 32.8 ms · kernels fp16 | 67.4 ms · kernels fp16 | 35.3 ms · kernels fp16 | 16.9 ms · kernels fp16 |
+| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | 1127 ms · portable fp32 | 1441 ms · portable fp16 | 134 ms · kernels fp16 | 47.2 ms · kernels fp16 | 109 ms · kernels fp16 | 58.9 ms · kernels fp16 | 31.4 ms · kernels fp16 |
+| [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg) | 411 ms · portable fp16 | 375 ms · kernels fp16 | – | – | – | – | 10.3 ms · kernels fp16 |
+| [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens) | 1517 ms · portable fp16 | 2392 ms · portable fp16 | 135 ms · kernels fp16 | 39.7 ms · kernels fp16 | 97.7 ms · kernels fp16 | 34.4 ms · kernels fp16 | 24.4 ms · portable fp16 |
+| [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens) | 3113 ms · portable fp16 | 4110 ms · portable fp16 | 305 ms · kernels fp16 | 81.4 ms · kernels fp16 | 200 ms · kernels fp16 | 67.8 ms · kernels fp16 | 45.5 ms · portable fp16 |
+| [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 | 57.1 ms · kernels fp16 | 3.91 ms · kernels fp16 | 1.76 ms · kernels fp16 | 3.79 ms · kernels fp16 | 3.43 ms · kernels fp16 | 1.24 ms · kernels fp16 |
+| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 375 ms · portable fp16 | 270 ms · portable fp16 | 34.5 ms · kernels fp16 | 9.82 ms · kernels fp16 | 28.5 ms · kernels fp16 | 18.3 ms · kernels fp16 | 8.22 ms · kernels fp16 |
+| [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | 184 ms · portable fp16 | 119 ms · kernels fp16 | – | – | – | – | – |
+| [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | 268 ms · portable fp16 | 181 ms · portable fp16 | – | – | – | – | – |
+| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | 81.4 ms · portable fp16 | – | – | – | – | – |
+| [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | 118 ms · portable fp16 | 69.7 ms · portable fp16 | – | – | – | – | – |
 
 #### Matting, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 |
-| [`birefnet`](models/matting.md#birefnet) | 1152 ms · portable fp16 |
-| [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 |
-| [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 |
-| [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 |
-| [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 |
-| [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 |
-| [`matanyone`](models/matting.md#matanyone) | 5907 ms · portable fp16 |
-| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 |
-| [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 |
-| [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 |
-| [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 |
-| [`vitmatte-s`](models/matting.md#vitmatte) | 1360 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 850 ms · portable fp16 |
+| [`birefnet`](models/matting.md#birefnet) | 1152 ms · portable fp16 | 1048 ms · portable fp16 |
+| [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 382 ms · portable fp16 |
+| [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 | 679 ms · portable fp16 |
+| [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 | 95.6 ms · portable fp16 |
+| [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 | 121 ms · kernels fp16 |
+| [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 | 122 ms · kernels fp16 |
+| [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | 3513 ms · portable fp16 |
+| [`rmbg-2.0`](models/matting.md#birefnet) | 1008 ms · portable fp16 | 1050 ms · portable fp16 |
+| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 62.3 ms · portable fp16 |
+| [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 62.7 ms · portable fp16 |
+| [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 | 28.3 ms · portable fp16 |
+| [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1652 ms · portable fp16 |
+| [`vitmatte-s`](models/matting.md#vitmatte) | 1254 ms · portable fp16 | 816 ms · portable fp16 |
 
 #### Promptable segmentation, 1024x1024
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`clipseg`](models/promptable_segmentation.md#clipseg) | – | 37.7 ms · portable fp16 | – | – | – | – | – |
-| [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit_sam) | – | 50.6 ms · portable fp32 | – | – | – | – | – |
-| [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit_sam) | – | 75.2 ms · portable fp32 | – | – | – | – | – |
-| [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit_sam) | – | 91.2 ms · portable fp32 | – | – | – | – | – |
-| [`efficientvit-sam-xl0`](models/promptable_segmentation.md#efficientvit_sam) | – | 167 ms · portable fp32 | – | – | – | – | – |
-| [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit_sam) | – | 259 ms · portable fp32 | – | – | – | – | – |
-| [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | – | 2510 ms · portable fp16 | – | – | – | – | – |
-| [`mobile-sam`](models/promptable_segmentation.md#mobile_sam) | – | 69.9 ms · portable fp16 | – | – | – | – | – |
-| [`sam-hq-vit-b`](models/promptable_segmentation.md#sam_hq) | – | 645 ms · portable fp32 | – | – | – | – | – |
-| [`sam-hq-vit-h`](models/promptable_segmentation.md#sam_hq) | – | 2347 ms · portable fp16 | – | – | – | – | – |
-| [`sam-hq-vit-l`](models/promptable_segmentation.md#sam_hq) | – | 1292 ms · portable fp16 | – | – | – | – | – |
-| [`sam-vit-b`](models/promptable_segmentation.md#sam) | 37.0 ms · kernels fp16 | 600 ms · portable fp16 | 40.7 ms · kernels fp16 | 15.7 ms · kernels fp16 | 35.1 ms · kernels fp16 | 19.2 ms · kernels fp16 | 10.3 ms · kernels fp16 |
-| [`sam-vit-h`](models/promptable_segmentation.md#sam) | 143 ms · kernels fp16 | 2333 ms · portable fp16 | 189 ms · kernels fp16 | 59.1 ms · kernels fp16 | 168 ms · kernels fp16 | 61.3 ms · kernels fp16 | 35.1 ms · kernels fp16 |
-| [`sam-vit-l`](models/promptable_segmentation.md#sam) | 81.5 ms · kernels fp16 | 1279 ms · portable fp16 | 102 ms · kernels fp16 | 32.5 ms · kernels fp16 | 91.4 ms · kernels fp16 | 37.5 ms · kernels fp16 | 19.6 ms · kernels fp16 |
-| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#sam2) | – | 394 ms · portable fp16 | 31.7 ms · kernels fp16 | 10.3 ms · kernels fp16 | 29.1 ms · kernels fp16 | 15.8 ms · portable fp16 | 7.78 ms · portable fp16 |
-| [`sam2.1-hiera-large`](models/promptable_segmentation.md#sam2) | – | 544 ms · portable fp16 | 65.8 ms · kernels fp16 | 21.4 ms · kernels fp16 | 59.3 ms · kernels fp16 | 27.1 ms · portable fp16 | 13.8 ms · portable fp16 |
-| [`sam2.1-hiera-small`](models/promptable_segmentation.md#sam2) | 15.6 ms · kernels fp16 | 148 ms · portable fp16 | – | – | – | – | 5.43 ms · portable fp16 |
-| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#sam2) | 13.9 ms · kernels fp16 | 129 ms · portable fp16 | 17.6 ms · kernels fp16 | 8.14 ms · kernels fp16 | 15.6 ms · kernels fp16 | 12.0 ms · portable fp16 | 5.11 ms · kernels fp16 |
-| [`sam3`](models/promptable_segmentation.md#sam3) | – | 3620 ms · portable fp32 | 161 ms · kernels fp16 | 48.6 ms · kernels fp16 | 136 ms · kernels fp16 | 50.8 ms · kernels fp16 | 29.5 ms · kernels fp16 |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`clipseg`](models/promptable_segmentation.md#clipseg) | – | 37.7 ms · portable fp16 | 33.6 ms · portable fp32 | – | – | – | – | – |
+| [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit_sam) | – | 50.6 ms · portable fp32 | 113 ms · portable fp32 | – | – | – | – | – |
+| [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit_sam) | – | 75.2 ms · portable fp32 | 101 ms · portable fp32 | – | – | – | – | – |
+| [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit_sam) | – | 91.2 ms · portable fp32 | 120 ms · portable fp32 | – | – | – | – | – |
+| [`efficientvit-sam-xl0`](models/promptable_segmentation.md#efficientvit_sam) | – | 167 ms · portable fp32 | 268 ms · portable fp32 | – | – | – | – | – |
+| [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit_sam) | – | 259 ms · portable fp32 | 435 ms · portable fp32 | – | – | – | – | – |
+| [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | – | 2510 ms · portable fp16 | 2512 ms · portable fp16 | – | – | – | – | – |
+| [`mobile-sam`](models/promptable_segmentation.md#mobile_sam) | – | 69.9 ms · portable fp16 | 83.1 ms · portable fp16 | – | – | – | – | – |
+| [`sam-hq-vit-b`](models/promptable_segmentation.md#sam_hq) | – | 645 ms · portable fp32 | 493 ms · portable fp16 | – | – | – | – | – |
+| [`sam-hq-vit-h`](models/promptable_segmentation.md#sam_hq) | – | 2347 ms · portable fp16 | 1901 ms · portable fp16 | – | – | – | – | – |
+| [`sam-hq-vit-l`](models/promptable_segmentation.md#sam_hq) | – | 1292 ms · portable fp16 | 1051 ms · portable fp16 | – | – | – | – | – |
+| [`sam-vit-b`](models/promptable_segmentation.md#sam) | 37.0 ms · kernels fp16 | 600 ms · portable fp16 | 441 ms · portable fp16 | 40.7 ms · kernels fp16 | 15.7 ms · kernels fp16 | 35.1 ms · kernels fp16 | 19.2 ms · kernels fp16 | 10.3 ms · kernels fp16 |
+| [`sam-vit-h`](models/promptable_segmentation.md#sam) | 143 ms · kernels fp16 | 2333 ms · portable fp16 | 1884 ms · portable fp16 | 189 ms · kernels fp16 | 59.1 ms · kernels fp16 | 168 ms · kernels fp16 | 61.3 ms · kernels fp16 | 35.1 ms · kernels fp16 |
+| [`sam-vit-l`](models/promptable_segmentation.md#sam) | 81.5 ms · kernels fp16 | 1279 ms · portable fp16 | 1010 ms · portable fp16 | 102 ms · kernels fp16 | 32.5 ms · kernels fp16 | 91.4 ms · kernels fp16 | 37.5 ms · kernels fp16 | 19.6 ms · kernels fp16 |
+| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#sam2) | – | 394 ms · portable fp16 | 281 ms · portable fp16 | 31.7 ms · kernels fp16 | 10.3 ms · kernels fp16 | 29.1 ms · kernels fp16 | 15.8 ms · portable fp16 | 7.78 ms · portable fp16 |
+| [`sam2.1-hiera-large`](models/promptable_segmentation.md#sam2) | – | 544 ms · portable fp16 | 598 ms · portable fp16 | 65.8 ms · kernels fp16 | 21.4 ms · kernels fp16 | 59.3 ms · kernels fp16 | 27.1 ms · portable fp16 | 13.8 ms · portable fp16 |
+| [`sam2.1-hiera-small`](models/promptable_segmentation.md#sam2) | 15.6 ms · kernels fp16 | 148 ms · portable fp16 | 167 ms · portable fp16 | – | – | – | – | 5.43 ms · portable fp16 |
+| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#sam2) | 13.9 ms · kernels fp16 | 129 ms · portable fp16 | 147 ms · portable fp16 | 17.6 ms · kernels fp16 | 8.14 ms · kernels fp16 | 15.6 ms · kernels fp16 | 12.0 ms · portable fp16 | 5.11 ms · kernels fp16 |
+| [`sam3`](models/promptable_segmentation.md#sam3) | – | 3620 ms · portable fp32 | 1657 ms · portable fp16 | 161 ms · kernels fp16 | 48.6 ms · kernels fp16 | 136 ms · kernels fp16 | 50.8 ms · kernels fp16 | 29.5 ms · kernels fp16 |
 
 #### Detection, 800x1344
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`deim-l-coco`](models/detection.md#dfine) | – | 71.0 ms · portable fp16 | – | – | – | – | – |
-| [`deim-m-coco`](models/detection.md#dfine) | – | 57.3 ms · portable fp16 | – | – | – | – | – |
-| [`deim-n-coco`](models/detection.md#dfine) | – | 22.9 ms · portable fp16 | – | – | – | – | – |
-| [`deim-s-coco`](models/detection.md#dfine) | – | 40.9 ms · portable fp16 | – | – | – | – | – |
-| [`deim-x-coco`](models/detection.md#dfine) | – | 97.7 ms · portable fp16 | – | – | – | – | – |
-| [`detr-r101-coco`](models/detection.md#detr) | 13.7 ms · kernels fp16 | 153 ms · portable fp16 | 12.8 ms · kernels fp16 | 9.91 ms · kernels fp16 | 11.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 3.52 ms · kernels fp16 |
-| [`detr-r50-coco`](models/detection.md#detr) | 9.93 ms · kernels fp16 | 105 ms · portable fp16 | 11.8 ms · kernels fp16 | 8.21 ms · kernels fp16 | 8.64 ms · kernels fp16 | 8.82 ms · kernels fp16 | 3.14 ms · kernels fp16 |
-| [`dfine-l-coco`](models/detection.md#dfine) | – | 71.0 ms · portable fp16 | 9.47 ms · kernels fp16 | 5.16 ms · kernels fp16 | 9.48 ms · kernels fp16 | 9.36 ms · kernels fp16 | 4.23 ms · kernels fp16 |
-| [`dfine-m-coco`](models/detection.md#dfine) | – | 56.6 ms · portable fp16 | – | – | – | – | 3.30 ms · kernels fp16 |
-| [`dfine-n-coco`](models/detection.md#dfine) | – | 25.2 ms · portable fp16 | 3.45 ms · kernels fp16 | 2.41 ms · kernels fp16 | 3.68 ms · kernels fp16 | 4.06 ms · kernels fp16 | 1.89 ms · kernels fp16 |
-| [`dfine-s-coco`](models/detection.md#dfine) | – | 41.0 ms · portable fp16 | – | – | – | – | 2.37 ms · kernels fp16 |
-| [`dfine-x-coco`](models/detection.md#dfine) | – | 101 ms · portable fp16 | 14.8 ms · kernels fp16 | 6.81 ms · kernels fp16 | 14.4 ms · kernels fp16 | 13.1 ms · kernels fp16 | 6.05 ms · kernels fp16 |
-| [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 19.5 ms · kernels fp16 | 192 ms · portable fp16 | 19.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 18.1 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.86 ms · kernels fp16 |
-| [`grounding-dino-base`](models/detection.md#grounding_dino) | – | 1087 ms · portable fp32 | – | – | – | – | – |
-| [`grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 846 ms · portable fp32 | – | – | – | – | – |
-| [`lw-detr-large-coco`](models/detection.md#lwdetr) | – | 72.7 ms · portable fp16 | – | – | – | – | – |
-| [`lw-detr-medium-coco`](models/detection.md#lwdetr) | – | 47.2 ms · portable fp16 | – | – | – | – | – |
-| [`lw-detr-small-coco`](models/detection.md#lwdetr) | – | 54.7 ms · portable fp16 | – | – | – | – | – |
-| [`lw-detr-tiny-coco`](models/detection.md#lwdetr) | – | 41.2 ms · portable fp16 | – | – | – | – | – |
-| [`lw-detr-xlarge-coco`](models/detection.md#lwdetr) | – | 130 ms · portable fp16 | – | – | – | – | – |
-| [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 21.0 ms · kernels fp16 | 203 ms · portable fp16 | 22.1 ms · kernels fp16 | 11.8 ms · kernels fp16 | 20.1 ms · kernels fp16 | 14.7 ms · kernels fp16 | 6.55 ms · kernels fp16 |
-| [`mm-grounding-dino-base`](models/detection.md#grounding_dino) | – | 1273 ms · portable fp32 | – | – | – | – | – |
-| [`mm-grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 1104 ms · portable fp32 | – | – | – | – | – |
-| [`owlv2-b16`](models/detection.md#owlv2) | – | 394 ms · portable fp32 | – | – | – | – | – |
-| [`owlv2-l14`](models/detection.md#owlv2) | – | 2047 ms · portable fp32 | – | – | – | – | – |
-| [`rf-detr-l-coco`](models/detection.md#rfdetr) | – | 75.5 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-m-coco`](models/detection.md#rfdetr) | – | 55.5 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-n-coco`](models/detection.md#rfdetr) | – | 30.3 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-s-coco`](models/detection.md#rfdetr) | – | 44.9 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-2xl-coco`](models/detection.md#rfdetr) | – | 184 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-l-coco`](models/detection.md#rfdetr) | – | 89.2 ms · portable fp32 | – | – | – | – | – |
-| [`rf-detr-seg-m-coco`](models/detection.md#rfdetr) | – | 64.7 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-n-coco`](models/detection.md#rfdetr) | – | 41.8 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-s-coco`](models/detection.md#rfdetr) | – | 50.1 ms · portable fp16 | – | – | – | – | – |
-| [`rf-detr-seg-xl-coco`](models/detection.md#rfdetr) | – | 124 ms · portable fp16 | – | – | – | – | – |
-| [`rtdetrv2-l-coco`](models/detection.md#rtdetrv2) | – | 77.3 ms · portable fp16 | 7.20 ms · kernels fp16 | 3.82 ms · kernels fp16 | 7.63 ms · kernels fp16 | 6.65 ms · kernels fp16 | 3.31 ms · kernels fp16 |
-| [`rtdetrv2-m-coco`](models/detection.md#rtdetrv2) | – | 55.0 ms · portable fp16 | – | – | – | – | 2.68 ms · kernels fp16 |
-| [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | – | 62.7 ms · portable fp16 | – | – | – | – | 2.57 ms · kernels fp16 |
-| [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | – | 44.0 ms · portable fp32 | 4.56 ms · kernels fp16 | 2.76 ms · kernels fp16 | 4.88 ms · kernels fp16 | 4.74 ms · kernels fp16 | 2.21 ms · kernels fp16 |
-| [`rtdetrv2-x-coco`](models/detection.md#rtdetrv2) | – | 109 ms · portable fp16 | 10.1 ms · kernels fp16 | 4.89 ms · kernels fp16 | 10.4 ms · kernels fp16 | 8.11 ms · kernels fp16 | 4.07 ms · kernels fp16 |
-| [`rtmdet-l-coco`](models/detection.md#rtmdet) | – | 75.8 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-m-coco`](models/detection.md#rtmdet) | – | 51.4 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-m-person`](models/detection.md#rtmdet) | – | 48.8 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-nano-person`](models/detection.md#rtmdet) | – | 17.8 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | – | – | – | – | – |
-| [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | – | – | – | – | – |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`deim-l-coco`](models/detection.md#dfine) | – | 71.0 ms · portable fp16 | 59.7 ms · portable fp16 | – | – | – | – | – |
+| [`deim-m-coco`](models/detection.md#dfine) | – | 57.3 ms · portable fp16 | 46.9 ms · portable fp16 | – | – | – | – | – |
+| [`deim-n-coco`](models/detection.md#dfine) | – | 22.9 ms · portable fp16 | 21.0 ms · portable fp16 | – | – | – | – | – |
+| [`deim-s-coco`](models/detection.md#dfine) | – | 40.9 ms · portable fp16 | 30.8 ms · portable fp16 | – | – | – | – | – |
+| [`deim-x-coco`](models/detection.md#dfine) | – | 97.7 ms · portable fp16 | 94.8 ms · portable fp16 | – | – | – | – | – |
+| [`detr-r101-coco`](models/detection.md#detr) | 13.7 ms · kernels fp16 | 153 ms · portable fp16 | 144 ms · portable fp16 | 12.8 ms · kernels fp16 | 9.91 ms · kernels fp16 | 11.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 3.52 ms · kernels fp16 |
+| [`detr-r50-coco`](models/detection.md#detr) | 9.93 ms · kernels fp16 | 105 ms · portable fp16 | 97.2 ms · portable fp16 | 11.8 ms · kernels fp16 | 8.21 ms · kernels fp16 | 8.64 ms · kernels fp16 | 8.82 ms · kernels fp16 | 3.14 ms · kernels fp16 |
+| [`dfine-l-coco`](models/detection.md#dfine) | – | 71.0 ms · portable fp16 | 59.9 ms · portable fp16 | 9.47 ms · kernels fp16 | 5.16 ms · kernels fp16 | 9.48 ms · kernels fp16 | 9.36 ms · kernels fp16 | 4.23 ms · kernels fp16 |
+| [`dfine-m-coco`](models/detection.md#dfine) | – | 56.6 ms · portable fp16 | 46.6 ms · portable fp16 | – | – | – | – | 3.30 ms · kernels fp16 |
+| [`dfine-n-coco`](models/detection.md#dfine) | – | 25.2 ms · portable fp16 | 22.3 ms · portable fp16 | 3.45 ms · kernels fp16 | 2.41 ms · kernels fp16 | 3.68 ms · kernels fp16 | 4.06 ms · kernels fp16 | 1.89 ms · kernels fp16 |
+| [`dfine-s-coco`](models/detection.md#dfine) | – | 41.0 ms · portable fp16 | 29.5 ms · portable fp16 | – | – | – | – | 2.37 ms · kernels fp16 |
+| [`dfine-x-coco`](models/detection.md#dfine) | – | 101 ms · portable fp16 | 94.6 ms · portable fp16 | 14.8 ms · kernels fp16 | 6.81 ms · kernels fp16 | 14.4 ms · kernels fp16 | 13.1 ms · kernels fp16 | 6.05 ms · kernels fp16 |
+| [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 19.5 ms · kernels fp16 | 192 ms · portable fp16 | 126 ms · portable fp16 | 19.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 18.1 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.86 ms · kernels fp16 |
+| [`grounding-dino-base`](models/detection.md#grounding_dino) | – | 1075 ms · portable fp32 | 889 ms · portable fp16 | – | – | – | – | – |
+| [`grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 846 ms · portable fp32 | 753 ms · portable fp16 | – | – | – | – | – |
+| [`lw-detr-large-coco`](models/detection.md#lwdetr) | – | 72.7 ms · portable fp16 | 64.6 ms · portable fp16 | – | – | – | – | – |
+| [`lw-detr-medium-coco`](models/detection.md#lwdetr) | – | 47.2 ms · portable fp16 | 47.4 ms · portable fp32 | – | – | – | – | – |
+| [`lw-detr-small-coco`](models/detection.md#lwdetr) | – | 54.7 ms · portable fp16 | 33.3 ms · portable fp32 | – | – | – | – | – |
+| [`lw-detr-tiny-coco`](models/detection.md#lwdetr) | – | 41.2 ms · portable fp16 | 34.9 ms · portable fp16 | – | – | – | – | – |
+| [`lw-detr-xlarge-coco`](models/detection.md#lwdetr) | – | 130 ms · portable fp16 | 117 ms · portable fp16 | – | – | – | – | – |
+| [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 21.0 ms · kernels fp16 | 203 ms · portable fp16 | 144 ms · portable fp16 | 22.1 ms · kernels fp16 | 11.8 ms · kernels fp16 | 20.1 ms · kernels fp16 | 14.7 ms · kernels fp16 | 6.55 ms · kernels fp16 |
+| [`mm-grounding-dino-base`](models/detection.md#grounding_dino) | – | 1273 ms · portable fp32 | 916 ms · portable fp16 | – | – | – | – | – |
+| [`mm-grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 1104 ms · portable fp32 | 766 ms · portable fp16 | – | – | – | – | – |
+| [`owlv2-b16`](models/detection.md#owlv2) | – | 394 ms · portable fp32 | 290 ms · portable fp16 | – | – | – | – | – |
+| [`owlv2-l14`](models/detection.md#owlv2) | – | 2047 ms · portable fp32 | 1426 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-l-coco`](models/detection.md#rfdetr) | – | 75.5 ms · portable fp16 | 46.9 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-m-coco`](models/detection.md#rfdetr) | – | 55.5 ms · portable fp16 | 33.3 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-n-coco`](models/detection.md#rfdetr) | – | 30.3 ms · portable fp16 | 19.0 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-s-coco`](models/detection.md#rfdetr) | – | 44.9 ms · portable fp16 | 28.0 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-2xl-coco`](models/detection.md#rfdetr) | – | 184 ms · portable fp16 | 137 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-l-coco`](models/detection.md#rfdetr) | – | 89.2 ms · portable fp32 | 50.6 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-m-coco`](models/detection.md#rfdetr) | – | 64.7 ms · portable fp16 | 39.9 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-n-coco`](models/detection.md#rfdetr) | – | 41.8 ms · portable fp16 | 23.8 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-s-coco`](models/detection.md#rfdetr) | – | 50.1 ms · portable fp16 | 30.2 ms · portable fp16 | – | – | – | – | – |
+| [`rf-detr-seg-xl-coco`](models/detection.md#rfdetr) | – | 124 ms · portable fp16 | 84.7 ms · portable fp16 | – | – | – | – | – |
+| [`rtdetrv2-l-coco`](models/detection.md#rtdetrv2) | – | 77.3 ms · portable fp16 | 67.8 ms · portable fp16 | 7.20 ms · kernels fp16 | 3.82 ms · kernels fp16 | 7.63 ms · kernels fp16 | 6.65 ms · kernels fp16 | 3.31 ms · kernels fp16 |
+| [`rtdetrv2-m-coco`](models/detection.md#rtdetrv2) | – | 55.0 ms · portable fp16 | 50.0 ms · portable fp16 | – | – | – | – | 2.68 ms · kernels fp16 |
+| [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | – | 62.7 ms · portable fp16 | 57.4 ms · portable fp16 | – | – | – | – | 2.57 ms · kernels fp16 |
+| [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | – | 44.0 ms · portable fp32 | 37.1 ms · portable fp16 | 4.56 ms · kernels fp16 | 2.76 ms · kernels fp16 | 4.88 ms · kernels fp16 | 4.74 ms · kernels fp16 | 2.21 ms · kernels fp16 |
+| [`rtdetrv2-x-coco`](models/detection.md#rtdetrv2) | – | 109 ms · portable fp16 | 118 ms · portable fp16 | 10.1 ms · kernels fp16 | 4.89 ms · kernels fp16 | 10.4 ms · kernels fp16 | 8.11 ms · kernels fp16 | 4.07 ms · kernels fp16 |
+| [`rtmdet-l-coco`](models/detection.md#rtmdet) | – | 75.8 ms · portable fp16 | 74.9 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-m-coco`](models/detection.md#rtmdet) | – | 51.4 ms · portable fp16 | 50.1 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-m-person`](models/detection.md#rtmdet) | – | 48.8 ms · portable fp16 | 47.7 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-nano-person`](models/detection.md#rtmdet) | – | 17.8 ms · portable fp16 | 8.87 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 25.9 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | 24.4 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | 126 ms · portable fp16 | – | – | – | – | – |
+| [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | 69.6 ms · portable fp16 | – | – | – | – | – |
+| [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | 44.6 ms · portable fp16 | – | – | – | – | – |
+| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 20.8 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | 12.6 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | 121 ms · portable fp16 | – | – | – | – | – |
 
 #### Ocr, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`ppocrv5-mobile`](models/ocr.md#ppocrv5) | 736 ms · portable fp16 |
-| [`ppocrv5-server`](models/ocr.md#ppocrv5) | 1607 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`ppocrv5-mobile`](models/ocr.md#ppocrv5) | 736 ms · portable fp16 | 869 ms · portable fp16 |
+| [`ppocrv5-server`](models/ocr.md#ppocrv5) | 1607 ms · portable fp16 | 1904 ms · portable fp16 |
 
 #### Pose, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`dwpose-l`](models/pose.md#rtmpose) | 76.3 ms · portable fp16 |
-| [`dwpose-l-384`](models/pose.md#rtmpose) | 155 ms · kernels fp32 |
-| [`dwpose-m`](models/pose.md#rtmpose) | 50.9 ms · kernels fp32 |
-| [`dwpose-s`](models/pose.md#rtmpose) | 29.8 ms · kernels fp32 |
-| [`dwpose-t`](models/pose.md#rtmpose) | 23.7 ms · kernels fp32 |
-| [`hrnet-w32`](models/pose.md#hrnet) | 122 ms · portable fp16 |
-| [`hrnet-w32-384`](models/pose.md#hrnet) | 217 ms · portable fp16 |
-| [`hrnet-w48`](models/pose.md#hrnet) | 198 ms · portable fp16 |
-| [`hrnet-w48-384`](models/pose.md#hrnet) | 369 ms · portable fp16 |
-| [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | 15.3 ms · portable fp16 |
-| [`retinaface-resnet50`](models/pose.md#retinaface) | 150 ms · portable fp16 |
-| [`rf-detr-keypoint-preview`](models/pose.md#rfdetr_keypoint) | 148 ms · portable fp32 |
-| [`rtmo-l`](models/pose.md#rtmo) | 61.9 ms · portable fp16 |
-| [`rtmo-m`](models/pose.md#rtmo) | 43.9 ms · portable fp16 |
-| [`rtmo-s`](models/pose.md#rtmo) | 31.0 ms · portable fp16 |
-| [`rtmo-t`](models/pose.md#rtmo) | 19.9 ms · portable fp16 |
-| [`rtmpose-l`](models/pose.md#rtmpose) | 70.0 ms · portable fp16 |
-| [`rtmpose-l-384`](models/pose.md#rtmpose) | 136 ms · portable fp16 |
-| [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | 83.7 ms · portable fp16 |
-| [`rtmpose-l-halpe26-384`](models/pose.md#rtmpose) | 160 ms · portable fp16 |
-| [`rtmpose-m`](models/pose.md#rtmpose) | 45.1 ms · kernels fp32 |
-| [`rtmpose-m-384`](models/pose.md#rtmpose) | 83.9 ms · kernels fp32 |
-| [`rtmpose-m-ap10k`](models/pose.md#rtmpose) | 65.8 ms · portable fp16 |
-| [`rtmpose-m-face6`](models/pose.md#rtmpose) | 67.3 ms · kernels fp32 |
-| [`rtmpose-m-halpe26`](models/pose.md#rtmpose) | 54.4 ms · kernels fp32 |
-| [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | 100 ms · kernels fp32 |
-| [`rtmpose-m-hand5`](models/pose.md#rtmpose) | 50.0 ms · kernels fp32 |
-| [`rtmpose-s`](models/pose.md#rtmpose) | 24.9 ms · kernels fp32 |
-| [`rtmpose-s-face6`](models/pose.md#rtmpose) | 31.9 ms · kernels fp32 |
-| [`rtmpose-s-halpe26`](models/pose.md#rtmpose) | 24.9 ms · kernels fp32 |
-| [`rtmpose-t`](models/pose.md#rtmpose) | 20.1 ms · kernels fp32 |
-| [`rtmpose-t-face6`](models/pose.md#rtmpose) | 25.2 ms · kernels fp32 |
-| [`rtmpose-t-halpe26`](models/pose.md#rtmpose) | 20.0 ms · kernels fp32 |
-| [`rtmpose-x-halpe26-384`](models/pose.md#rtmpose) | 213 ms · portable fp16 |
-| [`rtmw-l`](models/pose.md#rtmpose) | 125 ms · portable fp16 |
-| [`rtmw-l-384`](models/pose.md#rtmpose) | 248 ms · portable fp16 |
-| [`rtmw-m`](models/pose.md#rtmpose) | 90.0 ms · portable fp16 |
-| [`rtmw-x`](models/pose.md#rtmpose) | 184 ms · portable fp16 |
-| [`rtmw-x-384`](models/pose.md#rtmpose) | 363 ms · portable fp16 |
-| [`vitpose-base`](models/pose.md#vitpose) | 172 ms · kernels fp16 |
-| [`vitpose-base-simple`](models/pose.md#vitpose) | 160 ms · kernels fp16 |
-| [`vitpose-plus-base`](models/pose.md#vitpose) | 174 ms · kernels fp16 |
-| [`vitpose-plus-huge`](models/pose.md#vitpose) | 1158 ms · portable fp16 |
-| [`vitpose-plus-large`](models/pose.md#vitpose) | 526 ms · kernels fp16 |
-| [`vitpose-plus-small`](models/pose.md#vitpose) | 66.5 ms · kernels fp16 |
-| [`yunet-n`](models/pose.md#yunet) | 21.6 ms · portable fp16 |
-| [`yunet-s`](models/pose.md#yunet) | 19.4 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`dwpose-l`](models/pose.md#rtmpose) | 76.3 ms · portable fp16 | 81.3 ms · portable fp16 |
+| [`dwpose-l-384`](models/pose.md#rtmpose) | 155 ms · kernels fp32 | 165 ms · portable fp16 |
+| [`dwpose-m`](models/pose.md#rtmpose) | 50.9 ms · kernels fp32 | 54.5 ms · portable fp16 |
+| [`dwpose-s`](models/pose.md#rtmpose) | 29.8 ms · kernels fp32 | 34.4 ms · portable fp16 |
+| [`dwpose-t`](models/pose.md#rtmpose) | 23.7 ms · kernels fp32 | 28.6 ms · portable fp16 |
+| [`hrnet-w32`](models/pose.md#hrnet) | 122 ms · portable fp16 | 109 ms · portable fp16 |
+| [`hrnet-w32-384`](models/pose.md#hrnet) | 217 ms · portable fp16 | 237 ms · portable fp16 |
+| [`hrnet-w48`](models/pose.md#hrnet) | 198 ms · portable fp16 | 222 ms · portable fp16 |
+| [`hrnet-w48-384`](models/pose.md#hrnet) | 369 ms · portable fp16 | 449 ms · portable fp16 |
+| [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | 15.3 ms · portable fp16 | 19.8 ms · portable fp16 |
+| [`retinaface-resnet50`](models/pose.md#retinaface) | 150 ms · portable fp16 | 185 ms · portable fp16 |
+| [`rf-detr-keypoint-preview`](models/pose.md#rfdetr_keypoint) | 148 ms · portable fp32 | 67.0 ms · portable fp16 |
+| [`rtmo-l`](models/pose.md#rtmo) | 61.9 ms · portable fp16 | 71.9 ms · portable fp16 |
+| [`rtmo-m`](models/pose.md#rtmo) | 43.9 ms · portable fp16 | 45.0 ms · portable fp16 |
+| [`rtmo-s`](models/pose.md#rtmo) | 31.0 ms · portable fp16 | 25.6 ms · portable fp16 |
+| [`rtmo-t`](models/pose.md#rtmo) | 19.9 ms · portable fp16 | 14.4 ms · portable fp16 |
+| [`rtmpose-l`](models/pose.md#rtmpose) | 70.0 ms · portable fp16 | 75.1 ms · portable fp16 |
+| [`rtmpose-l-384`](models/pose.md#rtmpose) | 136 ms · portable fp16 | 150 ms · portable fp16 |
+| [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | 83.7 ms · portable fp16 | 75.5 ms · portable fp16 |
+| [`rtmpose-l-halpe26-384`](models/pose.md#rtmpose) | 160 ms · portable fp16 | 151 ms · portable fp16 |
+| [`rtmpose-m`](models/pose.md#rtmpose) | 45.1 ms · kernels fp32 | 50.7 ms · portable fp16 |
+| [`rtmpose-m-384`](models/pose.md#rtmpose) | 83.9 ms · kernels fp32 | 108 ms · portable fp16 |
+| [`rtmpose-m-ap10k`](models/pose.md#rtmpose) | 65.8 ms · portable fp16 | 65.4 ms · portable fp16 |
+| [`rtmpose-m-face6`](models/pose.md#rtmpose) | 67.3 ms · kernels fp32 | 67.7 ms · portable fp16 |
+| [`rtmpose-m-halpe26`](models/pose.md#rtmpose) | 54.4 ms · kernels fp32 | 51.1 ms · portable fp16 |
+| [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | 100 ms · kernels fp32 | 106 ms · portable fp16 |
+| [`rtmpose-m-hand5`](models/pose.md#rtmpose) | 50.0 ms · kernels fp32 | 65.1 ms · portable fp16 |
+| [`rtmpose-s`](models/pose.md#rtmpose) | 24.9 ms · kernels fp32 | 30.5 ms · portable fp16 |
+| [`rtmpose-s-face6`](models/pose.md#rtmpose) | 31.9 ms · kernels fp32 | 39.6 ms · portable fp16 |
+| [`rtmpose-s-halpe26`](models/pose.md#rtmpose) | 24.9 ms · kernels fp32 | 31.0 ms · portable fp16 |
+| [`rtmpose-t`](models/pose.md#rtmpose) | 20.1 ms · kernels fp32 | 25.2 ms · portable fp16 |
+| [`rtmpose-t-face6`](models/pose.md#rtmpose) | 25.2 ms · kernels fp32 | 33.1 ms · portable fp16 |
+| [`rtmpose-t-halpe26`](models/pose.md#rtmpose) | 20.0 ms · kernels fp32 | 25.2 ms · portable fp16 |
+| [`rtmpose-x-halpe26-384`](models/pose.md#rtmpose) | 213 ms · portable fp16 | 257 ms · portable fp16 |
+| [`rtmw-l`](models/pose.md#rtmpose) | 125 ms · portable fp16 | 128 ms · portable fp16 |
+| [`rtmw-l-384`](models/pose.md#rtmpose) | 248 ms · portable fp16 | 280 ms · portable fp16 |
+| [`rtmw-m`](models/pose.md#rtmpose) | 90.0 ms · portable fp16 | 87.2 ms · portable fp16 |
+| [`rtmw-x`](models/pose.md#rtmpose) | 184 ms · portable fp16 | 236 ms · portable fp16 |
+| [`rtmw-x-384`](models/pose.md#rtmpose) | 363 ms · portable fp16 | 472 ms · portable fp16 |
+| [`vitpose-base`](models/pose.md#vitpose) | 172 ms · kernels fp16 | 158 ms · portable fp16 |
+| [`vitpose-base-simple`](models/pose.md#vitpose) | 160 ms · kernels fp16 | 169 ms · portable fp16 |
+| [`vitpose-plus-base`](models/pose.md#vitpose) | 174 ms · kernels fp16 | 158 ms · portable fp16 |
+| [`vitpose-plus-huge`](models/pose.md#vitpose) | 1158 ms · portable fp16 | 877 ms · portable fp16 |
+| [`vitpose-plus-large`](models/pose.md#vitpose) | 526 ms · kernels fp16 | 452 ms · portable fp16 |
+| [`vitpose-plus-small`](models/pose.md#vitpose) | 66.5 ms · kernels fp16 | 72.3 ms · portable fp16 |
+| [`yunet-n`](models/pose.md#yunet) | 21.6 ms · portable fp16 | 22.3 ms · portable fp16 |
+| [`yunet-s`](models/pose.md#yunet) | 19.4 ms · portable fp16 | 17.7 ms · portable fp16 |
 
 #### Features, 224x224
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
-|---|---|---|---|---|---|---|---|
-| [`c-radio-v3-b`](models/features.md#c_radio) | – | 16.5 ms · portable fp16 | – | – | – | – | – |
-| [`c-radio-v3-g`](models/features.md#c_radio) | – | 145 ms · portable fp16 | – | – | – | – | – |
-| [`c-radio-v3-h`](models/features.md#c_radio) | – | 85.0 ms · portable fp16 | – | – | – | – | – |
-| [`c-radio-v3-l`](models/features.md#c_radio) | – | 47.9 ms · portable fp16 | – | – | – | – | – |
-| [`c-radio-v4-h`](models/features.md#c_radio) | – | 86.6 ms · portable fp16 | – | – | – | – | – |
-| [`c-radio-v4-so400m`](models/features.md#c_radio) | – | 58.5 ms · portable fp16 | – | – | – | – | – |
-| [`clip-b16-laion2b`](models/features.md#clip) | – | 15.3 ms · portable fp16 | – | – | – | – | – |
-| [`clip-b16-openai`](models/features.md#clip) | – | 16.1 ms · portable fp16 | – | – | – | – | – |
-| [`clip-h14-378-dfn5b`](models/features.md#clip) | – | 108 ms · portable fp16 | – | – | – | – | – |
-| [`clip-h14-dfn5b`](models/features.md#clip) | – | 109 ms · portable fp16 | – | – | – | – | – |
-| [`clip-h14-laion2b`](models/features.md#clip) | – | 102 ms · portable fp16 | – | – | – | – | – |
-| [`clip-l14-336-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | – | – | – | – | – |
-| [`clip-l14-datacompxl`](models/features.md#clip) | – | 56.7 ms · portable fp16 | – | – | – | – | – |
-| [`clip-l14-dfn2b`](models/features.md#clip) | – | 60.1 ms · portable fp16 | – | – | – | – | – |
-| [`clip-l14-laion2b`](models/features.md#clip) | – | 56.6 ms · portable fp16 | – | – | – | – | – |
-| [`clip-l14-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_base.fb_in22k`](models/features.md#convnext_features) | – | 24.5 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_large.fb_in22k`](models/features.md#convnext_features) | – | 37.5 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_small.fb_in22k`](models/features.md#convnext_features) | – | 17.9 ms · portable fp16 | – | – | – | – | – |
-| [`convnext_tiny.fb_in22k`](models/features.md#convnext_features) | – | 9.96 ms · portable fp16 | – | – | – | – | – |
-| [`dinov2-vitb14`](models/features.md#dinov2) | – | 21.7 ms · portable fp16 | – | – | – | – | 0.985 ms · kernels fp16 |
-| [`dinov2-vitb14-reg`](models/features.md#dinov2) | – | 42.8 ms · portable fp16 | – | – | – | – | 0.987 ms · kernels fp16 |
-| [`dinov2-vitg14`](models/features.md#dinov2) | – | 193 ms · portable fp16 | 22.4 ms · kernels fp16 | 6.66 ms · kernels fp16 | 18.0 ms · kernels fp16 | 9.51 ms · kernels fp16 | 4.95 ms · kernels fp16 |
-| [`dinov2-vitg14-reg`](models/features.md#dinov2) | 13.0 ms · kernels fp16 | 235 ms · portable fp16 | – | – | – | – | 4.94 ms · kernels fp16 |
-| [`dinov2-vitl14`](models/features.md#dinov2) | – | 59.4 ms · portable fp16 | 6.34 ms · kernels fp16 | 2.39 ms · kernels fp16 | 5.34 ms · portable fp16 | 3.77 ms · kernels fp16 | 2.00 ms · kernels fp16 |
-| [`dinov2-vitl14-reg`](models/features.md#dinov2) | – | 86.3 ms · portable fp16 | – | – | – | – | 2.00 ms · kernels fp16 |
-| [`dinov2-vits14`](models/features.md#dinov2) | – | 11.2 ms · portable fp16 | 1.05 ms · kernels fp16 | 0.721 ms · kernels fp16 | 0.996 ms · kernels fp16 | 1.40 ms · kernels fp16 | 0.645 ms · kernels fp16 |
-| [`dinov2-vits14-reg`](models/features.md#dinov2) | – | 22.1 ms · portable fp16 | – | – | – | – | 0.639 ms · kernels fp16 |
-| [`dinov3-convnext-base`](models/features.md#dinov3_convnext) | – | 23.1 ms · portable fp16 | – | – | – | – | 1.78 ms · portable fp16 |
-| [`dinov3-convnext-large`](models/features.md#dinov3_convnext) | – | 36.9 ms · portable fp16 | 4.42 ms · kernels fp16 | 2.36 ms · kernels fp16 | 3.73 ms · kernels fp16 | 4.10 ms · kernels fp16 | 1.88 ms · portable fp16 |
-| [`dinov3-convnext-small`](models/features.md#dinov3_convnext) | – | 18.5 ms · portable fp16 | – | – | – | – | 1.78 ms · kernels fp16 |
-| [`dinov3-convnext-tiny`](models/features.md#dinov3_convnext) | – | 10.6 ms · portable fp16 | 1.46 ms · kernels fp16 | 0.965 ms · kernels fp16 | 1.34 ms · kernels fp16 | 1.79 ms · kernels fp16 | 0.973 ms · kernels fp16 |
-| [`dinov3-vitb16`](models/features.md#dinov3) | – | 20.0 ms · portable fp16 | – | – | – | – | 0.865 ms · kernels fp16 |
-| [`dinov3-vith16plus`](models/features.md#dinov3) | – | 126 ms · portable fp16 | 14.2 ms · kernels fp16 | 4.46 ms · kernels fp16 | 11.4 ms · kernels fp16 | 6.54 ms · kernels fp16 | 3.56 ms · kernels fp16 |
-| [`dinov3-vitl16`](models/features.md#dinov3) | – | 52.7 ms · portable fp16 | 5.22 ms · kernels fp16 | 2.27 ms · kernels fp16 | 3.76 ms · kernels fp16 | 3.64 ms · kernels fp16 | 1.99 ms · kernels fp16 |
-| [`dinov3-vits16`](models/features.md#dinov3) | – | 11.5 ms · portable fp16 | 1.02 ms · kernels fp16 | 0.727 ms · kernels fp16 | 1.02 ms · kernels fp16 | 1.47 ms · kernels fp16 | 0.654 ms · kernels fp16 |
-| [`pe-core-b16-224`](models/features.md#perception_encoder) | – | 16.0 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-core-g14-448`](models/features.md#perception_encoder) | – | 259 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-core-l14-336`](models/features.md#perception_encoder) | – | 58.3 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-core-s16-384`](models/features.md#perception_encoder) | – | 10.4 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-core-t16-384`](models/features.md#perception_encoder) | – | 7.25 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-spatial-b16-512`](models/features.md#perception_encoder) | – | 16.1 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-spatial-g14-448`](models/features.md#perception_encoder) | – | 258 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-spatial-l14-448`](models/features.md#perception_encoder) | – | 57.6 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-spatial-s16-512`](models/features.md#perception_encoder) | – | 8.31 ms · kernels fp16 | – | – | – | – | – |
-| [`pe-spatial-t16-512`](models/features.md#perception_encoder) | – | 5.94 ms · kernels fp16 | – | – | – | – | – |
-| [`siglip2-b16-256`](models/features.md#siglip2) | – | 15.8 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-b16-512`](models/features.md#siglip2) | – | 15.8 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-g16-256`](models/features.md#siglip2) | – | 143 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-g16-384`](models/features.md#siglip2) | – | 142 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-l16-256`](models/features.md#siglip2) | – | 45.9 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-l16-512`](models/features.md#siglip2) | – | 45.5 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-so400m14-224`](models/features.md#siglip2) | – | 70.2 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-so400m14-378`](models/features.md#siglip2) | – | 68.6 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-so400m16-256`](models/features.md#siglip2) | – | 57.5 ms · portable fp16 | – | – | – | – | – |
-| [`siglip2-so400m16-512`](models/features.md#siglip2) | – | 56.8 ms · portable fp16 | – | – | – | – | – |
-| [`tipsv2-b14`](models/features.md#tipsv2) | – | 23.1 ms · portable fp16 | – | – | – | – | – |
-| [`tipsv2-l14`](models/features.md#tipsv2) | – | 59.9 ms · portable fp16 | – | – | – | – | – |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
+|---|---|---|---|---|---|---|---|---|
+| [`c-radio-v3-b`](models/features.md#c_radio) | – | 16.5 ms · portable fp16 | 16.4 ms · portable fp16 | – | – | – | – | – |
+| [`c-radio-v3-g`](models/features.md#c_radio) | – | 145 ms · portable fp16 | 158 ms · portable fp16 | – | – | – | – | – |
+| [`c-radio-v3-h`](models/features.md#c_radio) | – | 85.0 ms · portable fp16 | 93.5 ms · portable fp16 | – | – | – | – | – |
+| [`c-radio-v3-l`](models/features.md#c_radio) | – | 47.9 ms · portable fp16 | 47.9 ms · portable fp16 | – | – | – | – | – |
+| [`c-radio-v4-h`](models/features.md#c_radio) | – | 86.6 ms · portable fp16 | 88.0 ms · portable fp16 | – | – | – | – | – |
+| [`c-radio-v4-so400m`](models/features.md#c_radio) | – | 58.5 ms · portable fp16 | 62.2 ms · portable fp16 | – | – | – | – | – |
+| [`clip-b16-laion2b`](models/features.md#clip) | – | 15.3 ms · portable fp16 | 14.2 ms · portable fp16 | – | – | – | – | – |
+| [`clip-b16-openai`](models/features.md#clip) | – | 16.1 ms · portable fp16 | 15.3 ms · portable fp16 | – | – | – | – | – |
+| [`clip-h14-378-dfn5b`](models/features.md#clip) | – | 108 ms · portable fp16 | 105 ms · portable fp16 | – | – | – | – | – |
+| [`clip-h14-dfn5b`](models/features.md#clip) | – | 109 ms · portable fp16 | 105 ms · portable fp16 | – | – | – | – | – |
+| [`clip-h14-laion2b`](models/features.md#clip) | – | 102 ms · portable fp16 | 105 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-336-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | 54.5 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-datacompxl`](models/features.md#clip) | – | 56.7 ms · portable fp16 | 54.6 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-dfn2b`](models/features.md#clip) | – | 60.1 ms · portable fp16 | 54.4 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-laion2b`](models/features.md#clip) | – | 56.6 ms · portable fp16 | 54.5 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | 54.7 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_base.fb_in22k`](models/features.md#convnext_features) | – | 24.5 ms · portable fp16 | 18.1 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_large.fb_in22k`](models/features.md#convnext_features) | – | 37.5 ms · portable fp16 | 29.2 ms · kernels fp16 | – | – | – | – | – |
+| [`convnext_small.fb_in22k`](models/features.md#convnext_features) | – | 17.9 ms · portable fp16 | 12.1 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_tiny.fb_in22k`](models/features.md#convnext_features) | – | 9.96 ms · portable fp16 | 7.47 ms · kernels fp16 | – | – | – | – | – |
+| [`dinov2-vitb14`](models/features.md#dinov2) | – | 24.7 ms · portable fp16 | 18.6 ms · portable fp16 | – | – | – | – | 0.985 ms · kernels fp16 |
+| [`dinov2-vitb14-reg`](models/features.md#dinov2) | – | 46.4 ms · portable fp16 | 18.0 ms · portable fp16 | – | – | – | – | 0.987 ms · kernels fp16 |
+| [`dinov2-vitg14`](models/features.md#dinov2) | – | 218 ms · portable fp16 | 193 ms · portable fp16 | 22.4 ms · kernels fp16 | 6.66 ms · kernels fp16 | 18.0 ms · kernels fp16 | 9.51 ms · kernels fp16 | 4.95 ms · kernels fp16 |
+| [`dinov2-vitg14-reg`](models/features.md#dinov2) | 13.0 ms · kernels fp16 | 261 ms · portable fp16 | 203 ms · portable fp16 | – | – | – | – | 4.94 ms · kernels fp16 |
+| [`dinov2-vitl14`](models/features.md#dinov2) | – | 65.2 ms · portable fp16 | 55.5 ms · portable fp16 | 6.34 ms · kernels fp16 | 2.39 ms · kernels fp16 | 5.34 ms · portable fp16 | 3.77 ms · kernels fp16 | 2.00 ms · kernels fp16 |
+| [`dinov2-vitl14-reg`](models/features.md#dinov2) | – | 95.7 ms · portable fp16 | 58.2 ms · portable fp16 | – | – | – | – | 2.00 ms · kernels fp16 |
+| [`dinov2-vits14`](models/features.md#dinov2) | – | 12.7 ms · portable fp16 | 7.21 ms · portable fp16 | 1.05 ms · kernels fp16 | 0.721 ms · kernels fp16 | 0.996 ms · kernels fp16 | 1.40 ms · kernels fp16 | 0.645 ms · kernels fp16 |
+| [`dinov2-vits14-reg`](models/features.md#dinov2) | – | 23.7 ms · portable fp16 | 7.22 ms · portable fp16 | – | – | – | – | 0.639 ms · kernels fp16 |
+| [`dinov3-convnext-base`](models/features.md#dinov3_convnext) | – | 23.1 ms · portable fp16 | 16.0 ms · kernels fp16 | – | – | – | – | 1.78 ms · portable fp16 |
+| [`dinov3-convnext-large`](models/features.md#dinov3_convnext) | – | 36.9 ms · portable fp16 | 29.9 ms · portable fp16 | 4.42 ms · kernels fp16 | 2.36 ms · kernels fp16 | 3.73 ms · kernels fp16 | 4.10 ms · kernels fp16 | 1.88 ms · portable fp16 |
+| [`dinov3-convnext-small`](models/features.md#dinov3_convnext) | – | 18.5 ms · portable fp16 | 11.9 ms · portable fp16 | – | – | – | – | 1.78 ms · kernels fp16 |
+| [`dinov3-convnext-tiny`](models/features.md#dinov3_convnext) | – | 10.6 ms · portable fp16 | 7.23 ms · portable fp16 | 1.46 ms · kernels fp16 | 0.965 ms · kernels fp16 | 1.34 ms · kernels fp16 | 1.79 ms · kernels fp16 | 0.973 ms · kernels fp16 |
+| [`dinov3-vitb16`](models/features.md#dinov3) | – | 22.5 ms · portable fp16 | 15.0 ms · portable fp16 | – | – | – | – | 0.865 ms · kernels fp16 |
+| [`dinov3-vith16plus`](models/features.md#dinov3) | – | 143 ms · portable fp16 | 120 ms · portable fp16 | 14.2 ms · kernels fp16 | 4.46 ms · kernels fp16 | 11.4 ms · kernels fp16 | 6.54 ms · kernels fp16 | 3.56 ms · kernels fp16 |
+| [`dinov3-vitl16`](models/features.md#dinov3) | – | 61.5 ms · portable fp16 | 45.8 ms · portable fp16 | 5.22 ms · kernels fp16 | 2.27 ms · kernels fp16 | 3.76 ms · kernels fp16 | 3.64 ms · kernels fp16 | 1.99 ms · kernels fp16 |
+| [`dinov3-vits16`](models/features.md#dinov3) | – | 13.5 ms · portable fp16 | 6.53 ms · portable fp16 | 1.02 ms · kernels fp16 | 0.727 ms · kernels fp16 | 1.02 ms · kernels fp16 | 1.47 ms · kernels fp16 | 0.654 ms · kernels fp16 |
+| [`pe-core-b16-224`](models/features.md#perception_encoder) | – | 16.0 ms · kernels fp16 | 18.0 ms · portable fp32 | – | – | – | – | – |
+| [`pe-core-g14-448`](models/features.md#perception_encoder) | – | 259 ms · kernels fp16 | 296 ms · portable fp32 | – | – | – | – | – |
+| [`pe-core-l14-336`](models/features.md#perception_encoder) | – | 58.3 ms · kernels fp16 | 67.0 ms · portable fp32 | – | – | – | – | – |
+| [`pe-core-s16-384`](models/features.md#perception_encoder) | – | 10.4 ms · kernels fp16 | 7.59 ms · portable fp32 | – | – | – | – | – |
+| [`pe-core-t16-384`](models/features.md#perception_encoder) | – | 7.25 ms · kernels fp16 | 4.75 ms · portable fp32 | – | – | – | – | – |
+| [`pe-spatial-b16-512`](models/features.md#perception_encoder) | – | 16.1 ms · kernels fp16 | 17.6 ms · portable fp32 | – | – | – | – | – |
+| [`pe-spatial-g14-448`](models/features.md#perception_encoder) | – | 258 ms · kernels fp16 | 291 ms · portable fp32 | – | – | – | – | – |
+| [`pe-spatial-l14-448`](models/features.md#perception_encoder) | – | 57.6 ms · kernels fp16 | 66.3 ms · portable fp32 | – | – | – | – | – |
+| [`pe-spatial-s16-512`](models/features.md#perception_encoder) | – | 8.31 ms · kernels fp16 | 7.38 ms · portable fp32 | – | – | – | – | – |
+| [`pe-spatial-t16-512`](models/features.md#perception_encoder) | – | 5.94 ms · kernels fp16 | 4.31 ms · portable fp32 | – | – | – | – | – |
+| [`siglip2-b16-256`](models/features.md#siglip2) | – | 15.8 ms · portable fp16 | 16.6 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-b16-512`](models/features.md#siglip2) | – | 15.8 ms · portable fp16 | 14.7 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-g16-256`](models/features.md#siglip2) | – | 143 ms · portable fp16 | 150 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-g16-384`](models/features.md#siglip2) | – | 142 ms · portable fp16 | 154 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-l16-256`](models/features.md#siglip2) | – | 45.9 ms · portable fp16 | 44.5 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-l16-512`](models/features.md#siglip2) | – | 45.5 ms · portable fp16 | 44.7 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-so400m14-224`](models/features.md#siglip2) | – | 70.2 ms · portable fp16 | 65.7 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-so400m14-378`](models/features.md#siglip2) | – | 68.6 ms · portable fp16 | 66.4 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-so400m16-256`](models/features.md#siglip2) | – | 57.5 ms · portable fp16 | 65.2 ms · portable fp16 | – | – | – | – | – |
+| [`siglip2-so400m16-512`](models/features.md#siglip2) | – | 56.8 ms · portable fp16 | 64.0 ms · portable fp16 | – | – | – | – | – |
+| [`tipsv2-b14`](models/features.md#tipsv2) | – | 24.0 ms · portable fp16 | 17.8 ms · portable fp16 | – | – | – | – | – |
+| [`tipsv2-l14`](models/features.md#tipsv2) | – | 61.7 ms · portable fp16 | 68.5 ms · portable fp32 | – | – | – | – | – |
 
 #### Retrieval, 480x640
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`boq-dinov2`](models/retrieval.md#boq) | 48.2 ms · portable fp16 |
-| [`megaloc`](models/retrieval.md#megaloc) | 45.2 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`boq-dinov2`](models/retrieval.md#boq) | 48.2 ms · portable fp16 | 52.1 ms · portable fp32 |
+| [`megaloc`](models/retrieval.md#megaloc) | 45.2 ms · portable fp16 | 55.3 ms · portable fp32 |
 
 #### Calibration, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`anycalib-pinhole`](models/calibration.md#anycalib) | 266 ms · portable fp32 |
-| [`geocalib-pinhole`](models/calibration.md#geocalib) | 427 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`anycalib-pinhole`](models/calibration.md#anycalib) | 266 ms · portable fp32 | 342 ms · portable fp32 |
+| [`geocalib-pinhole`](models/calibration.md#geocalib) | 427 ms · portable fp16 | 352 ms · portable fp16 |
 
 #### Flow, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`flowformer-small-chairs`](models/flow.md#flowformer) | OOM |
-| [`flowformer-small-sintel`](models/flow.md#flowformer) | OOM |
-| [`flowformer-small-things`](models/flow.md#flowformer) | OOM |
-| [`flowseek-t`](models/flow.md#flowseek) | OOM |
-| [`flowseek-t-things`](models/flow.md#flowseek) | OOM |
-| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 3268 ms · portable fp16 |
-| [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | 3269 ms · portable fp32 |
-| [`gmflow-scale1-things`](models/flow.md#gmflow) | 3269 ms · portable fp32 |
-| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | OOM |
-| [`gmflow-scale2-things`](models/flow.md#gmflow) | OOM |
-| [`megaflow`](models/flow.md#megaflow) | 11196 ms · portable fp16 |
-| [`memflow`](models/flow.md#memflow) | 10016 ms · portable fp32 |
-| [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 |
-| [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 |
-| [`memfof`](models/flow.md#memfof) | 3054 ms · portable fp32 |
-| [`neuflow-v2`](models/flow.md#neuflow_v2) | 1039 ms · portable fp32 |
-| [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 1076 ms · portable fp32 |
-| [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 945 ms · portable fp32 |
-| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 |
-| [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 |
-| [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 |
-| [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 |
-| [`recover-cx`](models/flow.md#recover) | 853 ms · portable fp16 |
-| [`recover-mn`](models/flow.md#recover) | 347 ms · portable fp16 |
-| [`recover-rn`](models/flow.md#recover) | 405 ms · portable fp16 |
-| [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 |
-| [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 1222 ms · kernels fp16 |
-| [`sea-raft-m-spring`](models/flow.md#sea_raft) | 340 ms · kernels fp16 |
-| [`sea-raft-m-things`](models/flow.md#sea_raft) | 1221 ms · kernels fp16 |
-| [`sea-raft-s`](models/flow.md#sea_raft) | 833 ms · kernels fp16 |
-| [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 831 ms · kernels fp16 |
-| [`sea-raft-s-spring`](models/flow.md#sea_raft) | 233 ms · kernels fp16 |
-| [`waft-a1`](models/flow.md#waft) | 7168 ms · portable fp16 |
-| [`waft-a1-kitti`](models/flow.md#waft) | 7384 ms · portable fp16 |
-| [`waft-a1-sintel`](models/flow.md#waft) | 7430 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`flowformer-small-chairs`](models/flow.md#flowformer) | 17028 ms · portable fp16 | 13009 ms · portable fp16 |
+| [`flowformer-small-sintel`](models/flow.md#flowformer) | 18139 ms · portable fp16 | 13044 ms · portable fp16 |
+| [`flowformer-small-things`](models/flow.md#flowformer) | 17596 ms · portable fp16 | 13011 ms · portable fp16 |
+| [`flowseek-t`](models/flow.md#flowseek) | 2756 ms · portable fp16 | 2160 ms · portable fp16 |
+| [`flowseek-t-things`](models/flow.md#flowseek) | 2703 ms · portable fp32 | 1760 ms · portable fp16 |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 2694 ms · portable fp32 | 1760 ms · portable fp16 |
+| [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | 2904 ms · portable fp16 | 4340 ms · portable fp16 |
+| [`gmflow-scale1-things`](models/flow.md#gmflow) | 2756 ms · portable fp16 | 3871 ms · portable fp16 |
+| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | 6039 ms · portable fp16 | 8276 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | 10998 ms · portable fp16 | 11251 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | 11156 ms · portable fp16 | 11296 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | 10867 ms · portable fp16 | 10975 ms · portable fp16 |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | 11300 ms · portable fp16 | 11280 ms · portable fp16 |
+| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | 5725 ms · portable fp16 | 8283 ms · portable fp16 |
+| [`gmflow-scale2-things`](models/flow.md#gmflow) | 5982 ms · portable fp16 | 8261 ms · portable fp16 |
+| [`megaflow`](models/flow.md#megaflow) | 11141 ms · portable fp16 | 8480 ms · portable fp16 |
+| [`memflow`](models/flow.md#memflow) | 10016 ms · portable fp32 | 6997 ms · portable fp16 |
+| [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 | 6988 ms · portable fp16 |
+| [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 | 6990 ms · portable fp16 |
+| [`memfof`](models/flow.md#memfof) | 3054 ms · portable fp32 | 3317 ms · portable fp16 |
+| [`memfof-kitti`](models/flow.md#memfof) | OOM | 16074 ms · portable fp16 |
+| [`memfof-sintel`](models/flow.md#memfof) | OOM | 16049 ms · portable fp16 |
+| [`memfof-spring`](models/flow.md#memfof) | 3060 ms · portable fp32 | 3319 ms · portable fp16 |
+| [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 781 ms · portable fp32 |
+| [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 721 ms · portable fp16 | 960 ms · portable fp16 |
+| [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 739 ms · portable fp16 | 941 ms · portable fp32 |
+| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 996 ms · portable fp16 |
+| [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 | 1094 ms · portable fp16 |
+| [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 | 1127 ms · portable fp16 |
+| [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 | 332 ms · portable fp16 |
+| [`recover-cx`](models/flow.md#recover) | 853 ms · portable fp16 | 758 ms · portable fp16 |
+| [`recover-mn`](models/flow.md#recover) | 347 ms · portable fp16 | 316 ms · portable fp16 |
+| [`recover-rn`](models/flow.md#recover) | 405 ms · portable fp16 | 429 ms · portable fp16 |
+| [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 | 1011 ms · portable fp16 |
+| [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 1222 ms · kernels fp16 | 1043 ms · portable fp16 |
+| [`sea-raft-m-spring`](models/flow.md#sea_raft) | 340 ms · kernels fp16 | 281 ms · portable fp16 |
+| [`sea-raft-m-things`](models/flow.md#sea_raft) | 1221 ms · kernels fp16 | 1041 ms · portable fp16 |
+| [`sea-raft-s`](models/flow.md#sea_raft) | 833 ms · kernels fp16 | 665 ms · portable fp16 |
+| [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 831 ms · kernels fp16 | 665 ms · portable fp16 |
+| [`sea-raft-s-spring`](models/flow.md#sea_raft) | 233 ms · kernels fp16 | 172 ms · portable fp16 |
+| [`waft-a1`](models/flow.md#waft) | 7168 ms · portable fp16 | 6080 ms · portable fp16 |
+| [`waft-a1-kitti`](models/flow.md#waft) | 7384 ms · portable fp16 | 6078 ms · portable fp16 |
+| [`waft-a1-sintel`](models/flow.md#waft) | 7430 ms · portable fp16 | 6076 ms · portable fp16 |
 
 #### Matching, 768x1024
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`aliked-lightglue`](models/matching.md#lightglue) | 206 ms · portable fp32 |
-| [`dedode-v2-b`](models/matching.md#dedode) | 1464 ms · portable fp32 |
-| [`dedode-v2-g`](models/matching.md#dedode) | 3767 ms · portable fp32 |
-| [`disk-lightglue`](models/matching.md#lightglue) | 1994 ms · portable fp32 |
-| [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 |
-| [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 |
-| [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 |
-| [`romav2`](models/matching.md#romav2) | 5901 ms · portable fp32 |
-| [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 |
-| [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`aliked-flexglue`](models/matching.md#flexglue) | 1069 ms · portable fp16 | 938 ms · portable fp32 |
+| [`aliked-lightglue`](models/matching.md#lightglue) | 206 ms · portable fp32 | 101 ms · portable fp32 |
+| [`dedode-v2-b`](models/matching.md#dedode) | 1464 ms · portable fp32 | 1814 ms · portable fp16 |
+| [`dedode-v2-g`](models/matching.md#dedode) | 3767 ms · portable fp32 | 3222 ms · portable fp16 |
+| [`disk-lightglue`](models/matching.md#lightglue) | 1994 ms · portable fp32 | 697 ms · portable fp16 |
+| [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 | 1549 ms · portable fp16 |
+| [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 | 1526 ms · portable fp16 |
+| [`loma-b`](models/matching.md#loma) | 3041 ms · portable fp32 | 2760 ms · portable fp16 |
+| [`loma-b128`](models/matching.md#loma) | 1065 ms · portable fp32 | 1085 ms · portable fp16 |
+| [`loma-b64`](models/matching.md#loma) | 917 ms · portable fp32 | 828 ms · portable fp16 |
+| [`loma-g`](models/matching.md#loma) | 3628 ms · portable fp32 | 3230 ms · portable fp16 |
+| [`loma-l`](models/matching.md#loma) | 3178 ms · portable fp32 | 2810 ms · portable fp16 |
+| [`loma-r`](models/matching.md#loma) | 3076 ms · portable fp32 | 2708 ms · portable fp16 |
+| [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 | 3135 ms · portable fp16 |
+| [`romav2`](models/matching.md#romav2) | 3981 ms · kernels fp32 | 3368 ms · kernels fp16 |
+| [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 | 29.9 ms · portable fp32 |
+| [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 | 135 ms · portable fp32 |
 
 #### Tracking, 480x854
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`alltracker`](models/tracking.md#alltracker) | 3200 ms · portable fp16 |
-| [`alltracker-tiny`](models/tracking.md#alltracker) | 2743 ms · portable fp16 |
-| [`bootstapir`](models/tracking.md#tapir) | 1721 ms · portable fp32 |
-| [`locotrack-b`](models/tracking.md#locotrack) | 2104 ms · portable fp32 |
-| [`locotrack-s`](models/tracking.md#locotrack) | 1781 ms · portable fp32 |
-| [`tapir`](models/tracking.md#tapir) | 1382 ms · portable fp32 |
-| [`tapnext`](models/tracking.md#tapnext) | 5855 ms · portable fp32 |
-| [`track-on-r`](models/tracking.md#track_on) | 8274 ms · portable fp32 |
-| [`track-on2`](models/tracking.md#track_on) | 8354 ms · portable fp32 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`alltracker`](models/tracking.md#alltracker) | 3067 ms · portable fp16 | 2288 ms · portable fp16 |
+| [`alltracker-tiny`](models/tracking.md#alltracker) | 2743 ms · portable fp16 | 2174 ms · portable fp16 |
+| [`bootstapir`](models/tracking.md#tapir) | 1704 ms · portable fp32 | 1881 ms · portable fp32 |
+| [`cotracker3-offline`](models/tracking.md#cotracker) | 1528 ms · portable fp32 | 1455 ms · portable fp16 |
+| [`cotracker3-online`](models/tracking.md#cotracker) | 1829 ms · portable fp32 | 1491 ms · portable fp16 |
+| [`locotrack-b`](models/tracking.md#locotrack) | 1786 ms · portable fp32 | 1113 ms · portable fp16 |
+| [`locotrack-s`](models/tracking.md#locotrack) | 1781 ms · portable fp32 | 961 ms · portable fp16 |
+| [`tapir`](models/tracking.md#tapir) | 1356 ms · portable fp32 | 1592 ms · portable fp32 |
+| [`tapnext`](models/tracking.md#tapnext) | 5855 ms · portable fp32 | 3724 ms · portable fp16 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | 5610 ms · portable fp32 | 3746 ms · portable fp16 |
+| [`track-on-r`](models/tracking.md#track_on) | 8274 ms · portable fp32 | 8822 ms · portable fp16 |
+| [`track-on2`](models/tracking.md#track_on) | 8370 ms · portable fp32 | 8827 ms · portable fp16 |
 
 #### Interpolation, 1080x1920
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`ema-vfi`](models/interpolation.md#ema_vfi) | 1981 ms · portable fp16 |
-| [`ema-vfi-small`](models/interpolation.md#ema_vfi) | 556 ms · portable fp16 |
-| [`ema-vfi-small-t`](models/interpolation.md#ema_vfi) | 513 ms · portable fp16 |
-| [`ema-vfi-t`](models/interpolation.md#ema_vfi) | 2272 ms · portable fp16 |
-| [`film`](models/interpolation.md#film) | OOM |
-| [`gimm-vfi-r`](models/interpolation.md#gimm_vfi) | OOM |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm_vfi) | OOM |
-| [`rife-4.25`](models/interpolation.md#rife) | 106 ms · portable fp16 |
-| [`rife-4.25-lite`](models/interpolation.md#rife) | 80.0 ms · portable fp16 |
-| [`rife-4.26`](models/interpolation.md#rife) | 103 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`ema-vfi`](models/interpolation.md#ema_vfi) | 1981 ms · portable fp16 | 1320 ms · portable fp16 |
+| [`ema-vfi-small`](models/interpolation.md#ema_vfi) | 556 ms · portable fp16 | 426 ms · portable fp16 |
+| [`ema-vfi-small-t`](models/interpolation.md#ema_vfi) | 513 ms · portable fp16 | 427 ms · portable fp16 |
+| [`ema-vfi-t`](models/interpolation.md#ema_vfi) | 2272 ms · portable fp16 | 1325 ms · portable fp16 |
+| [`film`](models/interpolation.md#film) | 4477 ms · portable fp16 | 6590 ms · portable fp16 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm_vfi) | 17906 ms · portable fp16 | 30451 ms · portable fp16 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm_vfi) | 18002 ms · portable fp16 | 16157 ms · portable fp16 |
+| [`rife-4.25`](models/interpolation.md#rife) | 106 ms · portable fp16 | 78.5 ms · portable fp16 |
+| [`rife-4.25-lite`](models/interpolation.md#rife) | 80.0 ms · portable fp16 | 63.3 ms · portable fp16 |
+| [`rife-4.26`](models/interpolation.md#rife) | 103 ms · portable fp16 | 78.3 ms · portable fp16 |
 
 #### Restoration, 512x512
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 |
-| [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 |
-| [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 |
-| [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 |
-| [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 |
-| [`drct-l-x4`](models/restoration.md#drct) | OOM |
-| [`drct-x4`](models/restoration.md#drct) | OOM |
-| [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 |
-| [`hat-s-x4`](models/restoration.md#hat) | OOM |
-| [`hat-x4`](models/restoration.md#hat) | OOM |
-| [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 |
-| [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 |
-| [`real-hat-gan-x4`](models/restoration.md#hat) | OOM |
-| [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 |
-| [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 |
-| [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 |
-| [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 |
-| [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 |
-| [`restormer-deblur`](models/restoration.md#restormer) | 1376 ms · portable fp32 |
-| [`restormer-derain`](models/restoration.md#restormer) | 1678 ms · portable fp32 |
-| [`restormer-sidd`](models/restoration.md#restormer) | 2218 ms · portable fp32 |
-| [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported |
-| [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported |
-| [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 |
-| [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 |
-| [`swin2sr-x2`](models/restoration.md#swin2sr) | 9258 ms · portable fp16 |
-| [`swin2sr-x4`](models/restoration.md#swin2sr) | 9410 ms · portable fp16 |
-| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 9531 ms · portable fp16 |
-| [`swinir-l-x4-real`](models/restoration.md#swinir) | 9874 ms · portable fp16 |
-| [`swinir-m-x2`](models/restoration.md#swinir) | 5797 ms · portable fp16 |
-| [`swinir-m-x4`](models/restoration.md#swinir) | 5893 ms · portable fp16 |
-| [`swinir-m-x4-real`](models/restoration.md#swinir) | 5851 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 | 225 ms · portable fp16 |
+| [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 | 239 ms · kernels fp16 |
+| [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 | 12210 ms · portable fp32 |
+| [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 | 1870 ms · portable fp16 |
+| [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 | 9358 ms · portable fp16 |
+| [`drct-l-x4`](models/restoration.md#drct) | 12431 ms · portable fp16 | 18644 ms · portable fp16 |
+| [`drct-x4`](models/restoration.md#drct) | 6277 ms · portable fp16 | 10754 ms · portable fp16 |
+| [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 | 159 ms · portable fp16 |
+| [`hat-s-x4`](models/restoration.md#hat) | 13687 ms · portable fp16 | 10010 ms · portable fp16 |
+| [`hat-x4`](models/restoration.md#hat) | 8044 ms · portable fp16 | 11318 ms · portable fp16 |
+| [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 | 293 ms · kernels fp16 |
+| [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 | 228 ms · kernels fp16 |
+| [`real-hat-gan-x4`](models/restoration.md#hat) | 7775 ms · portable fp16 | 15831 ms · portable fp16 |
+| [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 | 104 ms · kernels fp16 |
+| [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 | 567 ms · kernels fp16 |
+| [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2184 ms · kernels fp16 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 | 849 ms · kernels fp16 |
+| [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 | 1020 ms · kernels fp16 |
+| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 601 ms · portable fp16 |
+| [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 737 ms · portable fp16 |
+| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 665 ms · portable fp16 |
+| [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported | 14023 ms · portable fp16 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported | 25365 ms · portable bf16 |
+| [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 | 76.5 ms · kernels fp16 |
+| [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 | 86.0 ms · kernels fp16 |
+| [`swin2sr-x2`](models/restoration.md#swin2sr) | 4607 ms · portable fp16 | 5144 ms · portable fp16 |
+| [`swin2sr-x4`](models/restoration.md#swin2sr) | 4690 ms · portable fp16 | 4902 ms · portable fp16 |
+| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 4751 ms · portable fp16 | 5522 ms · portable fp16 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | 7252 ms · portable fp16 | 8691 ms · portable fp16 |
+| [`swinir-m-x2`](models/restoration.md#swinir) | 3674 ms · portable fp16 | 4312 ms · portable fp16 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | 3750 ms · portable fp16 | 4217 ms · portable fp16 |
+| [`swinir-m-x4-real`](models/restoration.md#swinir) | 3829 ms · portable fp16 | 4668 ms · portable fp16 |
 
 #### Volume, 200x200
 
-| model | Apple M1 Pro 16 GB |
-|---|---|
-| [`nnfoundation-cnn`](models/volume.md#nnfoundation) | 2935 ms · portable fp16 |
-| [`nninteractive`](models/volume.md#nninteractive) | 3525 ms · portable fp32 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 23070 ms · portable fp16 |
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 522 ms · portable fp16 |
+| model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
+|---|---|---|
+| [`nnfoundation-cnn`](models/volume.md#nnfoundation) | 3302 ms · portable fp16 | 3520 ms · portable fp16 |
+| [`nninteractive`](models/volume.md#nninteractive) | 3525 ms · portable fp32 | 3797 ms · portable fp16 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 23070 ms · portable fp16 | 33823 ms · portable fp16 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 522 ms · portable fp16 | 740 ms · portable fp16 |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)
@@ -748,15 +774,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 263 | 194 | 159 | 88.9 | 2.2x | 1.8x | 3652 / 3784 | 1142 / 1278 | 813 / 920 |
 | aanet-sceneflow | 289 | 178 | 140 | 101 | 1.8x | 1.4x | 1000 / 1126 | 845 / 986 | 536 / 644 |
-| bridgedepth-rvc-pretrain | 629 | 470 | 442 | 354 | 1.3x | 1.2x | 2903 / 3200 | 2968 / 3246 | 2361 / 2686 |
-| bridgedepth-sf | 616 | 460 | 437 | 348 | 1.3x | 1.3x | 2852 / 3144 | 2916 / 3214 | 2310 / 2634 |
+| bridgedepth-rvc-pretrain | 629 | 470 | 444 | 355 | 1.3x | 1.3x | 2903 / 3200 | 2707 / 2924 | 2097 / 2322 |
+| bridgedepth-sf | 616 | 460 | 438 | 350 | 1.3x | 1.3x | 2852 / 3144 | 2656 / 2872 | 2046 / 2270 |
 | c-fast-foundationstereo | 741 | 527 | 330 | 135 | 3.9x | 2.4x | 2892 / 2996 | 2109 / 2336 | 1196 / 1516 |
-| c-foundationstereo-s | OOM | 3874 | – | – | – | – | 8338 / 12870 | – | – |
+| c-foundationstereo-s | OOM | 3874 | 3628 | – | – | – | 8338 / 12870 | 3857 / 4152 | – |
 | cas-gwcnet-c-sceneflow | 656 | 389 | 327 | 225 | 1.7x | 1.5x | 2791 / 2970 | 2006 / 2474 | 1725 / 1930 |
 | cas-gwcnet-gc-sceneflow | 862 | 567 | 472 | 358 | 1.6x | 1.3x | 8317 / 8730 | 2338 / 2794 | 2272 / 2514 |
 | cfnet-sceneflow | 659 | 545 | – | – | – | – | 6765 / 7880 | – | – |
 | coex-sceneflow | 94.9 | 60.0 | – | – | – | – | 2098 / 2160 | – | – |
-| crestereo-eth3d | 1980 | 1597 | 732 | 229 | 7.0x | 3.2x | 1541 / 1752 | 884 / 1030 | 644 / 732 |
+| crestereo-eth3d | 1980 | 1597 | 724 | 229 | 7.0x | 3.2x | 1541 / 1752 | 810 / 946 | 644 / 732 |
 | defom-stereo-vitl-sceneflow | 4175 | 2816 | 1531 | 659 | 4.3x | 2.3x | 8639 / 8766 | 4362 / 4838 | 3154 / 3566 |
 | dlnr-middlebury | 978 | 598 | 398 | 214 | 2.8x | 1.9x | 3004 / 3552 | 2635 / 3142 | 1236 / 1606 |
 | dlnr-sceneflow | 978 | 598 | 398 | 214 | 2.8x | 1.9x | 3004 / 3552 | 2635 / 3142 | 1236 / 1606 |
@@ -769,7 +795,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fast-acvnet-plus-sceneflow | 138 | 80.9 | – | – | – | – | 1441 / 1522 | – | – |
 | fast-acvnet-sceneflow | 101 | 60.6 | – | – | – | – | 1421 / 1506 | – | – |
 | fast-foundationstereo | 741 | 527 | 330 | 135 | 3.9x | 2.4x | 2939 / 3306 | 2109 / 2256 | 1196 / 1576 |
-| foundationstereo-vit-l | 9228 | 4237 | 2990 | 1513 | 2.8x | 2.0x | 8286 / 8750 | 3141 / 3436 | 2818 / 3300 |
+| foundationstereo-vit-l | 9228 | 4237 | 2989 | 1440 | 2.9x | 2.1x | 8286 / 8750 | 2415 / 2656 | 2319 / 2760 |
 | foundationstereo-vit-s | 7129 | 3609 | 2514 | 1120 | 3.2x | 2.2x | 6987 / 7280 | 2493 / 2606 | 2169 / 2470 |
 | great-igev-eth3d | 2252 | 1458 | 1085 | 393 | 3.7x | 2.8x | 8861 / 9206 | 1402 / 1678 | 1192 / 1564 |
 | great-igev-kitti | 2252 | 1458 | 1085 | 393 | 3.7x | 2.8x | 8861 / 9206 | 1402 / 1678 | 1192 / 1564 |
@@ -796,9 +822,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mocha-v1-sceneflow | 2148 | 1456 | 1057 | 455 | 3.2x | 2.3x | 3637 / 3982 | 1632 / 1770 | 1588 / 1730 |
 | mocha-v2-sceneflow | 2054 | 1295 | 1033 | 448 | 2.9x | 2.3x | 3576 / 3982 | 1632 / 1770 | 1587 / 1790 |
 | monster-mix-all | 4275 | 4277 | – | – | – | – | 6382 / 6430 | – | – |
-| monster-plusplus-mix-all | 4339 | 4334 | 1633 | 698 | 6.2x | 2.3x | 6382 / 6430 | 2583 / 2918 | 2438 / 2760 |
+| monster-plusplus-mix-all | 4339 | 4334 | 1633 | 658 | 6.6x | 2.5x | 6382 / 6430 | 2181 / 2394 | 1919 / 2054 |
 | monster-sceneflow | 4275 | 4277 | – | – | – | – | 6382 / 6430 | – | – |
-| nmrf-sceneflow | 445 | 313 | 216 | 196 | 1.6x | 1.1x | 1656 / 2054 | 1510 / 1552 | 1022 / 1112 |
+| nmrf-sceneflow | 445 | 313 | 216 | 196 | 1.6x | 1.1x | 1656 / 2054 | 1186 / 1270 | 784 / 970 |
 | psmnet-sceneflow | 760 | 608 | – | – | – | – | 6015 / 6090 | – | – |
 | raft-stereo-eth3d | 1775 | 1037 | 746 | 273 | 3.8x | 2.7x | 2516 / 2628 | 1388 / 1492 | 765 / 802 |
 | raft-stereo-middlebury | 1775 | 1037 | 746 | 273 | 3.8x | 2.7x | 2516 / 2628 | 1388 / 1492 | 765 / 802 |
@@ -816,17 +842,20 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | selective-igev-middlebury-train | 2201 | 1455 | 998 | 349 | 4.2x | 2.9x | 2013 / 2152 | 1238 / 1488 | 1109 / 1390 |
 | selective-igev-sceneflow | 2201 | 1455 | 998 | 349 | 4.2x | 2.9x | 2013 / 2152 | 1238 / 1488 | 1109 / 1390 |
 | waft-stereo-b | 1898 | 1140 | 1137 | 393 | 2.9x | 2.9x | 5743 / 5876 | 5775 / 5852 | 1907 / 2316 |
-| waft-stereo-s | 1252 | 689 | 689 | 284 | 2.4x | 2.4x | 3314 / 3398 | 3293 / 3456 | 1113 / 1286 |
+| waft-stereo-s | 1252 | 689 | 653 | 284 | 2.4x | 2.3x | 3314 / 3398 | 1609 / 1794 | 1113 / 1286 |
 
 ### Stereo, synthetic, 994x1482
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
 |---|---|---|---|---|---|---|---|
+| bridgedepth-rvc-pretrain | – | – | 444 | 355 | 1.2x | 2836 / 3144 | 2226 / 2522 |
 | c-fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
-| c-foundationstereo-s | OOM | – | 3633 | 1366 | 2.7x | 6301 / 6430 | 3058 / 4408 |
-| cfnet-sceneflow | – | – | 489 | 406 | 1.2x | 3398 / 4336 | 3403 / 4338 |
+| c-foundationstereo-s | OOM | – | 3631 | 1366 | 2.7x | 4357 / 4950 | 3058 / 4408 |
+| cas-gwcnet-gc-sceneflow | – | – | 473 | 359 | 1.3x | 2032 / 2228 | 2035 / 2230 |
+| cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
-| defom-stereo-vitl-sceneflow | – | – | – | 642 | – | – | 3154 / 3522 |
+| defom-stereo-vitl-sceneflow | – | – | 1436 | 645 | 2.2x | 3109 / 3452 | 2781 / 4234 |
+| dlnr-middlebury | – | – | 399 | 215 | 1.9x | 1502 / 1976 | 851 / 982 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti12 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti15 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -836,34 +865,36 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fast-acvnet-plus-sceneflow | – | – | 70.5 | 46.5 | 1.5x | 651 / 756 | 651 / 716 |
 | fast-acvnet-sceneflow | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
+| foundationstereo-vit-l | – | – | 2992 | 1432 | 2.1x | 2923 / 3136 | 2597 / 2920 |
 | great-igev-eth3d | – | – | – | 397 | – | – | 1134 / 1302 |
 | great-igev-kitti | – | – | – | 396 | – | – | 1134 / 1302 |
-| great-igev-middlebury | OOM | OOM | – | 580 | – | – | 1472 / 1642 |
+| great-igev-middlebury | OOM | OOM | 1789 | 580 | 3.1x | 1602 / 1878 | 1472 / 1642 |
 | great-igev-sceneflow | – | – | – | 397 | – | – | 1134 / 1302 |
+| gwcnet-gc-sceneflow | – | – | 353 | 259 | 1.4x | 1792 / 2102 | 1510 / 1782 |
 | hitnet-eth3d | – | – | 67.6 | 23.2 | 2.9x | 848 / 1068 | 623 / 770 |
 | hitnet-middlebury-d400 | – | – | 176 | 53.1 | 3.3x | 1701 / 2154 | 1207 / 1514 |
-| igev-plusplus-eth3d | – | – | 1079 | 427 | 2.5x | 1583 / 1696 | 1272 / 1514 |
-| igev-plusplus-kitti12 | – | – | 1080 | 394 | 2.7x | 1583 / 1696 | 1272 / 1514 |
-| igev-plusplus-kitti15 | – | – | 1080 | 394 | 2.7x | 1583 / 1696 | 1272 / 1494 |
-| igev-plusplus-middlebury | – | – | 1080 | 393 | 2.7x | 1583 / 1696 | 1272 / 1494 |
-| igev-plusplus-sceneflow | – | – | 1079 | 395 | 2.7x | 1583 / 1696 | 1272 / 1514 |
+| igev-plusplus-eth3d | – | – | 1079 | 394 | 2.7x | 1583 / 1696 | 970 / 1154 |
+| igev-plusplus-kitti12 | – | – | 1080 | 395 | 2.7x | 1583 / 1696 | 970 / 1154 |
+| igev-plusplus-kitti15 | – | – | 1080 | 395 | 2.7x | 1583 / 1696 | 970 / 1154 |
+| igev-plusplus-middlebury | – | – | 1080 | 395 | 2.7x | 1583 / 1696 | 970 / 1154 |
+| igev-plusplus-sceneflow | – | – | 1079 | 395 | 2.7x | 1583 / 1696 | 970 / 1154 |
 | las2-h | – | – | 113 | 53.6 | 2.1x | 1002 / 1046 | 872 / 960 |
 | las2-l | – | – | 75.7 | 30.1 | 2.5x | 648 / 716 | 268 / 362 |
 | las2-m | – | – | 37.1 | 18.1 | 2.1x | 584 / 664 | 235 / 336 |
 | las2-s | – | – | 27.9 | 14.3 | 1.9x | 557 / 608 | 226 / 320 |
-| monster-mix-all | – | – | 1583 | 656 | 2.4x | 2325 / 2492 | 2216 / 2514 |
+| monster-mix-all | – | – | 1585 | 656 | 2.4x | 1926 / 2092 | 1829 / 1954 |
 | monster-plusplus-mix-all | – | – | – | 657 | – | – | 2438 / 2754 |
 | monster-sceneflow | – | – | 1585 | 655 | 2.4x | 2325 / 2574 | 2216 / 2514 |
-| psmnet-sceneflow | – | – | 340 | 232 | 1.5x | 2035 / 2422 | 1743 / 2002 |
+| psmnet-sceneflow | – | – | 340 | 231 | 1.5x | 1881 / 2402 | 1469 / 1782 |
 | raft-stereo-eth3d | – | – | – | 275 | – | – | 722 / 738 |
 | raft-stereo-middlebury | – | – | – | 274 | – | – | 722 / 758 |
 | raft-stereo-sceneflow | – | – | – | 274 | – | – | 722 / 758 |
-| rt-monster-plusplus-mix-all | – | – | 113 | 89.5 | 1.3x | 2581 / 2618 | 2586 / 2640 |
+| rt-monster-plusplus-mix-all | – | – | 109 | 93.8 | 1.2x | 1291 / 1378 | 1277 / 1420 |
 | s2m2-l | – | – | 1017 | – | – | 3234 / 3816 | – |
 | s2m2-m | – | – | 670 | – | – | 2289 / 2766 | – |
-| s2m2-xl | – | – | 1818 | – | – | 5217 / 6014 | – |
+| s2m2-xl | – | – | 1824 | – | – | 4811 / 5234 | – |
 | selective-igev-eth3d-finetune | – | – | 996 | 351 | 2.8x | 1227 / 1448 | 1051 / 1190 |
-| waft-stereo-b | – | – | – | 388 | – | – | 1664 / 1932 |
+| waft-stereo-b | – | – | 1094 | 388 | 2.8x | 2999 / 3070 | 1664 / 1932 |
 | waft-stereo-s | – | – | – | 284 | – | – | 954 / 1102 |
 
 ### Depth, synthetic
@@ -877,7 +908,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | da3-large-1.1 | 994x1482 | – | – | 30.0 | 17.3 | – | 1.7x | – | 988 / 1088 | 891 / 950 |
 | da3metric-large | 994x1482 | – | – | 24.3 | 15.0 | – | 1.6x | – | 811 / 868 | 802 / 848 |
 | da3mono-large | 994x1482 | – | – | 24.1 | 14.9 | – | 1.6x | – | 814 / 868 | 805 / 868 |
-| da3nested-giant-large-1.1 | 994x1482 | – | – | 94.9 | 59.7 | – | 1.6x | – | 3271 / 3374 | 3179 / 3238 |
+| da3nested-giant-large-1.1 | 994x1482 | – | – | 92.5 | 59.5 | – | 1.6x | – | 3118 / 3194 | 3120 / 3198 |
 | depth-anything-v2-b | 518x770 | 88.8 | 53.8 | 18.8 | 10.6 | 5.1x | 1.8x | 928 / 1026 | 433 / 516 | 370 / 436 |
 | depth-anything-v2-l | 518x770 | 240 | 136 | 55.0 | 31.6 | 4.3x | 1.7x | 2560 / 2654 | 1009 / 1352 | 904 / 1034 |
 | depth-anything-v2-metric-hypersim-b | 994x1482 | – | – | 18.6 | 10.8 | – | 1.7x | – | 445 / 514 | 349 / 396 |
@@ -887,8 +918,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | depth-anything-v2-metric-vkitti-l | 994x1482 | – | – | 54.5 | 31.9 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
 | depth-anything-v2-metric-vkitti-s | 994x1482 | – | – | 7.66 | 4.67 | – | 1.6x | – | 244 / 288 | 152 / 208 |
 | depth-anything-v2-s | 518x770 | 45.5 | 38.1 | 7.73 | 4.45 | 8.6x | 1.7x | 373 / 418 | 232 / 326 | 173 / 248 |
-| depth-pro | 994x1482 | – | – | 522 | 277 | – | 1.9x | – | 3297 / 3478 | 3050 / 3198 |
-| depthfm-v1 | 994x1482 | – | OOM | 5662 | 3570 | – | 1.6x | – | 13651 / 15150 | 9237 / 9314 |
+| depth-pro | 994x1482 | – | – | 521 | 277 | – | 1.9x | – | 3036 / 3298 | 3050 / 3198 |
+| depthfm-v1 | 994x1482 | – | OOM | 4854 | 3555 | – | 1.4x | – | 5422 / 7404 | 3768 / 5942 |
 | distill-any-depth-b | 994x1482 | – | – | 18.6 | 10.8 | – | 1.7x | – | 445 / 514 | 349 / 396 |
 | distill-any-depth-l | 994x1482 | – | – | 54.4 | 31.8 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
 | distill-any-depth-s | 994x1482 | – | – | 7.65 | 4.63 | – | 1.7x | – | 244 / 288 | 152 / 208 |
@@ -898,24 +929,24 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | lotus-normal-g-v1-1 | 994x1482 | – | 344 | 267 | 164 | 2.1x | 1.6x | 3836 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | marigold-depth-v1-1 | 994x1482 | – | – | 410 | 261 | – | 1.6x | – | 2776 / 2938 | 2343 / 2500 |
 | marigold-normals-lcm-v0-1 | 994x1482 | – | 280 | 272 | 167 | 1.7x | 1.6x | 3441 / 3640 | 2792 / 2960 | 2361 / 2500 |
-| marigold-v2-depth | 994x1482 | – | OOM | 5093 | 3886 | – | 1.3x | – | 1408 / 1698 | 1498 / 1780 |
-| metric3d-vit-large | 994x1482 | – | – | 201 | 155 | – | 1.3x | – | 1443 / 1576 | 1475 / 1588 |
+| marigold-v2-depth | 994x1482 | – | OOM | 4763 | 3805 | – | 1.3x | – | 1408 / 1838 | 1408 / 1838 |
+| metric3d-vit-large | 994x1482 | – | – | 181 | 146 | – | 1.2x | – | 1188 / 1256 | 1412 / 1486 |
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
-| moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
+| moge-2-vitb-normal | 994x1482 | – | – | 79.1 | 40.7 | – | 1.9x | – | 681 / 772 | 1093 / 1208 |
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
-| moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
-| moge-3-vitl | 994x1482 | – | – | 332 | 149 | – | 2.2x | – | 1678 / 1926 | 1626 / 1762 |
-| omni-dc | 994x1482 | – | 875 | 554 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4958 / 6304 | 4981 / 6030 |
+| moge-2-vits-normal | 994x1482 | – | – | 58.1 | 33.3 | – | 1.7x | – | 530 / 612 | 932 / 1048 |
+| moge-3-vitl | 994x1482 | – | – | 328 | 149 | – | 2.2x | – | 1493 / 1684 | 1626 / 1762 |
+| omni-dc | 994x1482 | – | 875 | 558 | 512 | 1.7x | 1.1x | 5966 / 6732 | 3849 / 5044 | 3873 / 4566 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
-| prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
-| prompt-depth-anything-s | 756x1008 | – | – | 18.4 | 11.4 | – | 1.6x | – | 363 / 442 | 297 / 384 |
-| stablenormal-turbo | 994x1482 | – | 299 | 289 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3463 / 3628 | 3037 / 3172 |
+| prompt-depth-anything-l | 994x1482 | – | – | 110 | 61.4 | – | 1.8x | – | 1082 / 1148 | 1056 / 1128 |
+| prompt-depth-anything-s | 994x1482 | – | – | 16.3 | 10.9 | – | 1.5x | – | 300 / 342 | 236 / 322 |
+| stablenormal-turbo | 994x1482 | – | 299 | 291 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3316 / 3626 | 3037 / 3172 |
 | unidepth-v2-vitl14 | 994x1482 | – | – | – | 63.0 | – | – | – | – | 1153 / 1252 |
 | unik3d-vitl | 518x770 | 123 | 123 | 99.2 | 58.5 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1070 / 1106 |
-| video-depth-anything-metric-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2224 | 1967 / 2226 |
-| video-depth-anything-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2204 | 1967 / 2226 |
-| zoedepth-nk | 518x770 | 295 | 250 | 114 | 80.0 | 3.1x | 1.4x | 1965 / 2124 | 1950 / 2124 | 1658 / 1960 |
+| video-depth-anything-metric-s | 994x1482 | – | – | 165 | 65.5 | – | 2.5x | – | 1207 / 1386 | 1242 / 1430 |
+| video-depth-anything-s | 994x1482 | – | – | 165 | 65.5 | – | 2.5x | – | 1207 / 1386 | 1242 / 1430 |
+| zoedepth-nk | 994x1482 | – | – | 124 | – | – | – | – | 1843 / 1944 | – |
 
 ### Depth, Middlebury 2014 half, 994x1482
 
@@ -943,30 +974,43 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | metric3d-vit-large | 629 | 438 | – | – | – | – | 3275 / 3350 | – | – |
 | midas-dpt-beit-large-512 | 386 | 333 | 78.8 | 63.9 | 5.2x | 1.2x | 2759 / 2898 | 992 / 1418 | 1003 / 1436 |
 | moge-2-vitb-normal | 237 | 102 | – | – | – | – | 1469 / 1596 | – | – |
-| moge-2-vitl-normal | 501 | 171 | 144 | 73.4 | 2.3x | 2.0x | 2339 / 2438 | 1661 / 1836 | 1498 / 1610 |
+| moge-2-vitl-normal | 501 | 171 | 140 | 73.4 | 2.3x | 1.9x | 2339 / 2438 | 1130 / 1272 | 1498 / 1610 |
 | moge-2-vits-normal | 162 | 82.6 | – | – | – | – | 1193 / 1268 | – | – |
 | moge-3-vitl | 843 | 486 | – | – | – | – | 2505 / 2630 | – | – |
 | pointdit-b-512 | 105 | 48.7 | – | – | – | – | 1214 / 1246 | – | – |
 | pointdit-l-512 | 335 | 112 | – | – | – | – | 3953 / 4010 | – | – |
 | unidepth-v2-vitl14 | 132 | 132 | 99.8 | 66.4 | 2.0x | 1.5x | 3230 / 3508 | 1208 / 1472 | 1211 / 1472 |
-| unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
+| unik3d-vitl | 134 | 134 | 107 | 62.8 | 2.1x | 1.7x | 3307 / 3570 | 1063 / 1152 | 985 / 1066 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
+
+### Depth, TUM RGB-D fr1_room, 88x1080x1920
+
+| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|
+| video-depth-anything-metric-s | 11337 | 10776 | 1423 | 1232 | 8.7x | 1.2x | 8264 / 11916 | 6207 / 6504 | 6288 / 6466 |
+| video-depth-anything-s | 12158 | 11626 | 1423 | 1233 | 9.4x | 1.2x | 8263 / 11890 | 6207 / 6524 | 6288 / 6486 |
+
+### Depth, Synthetic 40-frame clip, 40x480x640
+
+| model | time (ms): portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
+|---|---|---|---|---|---|
+| video-depth-anything-s | 458 | 376 | 1.2x | 1231 / 1406 | 1297 / 1406 |
 
 ### Classification, synthetic
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | alexnet.tv_in1k | 224x224 | 1.17 | 1.82 | 0.970 | 0.604 | 1.9x | 1.6x | 383 / 404 | 151 / 224 | 184 / 228 |
-| coatnet_0_rw_224.sw_in1k | 224x224 | 7.64 | 9.59 | 6.49 | – | – | – | 194 / 210 | 102 / 124 | – |
-| coatnet_1_rw_224.sw_in1k | 224x224 | 12.3 | 15.7 | 10.7 | – | – | – | 277 / 294 | 132 / 158 | – |
-| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 14.6 | 15.7 | 11.9 | – | – | – | 466 / 470 | 207 / 240 | – |
-| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.88 | 10.6 | 7.23 | – | – | – | 124 / 146 | 74 / 86 | – |
-| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 13.9 | 18.3 | 12.3 | – | – | – | 278 / 296 | 132 / 158 | – |
-| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 14.0 | 18.4 | 12.4 | – | – | – | 278 / 296 | 131 / 156 | – |
-| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 15.3 | 18.6 | 12.8 | – | – | – | 466 / 470 | 207 / 240 | – |
-| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.3 | 18.6 | 15.1 | – | – | – | 466 / 472 | 207 / 240 | – |
-| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 27.9 | 17.9 | 13.9 | – | – | – | 516 / 528 | 296 / 330 | – |
-| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.95 | 12.1 | 8.09 | – | – | – | 124 / 146 | 78 / 106 | – |
+| coatnet_0_rw_224.sw_in1k | 224x224 | 7.64 | 9.59 | 6.49 | 1.74 | 4.4x | 3.7x | 194 / 210 | 102 / 124 | 100 / 144 |
+| coatnet_1_rw_224.sw_in1k | 224x224 | 12.3 | 15.7 | 10.7 | 2.89 | 4.3x | 3.7x | 277 / 294 | 132 / 158 | 130 / 196 |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 14.6 | 15.7 | 11.9 | 4.01 | 3.6x | 3.0x | 466 / 470 | 207 / 240 | 204 / 240 |
+| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.88 | 10.6 | 7.23 | 1.62 | 4.8x | 4.4x | 124 / 146 | 74 / 86 | 72 / 106 |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 13.9 | 18.3 | 12.3 | 3.01 | 4.6x | 4.1x | 278 / 296 | 132 / 158 | 130 / 178 |
+| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 14.0 | 18.4 | 12.4 | 3.04 | 4.6x | 4.1x | 278 / 296 | 131 / 156 | 129 / 178 |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 15.3 | 18.6 | 12.8 | 4.24 | 3.6x | 3.0x | 466 / 470 | 207 / 240 | 204 / 240 |
+| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.3 | 18.6 | 15.1 | 4.24 | 3.6x | 3.6x | 466 / 472 | 207 / 240 | 204 / 240 |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 27.9 | 17.9 | 13.9 | 12.8 | 1.4x | 1.1x | 516 / 528 | 296 / 330 | 288 / 356 |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.95 | 12.1 | 8.09 | 1.75 | 5.1x | 4.6x | 124 / 146 | 78 / 106 | 77 / 106 |
 | convnext_base.fb_in1k | 224x224 | 7.77 | 11.2 | 5.84 | 2.00 | 3.9x | 2.9x | 541 / 566 | 211 / 234 | 208 / 236 |
 | convnext_base.fb_in22k_ft_in1k | 224x224 | 7.78 | 11.3 | 5.84 | 2.01 | 3.9x | 2.9x | 541 / 566 | 211 / 234 | 208 / 236 |
 | convnext_base.fb_in22k_ft_in1k_384 | 224x224 | 11.6 | 11.2 | 5.79 | 3.05 | 3.7x | 1.9x | 549 / 562 | 229 / 252 | 213 / 232 |
@@ -980,19 +1024,19 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | convnext_tiny.fb_in22k_ft_in1k | 224x224 | 4.11 | 6.13 | 3.34 | 1.15 | 3.6x | 2.9x | 198 / 216 | 94 / 110 | 92 / 110 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 224x224 | 4.59 | 6.05 | 3.30 | 1.56 | 2.9x | 2.1x | 204 / 216 | 108 / 132 | 96 / 110 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 224x224 | 10.7 | 14.6 | 10.2 | 2.96 | 3.6x | 3.4x | 542 / 566 | 220 / 234 | 206 / 238 |
-| davit_base.msft_in1k | 224x224 | 13.4 | 20.0 | 11.7 | – | – | – | 537 / 548 | 212 / 224 | – |
-| davit_small.msft_in1k | 224x224 | 13.0 | 18.8 | 12.8 | – | – | – | 319 / 324 | 136 / 150 | – |
-| davit_tiny.msft_in1k | 224x224 | 6.93 | 9.88 | 6.33 | – | – | – | 196 / 204 | 96 / 116 | – |
+| davit_base.msft_in1k | 224x224 | 13.4 | 20.0 | 11.7 | 2.09 | 6.4x | 5.6x | 537 / 548 | 212 / 224 | 209 / 244 |
+| davit_small.msft_in1k | 224x224 | 13.0 | 18.8 | 12.8 | 1.88 | 6.9x | 6.8x | 319 / 324 | 136 / 150 | 134 / 168 |
+| davit_tiny.msft_in1k | 224x224 | 6.93 | 9.88 | 6.33 | 1.17 | 5.9x | 5.4x | 196 / 204 | 96 / 116 | 93 / 134 |
 | deit_base_patch16_224.fb_in1k | 224x224 | 6.39 | 5.46 | 2.89 | 1.66 | 3.3x | 1.7x | 531 / 548 | 203 / 226 | 200 / 248 |
 | densenet121.tv_in1k | 224x224 | 10.7 | 13.6 | 9.68 | 1.29 | 8.3x | 7.5x | 80 / 102 | 53 / 70 | 53 / 92 |
 | dinov2_vitl14_lc | 224x224 | 22.4 | 10.8 | 5.43 | 4.95 | 2.2x | 1.1x | 1782 / 1806 | 623 / 1228 | 623 / 672 |
-| efficientformer_l1.snap_dist_in1k | 224x224 | 4.87 | 6.40 | 3.72 | – | – | – | 104 / 124 | 93 / 104 | – |
-| efficientformer_l3.snap_dist_in1k | 224x224 | 8.39 | 11.0 | 6.37 | – | – | – | 214 / 236 | 161 / 216 | – |
-| efficientformer_l7.snap_dist_in1k | 224x224 | 12.3 | 15.9 | 9.65 | – | – | – | 505 / 522 | 300 / 324 | – |
-| efficientformerv2_l.snap_dist_in1k | 224x224 | 19.9 | 29.0 | 17.1 | – | – | – | 186 / 198 | 93 / 144 | – |
-| efficientformerv2_s0.snap_dist_in1k | 224x224 | 8.16 | 11.8 | 7.62 | – | – | – | 55 / 64 | 44 / 64 | – |
-| efficientformerv2_s1.snap_dist_in1k | 224x224 | 10.1 | 14.9 | 8.91 | – | – | – | 70 / 80 | 50 / 88 | – |
-| efficientformerv2_s2.snap_dist_in1k | 224x224 | 15.2 | 21.8 | 13.9 | – | – | – | 108 / 116 | 64 / 104 | – |
+| efficientformer_l1.snap_dist_in1k | 224x224 | 4.87 | 6.40 | 3.72 | 0.704 | 6.9x | 5.3x | 104 / 124 | 93 / 104 | 91 / 126 |
+| efficientformer_l3.snap_dist_in1k | 224x224 | 8.39 | 11.0 | 6.37 | 1.21 | 6.9x | 5.3x | 214 / 236 | 161 / 216 | 160 / 218 |
+| efficientformer_l7.snap_dist_in1k | 224x224 | 12.3 | 15.9 | 9.65 | 2.04 | 6.0x | 4.7x | 505 / 522 | 300 / 324 | 298 / 346 |
+| efficientformerv2_l.snap_dist_in1k | 224x224 | 19.9 | 29.0 | 17.1 | 3.05 | 6.5x | 5.6x | 186 / 198 | 93 / 144 | 94 / 188 |
+| efficientformerv2_s0.snap_dist_in1k | 224x224 | 8.16 | 11.8 | 7.62 | 1.20 | 6.8x | 6.4x | 55 / 64 | 44 / 64 | 44 / 66 |
+| efficientformerv2_s1.snap_dist_in1k | 224x224 | 10.1 | 14.9 | 8.91 | 1.39 | 7.3x | 6.4x | 70 / 80 | 50 / 88 | 50 / 88 |
+| efficientformerv2_s2.snap_dist_in1k | 224x224 | 15.2 | 21.8 | 13.9 | 2.17 | 7.0x | 6.4x | 108 / 116 | 64 / 104 | 64 / 104 |
 | efficientnet_b0.tv_in1k | 224x224 | 5.64 | 7.91 | 4.98 | 0.769 | 7.3x | 6.5x | 64 / 84 | 48 / 96 | 78 / 118 |
 | efficientnet_b4.tv_in1k | 224x224 | 11.1 | 15.7 | 9.93 | 2.02 | 5.5x | 4.9x | 147 / 174 | 89 / 114 | 90 / 118 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 12.1 | 16.6 | 10.2 | 1.91 | 6.4x | 5.3x | 159 / 176 | 81 / 126 | 81 / 128 |
@@ -1002,19 +1046,19 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fastvit_sa24.apple_dist_in1k | 256x256 | 7.10 | 10.9 | 6.03 | 1.41 | 5.0x | 4.3x | 157 / 176 | 81 / 110 | 80 / 132 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.61 | 5.66 | 3.27 | 0.781 | 4.6x | 4.2x | 77 / 84 | 54 / 76 | 52 / 76 |
 | fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.25 | 0.709 | 4.3x | 4.6x | 57 / 76 | 45 / 72 | 45 / 76 |
-| focalnet_base_lrf.ms_in1k | 224x224 | 18.0 | 22.1 | 15.5 | – | – | – | 546 / 560 | 212 / 234 | – |
-| focalnet_base_srf.ms_in1k | 224x224 | 17.1 | 20.0 | 14.2 | – | – | – | 542 / 558 | 211 / 234 | – |
-| focalnet_small_lrf.ms_in1k | 224x224 | 16.8 | 22.0 | 15.8 | – | – | – | 323 / 338 | 136 / 152 | – |
-| focalnet_small_srf.ms_in1k | 224x224 | 15.9 | 20.1 | 14.0 | – | – | – | 320 / 336 | 136 / 152 | – |
-| focalnet_tiny_lrf.ms_in1k | 224x224 | 8.92 | 11.4 | 8.07 | – | – | – | 199 / 208 | 95 / 118 | – |
-| focalnet_tiny_srf.ms_in1k | 224x224 | 8.39 | 10.4 | 7.36 | – | – | – | 197 / 206 | 95 / 118 | – |
-| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 4.45 | 5.89 | 3.46 | – | – | – | 68 / 72 | 48 / 70 | – |
-| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 4.57 | 6.17 | 3.47 | – | – | – | 70 / 92 | 50 / 68 | – |
-| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 6.25 | 7.98 | 4.55 | – | – | – | 98 / 118 | 59 / 94 | – |
-| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 7.16 | 9.30 | 5.22 | – | – | – | 127 / 140 | 76 / 114 | – |
-| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 7.06 | 8.41 | 4.53 | – | – | – | 147 / 166 | 82 / 116 | – |
-| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 11.4 | 13.8 | 7.04 | – | – | – | 260 / 280 | 114 / 150 | – |
-| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 16.5 | 17.9 | 9.44 | – | – | – | 465 / 490 | 198 / 224 | – |
+| focalnet_base_lrf.ms_in1k | 224x224 | 18.0 | 22.1 | 15.5 | 5.44 | 3.3x | 2.9x | 546 / 560 | 212 / 234 | 212 / 258 |
+| focalnet_base_srf.ms_in1k | 224x224 | 17.1 | 20.0 | 14.2 | 4.99 | 3.4x | 2.8x | 542 / 558 | 211 / 234 | 210 / 256 |
+| focalnet_small_lrf.ms_in1k | 224x224 | 16.8 | 22.0 | 15.8 | 4.18 | 4.0x | 3.8x | 323 / 338 | 136 / 152 | 136 / 154 |
+| focalnet_small_srf.ms_in1k | 224x224 | 15.9 | 20.1 | 14.0 | 3.73 | 4.3x | 3.7x | 320 / 336 | 136 / 152 | 134 / 154 |
+| focalnet_tiny_lrf.ms_in1k | 224x224 | 8.92 | 11.4 | 8.07 | 2.39 | 3.7x | 3.4x | 199 / 208 | 95 / 118 | 93 / 138 |
+| focalnet_tiny_srf.ms_in1k | 224x224 | 8.39 | 10.4 | 7.36 | 2.19 | 3.8x | 3.4x | 197 / 206 | 95 / 118 | 93 / 138 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 4.45 | 5.89 | 3.46 | 0.568 | 7.8x | 6.1x | 68 / 72 | 48 / 70 | 46 / 72 |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 4.57 | 6.17 | 3.47 | 0.603 | 7.6x | 5.7x | 70 / 92 | 50 / 68 | 48 / 70 |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 6.25 | 7.98 | 4.55 | 0.765 | 8.2x | 5.9x | 98 / 118 | 59 / 94 | 57 / 94 |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 7.16 | 9.30 | 5.22 | 0.909 | 7.9x | 5.7x | 127 / 140 | 76 / 114 | 67 / 116 |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 7.06 | 8.41 | 4.53 | 0.864 | 8.2x | 5.2x | 147 / 166 | 82 / 116 | 75 / 138 |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 11.4 | 13.8 | 7.04 | 1.29 | 8.9x | 5.5x | 260 / 280 | 114 / 150 | 115 / 156 |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 16.5 | 17.9 | 9.44 | 2.10 | 7.9x | 4.5x | 465 / 490 | 198 / 224 | 188 / 232 |
 | inception_v3.tv_in1k | 224x224 | 7.88 | 10.3 | 5.13 | 1.31 | 6.0x | 3.9x | 185 / 206 | 120 / 164 | 118 / 208 |
 | mobilenet_v2.tv2_in1k | 224x224 | 3.60 | 5.14 | 2.95 | 0.439 | 8.2x | 6.7x | 54 / 72 | 43 / 70 | 75 / 92 |
 | mobilenet_v3_large.tv2_in1k | 224x224 | 4.33 | 6.20 | 3.80 | 0.545 | 7.9x | 7.0x | 65 / 80 | 46 / 76 | 78 / 114 |
@@ -1035,10 +1079,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | resnet18.tv_in1k | 224x224 | 1.91 | 2.44 | 1.44 | 0.472 | 4.0x | 3.0x | 105 / 130 | 59 / 88 | 58 / 110 |
 | resnet50.tv2_in1k | 224x224 | 4.74 | 5.84 | 3.15 | 0.826 | 5.7x | 3.8x | 180 / 192 | 89 / 142 | 116 / 162 |
 | shufflenet_v2_x1_0.tv_in1k | 224x224 | 4.79 | 6.53 | 3.72 | 0.804 | 6.0x | 4.6x | 47 / 48 | 39 / 48 | 55 / 76 |
-| shvit_s1.in1k | 224x224 | 8.41 | 11.1 | 6.75 | – | – | – | 70 / 76 | 47 / 58 | – |
-| shvit_s2.in1k | 224x224 | 8.37 | 11.1 | 6.76 | – | – | – | 99 / 120 | 56 / 88 | – |
-| shvit_s3.in1k | 224x224 | 9.40 | 12.5 | 8.11 | – | – | – | 115 / 134 | 62 / 112 | – |
-| shvit_s4.in1k | 256x256 | 11.5 | 14.6 | 9.31 | – | – | – | 129 / 146 | 67 / 118 | – |
+| shvit_s1.in1k | 224x224 | 8.41 | 11.1 | 6.75 | 0.805 | 10.4x | 8.4x | 70 / 76 | 47 / 58 | 47 / 62 |
+| shvit_s2.in1k | 224x224 | 8.37 | 11.1 | 6.76 | 0.949 | 8.8x | 7.1x | 99 / 120 | 56 / 88 | 57 / 88 |
+| shvit_s3.in1k | 224x224 | 9.40 | 12.5 | 8.11 | 1.01 | 9.3x | 8.0x | 115 / 134 | 62 / 112 | 62 / 112 |
+| shvit_s4.in1k | 256x256 | 11.5 | 14.6 | 9.31 | 1.78 | 6.4x | 5.2x | 129 / 146 | 67 / 118 | 68 / 102 |
 | squeezenet1_1.tv_in1k | 224x224 | 1.72 | 2.63 | 1.78 | 0.376 | 4.6x | 4.7x | 10 / 30 | 7 / 28 | 8 / 12 |
 | starnet_s1.in1k | 224x224 | 4.57 | 7.29 | 3.88 | 0.683 | 6.7x | 5.7x | 51 / 60 | 41 / 52 | 41 / 56 |
 | starnet_s2.in1k | 224x224 | 3.64 | 5.63 | 3.02 | 0.578 | 6.3x | 5.2x | 55 / 64 | 43 / 54 | 43 / 58 |
@@ -1062,24 +1106,24 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| bisenet-face-parsing | 512x512 | – | 5.94 | 2.41 | – | – | – | 69 / 94 | 51 / 72 | – |
+| bisenet-face-parsing | 512x512 | – | 5.94 | 2.41 | 1.59 | 3.7x | 1.5x | 69 / 94 | 51 / 72 | 61 / 112 |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 108 | 54.8 | 48.0 | 20.5 | 2.7x | 2.3x | 2031 / 2162 | 450 / 492 | 356 / 414 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 104 | 53.4 | 47.1 | 17.9 | 3.0x | 2.6x | 1891 / 2024 | 410 / 452 | 355 / 436 |
 | dinov2-b-linear-ade20k | 1024x2048 | 115 | 40.1 | 33.3 | 20.1 | 2.0x | 1.7x | 2063 / 2426 | 765 / 884 | 771 / 884 |
 | dinov2-l-linear-ade20k | 1024x2048 | 332 | 95.7 | 83.9 | 52.8 | 1.8x | 1.6x | 3308 / 3726 | 1181 / 1244 | 1189 / 1244 |
 | dinov2-s-linear-ade20k | 1024x2048 | 55.8 | 24.7 | 18.3 | 11.8 | 2.1x | 1.6x | 1694 / 2046 | 642 / 696 | 645 / 676 |
-| eomt-l-dinov2-ade20k | 1024x2048 | 178 | 63.7 | 50.8 | 35.0 | 1.8x | 1.5x | 3827 / 4086 | 1515 / 1584 | 1515 / 1584 |
-| eomt-l-dinov3-ade20k | 1024x2048 | 186 | 72.1 | 54.6 | 38.8 | 1.9x | 1.4x | 3822 / 4086 | 1514 / 1584 | 1514 / 1584 |
+| eomt-l-dinov2-ade20k | 1024x2048 | 178 | 63.7 | 51.2 | 35.1 | 1.8x | 1.5x | 3827 / 4086 | 1357 / 1504 | 1344 / 1504 |
+| eomt-l-dinov3-ade20k | 1024x2048 | 186 | 72.1 | 55.0 | 38.9 | 1.9x | 1.4x | 3822 / 4086 | 1355 / 1484 | 1342 / 1484 |
 | fcn-r101-d8-ade20k | 1024x2048 | 94.2 | 47.0 | 40.7 | 16.5 | 2.8x | 2.5x | 1925 / 2102 | 414 / 472 | 288 / 374 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 48.1 | 54.8 | 27.3 | 11.2 | 4.3x | 2.4x | 1915 / 2010 | 421 / 470 | 265 / 344 |
-| mask2former-swinl-ade20k | 1024x2048 | 244 | 145 | 103 | 60.4 | 2.4x | 1.7x | 3572 / 3878 | 1164 / 1400 | 1164 / 1400 |
-| oneformer-swinl-ade20k | 1024x2048 | 307 | 205 | 139 | 100 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
+| mask2former-swinl-ade20k | 1024x2048 | 244 | 145 | 104 | 60.2 | 2.4x | 1.7x | 3572 / 3878 | 1052 / 1218 | 999 / 1238 |
+| oneformer-swinl-ade20k | 1024x2048 | 307 | 205 | 145 | 106 | 1.9x | 1.4x | 7395 / 7792 | 1768 / 1994 | 1768 / 1914 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 92.5 | 47.2 | 48.7 | 24.9 | 1.9x | 2.0x | 1922 / 2222 | 414 / 472 | 335 / 394 |
-| sapiens-seg-0.3b-goliath | 1024x2048 | 466 | 173 | 132 | 92.6 | 1.9x | 1.4x | 2520 / 2724 | 1643 / 1762 | 1643 / 1762 |
-| sapiens-seg-1b-goliath | 1024x2048 | 1189 | 354 | 275 | 185 | 1.9x | 1.5x | 5721 / 5906 | 3259 / 3384 | 3259 / 3382 |
+| sapiens-seg-0.3b-goliath | 1024x2048 | 466 | 173 | 132 | 90.5 | 1.9x | 1.5x | 2520 / 2724 | 1280 / 1402 | 1280 / 1402 |
+| sapiens-seg-1b-goliath | 1024x2048 | 1189 | 354 | 277 | 180 | 2.0x | 1.5x | 5721 / 5906 | 2880 / 3024 | 2880 / 3022 |
 | segformer-b0-ade20k | 1024x2048 | 17.2 | 17.4 | 11.4 | 3.49 | 4.9x | 3.3x | 1590 / 1766 | 339 / 376 | 105 / 178 |
 | segformer-b2-clothes | 512x512 | 18.9 | 14.1 | 8.13 | 3.61 | 3.9x | 2.3x | 425 / 488 | 156 / 168 | 133 / 170 |
-| segformer-b5-ade20k | 1024x2048 | 132 | 72.0 | 38.7 | 25.4 | 2.8x | 1.5x | 2531 / 2620 | 546 / 590 | 294 / 432 |
+| segformer-b5-ade20k | 1024x2048 | 132 | 72.0 | 38.9 | 25.4 | 2.8x | 1.5x | 2531 / 2620 | 444 / 490 | 294 / 432 |
 | segformer-b5-face-parsing | 512x512 | 38.8 | 34.2 | 21.9 | 9.21 | 3.7x | 2.4x | 647 / 758 | 278 / 292 | 257 / 294 |
 | segnext-mscan-b-ade20k | 1024x2048 | 44.8 | 33.9 | 28.3 | 12.1 | 2.8x | 2.3x | 1727 / 1838 | 376 / 424 | 192 / 226 |
 | segnext-mscan-l-ade20k | 1024x2048 | 69.7 | 52.2 | 43.1 | 20.7 | 2.5x | 2.1x | 1849 / 1894 | 417 / 458 | 277 / 320 |
@@ -1090,33 +1134,39 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ben2 | 201 | 110 | 104 | 1.9x | 1.1x | 2466 / 2772 | 1681 / 1956 | 1430 / 1698 |
-| birefnet | 234 | 131 | 121 | 1.9x | 1.1x | 1666 / 1930 | 1660 / 1908 | 1674 / 1916 |
-| birefnet-lite | 75.1 | 58.0 | 48.1 | 1.6x | 1.2x | 913 / 974 | 810 / 952 | 754 / 960 |
-| inspyrenet | 241 | 109 | – | – | – | 3240 / 3262 | 1649 / 1848 | – |
-| inspyrenet-fast | 71.1 | 41.7 | – | – | – | 810 / 836 | 432 / 488 | – |
+| ben2 | 201 | 115 | 105 | 1.9x | 1.1x | 2466 / 2772 | 1296 / 1376 | 1046 / 1118 |
+| birefnet | 234 | 133 | 121 | 1.9x | 1.1x | 1666 / 1930 | 1165 / 1288 | 1145 / 1256 |
+| birefnet-lite | 75.1 | 58.1 | 47.6 | 1.6x | 1.2x | 913 / 974 | 748 / 792 | 594 / 660 |
+| inspyrenet | 241 | 107 | 107 | 2.3x | 1.0x | 3240 / 3262 | 1153 / 1468 | 1153 / 1494 |
+| inspyrenet-fast | 71.1 | 45.4 | 15.8 | 4.5x | 2.9x | 810 / 836 | 363 / 448 | 363 / 454 |
 | isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
-| matanyone | 1220 | 1205 | – | – | – | 2978 / 3208 | 2719 / 2908 | – |
-| rmbg-2.0 | 149 | 132 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1660 / 1908 | 1674 / 1936 |
-| u2net | 15.9 | 14.9 | 8.83 | 1.8x | 1.7x | 476 / 502 | 248 / 278 | 237 / 260 |
-| u2net-human-seg | 16.0 | 14.6 | 9.05 | 1.8x | 1.6x | 476 / 502 | 248 / 278 | 237 / 260 |
-| u2netp | 14.8 | 14.6 | 9.80 | 1.5x | 1.5x | 280 / 314 | 150 / 172 | 138 / 172 |
-| vitmatte-b | 257 | 182 | 148 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1452 / 1552 |
+| matanyone | 1220 | 966 | 911 | 1.3x | 1.1x | 2978 / 3208 | 2268 / 2726 | 2268 / 2706 |
+| rmbg-2.0 | 149 | 133 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1165 / 1288 | 1145 / 1296 |
+| u2net | 15.9 | 9.77 | 5.18 | 3.1x | 1.9x | 476 / 502 | 240 / 278 | 161 / 236 |
+| u2net-human-seg | 16.0 | 10.0 | 5.14 | 3.1x | 2.0x | 476 / 502 | 240 / 278 | 161 / 236 |
+| u2netp | 14.8 | 15.1 | 2.92 | 5.1x | 5.2x | 280 / 314 | 139 / 180 | 72 / 124 |
+| vitmatte-b | 257 | 180 | 146 | 1.8x | 1.2x | 5070 / 5128 | 891 / 1036 | 747 / 832 |
 | vitmatte-s | 140 | 102 | 84.1 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1305 / 1404 |
+
+### Matting, YouTubeMatte youtubematte_motion/0004 (100 frames), 100x288x512
+
+| model | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
+|---|---|---|
+| matanyone | 1721 | 414 / 496 |
 
 ### Edges, synthetic, 1080x1920
 
-| model | time (ms): original | portable | peak memory (MiB, allocated / reserved): original | portable |
-|---|---|---|---|---|
-| anyline | 585 | 50.7 | 909 / 1002 | 654 / 722 |
-| hed | 38.5 | 11.3 | 300 / 324 | 187 / 224 |
-| lineart | 29.8 | 18.3 | 221 / 264 | 222 / 284 |
-| lineart-anime | 25.2 | 8.36 | 407 / 448 | 241 / 284 |
-| lineart-coarse | 30.4 | 18.3 | 221 / 264 | 222 / 284 |
-| mlsd | 35.6 | 9.33 | 185 / 212 | 127 / 170 |
-| pidinet | 35.9 | 13.1 | 339 / 368 | 328 / 372 |
-| teed | 29.6 | 4.09 | 149 / 184 | 122 / 146 |
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| anyline | 585 | 45.2 | 35.0 | 16.7x | 1.3x | 909 / 1002 | 648 / 702 | 648 / 702 |
+| hed | 38.5 | 11.3 | 8.25 | 4.7x | 1.4x | 300 / 324 | 187 / 224 | 193 / 264 |
+| lineart | 29.8 | 18.3 | 15.5 | 1.9x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| lineart-anime | 25.2 | 8.36 | 6.50 | 3.9x | 1.3x | 407 / 448 | 241 / 284 | 217 / 244 |
+| lineart-coarse | 30.4 | 18.3 | 15.4 | 2.0x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| mlsd | 35.6 | 9.33 | 7.73 | 4.6x | 1.2x | 185 / 212 | 127 / 170 | 127 / 148 |
+| pidinet | 35.9 | 13.1 | 12.3 | 2.9x | 1.1x | 339 / 368 | 328 / 372 | 328 / 392 |
+| teed | 29.6 | 4.09 | 3.83 | 7.7x | 1.1x | 149 / 184 | 122 / 146 | 122 / 146 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1130,17 +1180,17 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientvit-sam-xl1 | 72.6 | 40.9 | 28.9 | 15.3 | 2.7x | 1.9x | 984 / 1022 | 586 / 676 | 569 / 686 |
 | insid3-vitl16 | 1649 | 713 | 255 | 157 | 4.5x | 1.6x | 2148 / 2226 | 986 / 1228 | 987 / 1228 |
 | mobile-sam | 30.3 | 23.5 | 10.5 | 7.22 | 3.3x | 1.5x | 207 / 286 | 171 / 190 | 203 / 296 |
-| sam-hq-vit-b | 172 | 103 | 49.8 | 36.8 | 2.8x | 1.4x | 1704 / 1756 | 375 / 422 | 420 / 564 |
-| sam-hq-vit-h | 738 | 311 | 217 | 143 | 2.2x | 1.5x | 4266 / 4318 | 1488 / 1566 | 1528 / 1688 |
-| sam-hq-vit-l | 412 | 202 | 118 | 81.9 | 2.5x | 1.4x | 2969 / 3018 | 834 / 882 | 877 / 1026 |
-| sam-vit-b | 168 | 98.2 | 48.3 | 37.0 | 2.7x | 1.3x | 1769 / 1802 | 378 / 420 | 377 / 420 |
-| sam-vit-h | 734 | 306 | 214 | 143 | 2.1x | 1.5x | 5295 / 5404 | 1484 / 2524 | 1480 / 1524 |
-| sam-vit-l | 406 | 197 | 116 | 81.5 | 2.4x | 1.4x | 3411 / 3464 | 833 / 1262 | 831 / 862 |
+| sam-hq-vit-b | 172 | 103 | 48.3 | 35.3 | 2.9x | 1.4x | 1704 / 1756 | 375 / 422 | 420 / 544 |
+| sam-hq-vit-h | 738 | 311 | 213 | 140 | 2.2x | 1.5x | 4266 / 4318 | 1488 / 1526 | 1528 / 1648 |
+| sam-hq-vit-l | 412 | 202 | 114 | 79.0 | 2.6x | 1.4x | 2969 / 3018 | 834 / 862 | 877 / 1006 |
+| sam-vit-b | 168 | 98.2 | 46.6 | 35.5 | 2.8x | 1.3x | 1769 / 1802 | 365 / 400 | 365 / 400 |
+| sam-vit-h | 734 | 306 | 211 | 140 | 2.2x | 1.5x | 5295 / 5404 | 1472 / 1504 | 1467 / 1484 |
+| sam-vit-l | 406 | 197 | 113 | 79.0 | 2.5x | 1.4x | 3411 / 3464 | 821 / 882 | 818 / 862 |
 | sam2.1-hiera-base-plus | 107 | 47.2 | 31.9 | 25.4 | 1.9x | 1.3x | 823 / 870 | 400 / 444 | 414 / 464 |
 | sam2.1-hiera-large | 242 | 86.4 | 68.0 | 49.1 | 1.8x | 1.4x | 1656 / 1724 | 730 / 768 | 748 / 808 |
 | sam2.1-hiera-small | 74.8 | 41.8 | 18.8 | 15.6 | 2.7x | 1.2x | 618 / 662 | 318 / 366 | 330 / 386 |
 | sam2.1-hiera-tiny | 66.3 | 38.0 | 16.6 | 13.9 | 2.7x | 1.2x | 577 / 636 | 304 / 382 | 316 / 362 |
-| sam3 | 695 | 281 | 179 | 117 | 2.4x | 1.5x | 5255 / 5334 | 1910 / 1984 | 1974 / 2264 |
+| sam3 | 695 | 254 | 173 | 107 | 2.4x | 1.6x | 2052 / 2124 | 1822 / 1904 | 1900 / 2044 |
 
 ### Detection, synthetic, 800x1344
 
@@ -1159,18 +1209,18 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dfine-s-coco | 25.7 | 31.9 | 11.4 | 3.75 | 6.8x | 3.0x | 152 / 184 | 108 / 128 | 108 / 170 |
 | dfine-x-coco | 44.9 | 54.6 | 18.6 | 9.59 | 4.7x | 1.9x | 476 / 536 | 230 / 258 | 231 / 298 |
 | faster-rcnn-r50-fpn-3x-coco | 83.6 | 41.4 | 22.8 | 19.5 | 2.1x | 1.2x | 626 / 708 | 390 / 490 | 391 / 450 |
-| grounding-dino-base | – | 230 | 160 | – | – | – | 2895 / 3094 | 1525 / 1624 | – |
-| grounding-dino-tiny | – | 199 | 138 | – | – | – | 2541 / 2716 | 1404 / 1468 | – |
+| grounding-dino-base | – | 230 | 132 | 109 | 2.1x | 1.2x | 2895 / 3094 | 1105 / 1322 | 1105 / 1322 |
+| grounding-dino-tiny | – | 199 | 110 | 86.9 | 2.3x | 1.3x | 2541 / 2716 | 987 / 1106 | 987 / 1106 |
 | lw-detr-large-coco | – | 22.8 | 10.2 | 5.64 | 4.0x | 1.8x | 355 / 382 | 204 / 230 | 192 / 254 |
 | lw-detr-medium-coco | – | 23.3 | 8.75 | 3.78 | 6.2x | 2.3x | 228 / 274 | 131 / 156 | 131 / 178 |
 | lw-detr-small-coco | – | 19.9 | 8.82 | 2.80 | 7.1x | 3.1x | 129 / 166 | 97 / 116 | 99 / 140 |
 | lw-detr-tiny-coco | – | 16.4 | 7.45 | 2.20 | 7.5x | 3.4x | 114 / 132 | 92 / 112 | 94 / 134 |
 | lw-detr-xlarge-coco | – | 25.5 | 12.1 | 9.39 | 2.7x | 1.3x | 762 / 850 | 348 / 360 | 336 / 382 |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
-| mm-grounding-dino-base | – | 232 | 160 | – | – | – | 2895 / 3094 | 1525 / 1624 | – |
-| mm-grounding-dino-tiny | – | 202 | 138 | – | – | – | 2541 / 2716 | 1405 / 1470 | – |
-| owlv2-b16 | – | 92.3 | 31.8 | 23.7 | 3.9x | 1.3x | 921 / 960 | 460 / 510 | 461 / 612 |
-| owlv2-l14 | – | 212 | 154 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1097 / 1144 | 1027 / 1184 |
+| mm-grounding-dino-base | – | 232 | 132 | 110 | 2.1x | 1.2x | 2895 / 3094 | 1107 / 1324 | 1107 / 1324 |
+| mm-grounding-dino-tiny | – | 202 | 110 | 87.2 | 2.3x | 1.3x | 2541 / 2716 | 989 / 1108 | 989 / 1108 |
+| owlv2-b16 | – | 92.3 | 30.6 | 23.7 | 3.9x | 1.3x | 921 / 960 | 423 / 490 | 440 / 612 |
+| owlv2-l14 | – | 212 | 154 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1027 / 1064 | 1027 / 1164 |
 | rf-detr-l-coco | – | 11.8 | 10.6 | 5.30 | 2.2x | 2.0x | 219 / 240 | 149 / 184 | 149 / 206 |
 | rf-detr-m-coco | – | 11.8 | 10.6 | 3.86 | 3.0x | 2.8x | 140 / 174 | 136 / 156 | 136 / 178 |
 | rf-detr-n-coco | – | 10.5 | 9.39 | 2.39 | 4.4x | 3.9x | 118 / 160 | 117 / 140 | 117 / 142 |
@@ -1201,12 +1251,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 ### Ocr, synthetic
 
-| model | input | time (ms): original fp32 | original | portable | peak memory (MiB, allocated / reserved): original | portable |
-|---|---|---|---|---|---|---|
-| parseq | 32x128 | 15.9 | 19.6 | 3.62 | 126 / 144 | 79 / 100 |
-| parseq-tiny | 32x128 | 14.6 | 18.0 | 2.10 | 56 / 58 | 44 / 54 |
-| ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 393 / 1005 | 289 / 448 |
-| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 277 | 2355 / 2901 | 1357 / 1452 |
+| model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|---|
+| parseq | 32x128 | 15.9 | 19.6 | 3.62 | 3.62 | 4.4x | 1.0x | 126 / 144 | 79 / 100 | 79 / 100 |
+| parseq-tiny | 32x128 | 14.6 | 18.0 | 2.10 | 2.10 | 6.9x | 1.0x | 56 / 58 | 44 / 54 | 44 / 54 |
+| ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 156 | 2.7x | 1.0x | 393 / 1005 | 289 / 448 | 289 / 448 |
+| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 279 | 231 | 3.3x | 1.2x | 2355 / 2901 | 615 / 752 | 607 / 654 |
 
 ### Pose, synthetic, 1080x1920
 
@@ -1216,18 +1266,18 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dwpose-l-384 | 194 | 203 | 21.4 | 12.7 | 15.2x | 1.7x | 773 / 816 | 325 / 418 | 229 / 404 |
 | dwpose-m | 169 | 164 | 7.31 | 4.86 | 33.8x | 1.5x | 756 / 792 | 153 / 196 | 133 / 200 |
 | dwpose-s | 173 | 180 | 5.16 | 3.35 | 51.6x | 1.5x | 806 / 848 | 124 / 154 | 115 / 178 |
-| dwpose-t | 160 | 174 | 4.60 | 3.17 | 50.6x | 1.5x | 832 / 858 | 104 / 132 | 109 / 174 |
+| dwpose-t | 160 | 174 | 7.84 | 2.52 | 63.6x | 3.1x | 832 / 858 | 104 / 132 | 106 / 152 |
 | hrnet-w32 | 176 | 190 | 20.3 | 9.75 | 18.0x | 2.1x | 336 / 398 | 195 / 238 | 155 / 194 |
 | hrnet-w32-384 | 216 | 190 | 39.2 | 19.7 | 9.7x | 2.0x | 653 / 760 | 341 / 414 | 250 / 294 |
 | hrnet-w48 | 200 | 206 | 32.0 | 15.6 | 12.8x | 2.1x | 440 / 462 | 262 / 302 | 222 / 262 |
 | hrnet-w48-384 | 276 | 245 | 70.7 | 34.2 | 7.1x | 2.1x | 1014 / 1082 | 408 / 458 | 317 / 360 |
 | retinaface-mobilenet0.25 | 75.9 | 77.4 | 3.44 | 2.74 | 27.7x | 1.3x | 87 / 110 | 86 / 108 | 105 / 128 |
 | retinaface-resnet50 | 81.0 | 79.4 | 24.3 | 11.7 | 6.8x | 2.1x | 371 / 490 | 405 / 504 | 379 / 464 |
-| rf-detr-keypoint-preview | 29.4 | 19.3 | 18.2 | 9.46 | 2.0x | 1.9x | 186 / 244 | 179 / 204 | 176 / 224 |
-| rtmo-l | 17.1 | 21.4 | 10.8 | 8.30 | 2.1x | 1.3x | 800 / 824 | 208 / 226 | 208 / 228 |
-| rtmo-m | 14.3 | 17.0 | 8.71 | 6.85 | 2.1x | 1.3x | 422 / 462 | 166 / 190 | 166 / 212 |
-| rtmo-s | 11.4 | 15.5 | 7.48 | 6.27 | 1.8x | 1.2x | 228 / 252 | 142 / 160 | 142 / 180 |
-| rtmo-t | 11.3 | 13.3 | 7.62 | 6.31 | 1.8x | 1.2x | 118 / 122 | 121 / 136 | 121 / 156 |
+| rf-detr-keypoint-preview | 29.4 | 19.3 | 17.2 | 8.98 | 2.1x | 1.9x | 186 / 244 | 176 / 202 | 176 / 224 |
+| rtmo-l | 17.1 | 21.4 | 10.0 | 8.30 | 2.1x | 1.2x | 800 / 824 | 211 / 242 | 208 / 228 |
+| rtmo-m | 14.3 | 17.0 | 7.44 | 6.85 | 2.1x | 1.1x | 422 / 462 | 168 / 192 | 166 / 212 |
+| rtmo-s | 11.4 | 15.5 | 6.72 | 3.93 | 2.9x | 1.7x | 228 / 252 | 142 / 176 | 105 / 166 |
+| rtmo-t | 11.3 | 13.3 | 7.82 | 2.96 | 3.8x | 2.6x | 118 / 122 | 122 / 140 | 82 / 140 |
 | rtmpose-l | 161 | 176 | 9.04 | 5.70 | 28.3x | 1.6x | 1105 / 1154 | 200 / 256 | 152 / 244 |
 | rtmpose-l-384 | 192 | 171 | 19.4 | 11.4 | 14.9x | 1.7x | 366 / 410 | 314 / 416 | 217 / 390 |
 | rtmpose-l-halpe26 | 180 | 164 | 9.10 | 5.69 | 28.9x | 1.6x | 529 / 572 | 201 / 256 | 152 / 244 |
@@ -1242,7 +1292,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmpose-s | 161 | 165 | 4.95 | 3.08 | 52.1x | 1.6x | 449 / 480 | 118 / 152 | 109 / 158 |
 | rtmpose-s-face6 | 258 | 237 | 5.04 | 3.74 | 63.4x | 1.3x | 504 / 540 | 140 / 174 | 128 / 202 |
 | rtmpose-s-halpe26 | 172 | 173 | 4.99 | 3.05 | 56.3x | 1.6x | 162 / 200 | 119 / 152 | 110 / 178 |
-| rtmpose-t | 165 | 151 | 4.60 | 2.90 | 52.0x | 1.6x | 459 / 490 | 100 / 128 | 105 / 156 |
+| rtmpose-t | 165 | 151 | 7.79 | 2.25 | 67.2x | 3.5x | 459 / 490 | 100 / 128 | 91 / 156 |
 | rtmpose-t-face6 | 188 | 204 | 4.53 | 3.61 | 52.1x | 1.3x | 424 / 464 | 116 / 152 | 123 / 180 |
 | rtmpose-t-halpe26 | 181 | 172 | 4.61 | 2.90 | 59.2x | 1.6x | 103 / 144 | 100 / 130 | 105 / 156 |
 | rtmpose-x-halpe26-384 | 247 | 217 | 33.8 | 19.1 | 11.4x | 1.8x | 470 / 556 | 385 / 478 | 280 / 448 |
@@ -1250,7 +1300,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmw-l-384 | 274 | 275 | 31.8 | 20.6 | 13.3x | 1.5x | 1094 / 1144 | 371 / 468 | 276 / 458 |
 | rtmw-m | 169 | 205 | 10.9 | 7.54 | 22.5x | 1.4x | 379 / 410 | 181 / 244 | 164 / 266 |
 | rtmw-x | 218 | 207 | 24.0 | 14.4 | 14.3x | 1.7x | 604 / 636 | 335 / 390 | 289 / 392 |
-| rtmw-x-384 | 306 | 291 | 50.6 | 50.9 | 5.7x | 1.0x | 1874 / 1940 | 466 / 632 | 496 / 632 |
+| rtmw-x-384 | 306 | 291 | 51.7 | 49.1 | 5.9x | 1.1x | 1874 / 1940 | 466 / 552 | 496 / 612 |
 | vitpose-base | 139 | 105 | 17.8 | 12.0 | 8.8x | 1.5x | 713 / 762 | 299 / 322 | 274 / 364 |
 | vitpose-base-simple | 145 | 109 | 18.1 | 12.1 | 9.0x | 1.5x | 828 / 962 | 312 / 342 | 295 / 344 |
 | vitpose-plus-base | 162 | 113 | 17.9 | 11.9 | 9.5x | 1.5x | 918 / 1002 | 299 / 322 | 274 / 344 |
@@ -1292,14 +1342,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dinov2-vitl14-reg | 22.5 | 10.7 | 6.38 | 4.60 | 2.3x | 1.4x | 1777 / 1786 | 624 / 646 | 627 / 648 |
 | dinov2-vits14 | 3.30 | 4.40 | 2.95 | 0.827 | 4.0x | 3.6x | 160 / 166 | 79 / 98 | 80 / 122 |
 | dinov2-vits14-reg | 4.11 | 5.59 | 2.98 | 0.832 | 4.9x | 3.6x | 160 / 168 | 80 / 98 | 80 / 102 |
-| dinov3-convnext-base | 7.38 | 8.24 | 5.71 | 2.19 | 3.4x | 2.6x | 535 / 552 | 208 / 232 | 174 / 214 |
-| dinov3-convnext-large | 10.5 | 9.59 | 5.45 | 3.61 | 2.7x | 1.5x | 1163 / 1252 | 419 / 430 | 409 / 452 |
-| dinov3-convnext-small | 5.97 | 8.09 | 5.42 | 1.98 | 3.0x | 2.7x | 328 / 348 | 134 / 150 | 100 / 132 |
-| dinov3-convnext-tiny | 2.96 | 4.47 | 3.04 | 1.22 | 2.4x | 2.5x | 198 / 206 | 93 / 108 | 59 / 110 |
-| dinov3-vitb16 | 6.95 | 9.33 | 3.59 | 1.26 | 5.5x | 2.8x | 527 / 550 | 200 / 226 | 168 / 210 |
-| dinov3-vith16plus | 48.0 | 25.9 | 12.5 | 8.45 | 3.1x | 1.5x | 4849 / 4876 | 1646 / 1666 | 1645 / 1672 |
-| dinov3-vitl16 | 19.2 | 17.7 | 6.52 | 3.04 | 5.8x | 2.1x | 1772 / 1812 | 616 / 646 | 616 / 650 |
-| dinov3-vits16 | 6.47 | 9.16 | 3.40 | 0.793 | 8.2x | 4.3x | 158 / 166 | 76 / 104 | 44 / 68 |
+| dinov3-convnext-base | 7.38 | 6.62 | 5.71 | 2.19 | 3.0x | 2.6x | 207 / 232 | 208 / 232 | 174 / 214 |
+| dinov3-convnext-large | 10.5 | 6.72 | 5.45 | 3.61 | 1.9x | 1.5x | 418 / 430 | 419 / 430 | 409 / 452 |
+| dinov3-convnext-small | 5.97 | 6.62 | 5.42 | 1.98 | 3.0x | 2.7x | 133 / 168 | 134 / 150 | 100 / 132 |
+| dinov3-convnext-tiny | 2.96 | 3.60 | 3.04 | 1.22 | 2.4x | 2.5x | 91 / 128 | 93 / 108 | 59 / 110 |
+| dinov3-vitb16 | 6.95 | 6.72 | 4.76 | 1.36 | 4.9x | 3.5x | 200 / 206 | 200 / 206 | 167 / 210 |
+| dinov3-vith16plus | 48.0 | 16.0 | 14.1 | 8.85 | 1.8x | 1.6x | 1645 / 1816 | 1646 / 1666 | 1643 / 1670 |
+| dinov3-vitl16 | 19.2 | 11.2 | 10.2 | 3.26 | 3.4x | 3.1x | 617 / 640 | 616 / 626 | 615 / 628 |
+| dinov3-vits16 | 6.47 | 6.45 | 5.19 | 0.799 | 8.1x | 6.5x | 76 / 118 | 76 / 84 | 44 / 68 |
 | pe-core-b16-224 | 7.14 | 9.35 | 4.97 | 1.47 | 4.9x | 3.4x | 584 / 620 | 218 / 266 | 218 / 268 |
 | pe-core-g14-448 | 97.7 | 52.4 | 25.7 | 17.0 | 3.1x | 1.5x | 10848 / 11330 | 3640 / 3670 | 3640 / 3696 |
 | pe-core-l14-336 | 23.3 | 17.7 | 9.09 | 4.97 | 3.6x | 1.8x | 1848 / 1888 | 650 / 668 | 648 / 672 |
@@ -1335,72 +1385,72 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
 | anycalib-pinhole | 38.4 | 29.4 | 21.5 | 1.8x | 1.4x | 1343 / 1352 | 705 / 742 | 739 / 812 |
-| geocalib-pinhole | 106 | 81.2 | 81.8 | 1.3x | 1.0x | 502 / 558 | 320 / 378 | 277 / 338 |
+| geocalib-pinhole | 106 | 68.0 | 68.4 | 1.6x | 1.0x | 502 / 558 | 320 / 376 | 277 / 336 |
 
 ### Multiview, synthetic
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| anysplat | 336x518 | – | 741 | 503 | 364 | 2.0x | 1.4x | 8931 / 9394 | 4842 / 4932 | 4849 / 5192 |
-| depthsplat-small-re10k | 336x518 | – | 126 | 119 | 112 | 1.1x | 1.1x | 5694 / 5892 | 5432 / 5606 | 5434 / 5606 |
-| lingbot-map | 480x640 | – | 993 | 730 | 515 | 1.9x | 1.4x | 7141 / 7672 | 4512 / 4770 | 4519 / 4810 |
-| mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
-| mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
-| mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
+| anysplat | 336x518 | – | 741 | 505 | 366 | 2.0x | 1.4x | 8931 / 9394 | 4032 / 4452 | 4039 / 4232 |
+| depthsplat-small-re10k | 336x518 | – | 126 | 122 | 91.4 | 1.4x | 1.3x | 5694 / 5892 | 764 / 854 | 766 / 844 |
+| lingbot-map | 480x640 | – | 993 | 733 | 520 | 1.9x | 1.4x | 7141 / 7672 | 3910 / 5734 | 3919 / 5932 |
+| mapanything-apache | 336x518 | 2875 | 1967 | 637 | 525 | 3.7x | 1.2x | 10227 / 10952 | 3252 / 3652 | 3252 / 3652 |
+| mvsanywhere | 448x672 | 273 | 219 | 93.8 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 712 / 868 | 702 / 760 |
+| mvsplat-re10k | 336x518 | – | 279 | 182 | 145 | 1.9x | 1.3x | 2889 / 4160 | 1134 / 1212 | 1134 / 1212 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
-| pi3 | 336x518 | – | 1057 | 821 | 559 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
-| resplat-base-re10k | 480x640 | – | 2521 | 7086 | 1280 | 2.0x | 5.5x | 10139 / 12684 | 6951 / 8736 | 6944 / 8706 |
-| resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
-| vggt-1b | 336x518 | 2502 | 965 | 651 | 460 | 2.1x | 1.4x | 8688 / 9158 | 3643 / 3874 | 3650 / 4194 |
-| vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 467 | 1.9x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3404 / 3494 |
+| pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
+| resplat-base-re10k | 480x640 | – | 2521 | 6868 | 1169 | 2.2x | 5.9x | 10139 / 12684 | 4336 / 5596 | 4348 / 5546 |
+| resplat-small-dl3dv | 480x640 | – | 493 | 1680 | 313 | 1.6x | 5.4x | 5148 / 5376 | 1103 / 1240 | 1089 / 1208 |
+| vggt-1b | 336x518 | 2502 | 965 | 655 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3500 / 3694 | 3507 / 3734 |
+| vggt-omega-1b-512 | 336x518 | 2650 | 906 | 725 | 468 | 1.9x | 1.6x | 7495 / 7654 | 3130 / 3252 | 3130 / 3330 |
 
-### Flow, synthetic
+### Flow, synthetic, 1080x1920
 
-| model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|---|
-| flowformer-small-chairs | 375x1242 | 352 | 303 | 337 | – | – | – | 2382 / 2970 | 1404 / 1698 | – |
-| flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | – | – | – | 2382 / 2990 | 1404 / 1698 | – |
-| flowformer-small-things | 375x1242 | 352 | 303 | 337 | – | – | – | 2382 / 3010 | 1404 / 1698 | – |
-| flowseek-t | 1080x1920 | 650 | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
-| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
-| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
-| gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
-| gmflow-scale1-things | 1080x1920 | 1245 | 750 | 556 | – | – | – | 8360 / 8468 | 4496 / 4642 | – |
-| gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1678 | – | – | – | 8537 / 8822 | 6080 / 6230 | – |
-| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 3254 | 2188 | 1675 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
-| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 3255 | 2184 | 1674 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 1665 | – | – | – | 8537 / 8822 | 6080 / 6230 | – |
-| gmflow-scale2-sintel | 1080x1920 | 2541 | 1607 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
-| gmflow-scale2-things | 1080x1920 | 2537 | 1599 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
-| megaflow | 1080x1920 | – | 1588 | 1109 | 734 | 2.2x | 1.5x | 8230 / 8786 | 3035 / 3246 | 2866 / 3066 |
-| memflow | 1080x1920 | – | 3116 | 964 | 865 | 3.6x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
-| memflow-kitti | 1080x1920 | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
-| memflow-sintel | 1080x1920 | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 8265 / 8382 | 968 / 1022 |
-| memfof | 1080x1920 | – | 531 | 433 | 427 | 1.2x | 1.0x | 2003 / 2144 | 1911 / 2196 | 1301 / 1418 |
-| memfof-kitti | 375x1242 | – | 927 | 386 | 380 | 2.4x | 1.0x | 1968 / 2276 | 1619 / 1856 | 1137 / 1218 |
-| memfof-sintel | 1080x1920 | – | OOM | OOM | 1993 | – | – | – | – | 7249 / 8820 |
-| memfof-spring | 1080x1920 | – | 1035 | 433 | 427 | 2.4x | 1.0x | 2340 / 2676 | 1900 / 2196 | 1290 / 1398 |
-| neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
-| neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
-| neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
-| raft-large | 1080x1920 | 480 | 567 | 291 | 83.4 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
-| raft-large-kitti | 1080x1920 | 480 | 567 | 291 | 84.2 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
-| raft-large-things | 1080x1920 | 481 | 566 | 291 | 83.5 | 5.8x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
-| raft-small | 1080x1920 | 196 | 395 | 144 | 36.5 | 5.4x | 4.0x | 7032 / 10888 | 5669 / 5706 | 196 / 204 |
-| recover-cx | 1080x1920 | – | 179 | 107 | 89.8 | 2.0x | 1.2x | 1066 / 1168 | 733 / 892 | 733 / 892 |
-| recover-mn | 1080x1920 | – | 103 | 45.5 | 41.8 | 2.5x | 1.1x | 921 / 1036 | 580 / 676 | 580 / 676 |
-| recover-rn | 1080x1920 | – | 130 | 64.1 | 51.3 | 2.5x | 1.2x | 950 / 1046 | 590 / 672 | 590 / 672 |
-| sea-raft-m | 1080x1920 | 504 | 367 | 270 | 73.4 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
-| sea-raft-m-kitti | 1080x1920 | 504 | 367 | 270 | 73.3 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
-| sea-raft-m-spring | 1080x1920 | 96.1 | 56.7 | 46.8 | 23.5 | 2.4x | 2.0x | 761 / 812 | 652 / 700 | 170 / 194 |
-| sea-raft-m-things | 1080x1920 | 504 | 367 | 270 | 73.0 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
-| sea-raft-s | 1080x1920 | 365 | 300 | 211 | 50.6 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 452 |
-| sea-raft-s-kitti | 1080x1920 | 365 | 299 | 210 | 50.7 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 432 |
-| sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 32.8 | 16.2 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 150 / 172 |
-| waft-a1 | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
-| waft-a1-kitti | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5936 | 3553 / 4196 | 1851 / 2264 |
-| waft-a1-sintel | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
+| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|
+| flowformer-small-chairs | OOM | OOM | 4006 | 3951 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
+| flowformer-small-sintel | OOM | OOM | 4003 | 3958 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
+| flowformer-small-things | OOM | OOM | 4003 | 3950 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
+| flowseek-t | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
+| flowseek-t-things | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
+| flowseek-t-things-notartan | 651 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
+| gmflow-scale1-mixdata | 1246 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8448 | 1988 / 2142 | 1988 / 2142 |
+| gmflow-scale1-things | 1245 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8468 | 1988 / 2142 | 1988 / 2142 |
+| gmflow-scale2-mixdata | 2544 | 1608 | 915 | 915 | 1.8x | 1.0x | 8425 / 8572 | 2995 / 3184 | 2995 / 3204 |
+| gmflow-scale2-regrefine6-kitti | 3255 | 2188 | 1383 | 1389 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
+| gmflow-scale2-regrefine6-mixdata | 3254 | 2188 | 1382 | 1383 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
+| gmflow-scale2-regrefine6-sintelft | 3255 | 2184 | 1381 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
+| gmflow-scale2-regrefine6-things | 3230 | 2175 | 1382 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
+| gmflow-scale2-sintel | 2541 | 1607 | 915 | 916 | 1.8x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
+| gmflow-scale2-things | 2537 | 1599 | 914 | 916 | 1.7x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
+| megaflow | – | 1588 | 1116 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2629 / 2766 | 2639 / 2866 |
+| memflow | – | 3116 | 965 | 865 | 3.6x | 1.1x | 15061 / 15594 | 6001 / 6294 | 968 / 1022 |
+| memflow-kitti | – | 3247 | 964 | 865 | 3.8x | 1.1x | 15061 / 15594 | 5985 / 6102 | 968 / 1022 |
+| memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 5985 / 6102 | 968 / 1022 |
+| memfof | – | 531 | 433 | 349 | 1.5x | 1.2x | 2003 / 2144 | 1911 / 2196 | 917 / 1016 |
+| memfof-kitti | – | – | 2202 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
+| memfof-sintel | – | OOM | 2177 | 1541 | – | 1.4x | – | 14156 / 14418 | 3805 / 4018 |
+| memfof-spring | – | 1035 | 433 | 349 | 3.0x | 1.2x | 2340 / 2676 | 1900 / 2196 | 917 / 1016 |
+| neuflow-v2 | 171 | 75.6 | 72.0 | 59.8 | 1.3x | 1.2x | 4367 / 4556 | 2327 / 2398 | 490 / 636 |
+| neuflow-v2-sintel | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
+| neuflow-v2-things | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
+| raft-large | 480 | 567 | 283 | 83.4 | 5.7x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-large-kitti | 480 | 567 | 284 | 84.2 | 5.7x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-large-things | 481 | 566 | 283 | 83.5 | 5.8x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-small | 196 | 395 | 141 | 36.5 | 5.4x | 3.9x | 7032 / 10888 | 5601 / 5646 | 196 / 204 |
+| recover-cx | – | 179 | 107 | 89.8 | 2.0x | 1.2x | 1066 / 1168 | 733 / 892 | 733 / 892 |
+| recover-mn | – | 103 | 45.5 | 41.8 | 2.5x | 1.1x | 921 / 1036 | 580 / 676 | 580 / 676 |
+| recover-rn | – | 130 | 64.1 | 51.3 | 2.5x | 1.2x | 950 / 1046 | 590 / 672 | 590 / 672 |
+| sea-raft-m | 504 | 367 | 269 | 73.4 | 5.0x | 3.7x | 7385 / 8570 | 5847 / 6570 | 425 / 454 |
+| sea-raft-m-kitti | 504 | 367 | 270 | 73.3 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
+| sea-raft-m-spring | 96.1 | 56.7 | 46.8 | 23.5 | 2.4x | 2.0x | 761 / 812 | 652 / 700 | 170 / 194 |
+| sea-raft-m-things | 504 | 367 | 270 | 73.0 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
+| sea-raft-s | 365 | 300 | 211 | 50.6 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 452 |
+| sea-raft-s-kitti | 365 | 299 | 210 | 50.7 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 432 |
+| sea-raft-s-spring | 67.1 | 42.4 | 32.8 | 16.2 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 150 / 172 |
+| waft-a1 | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5916 | 1832 / 2196 | 1851 / 2264 |
+| waft-a1-kitti | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5936 | 1832 / 2196 | 1851 / 2264 |
+| waft-a1-sintel | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5916 | 1832 / 2196 | 1851 / 2264 |
 
 ### Flow, KITTI 2015, 375x1242
 
@@ -1415,50 +1465,63 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| aliked-flexglue | – | 348 | 129 | – | – | – | 1801 / 1892 | 1775 / 1886 | – |
+| aliked-flexglue | – | 348 | 129 | 129 | 2.7x | 1.0x | 1801 / 1892 | 1775 / 1886 | 1814 / 2178 |
 | aliked-lightglue | – | 41.8 | 40.6 | 35.1 | 1.2x | 1.2x | 1305 / 1364 | 1300 / 1404 | 1238 / 1324 |
-| dedode-v2-b | – | 318 | 246 | 189 | 1.7x | 1.3x | 1734 / 1992 | 1535 / 1654 | 1197 / 1246 |
-| dedode-v2-g | – | 666 | 592 | 332 | 2.0x | 1.8x | 2335 / 2472 | 2142 / 2334 | 1787 / 1984 |
-| disk-lightglue | – | 117 | 116 | 52.1 | 2.2x | 2.2x | 1955 / 2412 | 1950 / 2398 | 736 / 778 |
-| loftr-indoor | – | 242 | 111 | 96.2 | 2.5x | 1.1x | 1751 / 1910 | 796 / 904 | 760 / 886 |
-| loftr-outdoor | – | 241 | 110 | 95.9 | 2.5x | 1.1x | 1739 / 1870 | 796 / 904 | 760 / 886 |
-| loma-b | – | 1036 | 308 | – | – | – | 4176 / 4390 | 1767 / 1878 | – |
-| romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
-| romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
-| xfeat | – | 8.89 | 7.17 | – | – | – | 128 / 174 | 122 / 154 | – |
-| xfeat-lighterglue | – | 23.6 | 21.6 | – | – | – | 448 / 478 | 445 / 476 | – |
+| dedode-v2-b | – | 318 | 236 | 189 | 1.7x | 1.2x | 1734 / 1992 | 1160 / 1292 | 1197 / 1246 |
+| dedode-v2-g | – | 666 | 379 | 332 | 2.0x | 1.1x | 2335 / 2472 | 1761 / 2114 | 1787 / 1984 |
+| disk-lightglue | – | 117 | 116 | 49.2 | 2.4x | 2.4x | 1955 / 2412 | 1950 / 2400 | 736 / 778 |
+| loftr-indoor | – | 242 | 110 | 86.0 | 2.8x | 1.3x | 1751 / 1910 | 740 / 944 | 740 / 806 |
+| loftr-outdoor | – | 241 | 110 | 85.8 | 2.8x | 1.3x | 1739 / 1870 | 733 / 944 | 734 / 806 |
+| loma-b | – | 1036 | 309 | 263 | 3.9x | 1.2x | 4176 / 4390 | 1767 / 1878 | 1217 / 1328 |
+| loma-b128 | 370 | – | 150 | 116 | – | 1.3x | – | 878 / 984 | 625 / 684 |
+| loma-b64 | 317 | – | 131 | 107 | – | 1.2x | – | 854 / 962 | 613 / 720 |
+| loma-g | 1240 | – | 357 | 307 | – | 1.2x | – | 2219 / 2388 | 1509 / 1648 |
+| loma-l | 1092 | – | 320 | 273 | – | 1.2x | – | 1903 / 2012 | 1285 / 1406 |
+| loma-r | 1037 | – | 309 | 262 | – | 1.2x | – | 1767 / 1878 | 1217 / 1328 |
+| romav1 | – | 386 | 377 | 218 | 1.8x | 1.7x | 3887 / 4094 | 1597 / 1738 | 1597 / 1738 |
+| romav2 | 1412 | 741 | 550 | 350 | 2.1x | 1.6x | 9881 / 10124 | 1989 / 2476 | 1890 / 2460 |
+| xfeat | – | 8.89 | 10.6 | 17.1 | 0.5x | 0.6x | 128 / 174 | 122 / 154 | 296 / 352 |
+| xfeat-lighterglue | – | 23.6 | 31.8 | 32.8 | 0.7x | 1.0x | 448 / 478 | 444 / 476 | 445 / 478 |
 
 ### Tracking, synthetic, 480x854
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| alltracker | 485 | 391 | 221 | 2.2x | 1.8x | 2100 / 2318 | 993 / 1238 | 1076 / 1288 |
+| alltracker | 485 | 385 | 213 | 2.3x | 1.8x | 2100 / 2318 | 885 / 998 | 967 / 1068 |
 | alltracker-tiny | 424 | 330 | 217 | 2.0x | 1.5x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
-| bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
+| bootstapir | 243 | 233 | 191 | 1.3x | 1.2x | 639 / 774 | 499 / 568 | 499 / 568 |
 | cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.0x | 2221 / 2480 | 755 / 882 | 757 / 882 |
 | cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 757 / 888 |
-| locotrack-b | 203 | 188 | 173 | 1.2x | 1.1x | 719 / 784 | 603 / 656 | 614 / 660 |
+| locotrack-b | 203 | 189 | 109 | 1.9x | 1.7x | 719 / 784 | 535 / 596 | 507 / 600 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 596 / 642 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
-| tapnext-pp | 1493 | 529 | 381 | 3.9x | 1.4x | 1527 / 1718 | 1220 / 1294 | 1205 / 1254 |
-| track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
-| track-on2 | 1953 | 1193 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1423 / 1712 | 1368 / 1620 |
+| tapnext-pp | 1493 | 529 | 382 | 3.9x | 1.4x | 1527 / 1718 | 1028 / 1094 | 1013 / 1074 |
+| track-on-r | 2022 | 1150 | 1064 | 1.9x | 1.1x | 1801 / 1928 | 1030 / 1190 | 975 / 1156 |
+| track-on2 | 1953 | 1159 | 1073 | 1.8x | 1.1x | 1403 / 1558 | 1030 / 1190 | 975 / 1158 |
+
+### Tracking, Synthetic video
+
+| model | input | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
+|---|---|---|---|
+| cotracker3-online | 8x256x256 | 97.2 | 936 / 1298 |
+| locotrack-b | 8x480x854 | 27.2 | 241 / 278 |
+| locotrack-s | 8x480x854 | 25.3 | 229 / 280 |
 
 ### Interpolation, synthetic, 1080x1920
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ema-vfi | 296 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
+| ema-vfi | 296 | 233 | 185 | 1.6x | 1.3x | 3940 / 4290 | 1659 / 2082 | 1659 / 2102 |
 | ema-vfi-small | 121 | 89.4 | 84.4 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
-| film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2856 / 3080 | 2856 / 3080 |
-| gimm-vfi-r | OOM | 2622 | 1629 | – | 1.6x | – | 9899 / 10400 | 4587 / 5362 |
-| gimm-vfi-r-p | OOM | 2622 | 1628 | – | 1.6x | – | 9899 / 10400 | 4587 / 5282 |
-| rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
-| rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
-| rife-4.26 | 24.2 | 25.1 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 755 / 894 | 848 / 916 |
+| film | 464 | 412 | 328 | 1.4x | 1.3x | 2953 / 3556 | 2397 / 2702 | 2397 / 2942 |
+| gimm-vfi-r | OOM | 2528 | 1521 | – | 1.7x | – | 5394 / 6518 | 4511 / 5282 |
+| gimm-vfi-r-p | OOM | 2528 | 1520 | – | 1.7x | – | 5394 / 6518 | 4511 / 5282 |
+| rife-4.25 | 24.5 | 25.0 | 21.9 | 1.1x | 1.1x | 987 / 1154 | 570 / 616 | 561 / 636 |
+| rife-4.25-lite | 21.3 | 21.1 | 19.4 | 1.1x | 1.1x | 1012 / 1214 | 551 / 616 | 545 / 596 |
+| rife-4.26 | 24.2 | 25.0 | 22.0 | 1.1x | 1.1x | 1004 / 1154 | 570 / 616 | 561 / 636 |
 
 ### Restoration, synthetic, 512x512
 
@@ -1466,33 +1529,33 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|
 | big-lama | 38.0 | 26.0 | 21.2 | 1.8x | 1.2x | 239 / 286 | 219 / 242 | 219 / 284 |
 | codeformer | 85.7 | 48.6 | 40.4 | 2.1x | 1.2x | 959 / 1090 | 512 / 638 | 432 / 496 |
-| dat-2-x4 | 4880 | 1312 | 1221 | 4.0x | 1.1x | 2436 / 2518 | 2276 / 2378 | 2276 / 2378 |
-| dat-light-x4 | 2204 | 268 | 264 | 8.3x | 1.0x | 1606 / 1656 | 1535 / 1552 | 1445 / 1472 |
-| dat-x4 | 9564 | 1565 | 1391 | 6.9x | 1.1x | 2443 / 2528 | 2552 / 2624 | 2282 / 2384 |
-| drct-l-x4 | 14651 | 1607 | 1399 | 10.5x | 1.1x | 5574 / 6926 | 2692 / 3110 | 2564 / 2850 |
-| drct-x4 | 7492 | 830 | 718 | 10.4x | 1.2x | 3359 / 3944 | 2626 / 3048 | 2498 / 2766 |
+| dat-2-x4 | 4880 | 1156 | 1037 | 4.7x | 1.1x | 2436 / 2518 | 1420 / 2220 | 1399 / 2220 |
+| dat-light-x4 | 2204 | 234 | 230 | 9.6x | 1.0x | 1606 / 1656 | 521 / 532 | 521 / 532 |
+| dat-x4 | 9564 | 1386 | 1209 | 7.9x | 1.1x | 2443 / 2528 | 1427 / 2246 | 1406 / 2226 |
+| drct-l-x4 | 14651 | 1567 | 1314 | 11.2x | 1.2x | 5574 / 6926 | 1675 / 1950 | 1603 / 1790 |
+| drct-x4 | 7492 | 810 | 674 | 11.1x | 1.2x | 3359 / 3944 | 1608 / 1888 | 1560 / 1748 |
 | gfpgan-v1.4 | 21.9 | 21.2 | 18.0 | 1.2x | 1.2x | 563 / 670 | 505 / 528 | 473 / 530 |
 | hat-s-x4 | 2402 | 1072 | 956 | 2.5x | 1.1x | 5018 / 5644 | 1984 / 2148 | 1856 / 1888 |
 | hat-x4 | 3038 | 1596 | 1427 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2590 | 2298 / 2470 |
-| nafnet-gopro | 63.7 | 60.4 | 55.3 | 1.2x | 1.1x | 484 / 612 | 451 / 532 | 451 / 550 |
-| nafnet-sidd | 71.6 | 60.6 | 56.9 | 1.3x | 1.1x | 608 / 730 | 575 / 670 | 575 / 650 |
-| real-hat-gan-x4 | 3038 | 1597 | 1427 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2610 | 2298 / 2470 |
+| nafnet-gopro | 63.7 | 60.4 | 31.3 | 2.0x | 1.9x | 484 / 612 | 439 / 472 | 376 / 408 |
+| nafnet-sidd | 71.6 | 61.1 | 22.5 | 3.2x | 2.7x | 608 / 730 | 607 / 650 | 502 / 536 |
+| real-hat-gan-x4 | 3038 | 1428 | 1234 | 2.5x | 1.2x | 5318 / 6106 | 1430 / 2070 | 1312 / 1510 |
 | realesr-general-x4v3 | 42.1 | 30.1 | 24.0 | 1.8x | 1.3x | 157 / 206 | 125 / 164 | 125 / 164 |
-| realesrgan-x2plus | 128 | 97.0 | 80.2 | 1.6x | 1.2x | 592 / 656 | 333 / 394 | 333 / 394 |
-| realesrgan-x4plus | 631 | 471 | 403 | 1.6x | 1.2x | 2266 / 2496 | 1220 / 1454 | 1220 / 1434 |
-| realesrgan-x4plus-anime-6b | 205 | 155 | 132 | 1.6x | 1.2x | 2243 / 2472 | 1197 / 1430 | 1197 / 1410 |
+| realesrgan-x2plus | 128 | 97.2 | 81.4 | 1.6x | 1.2x | 592 / 656 | 200 / 234 | 200 / 234 |
+| realesrgan-x4plus | 631 | 473 | 390 | 1.6x | 1.2x | 2266 / 2496 | 292 / 354 | 324 / 374 |
+| realesrgan-x4plus-anime-6b | 205 | 156 | 129 | 1.6x | 1.2x | 2243 / 2472 | 269 / 330 | 301 / 350 |
 | realplksr-nomoswebphoto-x4 | 267 | 182 | 130 | 2.1x | 1.4x | 244 / 320 | 179 / 216 | 179 / 216 |
-| restormer-deblur | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 918 |
-| restormer-derain | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 920 |
-| restormer-sidd | 218 | 181 | 179 | 1.2x | 1.0x | 1221 / 1416 | 850 / 920 | 850 / 940 |
-| seedvr2-3b | 13150 | 2295 | 2296 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
-| seedvr2-7b | OOM | 2712 | 2713 | – | 1.0x | – | 6402 / 7034 | 6402 / 7034 |
+| restormer-deblur | 234 | 183 | 132 | 1.8x | 1.4x | 1221 / 1418 | 724 / 740 | 718 / 740 |
+| restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
+| restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
+| seedvr2-3b | 13150 | 2365 | 2365 | 5.6x | 1.0x | 7598 / 15268 | 3453 / 3492 | 3453 / 3492 |
+| seedvr2-7b | OOM | 2787 | 2781 | – | 1.0x | – | 3715 / 3814 | 3715 / 3814 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 721 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
 | swin2sr-x4 | 2922 | 932 | 745 | 3.9x | 1.3x | 1488 / 2160 | 1463 / 2276 | 1459 / 1736 |
-| swin2sr-x4-real | 2527 | 958 | 751 | 3.4x | 1.3x | 2321 / 2660 | 2354 / 2774 | 1459 / 1734 |
-| swinir-l-x4-real | 3709 | 2099 | 1036 | 3.6x | 2.0x | 2357 / 2746 | 2425 / 2672 | 1806 / 1934 |
+| swin2sr-x4-real | 2527 | 960 | 751 | 3.4x | 1.3x | 2321 / 2660 | 1459 / 1556 | 1459 / 1734 |
+| swinir-l-x4-real | 3709 | 1218 | 896 | 4.1x | 1.4x | 2357 / 2746 | 1600 / 1794 | 1600 / 1794 |
 | swinir-m-x2 | 3252 | 739 | 553 | 5.9x | 1.3x | 1500 / 1818 | 1353 / 1454 | 1353 / 1454 |
 | swinir-m-x4 | 3497 | 767 | 576 | 6.1x | 1.3x | 1500 / 2058 | 1499 / 2054 | 1354 / 1456 |
 | swinir-m-x4-real | 2462 | 1242 | 584 | 4.2x | 2.1x | 2321 / 2978 | 2387 / 3034 | 1353 / 1814 |
@@ -1501,11 +1564,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| nnfoundation-cnn | 200x200 | 501 | 274 | 226 | 211 | 1.3x | 1.1x | 3818 / 4628 | 3011 / 3130 | 2985 / 3710 |
-| nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
-| nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
-| totalsegmentator-total | 200x200 | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
-| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 67.1 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1092 / 1508 | 1037 / 1410 |
+| nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
+| nnfoundation-vit | 192x192 | OOM | 1930 | 1816 | 1699 | 1.1x | 1.1x | 3930 / 4298 | 1510 / 1564 | 1510 / 1564 |
+| nninteractive | 200x200 | 705 | 460 | 209 | 193 | 2.4x | 1.1x | 4076 / 4636 | 2423 / 2772 | 2423 / 2772 |
+| totalsegmentator-total | 200x200 | 47779 | 45630 | 1977 | 1647 | 27.7x | 1.2x | 2640 / 2874 | 2017 / 2244 | 1219 / 1638 |
+| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 70.3 | 71.8 | 101.2x | 1.0x | 2010 / 2684 | 962 / 1050 | 913 / 1376 |
 
 ### Startup and first call
 
@@ -1515,17 +1578,17 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 |---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 0.15 (375x1242) | 0.16 | 0.20† | 0.70 (375x1242) | 0.17† | 0.09† |
 | aanet-sceneflow | 0.12 (375x1242) | 0.19 | 0.27† | 0.07 (375x1242) | 0.14† | 0.10† |
-| bridgedepth-rvc-pretrain | 5.87 (375x1242) | 1.84 | 0.76† | 1.36 (375x1242) | 0.45† | 0.36† |
-| bridgedepth-sf | 4.86 (375x1242) | 1.53 | 0.72† | 0.12 (375x1242) | 0.44† | 0.35† |
+| bridgedepth-rvc-pretrain | 5.87 (375x1242) | 1.17 | 1.12 | 1.36 (375x1242) | 1.06 | 1.04 |
+| bridgedepth-sf | 4.86 (375x1242) | 0.97 | 1.00 | 0.12 (375x1242) | 0.84 | 0.82 |
 | c-fast-foundationstereo | 0.17 (375x1242) | 0.24 | 0.72 (375x1242) | 0.17 (375x1242) | 0.33† | 0.55 (375x1242) |
 | c-foundationstereo-s | 1.67 (375x1242) | 0.96 (375x1242) | 0.81 (375x1242) | 2.73 (375x1242) | 2.09 (375x1242) | 1.38 (375x1242) |
 | cas-gwcnet-c-sceneflow | 0.48 (375x1242) | 1.29 | 0.18† | 0.41 (375x1242) | 0.33† | 0.23† |
-| cas-gwcnet-gc-sceneflow | 0.39 | 0.97 | 0.17† | 0.64 | 0.47† | 0.36† |
+| cas-gwcnet-gc-sceneflow | 0.39 | 1.10 | 0.81 | 0.64 | 0.64 | 0.40 |
 | cfnet-sceneflow | 0.55 | 0.96 (375x1242) | 1.14 (375x1242) | 0.56 | 0.36 (375x1242) | 0.27 (375x1242) |
 | coex-sceneflow | – | 0.27 (375x1242) | 0.57 (375x1242) | 0.63 (375x1242) | 0.70 (375x1242) | 0.48 (375x1242) |
-| crestereo-eth3d | 0.05 | 0.03 | 0.03† | 1.50 | 0.75† | 0.23† |
-| defom-stereo-vitl-sceneflow | 4.24 | 2.31 | 2.74 (375x1242) | 2.83 | 1.53† | 0.30 (375x1242) |
-| dlnr-middlebury | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
+| crestereo-eth3d | 0.05 | 0.16 | 0.03† | 1.50 | 1.21 | 0.23† |
+| defom-stereo-vitl-sceneflow | 4.24 | 1.20 | 2.74 (375x1242) | 2.83 | 1.73 | 0.30 (375x1242) |
+| dlnr-middlebury | 0.83 (375x1242) | 0.55 | 0.79 | 1.71 (375x1242) | 1.05 | 0.57 |
 | dlnr-sceneflow | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
 | fast-acvnet-generalization | 0.24 (375x1242) | 0.27 (375x1242) | 0.59 (375x1242) | 1.73 (375x1242) | 0.79 (375x1242) | 0.62 (375x1242) |
 | fast-acvnet-kitti12 | 0.24 (375x1242) | 0.27 (375x1242) | 0.68 (375x1242) | 1.73 (375x1242) | 0.76 (375x1242) | 0.62 (375x1242) |
@@ -1536,14 +1599,14 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | fast-acvnet-plus-sceneflow | 0.23 (375x1242) | 0.27 (375x1242) | 0.57 (375x1242) | 0.04 (375x1242) | 0.71 (375x1242) | 0.55 (375x1242) |
 | fast-acvnet-sceneflow | 0.24 (375x1242) | 0.27 (375x1242) | 0.57 (375x1242) | 1.73 (375x1242) | 0.76 (375x1242) | 0.63 (375x1242) |
 | fast-foundationstereo | 0.16 (375x1242) | 0.25 | 0.60 (375x1242) | 0.14 (375x1242) | 0.33† | 0.49 (375x1242) |
-| foundationstereo-vit-l | 10.86 (375x1242) | 1.98 | 1.17† | 2.56 (375x1242) | 2.99† | 1.52† |
+| foundationstereo-vit-l | 10.86 (375x1242) | 1.46 | 1.40 | 2.56 (375x1242) | 3.78 | 2.21 |
 | foundationstereo-vit-s | 1.44 (375x1242) | 1.03 | 0.33† | 1.06 (375x1242) | 2.51† | 1.12† |
 | great-igev-eth3d | 0.44 (375x1242) | 0.32 | 0.70 (375x1242) | 4.60 (375x1242) | 1.10† | 1.14 (375x1242) |
 | great-igev-kitti | 0.44 (375x1242) | 0.32 | 0.65 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
-| great-igev-middlebury | 0.39 (375x1242) | 3.91 | 1.02 (375x1242) | 4.59 (375x1242) | 1.81† | 0.73 (375x1242) |
+| great-igev-middlebury | 0.39 (375x1242) | – | 1.02 (375x1242) | 4.59 (375x1242) | 1.79 | 0.73 (375x1242) |
 | great-igev-sceneflow | 0.44 (375x1242) | 0.32 | 0.64 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
 | gwcnet-g-sceneflow | 0.26 (375x1242) | 0.40 | 0.14† | 0.46 (375x1242) | 0.34† | 0.24† |
-| gwcnet-gc-sceneflow | 0.29 (375x1242) | 0.39 | 0.44† | 0.12 (375x1242) | 0.35† | 0.26† |
+| gwcnet-gc-sceneflow | 0.29 (375x1242) | 0.53 | 0.80 | 0.12 (375x1242) | 0.47 | 0.29 |
 | hitnet-eth3d | 0.31 | 0.18 (375x1242) | 0.27 (375x1242) | 2.06 | 0.45 (375x1242) | 0.28 (375x1242) |
 | hitnet-middlebury-d400 | 0.57 | 0.18 (375x1242) | 0.36 (375x1242) | 3.51 | 0.48 (375x1242) | 0.23 (375x1242) |
 | igev-plusplus-eth3d | 0.42 (375x1242) | 0.69 (375x1242) | 0.68 (375x1242) | 2.33 (375x1242) | 0.84 (375x1242) | 0.57 (375x1242) |
@@ -1563,9 +1626,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | mocha-v1-sceneflow | 1.95 (375x1242) | 0.79 | 0.48† | 1.85 (375x1242) | 1.06† | 0.45† |
 | mocha-v2-sceneflow | 2.37 (375x1242) | 1.30 | 0.45† | 0.40 (375x1242) | 1.03† | 0.45† |
 | monster-mix-all | 5.85 (375x1242) | 2.02 (375x1242) | 2.69 (375x1242) | 1.26 (375x1242) | 0.70 (375x1242) | 0.55 (375x1242) |
-| monster-plusplus-mix-all | 8.37 (375x1242) | 2.45 | 3.12 (375x1242) | 1.23 (375x1242) | 1.63† | 0.42 (375x1242) |
+| monster-plusplus-mix-all | 8.37 (375x1242) | 1.05 | 3.12 (375x1242) | 1.23 (375x1242) | 1.85 | 0.42 (375x1242) |
 | monster-sceneflow | 5.85 (375x1242) | 2.61 (375x1242) | 2.31 (375x1242) | 1.26 (375x1242) | 0.74 (375x1242) | 0.47 (375x1242) |
-| nmrf-sceneflow | 0.21 (375x1242) | 0.10 | 0.07† | 0.77 (375x1242) | 0.22† | 0.20† |
+| nmrf-sceneflow | 0.21 (375x1242) | 0.17 | 0.16 | 0.77 (375x1242) | 0.88 | 0.85 |
 | psmnet-sceneflow | 0.20 (375x1242) | 0.30 (375x1242) | 0.59 (375x1242) | 0.53 (375x1242) | 0.32 (375x1242) | 0.16 (375x1242) |
 | raft-stereo-eth3d | 0.27 (375x1242) | 0.25 | 0.55 (375x1242) | 1.45 (375x1242) | 0.75† | 0.10 (375x1242) |
 | raft-stereo-middlebury | 0.27 (375x1242) | 0.25 | 0.73 (375x1242) | 1.45 (375x1242) | 0.75† | 0.10 (375x1242) |
@@ -1582,8 +1645,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | selective-igev-middlebury-finetune | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | selective-igev-middlebury-train | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | selective-igev-sceneflow | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
-| waft-stereo-b | 3.07 (375x1242) | 1.65 | 1.77 (375x1242) | 0.44 (375x1242) | 1.15† | 0.46 (375x1242) |
-| waft-stereo-s | 1.60 (375x1242) | 0.58 | 1.47 (375x1242) | 0.14 (375x1242) | 0.69† | 0.32 (375x1242) |
+| waft-stereo-b | 3.07 (375x1242) | 0.55 | 1.77 (375x1242) | 0.44 (375x1242) | 1.36 | 0.46 (375x1242) |
+| waft-stereo-s | 1.60 (375x1242) | 1.03 | 1.47 (375x1242) | 0.14 (375x1242) | 0.87 | 0.32 (375x1242) |
 | any2full-b | 3.73 | 6.38 | 0.74 | 0.34 | 3.34 | 0.26 |
 | any2full-l | 9.41 | 1.45 | 1.50 | 0.47 | 0.30 | 0.28 |
 | any2full-s | 2.55 | 0.31 | 0.37 | 0.74 | 0.36 | 0.30 |
@@ -1612,11 +1675,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | lotus-normal-g-v1-1 | 10.43 | 4.37 | 3.49 | 1.15 | 0.59 | 0.38 |
 | marigold-depth-v1-1 | 1.32 | 11.04 (518x770) | 2.49 (518x770) | 0.60 | 0.89 (518x770) | 0.50 (518x770) |
 | marigold-normals-lcm-v0-1 | 6.02 | 4.11 | 8.22 | 2.86 | 0.62 | 0.47 |
-| marigold-v2-depth | – | 7.80 | 6.20 | – | 5.09 | 3.89 |
+| marigold-v2-depth | 174.65 (518x770) | 7.80 | 6.20 | 1.76 (518x770) | 5.09 | 3.89 |
 | metric3d-vit-large | 9.96 | 2.39 (518x770) | 0.71 (518x770) | 0.88 | 0.42 (518x770) | 0.50 (518x770) |
 | midas-dpt-beit-large-512 | 5.16 | 2.49 | 0.28† | 1.14 | 0.09 | 0.07 |
 | moge-2-vitb-normal | 1.26 | 0.49 (518x770) | 1.24 (518x770) | 0.24 | 0.40 (518x770) | 0.28 (518x770) |
-| moge-2-vitl-normal | 7.24 | 1.37 | 0.63† | 0.17 | 0.14 | 0.13 |
+| moge-2-vitl-normal | 7.24 | 0.90 | 0.63† | 0.17 | 0.33 | 0.13 |
 | moge-2-vits-normal | 0.88 | 1.18 (518x770) | 0.21 (518x770) | 1.50 | 0.30 (518x770) | 0.44 (518x770) |
 | moge-3-vitl | 10.60 | 2.31 (518x770) | 1.16 (518x770) | 2.92 | 0.69 (518x770) | 0.74 (518x770) |
 | omni-dc | 9.52 | 2.47 | 2.44 | 2.04 | 1.06 | 0.94 |
@@ -1626,21 +1689,21 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | prompt-depth-anything-s | 0.42 (756x1008) | 0.37 (756x1008) | 1.20 (756x1008) | 0.79 (756x1008) | 0.24 (756x1008) | 0.18 (756x1008) |
 | stablenormal-turbo | 6.36 | 2.94 | 3.25 | 1.13 | 0.54 | 0.35 |
 | unidepth-v2-vitl14 | 3.80 | 4.16 | 1.90 (518x770) | 0.38 | 0.15 | 0.30 (518x770) |
-| unik3d-vitl | 7.28 | 4.16 | 3.77 (518x770) | 0.57 | 0.14 | 0.30 (518x770) |
-| video-depth-anything-metric-s | 3.85 (1080x1920) | 0.19 (480x640) | 0.19 (480x640) | 17.09 (1080x1920) | 0.44 (480x640) | 0.50 (480x640) |
-| video-depth-anything-s | 0.26 (1080x1920) | 0.98 (480x640) | 0.38 (480x640) | 14.04 (1080x1920) | 0.54 (480x640) | 0.37 (480x640) |
-| zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
+| unik3d-vitl | 7.28 | 0.88 | 3.77 (518x770) | 0.57 | 0.34 | 0.30 (518x770) |
+| video-depth-anything-metric-s | 2.74 (88x1080x1920) | 0.19 (480x640) | 0.19 (480x640) | 11.32 (88x1080x1920) | 0.44 (480x640) | 0.50 (480x640) |
+| video-depth-anything-s | 0.26 (88x1080x1920) | 0.98 (480x640) | 0.38 (480x640) | 12.77 (88x1080x1920) | 0.54 (480x640) | 0.37 (480x640) |
+| zoedepth-nk | 8.35 | 0.46 | 0.33† | 1.53 | 0.49 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
-| coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | – | 0.31 | 0.38 | – |
-| coatnet_1_rw_224.sw_in1k | 0.47 | 1.44 | – | 0.15 | 0.37 | – |
-| coatnet_2_rw_224.sw_in12k_ft_in1k | 0.74 | 1.52 | – | 0.31 | 0.51 | – |
-| coatnet_nano_rw_224.sw_in1k | 0.28 | 1.37 | – | 0.54 | 0.42 | – |
-| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 0.47 | 1.49 | – | 0.02 | 0.37 | – |
-| coatnet_rmlp_1_rw_224.sw_in1k | 0.47 | 1.47 | – | 0.02 | 0.37 | – |
-| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 0.71 | 1.80 | – | 0.02 | 0.50 | – |
-| coatnet_rmlp_2_rw_224.sw_in1k | 0.71 | 1.54 | – | 0.02 | 0.51 | – |
-| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 0.74 (384x384) | 1.52 (384x384) | – | 0.05 (384x384) | 0.43 (384x384) | – |
-| coatnet_rmlp_nano_rw_224.sw_in1k | 0.26 | 1.36 | – | 0.19 | 0.39 | – |
+| coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | 1.94 | 0.31 | 0.38 | 0.28 |
+| coatnet_1_rw_224.sw_in1k | 0.47 | 1.44 | 2.45 | 0.15 | 0.37 | 0.28 |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 0.74 | 1.52 | 2.88 | 0.31 | 0.51 | 0.44 |
+| coatnet_nano_rw_224.sw_in1k | 0.28 | 1.37 | 2.25 | 0.54 | 0.42 | 0.45 |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 0.47 | 1.49 | 2.82 | 0.02 | 0.37 | 0.29 |
+| coatnet_rmlp_1_rw_224.sw_in1k | 0.47 | 1.47 | 2.46 | 0.02 | 0.37 | 0.29 |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 0.71 | 1.80 | 2.61 | 0.02 | 0.50 | 0.43 |
+| coatnet_rmlp_2_rw_224.sw_in1k | 0.71 | 1.54 | 2.58 | 0.02 | 0.51 | 0.43 |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 0.74 (384x384) | 1.52 (384x384) | 2.41 (384x384) | 0.05 (384x384) | 0.43 (384x384) | 0.40 (384x384) |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 0.26 | 1.36 | 2.04 | 0.19 | 0.39 | 0.31 |
 | convnext_base.fb_in1k | 0.95 | 1.91 | 1.99 | 0.01 | 0.25 | 0.27 |
 | convnext_base.fb_in22k_ft_in1k | 0.89 | 2.07 | 1.97 | 0.01 | 0.25 | 0.26 |
 | convnext_base.fb_in22k_ft_in1k_384 | 0.87 | 2.54 | 1.91 | 0.01 | 0.25 | 0.26 |
@@ -1654,19 +1717,19 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | convnext_tiny.fb_in22k_ft_in1k | 0.35 | 1.49 | 1.45 | 0.01 | 0.24 | 0.24 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 0.35 | 1.57 | 1.48 | 0.01 | 0.24 | 0.24 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 2.70 | 2.09 | 2.12 | 0.63 | 0.33 | 0.16 |
-| davit_base.msft_in1k | 0.99 | 1.84 | – | 0.56 | 0.27 | – |
-| davit_small.msft_in1k | 0.53 | 1.60 | – | 0.02 | 0.23 | – |
-| davit_tiny.msft_in1k | 0.39 | 1.47 | – | 0.85 | 0.25 | – |
+| davit_base.msft_in1k | 0.99 | 1.84 | 3.74 | 0.56 | 0.27 | 0.08 |
+| davit_small.msft_in1k | 0.53 | 1.60 | 2.91 | 0.02 | 0.23 | 0.08 |
+| davit_tiny.msft_in1k | 0.39 | 1.47 | 2.35 | 0.85 | 0.25 | 0.12 |
 | deit_base_patch16_224.fb_in1k | 2.52 | 1.97 | 1.96 | 0.31 | 0.10 | 0.07 |
 | densenet121.tv_in1k | 1.22 | 1.71 | 2.01 | 0.56 | 0.17 | 0.04 |
 | dinov2_vitl14_lc | 5.80 | 3.34 | 3.94 | 0.32 | 0.02 | 0.10 |
-| efficientformer_l1.snap_dist_in1k | 0.22 | 1.71 | – | 0.22 | 0.07 | – |
-| efficientformer_l3.snap_dist_in1k | 0.37 | 1.86 | – | 0.03 | 0.08 | – |
-| efficientformer_l7.snap_dist_in1k | 0.93 | 2.27 | – | 0.03 | 0.07 | – |
-| efficientformerv2_l.snap_dist_in1k | 0.32 | 2.74 | – | 0.73 | 0.43 | – |
-| efficientformerv2_s0.snap_dist_in1k | 0.17 | 1.88 | – | 1.76 | 0.50 | – |
-| efficientformerv2_s1.snap_dist_in1k | 0.19 | 1.96 | – | 0.59 | 0.43 | – |
-| efficientformerv2_s2.snap_dist_in1k | 0.24 | 2.68 | – | 0.86 | 0.44 | – |
+| efficientformer_l1.snap_dist_in1k | 0.22 | 1.71 | 1.99 | 0.22 | 0.07 | 0.07 |
+| efficientformer_l3.snap_dist_in1k | 0.37 | 1.86 | 2.28 | 0.03 | 0.08 | 0.06 |
+| efficientformer_l7.snap_dist_in1k | 0.93 | 2.27 | 2.87 | 0.03 | 0.07 | 0.06 |
+| efficientformerv2_l.snap_dist_in1k | 0.32 | 2.74 | 2.91 | 0.73 | 0.43 | 0.09 |
+| efficientformerv2_s0.snap_dist_in1k | 0.17 | 1.88 | 2.03 | 1.76 | 0.50 | 0.08 |
+| efficientformerv2_s1.snap_dist_in1k | 0.19 | 1.96 | 2.14 | 0.59 | 0.43 | 0.09 |
+| efficientformerv2_s2.snap_dist_in1k | 0.24 | 2.68 | 2.53 | 0.86 | 0.44 | 0.09 |
 | efficientnet_b0.tv_in1k | 1.25 | 0.17 | 1.53 | 2.86 | 0.38 | 0.06 |
 | efficientnet_b4.tv_in1k | 0.41 | 1.83 | 2.11 | 1.72 | 0.95 | 0.09 |
 | efficientnet_v2_s.tv_in1k | 1.48 | 1.78 | 2.11 | 0.97 | 0.42 | 0.06 |
@@ -1676,19 +1739,19 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | fastvit_sa24.apple_dist_in1k | 0.31 (256x256) | 2.45 (256x256) | 2.77 (256x256) | 0.03 (256x256) | 0.82 (256x256) | 0.05 (256x256) |
 | fastvit_t12.apple_dist_in1k | 0.14 (256x256) | 1.81 (256x256) | 2.01 (256x256) | 0.71 (256x256) | 0.41 (256x256) | 0.04 (256x256) |
 | fastvit_t8.apple_dist_in1k | 0.21 (256x256) | 2.10 (256x256) | 1.83 (256x256) | 0.98 (256x256) | 0.85 (256x256) | 0.05 (256x256) |
-| focalnet_base_lrf.ms_in1k | 0.91 | 1.89 | – | 0.03 | 0.62 | – |
-| focalnet_base_srf.ms_in1k | 0.89 | 1.92 | – | 0.05 | 0.49 | – |
-| focalnet_small_lrf.ms_in1k | 0.54 | 1.86 | – | 0.03 | 0.69 | – |
-| focalnet_small_srf.ms_in1k | 0.54 | 1.73 | – | 0.02 | 0.49 | – |
-| focalnet_tiny_lrf.ms_in1k | 0.36 | 2.56 | – | 0.15 | 0.77 | – |
-| focalnet_tiny_srf.ms_in1k | 0.40 | 1.49 | – | 0.45 | 0.49 | – |
-| hgnetv2_b0.ssld_stage2_ft_in1k | 0.19 | 1.67 | – | 1.36 | 0.73 | – |
-| hgnetv2_b1.ssld_stage2_ft_in1k | 0.31 | 1.87 | – | 0.31 | 0.40 | – |
-| hgnetv2_b2.ssld_stage2_ft_in1k | 0.23 | 1.79 | – | 0.59 | 0.39 | – |
-| hgnetv2_b3.ssld_stage2_ft_in1k | 0.27 | 1.81 | – | 0.17 | 0.40 | – |
-| hgnetv2_b4.ssld_stage2_ft_in1k | 0.32 | 1.74 | – | 0.30 | 0.39 | – |
-| hgnetv2_b5.ssld_stage2_ft_in1k | 0.49 | 1.95 | – | 0.30 | 0.40 | – |
-| hgnetv2_b6.ssld_stage2_ft_in1k | 0.86 | 2.21 | – | 0.45 | 0.46 | – |
+| focalnet_base_lrf.ms_in1k | 0.91 | 1.89 | 3.85 | 0.03 | 0.62 | 0.14 |
+| focalnet_base_srf.ms_in1k | 0.89 | 1.92 | 3.27 | 0.05 | 0.49 | 0.14 |
+| focalnet_small_lrf.ms_in1k | 0.54 | 1.86 | 3.29 | 0.03 | 0.69 | 0.12 |
+| focalnet_small_srf.ms_in1k | 0.54 | 1.73 | 3.08 | 0.02 | 0.49 | 0.12 |
+| focalnet_tiny_lrf.ms_in1k | 0.36 | 2.56 | 2.86 | 0.15 | 0.77 | 0.14 |
+| focalnet_tiny_srf.ms_in1k | 0.40 | 1.49 | 2.61 | 0.45 | 0.49 | 0.14 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 0.19 | 1.67 | 1.74 | 1.36 | 0.73 | 0.05 |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 0.31 | 1.87 | 1.73 | 0.31 | 0.40 | 0.05 |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 0.23 | 1.79 | 1.89 | 0.59 | 0.39 | 0.05 |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 0.27 | 1.81 | 1.96 | 0.17 | 0.40 | 0.05 |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 0.32 | 1.74 | 2.11 | 0.30 | 0.39 | 0.05 |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 0.49 | 1.95 | 2.17 | 0.30 | 0.40 | 0.05 |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 0.86 | 2.21 | 2.65 | 0.45 | 0.46 | 0.05 |
 | inception_v3.tv_in1k | 1.62 | 1.70 | 2.10 | 0.40 | 0.10 | 0.05 |
 | mobilenet_v2.tv2_in1k | 1.23 | 0.11 | 1.51 | 1.65 | 0.03 | 0.05 |
 | mobilenet_v3_large.tv2_in1k | 1.25 | 0.34 | 1.46 | 1.97 | 0.03 | 0.05 |
@@ -1709,10 +1772,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | resnet18.tv_in1k | 0.27 | 1.25 | 1.40 | 0.00 | 0.06 | 0.04 |
 | resnet50.tv2_in1k | 0.51 | 0.16 | 1.48 | 0.01 | 0.00 | 0.04 |
 | shufflenet_v2_x1_0.tv_in1k | 1.13 | 1.44 | 1.30 | 1.15 | 0.36 | 0.11 |
-| shvit_s1.in1k | 0.31 | 2.16 | – | 0.92 | 0.41 | – |
-| shvit_s2.in1k | 0.20 | 2.32 | – | 0.30 | 0.48 | – |
-| shvit_s3.in1k | 0.21 | 2.80 | – | 0.57 | 0.54 | – |
-| shvit_s4.in1k | 0.23 (256x256) | 2.49 (256x256) | – | 0.31 (256x256) | 0.44 (256x256) | – |
+| shvit_s1.in1k | 0.31 | 2.16 | 2.91 | 0.92 | 0.41 | 0.40 |
+| shvit_s2.in1k | 0.20 | 2.32 | 2.31 | 0.30 | 0.48 | 0.45 |
+| shvit_s3.in1k | 0.21 | 2.80 | 2.22 | 0.57 | 0.54 | 0.45 |
+| shvit_s4.in1k | 0.23 (256x256) | 2.49 (256x256) | 2.38 (256x256) | 0.31 (256x256) | 0.44 (256x256) | 0.40 (256x256) |
 | squeezenet1_1.tv_in1k | 1.09 | 1.19 | 1.33 | 0.37 | 0.06 | 0.08 |
 | starnet_s1.in1k | 0.18 | 1.60 | 2.20 | 0.26 | 0.24 | 0.21 |
 | starnet_s2.in1k | 0.17 | 1.62 | 1.86 | 0.02 | 0.24 | 0.06 |
@@ -1731,21 +1794,21 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | wd-eva02-large-tagger-v3 | 4.82 (448x448) | 4.58 (448x448) | 4.22 (448x448) | 0.35 (448x448) | 0.15 (448x448) | 0.08 (448x448) |
 | wd-vit-large-tagger-v3 | 4.74 (448x448) | 5.56 (448x448) | 4.50 (448x448) | 0.44 (448x448) | 0.11 (448x448) | 0.07 (448x448) |
 | wd-vit-tagger-v3 | 2.33 (448x448) | 2.25 (448x448) | 2.47 (448x448) | 0.32 (448x448) | 0.09 (448x448) | 0.06 (448x448) |
-| bisenet-face-parsing | 0.31 (512x512) | 0.20 (512x512) | – | 0.41 (512x512) | 0.28 (512x512) | – |
+| bisenet-face-parsing | 0.31 (512x512) | 0.20 (512x512) | 0.61 (512x512) | 0.41 (512x512) | 0.28 (512x512) | 0.08 (512x512) |
 | deeplabv3-r101-d8-ade20k | 1.64 (512x512) | 2.28 (512x512) | 1.92 (512x512) | 0.03 (512x512) | 0.11 (512x512) | 0.03 (512x512) |
 | deeplabv3plus-r101-d8-ade20k | 4.72 (512x512) | 1.11 (512x512) | 1.15 (512x512) | 0.66 (512x512) | 0.11 (512x512) | 0.02 (512x512) |
 | dinov2-b-linear-ade20k | 12.01 (512x512) | 0.27 | 1.11 | 0.02 (512x512) | 0.10 | 0.07 |
 | dinov2-l-linear-ade20k | 7.86 (512x512) | 0.81 | 1.83 | 0.38 (512x512) | 0.16 | 0.10 |
 | dinov2-s-linear-ade20k | 4.02 (512x512) | 0.12 | 1.00 | 0.30 (512x512) | 0.09 | 0.06 |
-| eomt-l-dinov2-ade20k | 4.80 (512x512) | 3.13 | 3.27† | 0.54 (512x512) | 0.05 | 0.04† |
-| eomt-l-dinov3-ade20k | 1.83 (512x512) | 3.20 | 3.24† | 0.07 (512x512) | 0.08 | 0.04† |
+| eomt-l-dinov2-ade20k | 4.80 (512x512) | 3.13 | 2.83 | 0.54 (512x512) | 0.05 | 0.25 |
+| eomt-l-dinov3-ade20k | 1.83 (512x512) | 3.20 | 2.92 | 0.07 (512x512) | 0.08 | 0.23 |
 | fcn-r101-d8-ade20k | 4.72 (512x512) | 1.42 (512x512) | 4.35 (512x512) | 0.39 (512x512) | 0.10 (512x512) | 0.02 (512x512) |
 | hrnet-w48-fcn-ade20k | 1.48 (512x512) | 1.18 (512x512) | 1.52 (512x512) | 0.08 (512x512) | 0.11 (512x512) | 0.03 (512x512) |
-| mask2former-swinl-ade20k | 4.86 (512x512) | 3.03 | 3.17† | 0.76 (512x512) | 0.13 | 0.07† |
-| oneformer-swinl-ade20k | 5.08 (512x512) | 4.10 | 3.27† | 0.81 (512x512) | 0.15† | 0.11† |
+| mask2former-swinl-ade20k | 4.86 (512x512) | 3.03 | 2.82 | 0.76 (512x512) | 0.13 | 0.32 |
+| oneformer-swinl-ade20k | 5.08 (512x512) | 6.95 | 4.46 | 0.81 (512x512) | 0.50 | 0.49 |
 | pspnet-r101-d8-ade20k | 1.35 (512x512) | 1.42 (512x512) | 1.59 | 0.09 (512x512) | 0.30 (512x512) | 0.03 |
-| sapiens-seg-0.3b-goliath | 4.92 (512x512) | 1.22 | 0.96† | 1.02 (512x512) | 0.13† | 0.09† |
-| sapiens-seg-1b-goliath | 11.33 (512x512) | 3.54 | 2.27† | 0.57 (512x512) | 0.27† | 0.18† |
+| sapiens-seg-0.3b-goliath | 4.92 (512x512) | 1.28 | 0.76 | 1.02 (512x512) | 0.30 | 0.22 |
+| sapiens-seg-1b-goliath | 11.33 (512x512) | 0.80 | 1.03 | 0.57 (512x512) | 0.47 | 0.29 |
 | segformer-b0-ade20k | 4.83 (512x512) | 2.55 | 2.92 | 2.23 (512x512) | 0.08 | 0.01 |
 | segformer-b2-clothes | – | 3.72 (512x512) | 3.65 (512x512) | – | 0.24 (512x512) | 0.06 (512x512) |
 | segformer-b5-ade20k | 1.24 (512x512) | 3.09 | 3.43 | 0.50 (512x512) | 0.08 | 0.03 |
@@ -1757,25 +1820,25 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | ben2 | 2.29 | 13.95 | 1.12 | 0.93 | 0.92 | 0.43 |
 | birefnet | 3.60 | 0.46 | 13.58 | 0.39 | 0.56 | 0.37 |
 | birefnet-lite | 8.04 | 0.67 | 0.20 | 1.10 | 0.42 | 0.47 |
-| inspyrenet | 6.68 | 0.78 | – | 1.49 | 0.62 | – |
-| inspyrenet-fast | 5.93 | 11.07 | – | 1.33 | 0.79 | – |
+| inspyrenet | 6.68 | 0.78 | 1.14 | 1.49 | 0.62 | 0.46 |
+| inspyrenet-fast | 5.93 | 11.07 | 0.75 | 1.33 | 0.79 | 0.86 |
 | isnet | 1.58 | 0.23 | 1.54 | 0.41 | 0.34 | 0.12 |
 | isnet-general-use | 1.58 | 0.24 | 1.32 | 0.41 | 0.29 | 0.09 |
-| matanyone | 3.39 | 0.40 | – | 2.37 | 1.87 | – |
+| matanyone | 3.39 | 0.40 | 0.35 | 2.37 | 1.87 | 1.56 |
 | rmbg-2.0 | 6.42 | 0.94 | 0.64 | 0.94 | 0.49 | 0.47 |
 | u2net | 0.64 | 0.49 | 1.37 | 0.40 | 0.21 | 0.11 |
 | u2net-human-seg | 0.54 | 0.32 | 1.37 | 0.38 | 0.30 | 0.11 |
 | u2netp | 0.18 | 0.11 | 1.28 | 0.47 | 0.26 | 0.11 |
 | vitmatte-b | 0.21 | 0.52 | 1.32 | 0.56 | 0.35 | 0.25 |
 | vitmatte-s | 2.85 | 0.16 | 1.30 | 0.72 | 0.41 | 0.20 |
-| anyline | 0.11 | 0.17 | – | 0.62 | 0.05 | – |
-| hed | 0.24 | 0.18 | – | 0.06 | 0.01 | – |
-| lineart | 0.65 | 0.16 | – | 0.05 | 0.02 | – |
-| lineart-anime | 0.74 | 0.82 | – | 0.04 | 0.01 | – |
-| lineart-coarse | 0.16 | 0.16 | – | 0.05 | 0.02 | – |
-| mlsd | 0.21 | 0.17 | – | 0.06 | 0.01 | – |
-| pidinet | 0.28 | 0.16 | – | 0.06 | 0.01 | – |
-| teed | 0.13 | 0.16 | – | 0.08 | 0.01 | – |
+| anyline | 0.11 | 0.17 | 0.15 (1024x1024) | 0.62 | 0.05 | 0.52 (1024x1024) |
+| hed | 0.24 | 0.18 | 0.31 (1024x1024) | 0.06 | 0.01 | 0.12 (1024x1024) |
+| lineart | 0.65 | 0.16 | 0.28 (1024x1024) | 0.05 | 0.02 | 0.10 (1024x1024) |
+| lineart-anime | 0.74 | 0.82 | 0.54 (1024x1024) | 0.04 | 0.01 | 0.13 (1024x1024) |
+| lineart-coarse | 0.16 | 0.16 | 0.52 (1024x1024) | 0.05 | 0.02 | 0.09 (1024x1024) |
+| mlsd | 0.21 | 0.17 | 0.57 (1024x1024) | 0.06 | 0.01 | 0.49 (1024x1024) |
+| pidinet | 0.28 | 0.16 | 0.17 (1024x1024) | 0.06 | 0.01 | 0.62 (1024x1024) |
+| teed | 0.13 | 0.16 | 0.16 (1024x1024) | 0.08 | 0.01 | 0.44 (1024x1024) |
 | clipseg | 3.05 | 4.93 | 4.54 | 0.02 | 0.29 | 0.24 |
 | efficientvit-sam-l0 | 0.35 | 1.36 | 0.81 | 0.82 | 0.74 | 0.24 |
 | efficientvit-sam-l1 | 0.31 | 0.86 | 0.90 | 0.03 | 0.67 | 0.23 |
@@ -1787,14 +1850,14 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sam-hq-vit-b | 0.77 | 0.69 | 0.97 | 0.19 | 0.39 | 0.38 |
 | sam-hq-vit-h | 3.92 | 2.27 | 2.01 | 0.32 | 0.52 | 0.48 |
 | sam-hq-vit-l | 1.98 | 1.35 | 1.25 | 0.20 | 0.43 | 0.42 |
-| sam-vit-b | 0.75 | 0.46 | 0.17† | 0.18 | 0.05† | 0.04† |
-| sam-vit-h | 4.61 | 2.45 | 0.89† | 0.38 | 0.21† | 0.14† |
-| sam-vit-l | 1.80 | 1.21 | 0.43† | 0.27 | 0.12† | 0.08† |
+| sam-vit-b | 0.75 | 0.32 | 0.33 | 0.18 | 0.56 | 0.54 |
+| sam-vit-h | 4.61 | 1.38 | 1.27 | 0.38 | 0.53 | 0.44 |
+| sam-vit-l | 1.80 | 0.81 | 0.68 | 0.27 | 0.42 | 0.41 |
 | sam2.1-hiera-base-plus | 0.74 | 0.80 (840x1297) | 1.15 (840x1297) | 0.14 | 0.03 (840x1297) | 0.03 (840x1297) |
 | sam2.1-hiera-large | 1.95 | 1.46 (840x1297) | 2.07 (840x1297) | 0.18 | 0.07 (840x1297) | 0.05 (840x1297) |
 | sam2.1-hiera-small | 0.48 | 0.36 | 0.13† | 0.14 | 0.02† | 0.02† |
 | sam2.1-hiera-tiny | 0.41 | 0.25 | 0.11† | 0.15 | 0.02† | 0.01† |
-| sam3 | 1.12 (840x1297) | 3.85 (840x1297) | 4.03 (840x1297) | 0.96 (840x1297) | 0.18 (840x1297) | 0.12 (840x1297) |
+| sam3 | 1.35 | 3.85 (840x1297) | 4.03 (840x1297) | 0.26 | 0.18 (840x1297) | 0.12 (840x1297) |
 | deim-l-coco | 2.34 | 1.51 | 1.61 | 0.52 | 0.67 | 0.32 |
 | deim-m-coco | 2.24 | 1.38 | 1.52 | 0.58 | 0.68 | 0.35 |
 | deim-n-coco | 2.39 | 1.61 | 1.25 | 0.62 | 1.35 | 0.58 |
@@ -1808,16 +1871,16 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dfine-s-coco | 2.99 | 1.24 | 1.39 | 1.44 | 0.70 | 0.36 |
 | dfine-x-coco | 3.88 | 1.65 | 1.83 | 1.45 | 0.64 | 0.29 |
 | faster-rcnn-r50-fpn-3x-coco | 0.73 | 0.53 | 0.14† | 0.04 | 0.25 | 0.04 |
-| grounding-dino-base | 4.16 | 3.29 | – | 0.99 | 0.53 | – |
-| grounding-dino-tiny | 4.06 | 3.01 | – | 1.18 | 0.51 | – |
+| grounding-dino-base | 4.16 | 3.29 | 4.22 | 0.99 | 0.53 | 0.45 |
+| grounding-dino-tiny | 4.06 | 3.01 | 4.14 (320x320) | 1.18 | 0.51 | 0.42 (320x320) |
 | lw-detr-large-coco | 3.82 | 3.20 | 3.04 | 0.72 | 0.36 | 0.34 |
 | lw-detr-medium-coco | 3.91 | 3.64 | 3.65 | 0.64 | 0.34 | 0.33 |
 | lw-detr-small-coco | 4.14 | 2.72 | 2.91 | 0.63 | 0.35 | 0.33 |
 | lw-detr-tiny-coco | 3.80 | 2.69 | 2.91 | 0.64 | 0.35 | 0.33 |
 | lw-detr-xlarge-coco | 4.72 | 3.32 | 4.25 | 0.71 | 0.34 | 0.38 |
 | mask-rcnn-r50-fpn-3x-coco | 0.97 | 1.50 | 0.22† | 0.84 | 0.42 | 0.04 |
-| mm-grounding-dino-base | 4.10 | 3.33 | – | 1.03 | 0.53 | – |
-| mm-grounding-dino-tiny | 4.17 | 3.26 | – | 0.99 | 0.52 | – |
+| mm-grounding-dino-base | 4.10 | 3.33 | 4.67 | 1.03 | 0.53 | 0.45 |
+| mm-grounding-dino-tiny | 4.17 | 3.26 | 3.42 (320x320) | 0.99 | 0.52 | 0.43 (320x320) |
 | owlv2-b16 | 8.22 | 3.41 | 3.32 | 0.74 | 0.26 | 0.24 |
 | owlv2-l14 | 9.55 | 4.44 | 4.10 | 1.18 | 0.39 | 0.35 |
 | rf-detr-l-coco | 1.10 | 6.42 | 3.36 | 0.02 | 0.47 | 0.47 |
@@ -1847,10 +1910,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | yolox-s | 0.22 | 0.15 | 1.55 | 0.03 | 1.35 | 0.30 |
 | yolox-tiny | 1.55 | 0.18 | 1.58 | 0.52 | 1.31 | 0.31 |
 | yolox-x | 0.76 | 0.92 | 1.33 | 0.08 | 0.14 | 1.14 |
-| parseq | 0.53 (32x128) | 1.44 (32x128) | – | 1.04 (32x128) | 0.26 (32x128) | – |
-| parseq-tiny | 0.34 (32x128) | 0.74 (32x128) | – | 0.95 (32x128) | 0.20 (32x128) | – |
-| ppocrv5-mobile | 1.51 | 0.27 | – | 1.82 | 2.82 | – |
-| ppocrv5-server | 2.07 | 0.56 | – | 2.03 | 1.87 | – |
+| parseq | 0.53 (32x128) | 1.44 (32x128) | 0.91 (32x128) | 1.04 (32x128) | 0.26 (32x128) | 0.20 (32x128) |
+| parseq-tiny | 0.34 (32x128) | 0.74 (32x128) | 0.76 (32x128) | 0.95 (32x128) | 0.20 (32x128) | 0.19 (32x128) |
+| ppocrv5-mobile | 1.51 | 0.27 | 0.41 | 1.82 | 2.82 | 3.00 |
+| ppocrv5-server | 2.07 | 0.56 | 1.07 | 2.03 | 1.87 | 1.11 |
 | dwpose-l | 0.50 | 0.88 | 1.64 | 1.14 | 1.83 | 0.28 |
 | dwpose-l-384 | 0.42 | 0.58 | 1.67 | 0.42 | 1.10 | 0.28 |
 | dwpose-m | 0.26 | 0.24 | 1.51 | 0.60 | 1.10 | 0.29 |
@@ -1963,30 +2026,30 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | anysplat | 8.32 (336x518) | 4.71 (336x518) | 4.04 (336x518) | 3.07 (336x518) | 0.89 (336x518) | 0.71 (336x518) |
 | depthsplat-small-re10k | 1.83 (336x518) | 0.22 (336x518) | 1.47 (336x518) | 2.97 (336x518) | 0.97 (336x518) | 0.71 (336x518) |
 | lingbot-map | 131.28 (480x640) | 6.58 (480x640) | 5.69 (480x640) | 4.64 (480x640) | 1.08 (480x640) | 0.84 (480x640) |
-| mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
-| mvsanywhere | 3.21 (448x672) | 1.88 (448x672) | 1.76 (448x672) | 1.04 (448x672) | 0.22 (448x672) | 0.48 (448x672) |
+| mapanything-apache | 6.12 (336x518) | 1.53 (336x518) | 0.92 (336x518) | 2.62 (336x518) | 1.03 (336x518) | 0.88 (336x518) |
+| mvsanywhere | 3.21 (448x672) | 0.93 (448x672) | 1.76 (448x672) | 1.04 (448x672) | 0.72 (448x672) | 0.48 (448x672) |
 | mvsplat-re10k | 1.37 (336x518) | 0.15 (336x518) | 1.27 (336x518) | 2.82 (336x518) | 1.02 (336x518) | 0.69 (336x518) |
 | patchmatchnet | 0.04 (1536x1024) | 0.16 (1536x1024) | 0.17 (1536x1024) | 0.92 (1536x1024) | 0.86 (1536x1024) | 0.56 (1536x1024) |
 | pi3 | 10.64 (336x518) | 3.46 (336x518) | 3.78 (336x518) | 4.06 (336x518) | 1.28 (336x518) | 0.70 (336x518) |
 | resplat-base-re10k | 2.26 (480x640) | 0.90 (480x640) | 3.30 (480x640) | 2.74 (480x640) | 7.76 (480x640) | 1.98 (480x640) |
 | resplat-small-dl3dv | 16.80 (480x640) | 0.72 (480x640) | 3.88 (480x640) | 10.69 (480x640) | 2.51 (480x640) | 2.84 (480x640) |
 | vggt-1b | 19.37 (336x518) | 6.78 (336x518) | 7.03 (336x518) | 1.29 (336x518) | 1.02 (336x518) | 0.75 (336x518) |
-| vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 5.24 (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.75 (336x518) |
-| flowformer-small-chairs | 0.16 (375x1242) | 1.59 (375x1242) | – | 0.37 (375x1242) | 0.56 (375x1242) | – |
-| flowformer-small-sintel | 0.15 (375x1242) | 1.56 (375x1242) | – | 0.30 (375x1242) | 0.58 (375x1242) | – |
-| flowformer-small-things | 0.15 (375x1242) | 1.42 (375x1242) | – | 0.30 (375x1242) | 0.56 (375x1242) | – |
-| flowseek-t | 0.87 | 0.18 (375x1242) | – | 0.63 | 0.46 (375x1242) | – |
-| flowseek-t-things | 0.78 | 0.18 (375x1242) | – | 0.46 | 0.47 (375x1242) | – |
-| flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | – | 0.46 | 0.46 (375x1242) | – |
-| gmflow-scale1-mixdata | 0.13 | 0.16 | – | 0.76 | 0.56 | – |
-| gmflow-scale1-things | 0.14 | 0.16 | – | 0.94 | 0.56 | – |
-| gmflow-scale2-mixdata | 0.13 | 0.16 | – | 1.62 | 1.14 | – |
-| gmflow-scale2-regrefine6-kitti | 0.15 | 0.46 | – | 2.20 | 1.68 | – |
-| gmflow-scale2-regrefine6-mixdata | 0.14 | 0.25 | – | 2.20 | 1.68 | – |
-| gmflow-scale2-regrefine6-sintelft | 0.15 | 0.26 | – | 2.37 | 1.68 | – |
-| gmflow-scale2-regrefine6-things | 0.15 | 0.16 | – | 2.19 | 1.67 | – |
-| gmflow-scale2-sintel | 0.13 | 0.16 | – | 1.62 | 1.14 | – |
-| gmflow-scale2-things | 0.14 | 0.17 | – | 1.61 | 1.14 | – |
+| vggt-omega-1b-512 | 16.31 (336x518) | 2.18 (336x518) | 5.24 (336x518) | 1.10 (336x518) | 0.95 (336x518) | 0.75 (336x518) |
+| flowformer-small-chairs | 0.16 (375x1242) | 1.59 (375x1242) | 1.19 (375x1242) | 0.37 (375x1242) | 0.56 (375x1242) | 0.55 (375x1242) |
+| flowformer-small-sintel | 0.15 (375x1242) | 1.56 (375x1242) | 1.29 (375x1242) | 0.30 (375x1242) | 0.58 (375x1242) | 0.55 (375x1242) |
+| flowformer-small-things | 0.15 (375x1242) | 1.42 (375x1242) | 1.18 (375x1242) | 0.30 (375x1242) | 0.56 (375x1242) | 0.55 (375x1242) |
+| flowseek-t | 0.87 | 0.18 (375x1242) | 0.28 (375x1242) | 0.63 | 0.46 (375x1242) | 0.38 (375x1242) |
+| flowseek-t-things | 0.78 | 0.18 (375x1242) | 0.67 (375x1242) | 0.46 | 0.47 (375x1242) | 0.40 (375x1242) |
+| flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | 0.37 (375x1242) | 0.46 | 0.46 (375x1242) | 0.38 (375x1242) |
+| gmflow-scale1-mixdata | 0.13 | 0.16 | 0.16 (375x1242) | 0.76 | 0.56 | 0.57 (375x1242) |
+| gmflow-scale1-things | 0.14 | 0.16 | 0.16 | 0.94 | 0.56 | 0.88 |
+| gmflow-scale2-mixdata | 0.13 | 0.16 | 0.17 (375x1242) | 1.62 | 1.14 | 0.71 (375x1242) |
+| gmflow-scale2-regrefine6-kitti | 0.15 | 0.46 | 0.17 (375x1242) | 2.20 | 1.68 | 0.89 (375x1242) |
+| gmflow-scale2-regrefine6-mixdata | 0.14 | 0.25 | 0.17 (375x1242) | 2.20 | 1.68 | 0.89 (375x1242) |
+| gmflow-scale2-regrefine6-sintelft | 0.15 | 0.26 | 0.36 (375x1242) | 2.37 | 1.68 | 0.72 (375x1242) |
+| gmflow-scale2-regrefine6-things | 0.15 | 0.16 | 0.16 | 2.19 | 1.67 | 1.90 |
+| gmflow-scale2-sintel | 0.13 | 0.16 | 0.16 (375x1242) | 1.62 | 1.14 | 0.72 (375x1242) |
+| gmflow-scale2-things | 0.14 | 0.17 | 0.17 (375x1242) | 1.61 | 1.14 | 0.70 (375x1242) |
 | megaflow | 9.56 | 1.96 (375x1242) | 7.10 (375x1242) | 6.77 | 0.76 (375x1242) | 0.67 (375x1242) |
 | memflow | 0.16 | 0.06 | 1.18 | 3.82 | 0.97 | 0.88 |
 | memflow-kitti | 0.14 | 0.14 | 0.97 | 3.06 | 0.98 | 0.88 |
@@ -2015,18 +2078,23 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | waft-a1 | 5.87 | 0.51 | 0.57 (375x1242) | 3.41 | 0.79 | 0.21 (375x1242) |
 | waft-a1-kitti | 4.06 | 0.54 | 1.40 (375x1242) | 2.87 | 0.79 | 0.28 (375x1242) |
 | waft-a1-sintel | 2.93 | 0.51 | 0.69 (375x1242) | 2.87 | 0.79 | 0.21 (375x1242) |
-| aliked-flexglue | 4.50 | 0.92 | – | 1.66 | 1.20 | – |
+| aliked-flexglue | 4.50 | 0.92 | 0.97 | 1.66 | 1.20 | 1.06 |
 | aliked-lightglue | 1.49 | 0.17 | 1.46 | 0.73 | 0.79 | 0.90 |
 | dedode-v2-b | 3.73 | 0.67 | 0.55 | 1.10 | 0.75 | 0.84 |
 | dedode-v2-g | 6.36 | 1.12 | 3.01 | 1.51 | 1.04 | 0.68 |
 | disk-lightglue | 1.43 | 0.20 | 0.57 | 0.64 | 0.63 | 0.30 |
 | loftr-indoor | 1.49 | 0.32 | 0.54 | 0.69 | 0.53 | 0.43 |
 | loftr-outdoor | 0.35 | 0.24 | 0.67 | 0.24 | 0.58 | 0.37 |
-| loma-b | 8.52 | 2.53 | – | 1.37 | 1.27 | – |
+| loma-b | 8.52 | 2.53 | 1.61 | 1.37 | 1.27 | 0.76 |
+| loma-b128 | 2.84 | 0.52 | 0.85 | 0.37 | 0.64 | 0.66 |
+| loma-b64 | 4.43 | 0.28 | 0.91 | 1.51 | 0.76 | 0.65 |
+| loma-g | 9.48 | 2.36 | 2.19 | 1.24 | 0.80 | 0.68 |
+| loma-l | 10.38 | 1.49 | 3.06 | 1.09 | 0.69 | 0.76 |
+| loma-r | 7.49 | 2.80 | 1.93 | 1.03 | 0.73 | 0.81 |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
-| xfeat | 1.51 | 0.16 | – | 0.63 | 0.74 | – |
-| xfeat-lighterglue | 1.46 | 0.25 | – | 0.69 | 0.68 | – |
+| xfeat | 1.51 | 0.16 | 0.17 | 0.63 | 0.74 | 0.64 |
+| xfeat-lighterglue | 1.46 | 0.25 | 0.16 | 0.69 | 0.68 | 0.73 |
 | alltracker | 1.68 | 0.89 | 0.26 | 1.31 | 2.08 | 0.49 |
 | alltracker-tiny | 1.22 | 0.06 | 0.96 | 1.40 | 0.73 | 0.54 |
 | bootstapir | 0.60 | 0.32 | 1.14 | 0.90 | 0.80 | 0.66 |
@@ -2100,21 +2168,24 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 `tools/speed_check.py run --modes compile tensorrt`; a failure is shown as `fails: reason`.
 
 <!-- compile:begin (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->
-| model | input | time: portable | compile | TensorRT fp16 | kernels | preparation: compile (cold first call) | ONNX + engine build | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |
+| model | input | time: portable | compile | TensorRT (fp16 unless shown) | kernels | preparation: compile (cold first call) | ONNX + engine build | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 994x1482 | 159 ms | 143 ms | 202 ms | 88.9 ms | 89.3 s | 145 s | 1142 / 1278 | 3020 / 3716 | 813 / 920 | 1786 / 1834 |
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 602 / 620 |
-| bridgedepth-rvc-pretrain | 994x1482 | 442 ms | 337 ms | planned for 0.2.1 | 354 ms | 118 s | – | 2968 / 3246 | 2329 / 2360 | 2361 / 2686 | – |
-| bridgedepth-sf | 994x1482 | 437 ms | 325 ms | planned for 0.2.1 | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
+| bridgedepth-rvc-pretrain | 994x1482 | 444 ms | 337 ms | public API unavailable | 355 ms | 118 s | – | 2707 / 2924 | 2329 / 2360 | 2097 / 2322 | – |
+| bridgedepth-rvc-pretrain | 375x1242 | 114 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 94.7 ms | – | 50.0 s | 1910 / 2006 | – | 1323 / 1446 | 2410 / 2588 |
+| bridgedepth-sf | 994x1482 | 438 ms | 325 ms | public API unavailable | 350 ms | 111 s | – | 2656 / 2872 | 2280 / 2308 | 2046 / 2270 | – |
+| bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
-| c-foundationstereo-s | 994x1482 | 3633 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
-| cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
-| cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
-| cfnet-sceneflow | 994x1482 | 489 ms | 249 ms | 171 ms | 406 ms | 53.0 s | 139 s | 3398 / 4336 | 1026 / 1398 | 3403 / 4338 | 1357 / 1410 |
+| c-foundationstereo-s | 994x1482 | 3628 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 3857 / 4152 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
+| cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | public API unavailable | 225 ms | 61.7 s | – | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | – |
+| cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | public API unavailable | 359 ms | 63.7 s | – | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | – |
+| cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
-| crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
-| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | planned for 0.2.1 | 642 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 3154 / 3522 | – |
-| dlnr-middlebury | 994x1482 | 398 ms | 303 ms | 241 ms | 214 ms | 67.9 s | 156 s | 2635 / 3142 | 1343 / 1692 | 1236 / 1606 | 1455 / 1546 |
+| crestereo-eth3d | 994x1482 | 724 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 810 / 946 | 695 / 748 | 644 / 732 | 703 / 740 |
+| defom-stereo-vitl-sceneflow | 994x1482 | 1436 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 3109 / 3452 | 3021 / 3292 | 2781 / 4234 | – |
+| defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
+| dlnr-middlebury | 994x1482 | 399 ms | 303 ms | 241 ms | 215 ms | 67.9 s | 156 s | 1502 / 1976 | 1343 / 1692 | 851 / 982 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |
 | fast-acvnet-generalization | 994x1482 | 54.7 ms | 36.4 ms | 36.1 ms | 38.1 ms | 41.9 s | 68.4 s | 653 / 756 | 549 / 678 | 654 / 716 | 573 / 624 |
 | fast-acvnet-kitti12 | 994x1482 | 54.7 ms | 36.2 ms | 36.2 ms | 38.1 ms | 42.0 s | 68.7 s | 653 / 756 | 549 / 678 | 654 / 716 | 573 / 624 |
@@ -2125,45 +2196,47 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-sceneflow | 994x1482 | 70.5 ms | 41.9 ms | 40.9 ms | 46.5 ms | 40.6 s | 72.8 s | 651 / 756 | 549 / 830 | 651 / 716 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.1 ms | 41.8 s | 71.3 s | 653 / 756 | 584 / 698 | 654 / 716 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1120 / 1236 | 1342 / 1398 |
-| foundationstereo-vit-l | 994x1482 | 2990 ms | 2501 ms | 1513 ms | 1513 ms | 226 s | 611 s | 3141 / 3436 | 3453 / 3954 | 2818 / 3300 | 4253 / 4322 |
+| foundationstereo-vit-l | 994x1482 | 2989 ms | 2501 ms | 1513 ms | 1440 ms | 226 s | 611 s | 2415 / 2656 | 3453 / 3954 | 2319 / 2760 | 4253 / 4322 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
-| great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1472 / 1642 | – |
+| great-igev-middlebury | 994x1482 | 1789 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1602 / 1878 | 5228 / 5720 | 1472 / 1642 | – |
+| great-igev-middlebury | 375x1242 | 492 ms | – | 3697 ms, fp32 engine (MobileNetV2 feature pyramid with eager stereo inference) | 176 ms | – | 13.1 s | 1165 / 1298 | – | 1060 / 1144 | 2388 / 4022 |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 397 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |
-| gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 257 ms | 83.8 s | 117 s | 2082 / 2402 | 1774 / 2246 | 1768 / 1962 | 2732 / 2786 |
+| gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 259 ms | 83.8 s | 117 s | 1792 / 2102 | 1774 / 2246 | 1510 / 1782 | 2732 / 2786 |
 | hitnet-eth3d | 994x1482 | 67.6 ms | 27.7 ms | 31.1 ms | 23.2 ms | 39.1 s | 136 s | 848 / 1068 | 719 / 728 | 623 / 770 | 912 / 920 |
 | hitnet-middlebury-d400 | 994x1482 | 176 ms | 71.5 ms | 74.9 ms | 53.1 ms | 55.4 s | 166 s | 1701 / 2154 | 1296 / 1332 | 1207 / 1514 | 1985 / 2014 |
-| igev-plusplus-eth3d | 994x1482 | 1079 ms | 716 ms | 494 ms | 427 ms | 159 s | 425 s | 1583 / 1696 | 952 / 1074 | 1272 / 1514 | 3765 / 3786 |
-| igev-plusplus-kitti12 | 994x1482 | 1080 ms | 718 ms | 494 ms | 394 ms | 158 s | 422 s | 1583 / 1696 | 917 / 1054 | 1272 / 1514 | 3821 / 3900 |
-| igev-plusplus-kitti15 | 994x1482 | 1080 ms | 718 ms | 494 ms | 394 ms | 159 s | 425 s | 1583 / 1696 | 917 / 1052 | 1272 / 1494 | 3821 / 3900 |
-| igev-plusplus-middlebury | 994x1482 | 1080 ms | 718 ms | 494 ms | 393 ms | 157 s | 436 s | 1583 / 1696 | 917 / 1054 | 1272 / 1494 | 3821 / 3900 |
-| igev-plusplus-sceneflow | 994x1482 | 1079 ms | 718 ms | 495 ms | 395 ms | 158 s | 426 s | 1583 / 1696 | 917 / 1054 | 1272 / 1514 | 3821 / 3900 |
+| igev-plusplus-eth3d | 994x1482 | 1079 ms | 716 ms | 494 ms | 394 ms | 159 s | 425 s | 1583 / 1696 | 952 / 1074 | 970 / 1154 | 3765 / 3786 |
+| igev-plusplus-kitti12 | 994x1482 | 1080 ms | 718 ms | 494 ms | 395 ms | 158 s | 422 s | 1583 / 1696 | 917 / 1054 | 970 / 1154 | 3821 / 3900 |
+| igev-plusplus-kitti15 | 994x1482 | 1080 ms | 718 ms | 494 ms | 395 ms | 159 s | 425 s | 1583 / 1696 | 917 / 1052 | 970 / 1154 | 3821 / 3900 |
+| igev-plusplus-middlebury | 994x1482 | 1080 ms | 718 ms | 494 ms | 395 ms | 157 s | 436 s | 1583 / 1696 | 917 / 1054 | 970 / 1154 | 3821 / 3900 |
+| igev-plusplus-sceneflow | 994x1482 | 1079 ms | 718 ms | 495 ms | 395 ms | 158 s | 426 s | 1583 / 1696 | 917 / 1054 | 970 / 1154 | 3821 / 3900 |
 | igev-stereo-eth3d | 994x1482 | 763 ms | 527 ms | 339 ms | 288 ms | 111 s | 213 s | 1237 / 1492 | 807 / 1052 | 1113 / 1374 | 1350 / 1370 |
 | igev-stereo-kitti12 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 112 s | 215 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1313 / 1372 |
 | igev-stereo-kitti15 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1315 / 1374 |
 | igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
-| las2-h | 994x1482 | 113 ms | 75.0 ms | planned for 0.2.1 | 53.6 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 872 / 960 | – |
+| las2-h | 994x1482 | 113 ms | 75.0 ms | public API unavailable | 53.6 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 872 / 960 | – |
+| las2-h | 375x1242 | 35.5 ms | – | 17.5 ms (whole graph at fixed 375 x 1242) | 15.0 ms | – | 100 s | 365 / 390 | – | 298 / 368 | 300 / 308 |
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 30.1 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 268 / 362 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.1 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 235 / 336 | 343 / 386 |
 | las2-s | 994x1482 | 27.9 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 557 / 608 | 238 / 264 | 226 / 320 | 258 / 304 |
 | mocha-v1-sceneflow | 994x1482 | 1057 ms | 735 ms | 447 ms | 455 ms | 154 s | 371 s | 1632 / 1770 | 1129 / 1268 | 1588 / 1730 | 1466 / 1590 |
 | mocha-v2-sceneflow | 994x1482 | 1033 ms | 713 ms | 437 ms | 448 ms | 148 s | 361 s | 1632 / 1770 | 1122 / 1308 | 1587 / 1790 | 1400 / 1486 |
-| monster-mix-all | 994x1482 | 1583 ms | 1098 ms | 674 ms | 656 ms | 105 s | 391 s | 2325 / 2492 | 2081 / 2272 | 2216 / 2514 | 2898 / 2960 |
-| monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 657 ms | 109 s | 416 s | 2583 / 2918 | 2328 / 2532 | 2438 / 2754 | 3489 / 3552 |
+| monster-mix-all | 994x1482 | 1585 ms | 1098 ms | 674 ms | 656 ms | 105 s | 391 s | 1926 / 2092 | 2081 / 2272 | 1829 / 1954 | 2898 / 2960 |
+| monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 658 ms | 109 s | 416 s | 2181 / 2394 | 2328 / 2532 | 1919 / 2054 | 3489 / 3552 |
 | monster-sceneflow | 994x1482 | 1585 ms | 1096 ms | 671 ms | 655 ms | 103 s | 384 s | 2325 / 2574 | 2081 / 2272 | 2216 / 2514 | 2865 / 2928 |
-| nmrf-sceneflow | 994x1482 | 216 ms | 161 ms | 184 ms | 196 ms | 84.8 s | 142 s | 1510 / 1552 | 854 / 1104 | 1022 / 1112 | 1027 / 1134 |
-| psmnet-sceneflow | 994x1482 | 340 ms | 440 ms | 669 ms | 232 ms | 60.0 s | 88.9 s | 2035 / 2422 | 1760 / 2082 | 1743 / 2002 | 1611 / 1630 |
+| nmrf-sceneflow | 994x1482 | 216 ms | 161 ms | 184 ms | 196 ms | 84.8 s | 142 s | 1186 / 1270 | 854 / 1104 | 784 / 970 | 1027 / 1134 |
+| psmnet-sceneflow | 994x1482 | 340 ms | 440 ms | 669 ms | 231 ms | 60.0 s | 88.9 s | 1881 / 2402 | 1760 / 2082 | 1469 / 1782 | 1611 / 1630 |
 | raft-stereo-eth3d | 994x1482 | 746 ms | 506 ms | 333 ms | 275 ms | 99.9 s | 132 s | 1388 / 1492 | 815 / 988 | 722 / 738 | 952 / 972 |
 | raft-stereo-middlebury | 994x1482 | 746 ms | 506 ms | 334 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1012 / 1090 |
 | raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1014 / 1092 |
-| rt-monster-plusplus-mix-all | 994x1482 | 113 ms | 77.0 ms | 44.1 ms | 89.5 ms | 69.4 s | 150 s | 2581 / 2618 | 2750 / 2942 | 2586 / 2640 | 1139 / 1210 |
+| rt-monster-plusplus-mix-all | 994x1482 | 109 ms | 77.0 ms | 44.1 ms | 93.8 ms | 69.4 s | 150 s | 1291 / 1378 | 2750 / 2942 | 1277 / 1420 | 1139 / 1210 |
 | s2m2-l | 994x1482 | 1017 ms | 650 ms | 497 ms | 376 ms | 144 s | 374 s | 3234 / 3816 | 3169 / 3514 | 1249 / 1568 | 2910 / 2982 |
 | s2m2-m | 994x1482 | 670 ms | 420 ms | 285 ms | 248 ms | 126 s | 305 s | 2289 / 2766 | 2197 / 2572 | 876 / 1162 | 1958 / 2002 |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
-| s2m2-xl | 994x1482 | 1818 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5217 / 6014 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
+| s2m2-xl | 994x1482 | 1824 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 4811 / 5234 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
 | selective-igev-eth3d-finetune | 994x1482 | 996 ms | 691 ms | 461 ms | 351 ms | 126 s | 256 s | 1227 / 1448 | 919 / 1088 | 1051 / 1190 | 1279 / 1316 |
 | selective-igev-eth3d-train | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 127 s | 260 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-kitti12 | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 125 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
@@ -2171,8 +2244,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-middlebury-finetune | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 127 s | 258 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1280 / 1316 |
 | selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
-| waft-stereo-b | 994x1482 | 1137 ms | 571 ms | planned for 0.2.1 | 388 ms | 104 s | – | 5775 / 5852 | 3908 / 3936 | 1664 / 1932 | – |
-| waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
+| waft-stereo-b | 994x1482 | 1094 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 2999 / 3070 | 3908 / 3936 | 1664 / 1932 | – |
+| waft-stereo-b | 384x1248 | 363 ms | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | 1528 / 1826 | – | – | 1447 / 1454 |
+| waft-stereo-s | 994x1482 | 653 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 1609 / 1794 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
 | any2full-l | 994x1482 | 67.7 ms | 63.8 ms | 40.2 ms | 42.3 ms | 33.9 s | 79.0 s | 1178 / 1250 | 987 / 1092 | 1115 / 1210 | 1860 / 1928 |
 | any2full-s | 994x1482 | 12.4 ms | 9.88 ms | 6.72 ms | 9.47 ms | 26.4 s | 59.0 s | 274 / 312 | 223 / 294 | 218 / 252 | 366 / 398 |
@@ -2180,7 +2254,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | da3-large-1.1 | 994x1482 | 30.0 ms | 26.5 ms | 13.8 ms | 17.3 ms | 45.4 s | 62.6 s | 988 / 1088 | 841 / 868 | 891 / 950 | 1562 / 1622 |
 | da3metric-large | 994x1482 | 24.3 ms | 21.2 ms | 14.4 ms | 15.0 ms | 26.6 s | 58.2 s | 811 / 868 | 792 / 828 | 802 / 848 | 1465 / 1502 |
 | da3mono-large | 994x1482 | 24.1 ms | 21.2 ms | 14.4 ms | 14.9 ms | 25.0 s | 52.3 s | 814 / 868 | 792 / 828 | 805 / 868 | 1463 / 1520 |
-| da3nested-giant-large-1.1 | 994x1482 | 94.9 ms | 85.4 ms | 51.9 ms | 59.7 ms | 60.0 s | 154 s | 3271 / 3374 | 3124 / 3194 | 3179 / 3238 | 6152 / 6226 |
+| da3nested-giant-large-1.1 | 994x1482 | 92.5 ms | 85.4 ms | 51.9 ms | 59.5 ms | 60.0 s | 154 s | 3118 / 3194 | 3124 / 3194 | 3120 / 3198 | 6152 / 6226 |
 | depth-anything-v2-b | 994x1482 | 18.8 ms | 17.0 ms | 10.9 ms | 10.5 ms | 14.2 s | 32.7 s | 450 / 516 | 340 / 394 | 387 / 436 | 539 / 596 |
 | depth-anything-v2-l | 994x1482 | 55.1 ms | 51.7 ms | 32.4 ms | 31.1 ms | 20.6 s | 43.5 s | 1026 / 1352 | 850 / 952 | 921 / 1034 | 1579 / 1634 |
 | depth-anything-v2-metric-hypersim-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.0 s | 32.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
@@ -2190,8 +2264,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depth-anything-v2-metric-vkitti-l | 994x1482 | 54.5 ms | 51.3 ms | 32.4 ms | 31.9 ms | 20.1 s | 43.4 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | depth-anything-v2-metric-vkitti-s | 994x1482 | 7.66 ms | 6.68 ms | 4.47 ms | 4.67 ms | 15.8 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
 | depth-anything-v2-s | 994x1482 | 7.82 ms | 6.65 ms | 4.46 ms | 4.51 ms | 15.7 s | 29.9 s | 249 / 326 | 201 / 224 | 190 / 248 | 273 / 308 |
-| depth-pro | 994x1482 | 522 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3297 / 3478 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
-| depthfm-v1 | 994x1482 | 5662 ms | 3947 ms | fails: ONNX export: conversion failed | 3570 ms | 102 s | – | 13651 / 15150 | 9240 / 10292 | 9237 / 9314 | – |
+| depth-pro | 994x1482 | 521 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3036 / 3298 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
+| depthfm-v1 | 994x1482 | 4854 ms | 3947 ms | fails: ONNX export: conversion failed | 3555 ms | 102 s | – | 5422 / 7404 | 9240 / 10292 | 3768 / 5942 | – |
+| depthfm-v1 | 480x640 | 907 ms | – | 353 ms (fixed-shape exported depth network) | – | – | – | 4430 / 7296 | – | – | 3479 / 3494 |
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
 | distill-any-depth-l | 994x1482 | 54.4 ms | 51.6 ms | 32.4 ms | 31.8 ms | 20.1 s | 42.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | distill-any-depth-s | 994x1482 | 7.65 ms | 6.67 ms | 4.46 ms | 4.63 ms | 15.9 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
@@ -2201,35 +2276,40 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 5093 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 3886 ms | – | – | 1408 / 1698 | – | 1498 / 1780 | – |
-| metric3d-vit-large | 994x1482 | 201 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1443 / 1576 | 1126 / 1148 | 1475 / 1588 | 1867 / 1952 |
+| marigold-v2-depth | 994x1482 | 4763 ms | 4599 ms | public API unavailable | 3805 ms | 141 s | – | 1408 / 1838 | 1959 / 2120 | 1408 / 1838 | – |
+| marigold-v2-depth | 480x640 | 1179 ms | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | 717 / 964 | – | – | 2042 / 2198 |
+| metric3d-vit-large | 994x1482 | 181 ms | 149 ms | 91.4 ms | 146 ms | 54.7 s | 96.6 s | 1188 / 1256 | 1126 / 1148 | 1412 / 1486 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
-| moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
-| moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
-| moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
-| moge-3-vitl | 994x1482 | 332 ms | planned for 0.2.1 | planned for 0.2.1 | 149 ms | – | – | 1678 / 1926 | – | 1626 / 1762 | – |
-| omni-dc | 994x1482 | 554 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4958 / 6304 | 4201 / 5932 | 4981 / 6030 | – |
+| moge-2-vitb-normal | 994x1482 | 79.1 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 681 / 772 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
+| moge-2-vitl-normal | 994x1482 | 140 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1130 / 1272 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
+| moge-2-vits-normal | 994x1482 | 58.1 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 530 / 612 | 836 / 992 | 932 / 1048 | 768 / 852 |
+| moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1493 / 1684 | 1500 / 1724 | 1626 / 1762 | – |
+| moge-3-vitl | 480x640 | 1080 ms | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | 2859 / 3842 | – | – | 4568 / 5382 |
+| omni-dc | 994x1482 | 558 ms | 411 ms | public API unavailable | 512 ms | 137 s | – | 3849 / 5044 | 4201 / 5932 | 3873 / 4566 | – |
+| omni-dc | 480x640 | 300 ms | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | 2453 / 3296 | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
 | prompt-depth-anything-s | 756x1008 | 18.4 ms | 16.3 ms | 10.5 ms | 11.4 ms | 14.7 s | 46.6 s | 363 / 442 | 260 / 322 | 297 / 384 | 368 / 410 |
-| stablenormal-turbo | 994x1482 | 289 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
+| stablenormal-turbo | 994x1482 | 291 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3316 / 3626 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1153 / 1252 | 1815 / 1842 |
-| unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |
-| video-depth-anything-metric-s | 480x640 | 148 ms | 101 ms | 60.2 ms | 147 ms | 32.5 s | 82.1 s | 1461 / 1666 | 1143 / 1464 | 1465 / 1646 | 886 / 914 |
-| video-depth-anything-s | 480x640 | 148 ms | 100 ms | 60.3 ms | 146 ms | 34.8 s | 103 s | 1461 / 1646 | 1143 / 1344 | 1465 / 1666 | 886 / 914 |
-| zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
+| unik3d-vitl | 994x1482 | 107 ms | 94.4 ms | 58.0 ms | 62.8 ms | 32.8 s | 105 s | 1063 / 1152 | 1258 / 1312 | 985 / 1066 | 1609 / 1678 |
+| video-depth-anything-metric-s | 480x640 | 147 ms | 101 ms (single image) | 60.2 ms (single image) | 59.5 ms | 32.5 s | 82.1 s | 953 / 1146 | 1143 / 1464 | 988 / 1188 | 886 / 914 |
+| video-depth-anything-s | 88x1080x1920 | 1423 ms | 1314 ms (full 88-frame clip) | – | 1233 ms | 82.7 s | – | 6207 / 6524 | 7762 / 8530 | 6288 / 6486 | – |
+| video-depth-anything-s | 480x640 | 147 ms | 100 ms (single image) | 60.3 ms (single image) | 58.4 ms | 34.8 s | 103 s | 953 / 1146 | 1143 / 1344 | 988 / 1188 | 886 / 914 |
+| video-depth-anything-s | 88x480x640 | 954 ms | 762 ms (full 88-frame clip) | 524 ms (full 88-frame clip) | 835 ms | 51.8 s | 181 s | 1730 / 1946 | 2587 / 3260 | 1796 / 1946 | 2753 / 3148 |
+| zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 1843 / 1944 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
-| coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | – | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | – | 158 / 170 |
-| coatnet_1_rw_224.sw_in1k | 224x224 | 10.7 ms | 5.58 ms | 1.38 ms | – | 16.2 s | 42.0 s | 132 / 158 | 149 / 176 | – | 231 / 250 |
-| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 11.9 ms | 5.53 ms | 1.73 ms | – | 16.2 s | 36.0 s | 207 / 240 | 211 / 240 | – | 374 / 416 |
-| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.23 ms | 4.71 ms | 0.709 ms | – | 13.9 s | 31.8 s | 74 / 86 | 96 / 126 | – | 102 / 124 |
-| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 12.3 ms | 6.63 ms | 1.55 ms | – | 17.9 s | 42.6 s | 132 / 158 | 162 / 176 | – | 257 / 276 |
-| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 12.4 ms | 6.54 ms | 1.47 ms | – | 18.6 s | 43.8 s | 131 / 156 | 155 / 176 | – | 243 / 262 |
-| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 12.8 ms | 6.52 ms | 1.87 ms | – | 18.4 s | 41.0 s | 207 / 240 | 238 / 260 | – | 402 / 444 |
-| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.1 ms | 6.34 ms | 1.92 ms | – | 18.4 s | 45.9 s | 207 / 240 | 238 / 260 | – | 404 / 446 |
-| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 13.9 ms | 6.92 ms | 3.69 ms | – | 18.6 s | 42.3 s | 296 / 330 | 326 / 370 | – | 464 / 500 |
-| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.09 ms | 9.89 ms | 0.868 ms | – | 13.9 s | 37.1 s | 78 / 106 | 110 / 126 | – | 122 / 144 |
+| coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | 1.74 ms | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | 100 / 144 | 158 / 170 |
+| coatnet_1_rw_224.sw_in1k | 224x224 | 10.7 ms | 5.58 ms | 1.38 ms | 2.89 ms | 16.2 s | 42.0 s | 132 / 158 | 149 / 176 | 130 / 196 | 231 / 250 |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 11.9 ms | 5.53 ms | 1.73 ms | 4.01 ms | 16.2 s | 36.0 s | 207 / 240 | 211 / 240 | 204 / 240 | 374 / 416 |
+| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.23 ms | 4.71 ms | 0.709 ms | 1.62 ms | 13.9 s | 31.8 s | 74 / 86 | 96 / 126 | 72 / 106 | 102 / 124 |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 12.3 ms | 6.63 ms | 1.55 ms | 3.01 ms | 17.9 s | 42.6 s | 132 / 158 | 162 / 176 | 130 / 178 | 257 / 276 |
+| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 12.4 ms | 6.54 ms | 1.47 ms | 3.04 ms | 18.6 s | 43.8 s | 131 / 156 | 155 / 176 | 129 / 178 | 243 / 262 |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 12.8 ms | 6.52 ms | 1.87 ms | 4.24 ms | 18.4 s | 41.0 s | 207 / 240 | 238 / 260 | 204 / 240 | 402 / 444 |
+| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.1 ms | 6.34 ms | 1.92 ms | 4.24 ms | 18.4 s | 45.9 s | 207 / 240 | 238 / 260 | 204 / 240 | 404 / 446 |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 13.9 ms | 6.92 ms | 3.69 ms | 12.8 ms | 18.6 s | 42.3 s | 296 / 330 | 326 / 370 | 288 / 356 | 464 / 500 |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.09 ms | 9.89 ms | 0.868 ms | 1.75 ms | 13.9 s | 37.1 s | 78 / 106 | 110 / 126 | 77 / 106 | 122 / 144 |
 | convnext_base.fb_in1k | 224x224 | 5.84 ms | 3.37 ms | 1.45 ms | 2.00 ms | 10.9 s | 32.5 s | 211 / 234 | 323 / 334 | 208 / 236 | 482 / 494 |
 | convnext_base.fb_in22k_ft_in1k | 224x224 | 5.84 ms | 3.37 ms | 1.45 ms | 2.01 ms | 11.4 s | 31.3 s | 211 / 234 | 323 / 334 | 208 / 236 | 482 / 494 |
 | convnext_base.fb_in22k_ft_in1k_384 | 224x224 | 5.79 ms | 3.41 ms | 2.31 ms | 3.05 ms | 10.8 s | 31.2 s | 229 / 252 | 336 / 354 | 213 / 232 | 493 / 522 |
@@ -2243,19 +2323,19 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | convnext_tiny.fb_in22k_ft_in1k | 224x224 | 3.34 ms | 2.08 ms | 0.687 ms | 1.15 ms | 8.09 s | 28.3 s | 94 / 110 | 150 / 170 | 92 / 110 | 184 / 200 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 224x224 | 3.30 ms | 2.05 ms | 0.970 ms | 1.56 ms | 7.90 s | 28.2 s | 108 / 132 | 162 / 170 | 96 / 110 | 192 / 226 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 224x224 | 10.2 ms | 3.85 ms | 2.13 ms | 2.96 ms | 14.4 s | 35.1 s | 220 / 234 | 324 / 356 | 206 / 238 | 486 / 518 |
-| davit_base.msft_in1k | 224x224 | 11.7 ms | 5.48 ms | 2.28 ms | – | 21.8 s | 71.1 s | 212 / 224 | 242 / 262 | – | 403 / 422 |
-| davit_small.msft_in1k | 224x224 | 12.8 ms | 5.54 ms | 1.92 ms | – | 21.8 s | 66.4 s | 136 / 150 | 166 / 190 | – | 234 / 254 |
-| davit_tiny.msft_in1k | 224x224 | 6.33 ms | 3.10 ms | 1.03 ms | – | 15.5 s | 53.8 s | 96 / 116 | 125 / 136 | – | 159 / 166 |
+| davit_base.msft_in1k | 224x224 | 11.7 ms | 5.48 ms | 2.28 ms | 2.09 ms | 21.8 s | 71.1 s | 212 / 224 | 242 / 262 | 209 / 244 | 403 / 422 |
+| davit_small.msft_in1k | 224x224 | 12.8 ms | 5.54 ms | 1.92 ms | 1.88 ms | 21.8 s | 66.4 s | 136 / 150 | 166 / 190 | 134 / 168 | 234 / 254 |
+| davit_tiny.msft_in1k | 224x224 | 6.33 ms | 3.10 ms | 1.03 ms | 1.17 ms | 15.5 s | 53.8 s | 96 / 116 | 125 / 136 | 93 / 134 | 159 / 166 |
 | deit_base_patch16_224.fb_in1k | 224x224 | 2.89 ms | 2.09 ms | 1.12 ms | 1.66 ms | 7.27 s | 28.3 s | 203 / 226 | 238 / 266 | 200 / 248 | 394 / 420 |
 | densenet121.tv_in1k | 224x224 | 9.68 ms | 5.49 ms | 0.686 ms | 1.29 ms | 20.4 s | 33.6 s | 53 / 70 | 89 / 112 | 53 / 92 | 85 / 106 |
 | dinov2_vitl14_lc | 224x224 | 5.43 ms | 5.09 ms | 4.22 ms | 4.95 ms | 12.1 s | 38.2 s | 623 / 1228 | 660 / 688 | 623 / 672 | 1233 / 1262 |
-| efficientformer_l1.snap_dist_in1k | 224x224 | 3.72 ms | 1.69 ms | 0.335 ms | – | 9.10 s | 35.4 s | 93 / 104 | 125 / 144 | – | 128 / 142 |
-| efficientformer_l3.snap_dist_in1k | 224x224 | 6.37 ms | 2.57 ms | 0.750 ms | – | 11.8 s | 39.4 s | 161 / 216 | 193 / 216 | – | 227 / 286 |
-| efficientformer_l7.snap_dist_in1k | 224x224 | 9.65 ms | 3.69 ms | 1.40 ms | – | 14.4 s | 40.0 s | 300 / 324 | 332 / 364 | – | 460 / 490 |
-| efficientformerv2_l.snap_dist_in1k | 224x224 | 17.1 ms | 7.32 ms | 1.20 ms | – | 20.7 s | 45.1 s | 93 / 144 | 125 / 184 | – | 161 / 214 |
-| efficientformerv2_s0.snap_dist_in1k | 224x224 | 7.62 ms | 3.34 ms | 0.550 ms | – | 11.3 s | 36.3 s | 44 / 64 | 76 / 104 | – | 78 / 100 |
-| efficientformerv2_s1.snap_dist_in1k | 224x224 | 8.91 ms | 3.91 ms | 0.632 ms | – | 12.7 s | 41.2 s | 50 / 88 | 82 / 108 | – | 86 / 126 |
-| efficientformerv2_s2.snap_dist_in1k | 224x224 | 13.9 ms | 5.55 ms | 0.919 ms | – | 16.4 s | 38.9 s | 64 / 104 | 96 / 124 | – | 100 / 142 |
+| efficientformer_l1.snap_dist_in1k | 224x224 | 3.72 ms | 1.69 ms | 0.335 ms | 0.704 ms | 9.10 s | 35.4 s | 93 / 104 | 125 / 144 | 91 / 126 | 128 / 142 |
+| efficientformer_l3.snap_dist_in1k | 224x224 | 6.37 ms | 2.57 ms | 0.750 ms | 1.21 ms | 11.8 s | 39.4 s | 161 / 216 | 193 / 216 | 160 / 218 | 227 / 286 |
+| efficientformer_l7.snap_dist_in1k | 224x224 | 9.65 ms | 3.69 ms | 1.40 ms | 2.04 ms | 14.4 s | 40.0 s | 300 / 324 | 332 / 364 | 298 / 346 | 460 / 490 |
+| efficientformerv2_l.snap_dist_in1k | 224x224 | 17.1 ms | 7.32 ms | 1.20 ms | 3.05 ms | 20.7 s | 45.1 s | 93 / 144 | 125 / 184 | 94 / 188 | 161 / 214 |
+| efficientformerv2_s0.snap_dist_in1k | 224x224 | 7.62 ms | 3.34 ms | 0.550 ms | 1.20 ms | 11.3 s | 36.3 s | 44 / 64 | 76 / 104 | 44 / 66 | 78 / 100 |
+| efficientformerv2_s1.snap_dist_in1k | 224x224 | 8.91 ms | 3.91 ms | 0.632 ms | 1.39 ms | 12.7 s | 41.2 s | 50 / 88 | 82 / 108 | 50 / 88 | 86 / 126 |
+| efficientformerv2_s2.snap_dist_in1k | 224x224 | 13.9 ms | 5.55 ms | 0.919 ms | 2.17 ms | 16.4 s | 38.9 s | 64 / 104 | 96 / 124 | 64 / 104 | 100 / 142 |
 | efficientnet_b0.tv_in1k | 224x224 | 4.98 ms | 2.88 ms | 0.536 ms | 0.769 ms | 9.12 s | 25.8 s | 48 / 96 | 80 / 96 | 78 / 118 | 81 / 92 |
 | efficientnet_b4.tv_in1k | 224x224 | 9.93 ms | 5.39 ms | 1.63 ms | 2.02 ms | 13.8 s | 34.9 s | 89 / 114 | 124 / 154 | 90 / 118 | 157 / 200 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.91 ms | 12.1 s | 32.0 s | 81 / 126 | 116 / 146 | 81 / 128 | 149 / 198 |
@@ -2265,19 +2345,19 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fastvit_sa24.apple_dist_in1k | 256x256 | 6.03 ms | 3.97 ms | 0.818 ms | 1.41 ms | 8.44 s | 54.5 s | 81 / 110 | 113 / 148 | 80 / 132 | 148 / 200 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.27 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 76 | 86 / 94 | 52 / 76 | 89 / 114 |
 | fastvit_t8.apple_dist_in1k | 256x256 | 3.25 ms | 2.55 ms | 0.368 ms | 0.709 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
-| focalnet_base_lrf.ms_in1k | 224x224 | 15.5 ms | 7.47 ms | 2.08 ms | – | 19.7 s | 63.9 s | 212 / 234 | 235 / 274 | – | 404 / 432 |
-| focalnet_base_srf.ms_in1k | 224x224 | 14.2 ms | 6.94 ms | 1.74 ms | – | 17.8 s | 63.8 s | 211 / 234 | 234 / 272 | – | 401 / 430 |
-| focalnet_small_lrf.ms_in1k | 224x224 | 15.8 ms | 7.28 ms | 1.70 ms | – | 19.5 s | 62.5 s | 136 / 152 | 162 / 192 | – | 265 / 286 |
-| focalnet_small_srf.ms_in1k | 224x224 | 14.0 ms | 6.90 ms | 1.49 ms | – | 17.8 s | 65.3 s | 136 / 152 | 161 / 190 | – | 234 / 256 |
-| focalnet_tiny_lrf.ms_in1k | 224x224 | 8.07 ms | 3.94 ms | 0.952 ms | – | 13.3 s | 49.9 s | 95 / 118 | 120 / 138 | – | 158 / 186 |
-| focalnet_tiny_srf.ms_in1k | 224x224 | 7.36 ms | 3.72 ms | 0.864 ms | – | 12.9 s | 52.0 s | 95 / 118 | 120 / 136 | – | 159 / 188 |
-| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 3.46 ms | 1.78 ms | 0.334 ms | – | 6.74 s | 21.2 s | 48 / 70 | 78 / 110 | – | 77 / 100 |
-| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 3.47 ms | 1.84 ms | 0.307 ms | – | 7.07 s | 20.1 s | 50 / 68 | 80 / 108 | – | 81 / 104 |
-| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 4.55 ms | 2.33 ms | 0.383 ms | – | 7.65 s | 23.4 s | 59 / 94 | 89 / 134 | – | 91 / 128 |
-| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 5.22 ms | 2.55 ms | 0.436 ms | – | 7.99 s | 24.6 s | 76 / 114 | 99 / 152 | – | 100 / 150 |
-| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 4.53 ms | 2.66 ms | 0.463 ms | – | 7.84 s | 19.8 s | 82 / 116 | 107 / 134 | – | 139 / 182 |
-| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 7.04 ms | 4.13 ms | 0.758 ms | – | 9.97 s | 23.8 s | 114 / 150 | 146 / 190 | – | 209 / 250 |
-| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 9.44 ms | 5.44 ms | 1.42 ms | – | 11.2 s | 26.9 s | 198 / 224 | 217 / 264 | – | 347 / 394 |
+| focalnet_base_lrf.ms_in1k | 224x224 | 15.5 ms | 7.47 ms | 2.08 ms | 5.44 ms | 19.7 s | 63.9 s | 212 / 234 | 235 / 274 | 212 / 258 | 404 / 432 |
+| focalnet_base_srf.ms_in1k | 224x224 | 14.2 ms | 6.94 ms | 1.74 ms | 4.99 ms | 17.8 s | 63.8 s | 211 / 234 | 234 / 272 | 210 / 256 | 401 / 430 |
+| focalnet_small_lrf.ms_in1k | 224x224 | 15.8 ms | 7.28 ms | 1.70 ms | 4.18 ms | 19.5 s | 62.5 s | 136 / 152 | 162 / 192 | 136 / 154 | 265 / 286 |
+| focalnet_small_srf.ms_in1k | 224x224 | 14.0 ms | 6.90 ms | 1.49 ms | 3.73 ms | 17.8 s | 65.3 s | 136 / 152 | 161 / 190 | 134 / 154 | 234 / 256 |
+| focalnet_tiny_lrf.ms_in1k | 224x224 | 8.07 ms | 3.94 ms | 0.952 ms | 2.39 ms | 13.3 s | 49.9 s | 95 / 118 | 120 / 138 | 93 / 138 | 158 / 186 |
+| focalnet_tiny_srf.ms_in1k | 224x224 | 7.36 ms | 3.72 ms | 0.864 ms | 2.19 ms | 12.9 s | 52.0 s | 95 / 118 | 120 / 136 | 93 / 138 | 159 / 188 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 3.46 ms | 1.78 ms | 0.334 ms | 0.568 ms | 6.74 s | 21.2 s | 48 / 70 | 78 / 110 | 46 / 72 | 77 / 100 |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 3.47 ms | 1.84 ms | 0.307 ms | 0.603 ms | 7.07 s | 20.1 s | 50 / 68 | 80 / 108 | 48 / 70 | 81 / 104 |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 4.55 ms | 2.33 ms | 0.383 ms | 0.765 ms | 7.65 s | 23.4 s | 59 / 94 | 89 / 134 | 57 / 94 | 91 / 128 |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 5.22 ms | 2.55 ms | 0.436 ms | 0.909 ms | 7.99 s | 24.6 s | 76 / 114 | 99 / 152 | 67 / 116 | 100 / 150 |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 4.53 ms | 2.66 ms | 0.463 ms | 0.864 ms | 7.84 s | 19.8 s | 82 / 116 | 107 / 134 | 75 / 138 | 139 / 182 |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 7.04 ms | 4.13 ms | 0.758 ms | 1.29 ms | 9.97 s | 23.8 s | 114 / 150 | 146 / 190 | 115 / 156 | 209 / 250 |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 9.44 ms | 5.44 ms | 1.42 ms | 2.10 ms | 11.2 s | 26.9 s | 198 / 224 | 217 / 264 | 188 / 232 | 347 / 394 |
 | inception_v3.tv_in1k | 224x224 | 5.13 ms | 3.03 ms | 0.685 ms | 1.31 ms | 8.61 s | 22.4 s | 120 / 164 | 152 / 184 | 118 / 208 | 184 / 234 |
 | mobilenet_v2.tv2_in1k | 224x224 | 2.95 ms | 1.82 ms | 0.261 ms | 0.439 ms | 6.56 s | 16.3 s | 43 / 70 | 77 / 92 | 75 / 92 | 76 / 84 |
 | mobilenet_v3_large.tv2_in1k | 224x224 | 3.80 ms | 2.19 ms | 0.393 ms | 0.545 ms | 10.2 s | 36.5 s | 46 / 76 | 79 / 90 | 78 / 114 | 80 / 106 |
@@ -2298,10 +2378,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resnet18.tv_in1k | 224x224 | 1.44 ms | 1.04 ms | 0.220 ms | 0.472 ms | 4.31 s | 14.0 s | 59 / 88 | 91 / 108 | 58 / 110 | 89 / 120 |
 | resnet50.tv2_in1k | 224x224 | 3.15 ms | 2.10 ms | 0.466 ms | 0.826 ms | 8.31 s | 24.0 s | 89 / 142 | 119 / 138 | 116 / 162 | 152 / 166 |
 | shufflenet_v2_x1_0.tv_in1k | 224x224 | 3.72 ms | 1.98 ms | 0.329 ms | 0.804 ms | 7.73 s | 16.9 s | 39 / 48 | 71 / 88 | 55 / 76 | 70 / 80 |
-| shvit_s1.in1k | 224x224 | 6.75 ms | 3.11 ms | 0.510 ms | – | 10.2 s | 23.3 s | 47 / 58 | 78 / 98 | – | 77 / 90 |
-| shvit_s2.in1k | 224x224 | 6.76 ms | 3.90 ms | 0.533 ms | – | 10.1 s | 24.0 s | 56 / 88 | 88 / 128 | – | 87 / 120 |
-| shvit_s3.in1k | 224x224 | 8.11 ms | 3.64 ms | 0.575 ms | – | 10.9 s | 24.6 s | 62 / 112 | 94 / 132 | – | 92 / 144 |
-| shvit_s4.in1k | 256x256 | 9.31 ms | 4.11 ms | 0.658 ms | – | 11.3 s | 26.3 s | 67 / 118 | 99 / 138 | – | 101 / 154 |
+| shvit_s1.in1k | 224x224 | 6.75 ms | 3.11 ms | 0.510 ms | 0.805 ms | 10.2 s | 23.3 s | 47 / 58 | 78 / 98 | 47 / 62 | 77 / 90 |
+| shvit_s2.in1k | 224x224 | 6.76 ms | 3.90 ms | 0.533 ms | 0.949 ms | 10.1 s | 24.0 s | 56 / 88 | 88 / 128 | 57 / 88 | 87 / 120 |
+| shvit_s3.in1k | 224x224 | 8.11 ms | 3.64 ms | 0.575 ms | 1.01 ms | 10.9 s | 24.6 s | 62 / 112 | 94 / 132 | 62 / 112 | 92 / 144 |
+| shvit_s4.in1k | 256x256 | 9.31 ms | 4.11 ms | 0.658 ms | 1.78 ms | 11.3 s | 26.3 s | 67 / 118 | 99 / 138 | 68 / 102 | 101 / 154 |
 | squeezenet1_1.tv_in1k | 224x224 | 1.78 ms | 1.13 ms | 0.214 ms | 0.376 ms | 4.49 s | 9.10 s | 7 / 28 | 39 / 48 | 8 / 12 | 38 / 40 |
 | starnet_s1.in1k | 224x224 | 3.88 ms | 2.41 ms | 0.774 ms | 0.683 ms | 6.23 s | 24.4 s | 41 / 52 | 73 / 92 | 41 / 56 | 73 / 86 |
 | starnet_s2.in1k | 224x224 | 3.02 ms | 1.96 ms | 0.622 ms | 0.578 ms | 5.71 s | 24.7 s | 43 / 54 | 75 / 94 | 43 / 58 | 74 / 88 |
@@ -2320,52 +2400,53 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | wd-eva02-large-tagger-v3 | 448x448 | 18.3 ms | 15.7 ms | 12.4 ms | 14.1 ms | 22.4 s | 39.5 s | 669 / 684 | 714 / 724 | 673 / 806 | 1280 / 1306 |
 | wd-vit-large-tagger-v3 | 448x448 | 12.9 ms | 13.3 ms | 11.2 ms | 12.6 ms | 13.5 s | 36.2 s | 669 / 682 | 713 / 742 | 667 / 724 | 1266 / 1290 |
 | wd-vit-tagger-v3 | 448x448 | 4.01 ms | 5.33 ms | 3.32 ms | 4.06 ms | 9.55 s | 18.8 s | 235 / 242 | 282 / 302 | 234 / 284 | 421 / 446 |
-| bisenet-face-parsing | 512x512 | 2.41 ms | 1.34 ms | 0.678 ms | – | 5.79 s | 12.9 s | 51 / 72 | 76 / 110 | – | 85 / 110 |
+| bisenet-face-parsing | 512x512 | 2.41 ms | 1.34 ms | 0.678 ms | 1.59 ms | 5.79 s | 12.9 s | 51 / 72 | 76 / 110 | 61 / 112 | 85 / 110 |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 48.0 ms | 42.1 ms | 30.6 ms | 20.5 ms | 9.60 s | 25.7 s | 450 / 492 | 450 / 512 | 356 / 414 | 1764 / 1826 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 47.1 ms | 44.6 ms | 30.9 ms | 17.9 ms | 10.9 s | 23.3 s | 410 / 452 | 410 / 432 | 355 / 436 | 1683 / 1732 |
 | dinov2-b-linear-ade20k | 1024x2048 | 33.3 ms | 35.8 ms | 49.5 ms | 20.1 ms | 10.8 s | 40.6 s | 765 / 884 | 1455 / 1504 | 771 / 884 | 3367 / 3424 |
 | dinov2-l-linear-ade20k | 1024x2048 | 83.9 ms | 84.5 ms | 82.1 ms | 52.8 ms | 15.5 s | 43.8 s | 1181 / 1244 | 1870 / 1904 | 1189 / 1244 | 4257 / 4318 |
 | dinov2-s-linear-ade20k | 1024x2048 | 18.3 ms | 20.7 ms | 40.3 ms | 11.8 ms | 10.6 s | 36.2 s | 642 / 696 | 1331 / 1376 | 645 / 676 | 3084 / 3130 |
-| eomt-l-dinov2-ade20k | 1024x2048 | 50.8 ms | 49.4 ms | 54.3 ms | 35.0 ms | 16.5 s | 52.9 s | 1515 / 1584 | 1585 / 1624 | 1515 / 1584 | 3475 / 3500 |
-| eomt-l-dinov3-ade20k | 1024x2048 | 54.6 ms | 50.0 ms | 61.9 ms | 38.8 ms | 22.1 s | 57.5 s | 1514 / 1584 | 1584 / 1624 | 1514 / 1584 | 3475 / 3522 |
+| eomt-l-dinov2-ade20k | 1024x2048 | 51.2 ms | 49.4 ms | 54.3 ms | 35.1 ms | 16.5 s | 52.9 s | 1357 / 1504 | 1585 / 1624 | 1344 / 1504 | 3475 / 3500 |
+| eomt-l-dinov3-ade20k | 1024x2048 | 55.0 ms | 50.0 ms | 61.9 ms | 38.9 ms | 22.1 s | 57.5 s | 1355 / 1484 | 1584 / 1624 | 1342 / 1484 | 3475 / 3522 |
 | fcn-r101-d8-ade20k | 1024x2048 | 40.7 ms | 35.6 ms | 27.4 ms | 16.5 ms | 8.53 s | 22.2 s | 414 / 472 | 414 / 472 | 288 / 374 | 1656 / 1734 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 27.3 ms | 23.9 ms | 20.9 ms | 11.2 ms | 35.7 s | 29.6 s | 421 / 470 | 421 / 448 | 265 / 344 | 1662 / 1712 |
-| mask2former-swinl-ade20k | 1024x2048 | 103 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 55.6 ms | 60.4 ms | – | 129 s | 1164 / 1400 | – | 1164 / 1400 | 3051 / 3090 |
-| oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 4524 / 4576 |
+| mask2former-swinl-ade20k | 1024x2048 | 104 ms | 94.2 ms | 55.6 ms | 60.2 ms | 101 s | 129 s | 1052 / 1218 | 1485 / 1514 | 999 / 1238 | 3051 / 3090 |
+| oneformer-swinl-ade20k | 1024x2048 | 145 ms | 182 ms | 83.3 ms | 106 ms | 85.8 s | 140 s | 1768 / 1994 | 2372 / 2426 | 1768 / 1914 | 4524 / 4576 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 48.7 ms | 41.3 ms | 29.8 ms | 24.9 ms | 11.0 s | 44.1 s | 414 / 472 | 414 / 472 | 335 / 394 | 1859 / 1898 |
-| sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 2465 / 2526 |
-| sapiens-seg-1b-goliath | 1024x2048 | 275 ms | 263 ms | 244 ms | 185 ms | 18.8 s | 84.9 s | 3259 / 3384 | 2986 / 3084 | 3259 / 3382 | 5694 / 5742 |
+| sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 90.5 ms | 12.5 s | 52.9 s | 1280 / 1402 | 1373 / 1462 | 1280 / 1402 | 2465 / 2526 |
+| sapiens-seg-1b-goliath | 1024x2048 | 277 ms | 263 ms | 244 ms | 180 ms | 18.8 s | 84.9 s | 2880 / 3024 | 2986 / 3084 | 2880 / 3022 | 5694 / 5742 |
 | segformer-b0-ade20k | 1024x2048 | 11.4 ms | 9.27 ms | 5.51 ms | 3.49 ms | 12.3 s | 60.9 s | 339 / 376 | 336 / 356 | 105 / 178 | 1480 / 1522 |
 | segformer-b2-clothes | 512x512 | 8.13 ms | 4.38 ms | 2.68 ms | 3.61 ms | 17.6 s | 63.1 s | 156 / 168 | 182 / 228 | 133 / 170 | 312 / 328 |
-| segformer-b5-ade20k | 1024x2048 | 38.7 ms | 31.4 ms | 22.8 ms | 25.4 ms | 33.8 s | 83.9 s | 546 / 590 | 543 / 630 | 294 / 432 | 2069 / 2110 |
+| segformer-b5-ade20k | 1024x2048 | 38.9 ms | 31.4 ms | 22.8 ms | 25.4 ms | 33.8 s | 83.9 s | 444 / 490 | 543 / 630 | 294 / 432 | 2069 / 2110 |
 | segformer-b5-face-parsing | 512x512 | 21.9 ms | 14.1 ms | 6.33 ms | 9.21 ms | 34.5 s | 84.7 s | 278 / 292 | 305 / 352 | 257 / 294 | 538 / 552 |
 | segnext-mscan-b-ade20k | 1024x2048 | 28.3 ms | 40.7 ms | 23.3 ms | 12.1 ms | 24.1 s | 66.3 s | 376 / 424 | 491 / 526 | 192 / 226 | 1553 / 1622 |
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.7 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 277 / 320 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 164 / 202 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 9.02 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 110 / 158 | 1476 / 1498 |
-| ben2 | 1080x1920 | 110 ms | 103 ms | 58.2 ms | 104 ms | 70.8 s | 140 s | 1681 / 1956 | 813 / 916 | 1430 / 1698 | 1280 / 1326 |
-| birefnet | 1080x1920 | 131 ms | 138 ms | 87.8 ms | 121 ms | 93.8 s | 201 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
-| birefnet-lite | 1080x1920 | 58.0 ms | 50.2 ms | 49.0 ms | 48.1 ms | 75.1 s | 156 s | 810 / 952 | 1469 / 1552 | 754 / 960 | 874 / 934 |
-| inspyrenet | 1080x1920 | 109 ms | 85.8 ms | 51.1 ms | – | 70.8 s | 133 s | 1649 / 1848 | 913 / 1018 | – | 1181 / 1252 |
-| inspyrenet-fast | 1080x1920 | 41.7 ms | 17.7 ms | 6.99 ms | – | 76.6 s | 138 s | 432 / 488 | 345 / 376 | – | 561 / 600 |
+| ben2 | 1080x1920 | 115 ms | 103 ms | 58.2 ms | 105 ms | 70.8 s | 140 s | 1296 / 1376 | 813 / 916 | 1046 / 1118 | 1280 / 1326 |
+| birefnet | 1080x1920 | 133 ms | 138 ms | 87.8 ms | 121 ms | 93.8 s | 201 s | 1165 / 1288 | 1874 / 1932 | 1145 / 1256 | 1753 / 1814 |
+| birefnet-lite | 1080x1920 | 58.1 ms | 50.2 ms | 49.0 ms | 47.6 ms | 75.1 s | 156 s | 748 / 792 | 1469 / 1552 | 594 / 660 | 874 / 934 |
+| inspyrenet | 1080x1920 | 107 ms | 85.8 ms | 51.1 ms | 107 ms | 70.8 s | 133 s | 1153 / 1468 | 913 / 1018 | 1153 / 1494 | 1181 / 1252 |
+| inspyrenet-fast | 1080x1920 | 45.4 ms | 17.7 ms | 6.99 ms | 15.8 ms | 76.6 s | 138 s | 363 / 448 | 345 / 376 | 363 / 454 | 561 / 600 |
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
-| matanyone | 1080x1920 | 1205 ms | fails: load: BackendUnavailableError: matanyone@1 (portable) has no | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | – | – | 2719 / 2908 | – | – | – |
-| rmbg-2.0 | 1080x1920 | 132 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1936 | 1723 / 1784 |
-| u2net | 1080x1920 | 14.9 ms | 6.24 ms | 3.07 ms | 8.83 ms | 35.7 s | 36.0 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
-| u2net-human-seg | 1080x1920 | 14.6 ms | 6.25 ms | 3.08 ms | 9.05 ms | 36.0 s | 34.7 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
-| u2netp | 1080x1920 | 14.6 ms | 5.44 ms | 1.87 ms | 9.80 ms | 29.9 s | 26.1 s | 150 / 172 | 152 / 188 | 138 / 172 | 206 / 236 |
-| vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 148 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1452 / 1552 | 1233 / 1262 |
+| matanyone | 1080x1920 | 966 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2268 / 2726 | 1363 / 3452 | 2268 / 2706 | – |
+| matanyone | 100x288x512 | 1721 ms | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | 414 / 496 | – | – | 474 / 542 |
+| rmbg-2.0 | 1080x1920 | 133 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1165 / 1288 | 1874 / 1932 | 1145 / 1296 | 1723 / 1784 |
+| u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
+| u2net-human-seg | 1080x1920 | 10.0 ms | 6.18 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 240 / 278 | 193 / 234 | 161 / 236 | 335 / 390 |
+| u2netp | 1080x1920 | 15.1 ms | 5.73 ms | 1.87 ms | 2.92 ms | – | 26.1 s | 139 / 180 | 129 / 144 | 72 / 124 | 206 / 236 |
+| vitmatte-b | 1080x1920 | 180 ms | 157 ms | 108 ms | 146 ms | 32.6 s | 48.8 s | 891 / 1036 | 1166 / 1472 | 747 / 832 | 1233 / 1262 |
 | vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 84.1 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1305 / 1404 | 876 / 920 |
-| anyline | 1024x1024 | 24.0 ms | 11.6 ms | planned for 0.2.1 | – | 40.0 s | – | 362 / 384 | 306 / 346 | – | – |
-| hed | 1024x1024 | 6.02 ms | 4.81 ms | 2.57 ms | – | 9.37 s | 11.6 s | 117 / 146 | 137 / 166 | – | 170 / 178 |
-| lineart | 1024x1024 | 9.93 ms | 6.49 ms | 4.80 ms | – | 9.92 s | 10.3 s | 129 / 164 | 117 / 164 | – | 150 / 176 |
-| lineart-anime | 1024x1024 | 3.86 ms | 2.80 ms | 1.54 ms | – | 10.3 s | 13.4 s | 161 / 206 | 180 / 206 | – | 304 / 314 |
-| lineart-coarse | 1024x1024 | 9.92 ms | 6.49 ms | 4.80 ms | – | 9.66 s | 10.5 s | 129 / 164 | 117 / 164 | – | 150 / 176 |
-| mlsd | 1024x1024 | 7.65 ms | 4.61 ms | planned for 0.2.1 | – | 11.4 s | – | 72 / 90 | 101 / 130 | – | – |
-| pidinet | 1024x1024 | 6.59 ms | 5.66 ms | 4.50 ms | – | 12.4 s | 20.4 s | 186 / 228 | 166 / 190 | – | 187 / 200 |
-| teed | 1024x1024 | 2.54 ms | 1.10 ms | 0.799 ms | – | 9.06 s | 12.5 s | 68 / 88 | 71 / 104 | – | 106 / 120 |
-| clipseg | 1024x1024 | 4.46 ms | 3.19 ms | planned for 0.2.1 | 2.76 ms | 9.92 s | – | 328 / 356 | 348 / 374 | 335 / 362 | – |
+| anyline | 1024x1024 | 21.0 ms | 11.6 ms | 12.9 ms (full line map only; memory estimated) | 18.8 ms | 40.0 s | 29.6 s | 362 / 384 | 306 / 346 | 362 / 384 | 528 / 542 |
+| hed | 1024x1024 | 6.02 ms | 4.81 ms | 2.57 ms | 4.44 ms | 9.37 s | 11.6 s | 117 / 146 | 137 / 166 | 121 / 146 | 170 / 178 |
+| lineart | 1024x1024 | 9.93 ms | 6.49 ms | 4.80 ms | 8.49 ms | 9.92 s | 10.3 s | 129 / 164 | 117 / 164 | 126 / 186 | 150 / 176 |
+| lineart-anime | 1024x1024 | 3.86 ms | 2.80 ms | 1.54 ms | 3.62 ms | 10.3 s | 13.4 s | 161 / 206 | 180 / 206 | 161 / 186 | 304 / 314 |
+| lineart-coarse | 1024x1024 | 9.92 ms | 6.49 ms | 4.80 ms | 8.51 ms | 9.66 s | 10.5 s | 129 / 164 | 117 / 164 | 126 / 166 | 150 / 176 |
+| mlsd | 1024x1024 | 7.65 ms | 4.61 ms | 5.75 ms, fp32 engine (standalone CNN with eager resize and line decoding) | 7.03 ms | 11.4 s | – | 72 / 90 | 101 / 130 | 72 / 90 | 295 / 310 |
+| pidinet | 1024x1024 | 6.59 ms | 5.66 ms | 4.50 ms | 6.37 ms | 12.4 s | 20.4 s | 186 / 228 | 166 / 190 | 186 / 228 | 187 / 200 |
+| teed | 1024x1024 | 2.54 ms | 1.10 ms | 0.799 ms | 2.43 ms | 9.06 s | 12.5 s | 68 / 88 | 71 / 104 | 68 / 88 | 106 / 120 |
+| clipseg | 1024x1024 | 4.46 ms | 3.19 ms | 1.75 ms (segmentation network on a normalized 352x352 image and precomputed text embedding only) | 2.76 ms | 9.92 s | 39.9 s | 328 / 356 | 348 / 374 | 335 / 362 | 464 / 480 |
 | efficientvit-sam-l0 | 1024x1024 | 11.1 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.55 ms | 25.2 s | 19.9 s | 158 / 190 | 188 / 228 | 164 / 236 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.47 ms | 24.8 s | 22.0 s | 183 / 234 | 212 / 252 | 191 / 264 | 517 / 578 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.54 ms | 26.1 s | 24.1 s | 209 / 240 | 238 / 278 | 219 / 292 | 633 / 690 |
@@ -2373,42 +2454,46 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientvit-sam-xl1 | 1024x1024 | 28.9 ms | 22.9 ms | 38.4 ms, fp32 engine (image encoder only) | 15.3 ms | 26.7 s | 36.6 s | 586 / 676 | 562 / 616 | 569 / 686 | 1894 / 1960 |
 | insid3-vitl16 | 1024x1024 | 255 ms | 235 ms | 64.1 ms (image encoder only) | 157 ms | 17.2 s | 42.1 s | 986 / 1228 | 985 / 1206 | 987 / 1228 | 1339 / 1508 |
 | mobile-sam | 1024x1024 | 10.5 ms | 6.22 ms | 4.99 ms (image encoder only) | 7.22 ms | 25.5 s | 60.9 s | 171 / 190 | 203 / 232 | 203 / 296 | 219 / 252 |
-| sam-hq-vit-b | 1024x1024 | 49.8 ms | 39.4 ms | 28.0 ms (image encoder only) | 36.8 ms | 32.8 s | 39.0 s | 375 / 422 | 372 / 422 | 420 / 564 | 609 / 642 |
-| sam-hq-vit-h | 1024x1024 | 217 ms | 187 ms | 125 ms (image encoder only) | 143 ms | 42.3 s | 69.1 s | 1488 / 1566 | 1476 / 1526 | 1528 / 1688 | 2790 / 2818 |
-| sam-hq-vit-l | 1024x1024 | 118 ms | 97.0 ms | 68.3 ms (image encoder only) | 81.9 ms | 32.9 s | 53.3 s | 834 / 882 | 822 / 902 | 877 / 1026 | 1482 / 1538 |
-| sam-vit-b | 1024x1024 | 48.3 ms | 40.9 ms | 27.3 ms (image encoder only) | 37.0 ms | 14.5 s | 36.4 s | 378 / 420 | 362 / 400 | 377 / 420 | 545 / 582 |
-| sam-vit-h | 1024x1024 | 214 ms | 188 ms | 124 ms (image encoder only) | 143 ms | 42.6 s | 69.7 s | 1484 / 2524 | 1436 / 1484 | 1480 / 1524 | 2744 / 2784 |
-| sam-vit-l | 1024x1024 | 116 ms | 97.2 ms | 67.5 ms (image encoder only) | 81.5 ms | 32.9 s | 53.4 s | 833 / 1262 | 793 / 862 | 831 / 862 | 1453 / 1520 |
+| sam-hq-vit-b | 1024x1024 | 48.3 ms | 39.4 ms | 28.0 ms (image encoder only) | 35.3 ms | 32.8 s | 39.0 s | 375 / 422 | 372 / 422 | 420 / 544 | 609 / 642 |
+| sam-hq-vit-h | 1024x1024 | 213 ms | 187 ms | 125 ms (image encoder only) | 140 ms | 42.3 s | 69.1 s | 1488 / 1526 | 1476 / 1526 | 1528 / 1648 | 2790 / 2818 |
+| sam-hq-vit-l | 1024x1024 | 114 ms | 97.0 ms | 68.3 ms (image encoder only) | 79.0 ms | 32.9 s | 53.3 s | 834 / 862 | 822 / 902 | 877 / 1006 | 1482 / 1538 |
+| sam-vit-b | 1024x1024 | 46.6 ms | 40.9 ms | 27.3 ms (image encoder only) | 35.5 ms | 14.5 s | 36.4 s | 365 / 400 | 362 / 400 | 365 / 400 | 545 / 582 |
+| sam-vit-h | 1024x1024 | 211 ms | 188 ms | 124 ms (image encoder only) | 140 ms | 42.6 s | 69.7 s | 1472 / 1504 | 1436 / 1484 | 1467 / 1484 | 2744 / 2784 |
+| sam-vit-l | 1024x1024 | 113 ms | 97.2 ms | 67.5 ms (image encoder only) | 79.0 ms | 32.9 s | 53.4 s | 821 / 882 | 793 / 862 | 818 / 862 | 1453 / 1520 |
 | sam2.1-hiera-base-plus | 1024x1024 | 31.9 ms | 26.4 ms | 16.7 ms (image encoder only) | 25.4 ms | 28.3 s | 43.7 s | 400 / 444 | 365 / 404 | 414 / 464 | 588 / 620 |
 | sam2.1-hiera-large | 1024x1024 | 68.0 ms | 59.5 ms | 38.1 ms (image encoder only) | 49.1 ms | 38.9 s | 55.3 s | 730 / 768 | 678 / 748 | 748 / 808 | 1212 / 1232 |
 | sam2.1-hiera-small | 1024x1024 | 18.8 ms | 14.9 ms | 9.93 ms (image encoder only) | 15.6 ms | 24.5 s | 40.2 s | 318 / 366 | 283 / 326 | 330 / 386 | 429 / 452 |
 | sam2.1-hiera-tiny | 1024x1024 | 16.6 ms | 14.2 ms | 8.56 ms (image encoder only) | 13.9 ms | 13.4 s | 34.1 s | 304 / 382 | 270 / 322 | 316 / 362 | 414 / 446 |
-| sam3 | 1024x1024 | 179 ms | 168 ms | 89.5 ms (image encoder only) | 117 ms | 20.0 s | 54.2 s | 1910 / 1984 | 1910 / 2004 | 1974 / 2264 | 2926 / 2944 |
+| sam3 | 1024x1024 | 173 ms | 167 ms | 89.5 ms (image encoder only) | 107 ms | 66.6 s | 54.2 s | 1822 / 1904 | 1863 / 1944 | 1900 / 2044 | 2926 / 2944 |
 | deim-l-coco | 800x1344 | 16.3 ms | 7.99 ms | 3.39 ms | 6.50 ms | 49.8 s | 58.1 s | 155 / 172 | 175 / 198 | 151 / 216 | 229 / 266 |
 | deim-m-coco | 800x1344 | 13.8 ms | 6.73 ms | 2.54 ms | 5.08 ms | 39.1 s | 58.2 s | 129 / 142 | 149 / 166 | 129 / 184 | 204 / 232 |
-| deim-n-coco | 800x1344 | 10.4 ms | 5.44 ms | 1.01 ms | 2.46 ms | 28.0 s | 50.8 s | 92 / 114 | 101 / 118 | 94 / 118 | 113 / 128 |
+| deim-n-coco | 800x1344 | 10.4 ms | 5.44 ms | 1.10 ms | 2.46 ms | 28.0 s | 65.6 s | 92 / 114 | 101 / 118 | 94 / 118 | 104 / 128 |
 | deim-s-coco | 800x1344 | 11.3 ms | 5.63 ms | 1.68 ms | 3.73 ms | 31.3 s | 57.5 s | 108 / 128 | 131 / 152 | 108 / 170 | 163 / 176 |
 | deim-x-coco | 800x1344 | 18.7 ms | 11.0 ms | 5.10 ms | 9.53 ms | 48.8 s | 66.5 s | 230 / 258 | 245 / 284 | 231 / 298 | 352 / 394 |
 | detr-r101-coco | 800x1344 | 18.7 ms | 14.7 ms | 6.60 ms | 13.7 ms | 17.7 s | 35.0 s | 316 / 368 | 272 / 330 | 254 / 328 | 377 / 440 |
 | detr-r50-coco | 800x1344 | 12.4 ms | 9.27 ms | 4.40 ms | 9.93 ms | 21.7 s | 33.4 s | 280 / 332 | 233 / 292 | 218 / 272 | 318 / 350 |
 | dfine-l-coco | 800x1344 | 16.6 ms | 7.91 ms | 3.19 ms | 6.53 ms | 45.7 s | 58.7 s | 155 / 172 | 175 / 198 | 151 / 216 | 219 / 256 |
 | dfine-m-coco | 800x1344 | 13.7 ms | 6.79 ms | 2.49 ms | 5.07 ms | 36.4 s | 54.6 s | 129 / 142 | 149 / 166 | 129 / 184 | 204 / 232 |
-| dfine-n-coco | 800x1344 | 10.4 ms | 5.43 ms | 0.942 ms | 2.48 ms | 26.7 s | 51.5 s | 92 / 114 | 101 / 118 | 94 / 118 | 113 / 128 |
+| dfine-n-coco | 800x1344 | 10.4 ms | 5.43 ms | 1.08 ms | 2.48 ms | 26.7 s | 64.4 s | 92 / 114 | 101 / 118 | 94 / 118 | 104 / 128 |
 | dfine-s-coco | 800x1344 | 11.4 ms | 5.63 ms | 1.65 ms | 3.75 ms | 31.2 s | 51.4 s | 108 / 128 | 131 / 152 | 108 / 170 | 147 / 160 |
-| dfine-x-coco | 800x1344 | 18.6 ms | 11.0 ms | 5.03 ms | 9.59 ms | 47.7 s | 65.7 s | 230 / 258 | 245 / 284 | 231 / 298 | 342 / 374 |
+| dfine-x-coco | 800x1344 | 18.6 ms | 11.0 ms | 5.64 ms | 9.59 ms | 47.7 s | 107 s | 230 / 258 | 245 / 284 | 231 / 298 | 342 / 374 |
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
-| grounding-dino-base | 800x1344 | 160 ms | 131 ms | planned for 0.2.1 | – | 98.4 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
-| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
+| grounding-dino-base | 800x1344 | 132 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 98.4 s | 130 s | 1105 / 1322 | 2669 / 2800 | 1105 / 1322 | 1153 / 1160 |
+| grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
+| grounding-dino-tiny | 800x1344 | 110 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 86.9 ms | 72.5 s | 104 s | 987 / 1106 | 2550 / 2664 | 987 / 1106 | 883 / 888 |
+| grounding-dino-tiny | 320x320 | 69.0 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.4 ms | – | – | 841 / 948 | – | 841 / 948 | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
 | lw-detr-small-coco | 800x1344 | 8.82 ms | 3.63 ms | 1.36 ms | 2.80 ms | 23.0 s | 63.1 s | 97 / 116 | 116 / 134 | 99 / 140 | 121 / 130 |
 | lw-detr-tiny-coco | 800x1344 | 7.45 ms | 2.98 ms | 0.999 ms | 2.20 ms | 21.6 s | 60.3 s | 92 / 112 | 112 / 130 | 94 / 134 | 116 / 128 |
 | lw-detr-xlarge-coco | 800x1344 | 12.1 ms | 10.7 ms | 6.58 ms | 9.39 ms | 30.5 s | 57.5 s | 348 / 360 | 339 / 358 | 336 / 382 | 544 / 566 |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
-| mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | planned for 0.2.1 | – | 105 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
-| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 71.2 s | – | 1405 / 1470 | 2555 / 2666 | – | – |
-| owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
-| owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |
+| mm-grounding-dino-base | 800x1344 | 132 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | 110 ms | 105 s | 125 s | 1107 / 1324 | 2669 / 2800 | 1107 / 1324 | 1153 / 1160 |
+| mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
+| mm-grounding-dino-tiny | 800x1344 | 110 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 87.2 ms | 71.2 s | 104 s | 989 / 1108 | 2555 / 2666 | 989 / 1108 | 883 / 890 |
+| mm-grounding-dino-tiny | 320x320 | 69.2 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.5 ms | – | – | 842 / 950 | – | 842 / 950 | 387 / 408 |
+| owlv2-b16 | 800x1344 | 30.6 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 423 / 490 | 487 / 530 | 440 / 612 | 655 / 726 |
+| owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1027 / 1064 | 1190 / 1242 | 1027 / 1164 | 1786 / 1820 |
 | rf-detr-l-coco | 800x1344 | 10.6 ms | 5.32 ms | 2.87 ms | 5.30 ms | 28.7 s | 65.7 s | 149 / 184 | 164 / 182 | 149 / 206 | 203 / 222 |
 | rf-detr-m-coco | 800x1344 | 10.6 ms | 4.92 ms | 2.10 ms | 3.86 ms | 27.8 s | 55.3 s | 136 / 156 | 156 / 166 | 136 / 178 | 194 / 216 |
 | rf-detr-n-coco | 800x1344 | 9.39 ms | 4.58 ms | 1.15 ms | 2.39 ms | 25.8 s | 60.1 s | 117 / 140 | 141 / 156 | 117 / 142 | 179 / 208 |
@@ -2436,26 +2521,26 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | yolox-s | 800x1344 | 5.27 ms | 2.95 ms | 1.02 ms | 2.43 ms | 12.7 s | 17.2 s | 46 / 60 | 74 / 96 | 40 / 94 | 86 / 126 |
 | yolox-tiny | 800x1344 | 5.25 ms | 2.87 ms | 0.561 ms | 1.79 ms | 13.1 s | 23.7 s | 22 / 56 | 58 / 94 | 22 / 68 | 62 / 90 |
 | yolox-x | 800x1344 | 11.6 ms | 11.3 ms | 5.28 ms | 7.56 ms | 15.8 s | 24.1 s | 246 / 280 | 265 / 296 | 230 / 378 | 432 / 478 |
-| parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | – | 19.9 s | 114 s | 79 / 100 | 111 / 118 | – | 148 / 168 |
-| parseq-tiny | 32x128 | 2.10 ms | 1.54 ms | 1.67 ms | – | 18.0 s | 102 s | 44 / 54 | 76 / 94 | – | 82 / 90 |
-| ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | – | 75.0 s | 156 s | 289 / 448 | 292 / 448 | – | 241 / 268 |
-| ppocrv5-server | 1080x1920 | 277 ms | 277 ms | 25.1 ms | – | 105 s | 40.6 s | 1357 / 1452 | 958 / 1132 | – | 1131 / 1146 |
+| parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | 3.62 ms | 19.9 s | 114 s | 79 / 100 | 111 / 118 | 79 / 100 | 148 / 168 |
+| parseq-tiny | 32x128 | 2.10 ms | 1.54 ms | 1.67 ms | 2.10 ms | 18.0 s | 102 s | 44 / 54 | 76 / 94 | 44 / 54 | 82 / 90 |
+| ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | 156 ms | 75.0 s | 156 s | 289 / 448 | 292 / 448 | 289 / 448 | 241 / 268 |
+| ppocrv5-server | 1080x1920 | 279 ms | 277 ms | 25.1 ms | 231 ms | 105 s | 40.6 s | 615 / 752 | 958 / 1132 | 607 / 654 | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.3 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 211 / 260 | 197 / 216 | 163 / 266 | 277 / 294 |
 | dwpose-l-384 | 1080x1920 | 21.4 ms | 11.9 ms | 7.46 ms (network on person crops only) | 12.7 ms | 14.9 s | 20.6 s | 325 / 418 | 253 / 296 | 229 / 404 | 347 / 370 |
 | dwpose-m | 1080x1920 | 7.31 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 153 / 196 | 156 / 174 | 133 / 200 | 203 / 228 |
 | dwpose-s | 1080x1920 | 5.16 ms | 2.27 ms | 1.17 ms (network on person crops only) | 3.35 ms | 11.8 s | 16.7 s | 124 / 154 | 135 / 150 | 115 / 178 | 149 / 170 |
-| dwpose-t | 1080x1920 | 4.60 ms | 1.96 ms | 0.940 ms (network on person crops only) | 3.17 ms | 11.2 s | 16.1 s | 104 / 132 | 129 / 148 | 109 / 174 | 136 / 160 |
+| dwpose-t | 1080x1920 | 7.84 ms | 3.63 ms | 0.940 ms (network on person crops only) | 2.52 ms | 17.4 s | 16.1 s | 104 / 132 | 129 / 148 | 106 / 152 | 136 / 160 |
 | hrnet-w32 | 1080x1920 | 20.3 ms | 9.94 ms | 5.18 ms (network on person crops only) | 9.75 ms | 21.1 s | 25.5 s | 195 / 238 | 178 / 214 | 155 / 194 | 216 / 254 |
 | hrnet-w32-384 | 1080x1920 | 39.2 ms | 19.6 ms | 10.7 ms (network on person crops only) | 19.7 ms | 21.5 s | 26.3 s | 341 / 414 | 211 / 234 | 250 / 294 | 296 / 320 |
 | hrnet-w48 | 1080x1920 | 32.0 ms | 21.2 ms | 9.46 ms (network on person crops only) | 15.6 ms | 21.3 s | 26.9 s | 262 / 302 | 245 / 282 | 222 / 262 | 346 / 388 |
 | hrnet-w48-384 | 1080x1920 | 70.7 ms | 46.0 ms | 22.3 ms (network on person crops only) | 34.2 ms | 22.6 s | 28.3 s | 408 / 458 | 278 / 300 | 317 / 360 | 427 / 454 |
 | retinaface-mobilenet0.25 | 1080x1920 | 3.44 ms | 2.16 ms | 0.982 ms (network only) | 2.74 ms | 8.87 s | 53.5 s | 86 / 108 | 125 / 148 | 105 / 128 | 133 / 144 |
 | retinaface-resnet50 | 1080x1920 | 24.3 ms | 16.5 ms | 9.10 ms (network only) | 11.7 ms | 9.56 s | 20.4 s | 405 / 504 | 374 / 444 | 379 / 464 | 451 / 462 |
-| rf-detr-keypoint-preview | 1080x1920 | 18.2 ms | 8.00 ms | 4.28 ms (network on person crops only) | 9.46 ms | 47.9 s | 67.2 s | 179 / 204 | 191 / 220 | 176 / 224 | 264 / 294 |
-| rtmo-l | 1080x1920 | 10.8 ms | 7.07 ms | 2.90 ms (network on person crops only) | 8.30 ms | 18.9 s | 39.6 s | 208 / 226 | 192 / 224 | 208 / 228 | 277 / 306 |
-| rtmo-m | 1080x1920 | 8.71 ms | 4.99 ms | 2.03 ms (network on person crops only) | 6.85 ms | 18.0 s | 39.4 s | 166 / 190 | 146 / 170 | 166 / 212 | 194 / 232 |
-| rtmo-s | 1080x1920 | 7.48 ms | 3.35 ms | 1.21 ms (network on person crops only) | 6.27 ms | 14.6 s | 36.7 s | 142 / 160 | 121 / 156 | 142 / 180 | 133 / 164 |
-| rtmo-t | 1080x1920 | 7.62 ms | 3.30 ms | 0.886 ms (network on person crops only) | 6.31 ms | 15.6 s | 36.8 s | 121 / 136 | 111 / 134 | 121 / 156 | 112 / 150 |
+| rf-detr-keypoint-preview | 1080x1920 | 17.2 ms | 7.82 ms | 4.28 ms (network on person crops only) | 8.98 ms | – | 67.2 s | 176 / 202 | 160 / 180 | 176 / 224 | 264 / 294 |
+| rtmo-l | 1080x1920 | 10.0 ms | 7.07 ms | 2.90 ms (network on person crops only) | 8.30 ms | 18.9 s | 39.6 s | 211 / 242 | 192 / 224 | 208 / 228 | 277 / 306 |
+| rtmo-m | 1080x1920 | 7.44 ms | 4.99 ms | 2.03 ms (network on person crops only) | 6.85 ms | 18.0 s | 39.4 s | 168 / 192 | 146 / 170 | 166 / 212 | 194 / 232 |
+| rtmo-s | 1080x1920 | 6.72 ms | 6.74 ms | 1.21 ms (network on person crops only) | 3.93 ms | 21.1 s | 36.7 s | 142 / 176 | 121 / 136 | 105 / 166 | 133 / 164 |
+| rtmo-t | 1080x1920 | 7.82 ms | 6.68 ms | 0.886 ms (network on person crops only) | 2.96 ms | 20.7 s | 36.8 s | 122 / 140 | 111 / 134 | 82 / 140 | 112 / 150 |
 | rtmpose-l | 1080x1920 | 9.04 ms | 5.32 ms | 3.20 ms (network on person crops only) | 5.70 ms | 14.2 s | 19.4 s | 200 / 256 | 185 / 194 | 152 / 244 | 230 / 266 |
 | rtmpose-l-384 | 1080x1920 | 19.4 ms | 10.7 ms | 7.08 ms (network on person crops only) | 11.4 ms | 15.0 s | 20.3 s | 314 / 416 | 242 / 274 | 217 / 390 | 297 / 322 |
 | rtmpose-l-halpe26 | 1080x1920 | 9.10 ms | 5.34 ms | 3.20 ms (network on person crops only) | 5.69 ms | 14.3 s | 19.6 s | 201 / 256 | 186 / 194 | 152 / 244 | 231 / 266 |
@@ -2470,15 +2555,15 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rtmpose-s | 1080x1920 | 4.95 ms | 2.07 ms | 1.06 ms (network on person crops only) | 3.08 ms | 11.5 s | 16.5 s | 118 / 152 | 129 / 150 | 109 / 158 | 137 / 170 |
 | rtmpose-s-face6 | 1080x1920 | 5.04 ms | 2.69 ms | 1.28 ms (network on person crops only) | 3.74 ms | 11.9 s | 16.9 s | 140 / 174 | 164 / 190 | 128 / 202 | 158 / 178 |
 | rtmpose-s-halpe26 | 1080x1920 | 4.99 ms | 2.11 ms | 1.07 ms (network on person crops only) | 3.05 ms | 11.7 s | 16.6 s | 119 / 152 | 130 / 150 | 110 / 178 | 138 / 170 |
-| rtmpose-t | 1080x1920 | 4.60 ms | 1.91 ms | 0.866 ms (network on person crops only) | 2.90 ms | 10.8 s | 15.9 s | 100 / 128 | 125 / 128 | 105 / 156 | 127 / 164 |
-| rtmpose-t-face6 | 1080x1920 | 4.53 ms | 2.23 ms | 1.00 ms (network on person crops only) | 3.61 ms | 11.5 s | 16.2 s | 116 / 152 | 159 / 168 | 123 / 180 | 145 / 168 |
+| rtmpose-t | 1080x1920 | 7.79 ms | 4.07 ms | 0.866 ms (network on person crops only) | 2.25 ms | 16.4 s | 15.9 s | 100 / 128 | 125 / 148 | 91 / 156 | 127 / 164 |
+| rtmpose-t-face6 | 1080x1920 | 4.53 ms | 2.23 ms | 1.04 ms (network on person crops only) | 3.61 ms | 11.5 s | – | 116 / 152 | 159 / 168 | 123 / 180 | 83 / 106 |
 | rtmpose-t-halpe26 | 1080x1920 | 4.61 ms | 1.94 ms | 0.871 ms (network on person crops only) | 2.90 ms | 13.5 s | 17.2 s | 100 / 130 | 125 / 128 | 105 / 156 | 128 / 164 |
 | rtmpose-x-halpe26-384 | 1080x1920 | 33.8 ms | 21.1 ms | 13.3 ms (network on person crops only) | 19.1 ms | 17.4 s | 23.0 s | 385 / 478 | 262 / 298 | 280 / 448 | 430 / 456 |
 | rtmw-l | 1080x1920 | 15.3 ms | 9.34 ms | 5.17 ms (network on person crops only) | 9.99 ms | 18.8 s | 24.9 s | 256 / 308 | 242 / 264 | 217 / 312 | 354 / 396 |
 | rtmw-l-384 | 1080x1920 | 31.8 ms | 19.5 ms | 11.2 ms (network on person crops only) | 20.6 ms | 19.8 s | 26.8 s | 371 / 468 | 298 / 344 | 276 / 458 | 424 / 452 |
 | rtmw-m | 1080x1920 | 10.9 ms | 6.23 ms | 3.34 ms (network on person crops only) | 7.54 ms | 18.7 s | 23.1 s | 181 / 244 | 183 / 202 | 164 / 266 | 231 / 256 |
 | rtmw-x | 1080x1920 | 24.0 ms | 15.3 ms | 8.47 ms (network on person crops only) | 14.4 ms | 20.4 s | 27.0 s | 335 / 390 | 320 / 328 | 289 / 392 | 497 / 514 |
-| rtmw-x-384 | 1080x1920 | 50.6 ms | 34.0 ms | 19.3 ms (network on person crops only) | 50.9 ms | 21.2 s | 29.8 s | 466 / 632 | 361 / 388 | 496 / 632 | 581 / 624 |
+| rtmw-x-384 | 1080x1920 | 51.7 ms | 35.8 ms | 19.3 ms (network on person crops only) | 49.1 ms | 31.1 s | 29.8 s | 466 / 552 | 361 / 388 | 496 / 612 | 581 / 624 |
 | vitpose-base | 1080x1920 | 17.8 ms | 16.4 ms | 8.88 ms (network on person crops only) | 12.0 ms | 10.5 s | 35.8 s | 299 / 322 | 597 / 622 | 274 / 364 | 473 / 516 |
 | vitpose-base-simple | 1080x1920 | 18.1 ms | 16.0 ms | 9.36 ms (network on person crops only) | 12.1 ms | 11.8 s | 35.0 s | 312 / 342 | 590 / 622 | 295 / 344 | 499 / 550 |
 | vitpose-plus-base | 1080x1920 | 17.9 ms | 16.4 ms | 8.87 ms (network on person crops only) | 11.9 ms | 10.6 s | 35.0 s | 299 / 322 | 597 / 622 | 274 / 344 | 473 / 516 |
@@ -2519,10 +2604,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dinov3-convnext-large | 224x224 | 5.45 ms | 4.30 ms | 2.50 ms | 3.61 ms | 11.3 s | 30.0 s | 419 / 430 | 459 / 470 | 409 / 452 | 804 / 824 |
 | dinov3-convnext-small | 224x224 | 5.42 ms | 3.41 ms | 1.17 ms | 1.98 ms | 10.6 s | 25.9 s | 134 / 150 | 165 / 188 | 100 / 132 | 232 / 252 |
 | dinov3-convnext-tiny | 224x224 | 3.04 ms | 1.96 ms | 0.681 ms | 1.22 ms | 7.76 s | 22.8 s | 93 / 108 | 123 / 148 | 59 / 110 | 126 / 158 |
-| dinov3-vitb16 | 224x224 | 3.59 ms | 2.35 ms | 1.14 ms | 1.26 ms | 10.4 s | 25.0 s | 200 / 226 | 236 / 306 | 168 / 210 | 393 / 480 |
-| dinov3-vith16plus | 224x224 | 12.5 ms | 11.6 ms | 7.86 ms | 8.45 ms | 21.0 s | 99.2 s | 1646 / 1666 | 1699 / 2008 | 1645 / 1672 | 3280 / 3628 |
-| dinov3-vitl16 | 224x224 | 6.52 ms | 4.91 ms | 2.98 ms | 3.04 ms | 17.0 s | 34.4 s | 616 / 646 | 655 / 846 | 616 / 650 | 1226 / 1418 |
-| dinov3-vits16 | 224x224 | 3.40 ms | 2.18 ms | 0.564 ms | 0.793 ms | 8.81 s | 25.0 s | 76 / 104 | 109 / 138 | 44 / 68 | 107 / 120 |
+| dinov3-vitb16 | 224x224 | 4.76 ms | 2.85 ms | 1.14 ms | 1.36 ms | 16.4 s | 25.0 s | 200 / 206 | 236 / 244 | 167 / 210 | 393 / 480 |
+| dinov3-vith16plus | 224x224 | 14.1 ms | 13.6 ms | 7.86 ms | 8.85 ms | 29.7 s | 99.2 s | 1646 / 1666 | 1699 / 1726 | 1643 / 1670 | 3280 / 3628 |
+| dinov3-vitl16 | 224x224 | 10.2 ms | 6.88 ms | 2.98 ms | 3.26 ms | 25.9 s | 34.4 s | 616 / 626 | 655 / 666 | 615 / 628 | 1226 / 1418 |
+| dinov3-vits16 | 224x224 | 5.19 ms | 3.24 ms | 0.564 ms | 0.799 ms | 13.2 s | 25.0 s | 76 / 84 | 109 / 124 | 44 / 68 | 107 / 120 |
 | pe-core-b16-224 | 224x224 | 4.97 ms | 2.50 ms | 1.17 ms | 1.47 ms | 8.71 s | 25.8 s | 218 / 266 | 251 / 286 | 218 / 268 | 409 / 460 |
 | pe-core-g14-448 | 224x224 | 25.7 ms | 24.5 ms | 15.0 ms | 17.0 ms | 29.9 s | 106 s | 3640 / 3670 | 3667 / 3690 | 3640 / 3696 | 7189 / 7230 |
 | pe-core-l14-336 | 224x224 | 9.09 ms | 6.53 ms | 4.34 ms | 4.97 ms | 13.9 s | 50.1 s | 650 / 668 | 683 / 706 | 648 / 672 | 1260 / 1286 |
@@ -2547,134 +2632,181 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tipsv2-l14 | 224x224 | 6.15 ms | 6.04 ms | 4.28 ms | 4.58 ms | 12.4 s | 47.9 s | 621 / 624 | 659 / 666 | 624 / 648 | 1236 / 1264 |
 | boq-dinov2 | 480x640 | 5.73 ms | 3.89 ms | 2.73 ms | 2.84 ms | 11.8 s | 46.4 s | 231 / 254 | 269 / 274 | 227 / 256 | 426 / 434 |
 | megaloc | 480x640 | 5.29 ms | 4.27 ms | 3.21 ms | 4.26 ms | 13.2 s | 51.1 s | 483 / 508 | 518 / 530 | 485 / 508 | 937 / 964 |
-| anycalib-pinhole | 1080x1920 | 29.4 ms | 25.5 ms | planned for 0.2.1 | 21.5 ms | 16.5 s | – | 705 / 742 | 719 / 756 | 739 / 812 | – |
-| geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
-| anysplat | 336x518 | 503 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4849 / 5192 | 7629 / 7674 |
-| depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 112 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5434 / 5606 | 3148 / 3194 |
-| lingbot-map | 480x640 | 730 ms | planned for 0.2.1 | 489 ms | 515 ms | – | 181 s | 4512 / 4770 | – | 4519 / 4810 | 6280 / 6338 |
-| mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
-| mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | planned for 0.2.1 | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
-| mvsplat-re10k | 336x518 | 181 ms | 115 ms | planned for 0.2.1 | 172 ms | 102 s | – | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | – |
+| anycalib-pinhole | 1080x1920 | 29.4 ms | 25.5 ms | 12.0 ms | 21.5 ms | 16.5 s | 116 s | 705 / 742 | 719 / 756 | 739 / 812 | 778 / 780 |
+| anycalib-pinhole | 480x640 | 29.9 ms | – | 12.4 ms | – | – | 118 s | 693 / 704 | – | – | 750 / 768 |
+| geocalib-pinhole | 1080x1920 | 68.0 ms | 73.1 ms | public API unavailable | 68.4 ms | 28.4 s | – | 320 / 376 | 246 / 300 | 277 / 336 | – |
+| geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
+| anysplat | 336x518 | 505 ms | 427 ms | 314 ms | 366 ms | 80.3 s | 215 s | 4032 / 4452 | 4137 / 4694 | 4039 / 4232 | 7629 / 7674 |
+| depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 91.4 ms | 80.0 s | 224 s | 764 / 854 | 5432 / 5526 | 766 / 844 | 3148 / 3194 |
+| lingbot-map | 480x640 | 733 ms | 657 ms | 489 ms | 520 ms | 71.0 s | 181 s | 3910 / 5734 | 3339 / 3468 | 3919 / 5932 | 6280 / 6338 |
+| mapanything-apache | 336x518 | 637 ms | 596 ms | 367 ms | 525 ms | 46.2 s | 137 s | 3252 / 3652 | 3347 / 3792 | 3252 / 3652 | 6220 / 6248 |
+| mvsanywhere | 448x672 | 93.8 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 712 / 868 | 818 / 860 | 702 / 760 | 1581 / 1658 |
+| mvsplat-re10k | 336x518 | 182 ms | 115 ms | 106 ms | 145 ms | 102 s | 241 s | 1134 / 1212 | 2762 / 2810 | 1134 / 1212 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
-| pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
-| resplat-base-re10k | 480x640 | 7086 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | fails: TypeError: _Base.forward() missing 1 required positional arg | 1280 ms | – | – | 6951 / 8736 | – | 6944 / 8706 | – |
-| resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | planned for 0.2.1 | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
-| vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 460 ms | 74.3 s | 199 s | 3643 / 3874 | 3611 / 3856 | 3650 / 4194 | 6421 / 6472 |
-| vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 467 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3404 / 3494 | 5657 / 5766 |
-| flowformer-small-chairs | 375x1242 | 337 ms | 250 ms | 202 ms | – | 98.7 s | 118 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
-| flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | – | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
-| flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | – | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
-| flowseek-t | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.2 s | 107 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
-| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | – | 11330 / 11352 |
-| flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | – | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
-| gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
-| gmflow-scale1-things | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 35.3 s | 69.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
-| gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1678 ms | 1116 ms | planned for 0.2.1 | – | 58.4 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
-| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | planned for 0.2.1 | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
-| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | planned for 0.2.1 | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 1665 ms | 1116 ms | planned for 0.2.1 | – | 58.2 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
-| gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
-| gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
-| megaflow | 1080x1920 | 1109 ms | 917 ms | 677 ms | 734 ms | 102 s | 214 s | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | 9265 / 9300 |
-| memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
-| memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
-| memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
-| memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 1301 / 1418 | 2070 / 2132 |
-| memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
-| memfof-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1993 ms | – | – | – | – | 7249 / 8820 | – |
-| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 1290 / 1398 | 2070 / 2112 |
-| neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
+| pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
+| pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
+| pi3 | 8x336x518 | 826 ms | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | 2213 / 2328 | – | – | 2600 / 2952 |
+| resplat-base-re10k | 480x640 | 6868 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4336 / 5596 | 4656 / 7630 | 4348 / 5546 | – |
+| resplat-base-re10k | 256x256 | 1049 ms | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1863 / 2680 | – | – | 2173 / 2988 |
+| resplat-small-dl3dv | 480x640 | 1680 ms | 1538 ms | public API unavailable | 313 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 1089 / 1208 | – |
+| resplat-small-dl3dv | 256x448 | 1361 ms | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1204 / 1658 | – | – | 1367 / 1800 |
+| vggt-1b | 336x518 | 655 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3500 / 3694 | 3611 / 3856 | 3507 / 3734 | 6421 / 6472 |
+| vggt-omega-1b-512 | 336x518 | 725 ms | 589 ms | 377 ms | 468 ms | 65.7 s | 187 s | 3130 / 3252 | 3082 / 3154 | 3130 / 3330 | 5657 / 5766 |
+| flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-chairs | 375x1242 | 338 ms | 250 ms | 202 ms | 326 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
+| flowformer-small-sintel | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3958 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
+| flowformer-small-things | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3950 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | 322 ms | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
+| flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
+| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11330 / 11352 |
+| flowseek-t-things-notartan | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
+| gmflow-scale1-mixdata | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 29.1 s | 67.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
+| gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
+| gmflow-scale2-mixdata | 1080x1920 | 915 ms | 765 ms | public API unavailable | 915 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
+| gmflow-scale2-mixdata | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1410 / 2272 | – | – | 1616 / 2560 |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1383 ms | 1116 ms | public API unavailable | 1389 ms | 58.4 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
+| gmflow-scale2-regrefine6-kitti | 384x1248 | 349 ms | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | 1455 / 2278 | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1383 ms | 58.9 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
+| gmflow-scale2-regrefine6-mixdata | 384x1248 | 348 ms | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1455 / 2278 | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1381 ms | 1116 ms | public API unavailable | 1384 ms | 58.5 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
+| gmflow-scale2-regrefine6-sintelft | 384x1248 | 349 ms | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | 1455 / 2278 | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1384 ms | 58.2 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
+| gmflow-scale2-regrefine6-things | 384x1248 | 348 ms | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | 1455 / 2278 | – | – | 1660 / 2526 |
+| gmflow-scale2-sintel | 1080x1920 | 915 ms | 765 ms | public API unavailable | 916 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
+| gmflow-scale2-sintel | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | 1410 / 2272 | – | – | 1616 / 2560 |
+| gmflow-scale2-things | 1080x1920 | 914 ms | 765 ms | public API unavailable | 916 ms | 46.7 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
+| gmflow-scale2-things | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1410 / 2272 | – | – | 1616 / 2560 |
+| megaflow | 1080x1920 | 1116 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2629 / 2766 | 2611 / 2886 | 2639 / 2866 | 9265 / 9300 |
+| memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
+| memflow | 384x1248 | 279 ms | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | 535 / 848 | – | – | 1171 / 1176 |
+| memflow-kitti | 1080x1920 | 964 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-kitti | 384x1248 | 142 ms | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | 488 / 544 | – | – | 859 / 864 |
+| memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
+| memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
+| memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
+| memfof-kitti | 384x1248 | 1526 ms | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | 3285 / 5238 | – | – | 4252 / 5692 |
+| memfof-sintel | 1080x1920 | 2177 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
+| memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
+| memfof-sintel | 384x1248 | 1528 ms | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | 3285 / 5238 | – | – | 4252 / 5692 |
+| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |
+| neuflow-v2 | 1080x1920 | 72.0 ms | 91.4 ms | 65.0 ms | 59.8 ms | 28.5 s | 104 s | 2327 / 2398 | 4529 / 4558 | 490 / 636 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
-| raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
-| raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
-| raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
-| raft-small | 1080x1920 | 144 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 196 / 204 | – |
+| raft-large | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
+| raft-large | 384x1248 | 72.5 ms | – | 58.9 ms, fp32 engine | – | – | 147 s | 468 / 650 | – | – | 873 / 918 |
+| raft-large-kitti | 1080x1920 | 284 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-kitti | 384x1248 | 46.2 ms | – | 19.8 ms | – | – | 173 s | 469 / 522 | – | – | 845 / 856 |
+| raft-large-things | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-things | 384x1248 | 72.7 ms | – | 59.0 ms, fp32 engine | – | – | 161 s | 468 / 650 | – | – | 873 / 918 |
+| raft-small | 1080x1920 | 141 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5601 / 5646 | 5704 / 5728 | 196 / 204 | – |
+| raft-small | 384x1248 | 29.1 ms | – | 20.7 ms, fp32 engine | – | – | 178 s | 404 / 488 | – | – | 803 / 820 |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
 | recover-mn | 1080x1920 | 45.5 ms | 32.2 ms | 21.2 ms | 41.8 ms | 14.4 s | 56.9 s | 580 / 676 | 365 / 416 | 580 / 676 | 425 / 466 |
 | recover-rn | 1080x1920 | 64.1 ms | 48.8 ms | 28.9 ms | 51.3 ms | 9.34 s | 34.1 s | 590 / 672 | 375 / 432 | 590 / 672 | 419 / 466 |
-| sea-raft-m | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.4 ms | 34.3 s | 70.0 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
+| sea-raft-m | 1080x1920 | 269 ms | 191 ms | 132 ms | 73.4 ms | 34.3 s | 70.0 s | 5847 / 6570 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-m-kitti | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.3 ms | 34.9 s | 69.7 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | 4.43 ms | 23.5 ms | 23.2 s | 47.1 s | 652 / 700 | 624 / 640 | 170 / 194 | 291 / 318 |
 | sea-raft-m-things | 1080x1920 | 270 ms | 192 ms | 132 ms | 73.0 ms | 34.9 s | 73.6 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.6 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 404 / 452 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.7 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 404 / 432 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.2 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 150 / 172 | 215 / 278 |
-| waft-a1 | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
-| waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 3553 / 4196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
-| waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
-| aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | fails: ONNX export: torch.export failed | – | 78.8 s | – | 1775 / 1886 | 1762 / 1826 | – | – |
-| aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | planned for 0.2.1 | 35.1 ms | 30.8 s | – | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | – |
-| dedode-v2-b | 768x1024 | 246 ms | 164 ms | planned for 0.2.1 | 189 ms | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | – |
-| dedode-v2-g | 768x1024 | 592 ms | 330 ms | planned for 0.2.1 | 332 ms | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | – |
-| disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
-| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
-| loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
-| loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
-| romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
-| romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
-| xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
-| xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | planned for 0.2.1 | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
-| alltracker | 480x854 | 391 ms | 284 ms | planned for 0.2.1 | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
-| alltracker-tiny | 480x854 | 330 ms | 229 ms | planned for 0.2.1 | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
-| bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
+| waft-a1 | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-kitti | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 1832 / 2196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-sintel | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
+| aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | 328 ms, fp32 engine (dense descriptor with eager ALIKED and matching) | 129 ms | 78.8 s | 22.3 s | 1775 / 1886 | 1762 / 1826 | 1814 / 2178 | 2225 / 2410 |
+| aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | 65.2 ms, fp32 engine (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 35.1 ms | 30.8 s | 26.4 s | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | 1520 / 1652 |
+| dedode-v2-b | 768x1024 | 236 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1160 / 1292 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
+| dedode-v2-g | 768x1024 | 379 ms | 330 ms | 1197 ms, fp32 engine (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 332 ms | 86.4 s | 71.7 s | 1761 / 2114 | 2881 / 3316 | 1787 / 1984 | 5282 / 6458 |
+| disk-lightglue | 768x1024 | 116 ms | 113 ms | public API unavailable | 49.2 ms | 21.4 s | – | 1950 / 2400 | 1375 / 1502 | 736 / 778 | – |
+| loftr-indoor | 768x1024 | 110 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 86.0 ms | 30.2 s | 26.4 s | 740 / 944 | 634 / 684 | 740 / 806 | 2218 / 2962 |
+| loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 85.8 ms | 33.3 s | 26.2 s | 733 / 944 | 1149 / 1232 | 734 / 806 | 2206 / 2958 |
+| loma-b | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine (standalone build) | 263 ms | 143 s | 176 s | 1767 / 1878 | 2870 / 3258 | 1217 / 1328 | 1986 / 2010 |
+| loma-b128 | 768x1024 | 150 ms | 124 ms | 144 ms, bf16 engine | 116 ms | 86.5 s | 103 s | 878 / 984 | 1398 / 1800 | 625 / 684 | 1062 / 1066 |
+| loma-b64 | 768x1024 | 131 ms | 102 ms | 109 ms, bf16 engine | 107 ms | 86.6 s | 102 s | 854 / 962 | 1230 / 1356 | 613 / 720 | 1010 / 1034 |
+| loma-g | 768x1024 | 357 ms | 331 ms | 366 ms, bf16 engine | 307 ms | 131 s | 171 s | 2219 / 2388 | 3547 / 3890 | 1509 / 1648 | 2298 / 2322 |
+| loma-l | 768x1024 | 320 ms | 298 ms | 336 ms, bf16 engine (standalone build) | 273 ms | 134 s | 157 s | 1903 / 2012 | 3006 / 3194 | 1285 / 1406 | 2042 / 2066 |
+| loma-r | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine | 262 ms | 142 s | 175 s | 1767 / 1878 | 2870 / 3256 | 1217 / 1328 | 1986 / 2010 |
+| romav1 | 768x1024 | 377 ms | 247 ms | public API unavailable | 218 ms | 698 s | – | 1597 / 1738 | 1348 / 1476 | 1597 / 1738 | – |
+| romav2 | 768x1024 | 550 ms | 723 ms | 353 ms | 350 ms | 360 s | 185 s | 1989 / 2476 | 3030 / 3144 | 1890 / 2460 | 6694 / 6740 |
+| xfeat | 768x1024 | 10.6 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 17.1 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 296 / 352 | 268 / 416 |
+| xfeat-lighterglue | 768x1024 | 31.8 ms | 16.2 ms | public API unavailable | 32.8 ms | 39.7 s | – | 444 / 476 | 262 / 278 | 445 / 478 | – |
+| alltracker | 480x854 | 385 ms | 284 ms | public API unavailable | 213 ms | 105 s | – | 885 / 998 | 1273 / 1358 | 967 / 1068 | – |
+| alltracker | 16x256x256 | 412 ms | – | 330 ms, fp32 engine (frame CNN with eager tracking, 16 frames and 16 queries) | – | – | 20.3 s | 1438 / 2512 | – | – | 2262 / 3372 |
+| alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
+| alltracker-tiny | 16x256x256 | 302 ms | – | 270 ms, fp32 engine (frame CNN with eager tracking, 16 frames and 16 queries) | – | – | 19.3 s | 1364 / 2548 | – | – | 2010 / 3220 |
+| bootstapir | 480x854 | 233 ms | 183 ms | 13.2 ms | 191 ms | 207 s | 65.0 s | 499 / 568 | 758 / 832 | 499 / 568 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
-| cotracker3-online | 480x854 | 184 ms | 159 ms | planned for 0.2.1 | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
-| locotrack-b | 480x854 | 188 ms | 82.6 ms | planned for 0.2.1 | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | – |
-| locotrack-s | 480x854 | 180 ms | 74.1 ms | planned for 0.2.1 | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
+| cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
+| cotracker3-online | 8x256x256 | 97.2 ms | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | 936 / 1298 | – | – | 456 / 472 |
+| cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
+| locotrack-b | 480x854 | 189 ms | 82.6 ms | – | 109 ms | 146 s | – | 535 / 596 | 1117 / 1140 | 507 / 600 | – |
+| locotrack-b | 8x480x854 | 27.2 ms | – | 6.12 ms (8 frames with 16 queries only) | – | – | – | 241 / 278 | – | – | 233 / 242 |
+| locotrack-s | 480x854 | 180 ms | 74.1 ms | – | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
+| locotrack-s | 8x480x854 | 25.3 ms | – | 5.66 ms (8 frames with 16 queries only) | – | – | 51.4 s | 229 / 280 | – | – | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
-| tapnext-pp | 480x854 | 529 ms | planned for 0.2.1 | 69.5 ms | 381 ms | – | 362 s | 1220 / 1294 | – | 1205 / 1254 | 1498 / 1660 |
-| track-on-r | 480x854 | 1188 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
-| track-on2 | 480x854 | 1193 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1108 ms | – | – | 1423 / 1712 | – | 1368 / 1620 | – |
-| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 2827 / 3184 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
+| tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
+| track-on-r | 480x854 | 1150 ms | 1066 ms | public API unavailable | 1064 ms | 66.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1156 | – |
+| track-on-r | 16x256x256 | 1086 ms | – | 958 ms, fp32 engine (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | – | – | 42.1 s | 1607 / 1930 | – | – | 1979 / 2286 |
+| track-on2 | 480x854 | 1159 ms | 1075 ms | public API unavailable | 1073 ms | 60.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1158 | – |
+| track-on2 | 16x256x256 | 1092 ms | – | 961 ms, fp32 engine (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | – | – | 46.3 s | 1607 / 1930 | – | – | 1979 / 2288 |
+| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
-| film | 1080x1920 | 417 ms | 332 ms | planned for 0.2.1 | 332 ms | 41.1 s | – | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | – |
-| gimm-vfi-r | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1629 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5362 | – |
-| gimm-vfi-r-p | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5282 | – |
-| rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
-| rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 834 / 896 | 696 / 714 |
-| rife-4.26 | 1080x1920 | 25.1 ms | 44.5 ms | 17.6 ms | 21.4 ms | 34.9 s | 54.9 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
-| big-lama | 512x512 | 26.0 ms | 23.4 ms | planned for 0.2.1 | 21.2 ms | 25.9 s | – | 219 / 242 | 312 / 342 | 219 / 284 | – |
+| film | 1080x1920 | 412 ms | 332 ms | 189 ms | 328 ms | 41.1 s | 203 s | 2397 / 2702 | 2666 / 3192 | 2397 / 2942 | 2658 / 2658 |
+| gimm-vfi-r | 1080x1920 | 2528 ms | 1498 ms | public API unavailable | 1521 ms | 307 s | – | 5394 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
+| gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
+| gimm-vfi-r-p | 1080x1920 | 2528 ms | 1498 ms | fails: TensorRT parser: Sc node | 1520 ms | 307 s | – | 5394 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
+| gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
+| rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.9 ms | 36.1 s | 56.3 s | 570 / 616 | 1094 / 1234 | 561 / 636 | 696 / 714 |
+| rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 19.4 ms | 34.9 s | 49.5 s | 551 / 616 | 1061 / 1374 | 545 / 596 | 696 / 714 |
+| rife-4.26 | 1080x1920 | 25.0 ms | 44.5 ms | 17.6 ms | 22.0 ms | 34.9 s | 54.9 s | 570 / 616 | 1094 / 1234 | 561 / 636 | 696 / 714 |
+| big-lama | 512x512 | 26.0 ms | 23.4 ms | 33.9 ms | 21.2 ms | 25.9 s | 110 s | 219 / 242 | 312 / 342 | 219 / 284 | 386 / 406 |
 | codeformer | 512x512 | 48.6 ms | 30.8 ms | 16.3 ms | 40.4 ms | 34.1 s | 64.8 s | 512 / 638 | 407 / 458 | 432 / 496 | 593 / 642 |
-| dat-2-x4 | 512x512 | 1312 ms | 964 ms | 921 ms | 1221 ms | 44.3 s | 206 s | 2276 / 2378 | 2546 / 2598 | 2276 / 2378 | 9001 / 9048 |
-| dat-light-x4 | 512x512 | 268 ms | 158 ms | 136 ms | 264 ms | 36.7 s | 74.8 s | 1535 / 1552 | 1385 / 1412 | 1445 / 1472 | 4144 / 4192 |
-| dat-x4 | 512x512 | 1565 ms | 1063 ms | 1001 ms | 1391 ms | 43.1 s | 191 s | 2552 / 2624 | 2552 / 2606 | 2282 / 2384 | 9010 / 9056 |
-| drct-l-x4 | 512x512 | 1607 ms | 1210 ms | fails: TensorRT engine build failed | 1399 ms | 67.2 s | – | 2692 / 3110 | 2005 / 2410 | 2564 / 2850 | – |
-| drct-x4 | 512x512 | 830 ms | 618 ms | 731 ms | 718 ms | 40.5 s | 187 s | 2626 / 3048 | 1938 / 2348 | 2498 / 2766 | 9684 / 9728 |
+| dat-2-x4 | 512x512 | 1156 ms | 964 ms | 921 ms | 1037 ms | 44.3 s | 206 s | 1420 / 2220 | 2546 / 2598 | 1399 / 2220 | 9001 / 9048 |
+| dat-light-x4 | 512x512 | 234 ms | 158 ms | 136 ms | 230 ms | 36.7 s | 74.8 s | 521 / 532 | 1385 / 1412 | 521 / 532 | 4144 / 4192 |
+| dat-x4 | 512x512 | 1386 ms | 1063 ms | 1001 ms | 1209 ms | 43.1 s | 191 s | 1427 / 2246 | 2552 / 2606 | 1406 / 2226 | 9010 / 9056 |
+| drct-l-x4 | 512x512 | 1567 ms | 1210 ms | fails: TensorRT engine build failed | 1314 ms | 67.2 s | – | 1675 / 1950 | 2005 / 2410 | 1603 / 1790 | – |
+| drct-l-x4 | 256x256 | 384 ms | – | 289 ms | – | – | 222 s | 766 / 1204 | – | – | 559 / 560 |
+| drct-x4 | 512x512 | 810 ms | 618 ms | 731 ms | 674 ms | 40.5 s | 187 s | 1608 / 1888 | 1938 / 2348 | 1560 / 1748 | 9684 / 9728 |
 | gfpgan-v1.4 | 512x512 | 21.2 ms | 12.5 ms | 15.8 ms | 18.0 ms | 27.3 s | 115 s | 505 / 528 | 360 / 428 | 473 / 530 | 609 / 644 |
 | hat-s-x4 | 512x512 | 1072 ms | 750 ms | fails: TensorRT engine build failed | 956 ms | 41.9 s | – | 1984 / 2148 | 2352 / 3068 | 1856 / 1888 | – |
+| hat-s-x4 | 256x256 | 233 ms | – | 141 ms | – | – | 89.1 s | 531 / 782 | – | – | 533 / 534 |
 | hat-x4 | 512x512 | 1596 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2298 / 2470 | – |
-| nafnet-gopro | 512x512 | 60.4 ms | 35.4 ms | 52.6 ms | 55.3 ms | 38.1 s | 66.5 s | 451 / 532 | 422 / 470 | 451 / 550 | 722 / 734 |
-| nafnet-sidd | 512x512 | 60.6 ms | 30.9 ms | 24.5 ms | 56.9 ms | 30.3 s | 33.8 s | 575 / 670 | 450 / 508 | 575 / 650 | 650 / 668 |
-| real-hat-gan-x4 | 512x512 | 1597 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 54.3 s | – | 2426 / 2610 | 1811 / 2750 | 2298 / 2470 | – |
+| hat-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 92.0 s | 658 / 1002 | – | – | 681 / 682 |
+| nafnet-gopro | 512x512 | 60.4 ms | 37.3 ms | 52.6 ms | 31.3 ms | 46.2 s | 66.5 s | 439 / 472 | 422 / 470 | 376 / 408 | 722 / 734 |
+| nafnet-sidd | 512x512 | 61.1 ms | 32.3 ms | 24.5 ms | 22.5 ms | 36.9 s | 33.8 s | 607 / 650 | 450 / 488 | 502 / 536 | 650 / 668 |
+| real-hat-gan-x4 | 512x512 | 1428 ms | 1185 ms | fails: TensorRT engine build failed | 1234 ms | 54.3 s | – | 1430 / 2070 | 1811 / 2750 | 1312 / 1510 | – |
+| real-hat-gan-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 98.7 s | 658 / 1002 | – | – | 681 / 682 |
 | realesr-general-x4v3 | 512x512 | 30.1 ms | 22.6 ms | 11.9 ms | 24.0 ms | 3.89 s | 15.3 s | 125 / 164 | 125 / 144 | 125 / 164 | 220 / 228 |
-| realesrgan-x2plus | 512x512 | 97.0 ms | 85.2 ms | 59.7 ms | 80.2 ms | 33.2 s | 40.3 s | 333 / 394 | 323 / 394 | 333 / 394 | 476 / 500 |
-| realesrgan-x4plus | 512x512 | 471 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 1220 / 1454 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
-| realesrgan-x4plus-anime-6b | 512x512 | 155 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 1197 / 1430 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
+| realesrgan-x2plus | 512x512 | 97.2 ms | 85.2 ms | 59.7 ms | 81.4 ms | 33.2 s | 40.3 s | 200 / 234 | 323 / 394 | 200 / 234 | 476 / 500 |
+| realesrgan-x4plus | 512x512 | 473 ms | 354 ms | 273 ms | 390 ms | 29.9 s | 55.2 s | 292 / 354 | 1091 / 1394 | 324 / 374 | 1546 / 1594 |
+| realesrgan-x4plus-anime-6b | 512x512 | 156 ms | 114 ms | 83.1 ms | 129 ms | 10.0 s | 36.7 s | 269 / 330 | 1068 / 1370 | 301 / 350 | 1505 / 1552 |
 | realplksr-nomoswebphoto-x4 | 512x512 | 182 ms | 154 ms | 247 ms | 130 ms | 15.2 s | 26.2 s | 179 / 216 | 179 / 196 | 179 / 216 | 358 / 366 |
-| restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 180 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 918 | 757 / 774 |
-| restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 180 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 920 | 757 / 774 |
-| restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: not run: onnx is not installed in the test venv | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
-| seedvr2-7b | 512x512 | 2712 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | – | – | 6402 / 7034 | – | 6402 / 7034 | – |
+| restormer-deblur | 512x512 | 183 ms | 143 ms | 162 ms | 132 ms | 44.1 s | 58.3 s | 724 / 740 | 660 / 778 | 718 / 740 | 757 / 774 |
+| restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
+| restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
+| seedvr2-3b | 512x512 | 2365 ms | 1941 ms | 2280 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2365 ms | 238 s | – | 3453 / 3492 | 5237 / 8144 | 3453 / 3492 | 9068 / 9284 |
+| seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
+| seedvr2-7b | 512x512 | 2787 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2781 ms | 52.2 s | 271 s | 3715 / 3814 | 5522 / 9042 | 3715 / 3814 | 9369 / 9860 |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |
 | swin2sr-x4 | 512x512 | 932 ms | 496 ms | 556 ms | 745 ms | 45.8 s | 113 s | 1463 / 2276 | 1308 / 1556 | 1459 / 1736 | 5410 / 5470 |
-| swin2sr-x4-real | 512x512 | 958 ms | 508 ms | 562 ms | 751 ms | 41.7 s | 128 s | 2354 / 2774 | 1308 / 1556 | 1459 / 1734 | 5409 / 5468 |
-| swinir-l-x4-real | 512x512 | 2099 ms | 1426 ms | 1118 ms | 1036 ms | 68.1 s | 193 s | 2425 / 2672 | 2153 / 2876 | 1806 / 1934 | 9182 / 9282 |
+| swin2sr-x4-real | 512x512 | 960 ms | 508 ms | 562 ms | 751 ms | 41.7 s | 128 s | 1459 / 1556 | 1308 / 1556 | 1459 / 1734 | 5409 / 5468 |
+| swinir-l-x4-real | 512x512 | 1218 ms | 1426 ms | 1118 ms | 896 ms | 68.1 s | 193 s | 1600 / 1794 | 2153 / 2876 | 1600 / 1794 | 9182 / 9282 |
 | swinir-m-x2 | 512x512 | 739 ms | 781 ms | 719 ms | 553 ms | 60.3 s | 102 s | 1353 / 1454 | 1683 / 1796 | 1353 / 1454 | 5088 / 5144 |
 | swinir-m-x4 | 512x512 | 767 ms | 795 ms | 727 ms | 576 ms | 61.8 s | 104 s | 1499 / 2054 | 1684 / 1796 | 1354 / 1456 | 5525 / 5604 |
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |
-| nnfoundation-cnn | 200x200 | 226 ms | 170 ms | planned for 0.2.1 | 211 ms | 19.8 s | – | 3011 / 3130 | 5067 / 5110 | 2985 / 3710 | – |
-| nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | planned for 0.2.1 | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
-| nninteractive | 200x200 | 215 ms | planned for 0.2.1 | planned for 0.2.1 | 201 ms | – | – | 3075 / 3492 | – | 2643 / 3072 | – |
-| totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
-| totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
+| nnfoundation-cnn | 200x200 | 248 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 232 ms | 19.8 s | 49.0 s | 2368 / 3330 | 5067 / 5110 | 2325 / 3330 | 3374 / 3398 |
+| nnfoundation-vit | 192x192 | 1816 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1699 ms | 69.5 s | 127 s | 1510 / 1564 | 1406 / 1484 | 1510 / 1564 | 8452 / 8452 |
+| nninteractive | 200x200 | 209 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 193 ms | 18.0 s | – | 2423 / 2772 | 3643 / 3832 | 2423 / 2772 | – |
+| nninteractive | 192x192 | 204 ms | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | 2145 / 2608 | – | – | 2738 / 2740 |
+| totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1647 ms | 37.0 s | 152 s | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | 6646 / 7136 |
+| totalsegmentator-total-3mm | 200x200 | 70.3 ms | 63.1 ms | 74.4 ms (patch network, standalone build) | 71.8 ms | 11.9 s | 31.3 s | 962 / 1050 | 907 / 1030 | 913 / 1376 | 2909 / 2970 |
 <!-- compile:end -->
 
 ## Original code

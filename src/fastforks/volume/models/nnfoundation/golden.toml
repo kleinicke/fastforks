@@ -27,19 +27,37 @@ upstream = "https://github.com/MIC-DKFZ/nnssl@3d774e942256bd70e5e264c6b94fa38e25
 settings = "CPU float32, nnssl's network (nnFoundationViT) encoder on s0013 ct.nii.gz, centre crop (40, 56, 72) (z, y, x) RAS, nnU-Net ZScoreNormalization, zero pad at the far end, torch 2.10.0+cu130"
 
 [validated."nnfoundation-cnn@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.00067
-p99_px = 0.00463
+date = "2026-11-18"
+mean_px = 0.00063
+p99_px = 0.00378
+
+[validated."nnfoundation-cnn@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00063
+p99_px = 0.00378
 
 [validated."nnfoundation-vit@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-15"
+date = "2026-11-18"
 mean_px = 0.0067
 p99_px = 0.03039
+
+[validated."nnfoundation-vit@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00666
+p99_px = 0.03037

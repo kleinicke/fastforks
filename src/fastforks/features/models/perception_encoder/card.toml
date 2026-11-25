@@ -3,8 +3,10 @@ name = "Perception Encoder"
 summary = "Perception Encoder (Bolya et al. 2025, Meta) image towers with 2D RoPE: PE core (contrastive, attention-pool embedding) and PE spatial (dense features for detection / segmentation; no learned pool: pooler_output is the mean of the patch tokens, as timm); tokens at any size."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["libnet"]  # shared modules imported directly by this family
+uses = ["libnet", "mlx_wrap"]  # shared modules imported directly by this family
 limitations = [
+  "Returning all PE Spatial G/14 hidden states at 448 × 448 uses 4,058 MiB peak GPU allocation in both CUDA modes, down from 4,345 MiB on the RTX 5060 Ti. All returned features matched bit for bit.",
+  "CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.",
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
   "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
   "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
@@ -37,6 +39,7 @@ std = [0.5, 0.5, 0.5]
 pad = { multiple = 16, mode = "none" }
 
 [options]
+stream = { default = false, effect = "speed" }
 fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
 fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
 
@@ -46,6 +49,7 @@ library = "timm"
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]

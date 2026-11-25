@@ -82,3 +82,17 @@ def test_last_group_scale() -> None:
         net.norm.eps /= model._LAST_SCALE**2
         got = net.forward_features(net.conv_first(x))
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("channels", [3, 6, 16])
+def test_shifted_window_roundtrip(channels: int) -> None:
+    from fastforks.kernels.shift_windows import rearrange  # noqa: PLC0415
+
+    h, w, win = 12, 20, 4
+    tokens = torch.randn(2, h * w, channels * 2, dtype=torch.float16, device="cuda")[:, :, 1::2]
+    shifted = torch.roll(tokens.reshape(2, h, w, channels), (-2, -2), (1, 2))
+    windows = shifted.reshape(2, h // win, win, w // win, win, channels).transpose(2, 3).reshape(-1, win**2, channels)
+    got = rearrange(tokens, (h, w), win, 2)
+    assert torch.equal(got, windows)
+    assert torch.equal(rearrange(got, (h, w), win, 2, reverse=True), tokens)

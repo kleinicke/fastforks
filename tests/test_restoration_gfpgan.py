@@ -58,3 +58,24 @@ def test_from_checkpoint_rejects_other_configs() -> None:
     sd["final_linear.weight"] = torch.zeros(512, 4096)  # one style for all layers (different_w False)
     with pytest.raises(WeightsError, match="final_linear"):
         from_checkpoint(sd)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("kernel", "channels", "demodulate"), [(3, 512, True), (3, 17, True), (1, 64, False)])
+def test_style_weights_match_reference(kernel: int, channels: int, demodulate: bool) -> None:  # noqa: FBT001
+    from fastforks.kernels import style_weights  # noqa: PLC0415
+
+    g = torch.Generator(device="cuda").manual_seed(9401)
+    weight = torch.randn(31, channels, kernel, kernel, device="cuda", dtype=torch.float16, generator=g)
+    style = torch.randn(1, channels, device="cuda", dtype=torch.float16, generator=g)
+    weight[0].zero_()
+    gain = 2**0.5
+    expected = weight.float() * style.float().view(1, channels, 1, 1)
+    if demodulate:
+        expected = expected * torch.rsqrt(expected.square().sum((1, 2, 3), keepdim=True) + 1e-8)
+    expected = (expected * gain).half()
+    got = style_weights.pack(
+        weight.contiguous(memory_format=torch.channels_last), style, gain, 1e-8, demodulate=demodulate
+    )
+    assert got.is_contiguous(memory_format=torch.channels_last)
+    torch.testing.assert_close(got, expected, rtol=0.001 if demodulate else 0, atol=0)

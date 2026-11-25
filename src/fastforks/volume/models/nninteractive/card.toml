@@ -3,6 +3,10 @@ name = "nnInteractive"
 summary = "nnInteractive (Isensee et al. 2025): DKFZ's promptable 3D segmentation for CT, MRI, PET and 3D microscopy. Point, box (2D or 3D) and scribble prompts, positive or negative, refine one object mask in a session; a ResEnc-L U-Net on 192³ patches with AutoZoom (zooms out up to 4x while the mask grows past the patch, then refines the changed region at full resolution). Lasso prompts and initial masks are not ported."
 tier = "experimental"
 outputs = ["mask"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = [
+  "On the RTX 5060 Ti, preparing a 192³ network patch at 2.25× AutoZoom took 43.2 ms and 2,575 MiB peak allocation, down from 50.9 ms and 5,081 MiB on the same synthetic session state. Tested zoomed patches and prompted CT masks matched bit for bit in the paired runs.",
+]
 
 [upstream]
 repo = "https://github.com/MIC-DKFZ/nnInteractive"
@@ -25,6 +29,7 @@ autozoom = true
 [modes.portable]
 cuda_dtype = "float16"  # float16 network (upstream: float16 autocast), channels-last 3D; session state on the device
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["vol_norm"]  # portable + InstanceNorm + LeakyReLU as one in-place kernel
@@ -37,7 +42,6 @@ venue = "arXiv 2025"
 
 [[variants]]
 id = "nninteractive"
-planned = { onnx = "the export wrapper passes no interaction prompts (TypeError on None)", compile = "the compiled entry point gets no interaction prompts (TypeError on None)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "nnInteractive_v1.0/plans.json", size = 6287, sha256 = "64a30a430438302a692a3edadd345a207b3428bea2e5cdc125298757da21f4d4", url = "https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/plans.json" },

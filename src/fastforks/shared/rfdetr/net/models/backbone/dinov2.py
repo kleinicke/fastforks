@@ -62,7 +62,7 @@ def get_config(size: str, use_registers: bool) -> dict[str, Any]:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     configs_dir = os.path.join(current_dir, "dinov2_configs")
     config_path = os.path.join(configs_dir, config_dict[size])
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         dino_config: dict[str, Any] = json.load(f)
     return dino_config
 

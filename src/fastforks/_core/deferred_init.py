@@ -25,9 +25,10 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Iterable, Sequence
+    from types import ModuleType
 
-__all__ = ["deferred_init", "float32_default", "trunc_normal_"]
+__all__ = ["deferred_init", "deferred_library_inits", "float32_default", "skipped_init", "trunc_normal_"]
 
 # The random in-place initialisers of `torch.nn.init` (each takes the tensor first and returns it). The deterministic
 # ones (`constant_`, `ones_`, `zeros_`, `eye_`, `dirac_`) cost about as much as the memset that replaces a deferred
@@ -49,15 +50,24 @@ _Pending = list[
     tuple["weakref.ref[torch.Tensor]", int, "weakref.ref[torch.UntypedStorage]", "Callable[..., Any]", tuple, dict]
 ]
 
-_local = threading.local()  # .pending: the calling thread's recorded calls, or absent outside `deferred_init`
+_Skipped = dict[int, tuple["weakref.ref[torch.Tensor]", int]]
+
+# .pending: the calling thread's recorded calls, or absent outside `deferred_init`
+# .skipped: the calling thread's skipped calls, or absent outside `skipped_init`
+_local = threading.local()
 _lock = threading.Lock()
-_users = 0  # threads inside `deferred_init`; the patch is installed while > 0
+_users = 0  # blocks (`deferred_init`, `skipped_init`) that are open, over all threads; the patch is installed while > 0
 _originals: dict[str, Callable[..., Any]] = {}
+_library_wrappers: weakref.WeakSet[Callable[..., Any]] = weakref.WeakSet()  # installed by `deferred_library_inits`
 
 
-def _deferring(name: str, fn: Callable[..., Any]) -> Callable[..., Any]:
+def _deferring(name: str, fn: Callable[..., Any], *, skippable: bool = False) -> Callable[..., Any]:
     @functools.wraps(fn)
     def init(tensor: object, *args: object, **kwargs: object) -> object:
+        skipped: _Skipped | None = getattr(_local, "skipped", None) if skippable else None
+        if skipped is not None and isinstance(tensor, torch.Tensor) and not tensor.is_inference():
+            skipped[id(tensor)] = (weakref.ref(tensor), tensor._version)  # noqa: SLF001 - torch's counter
+            return tensor
         pending: _Pending | None = getattr(_local, "pending", None)
         if pending is None or not isinstance(tensor, torch.Tensor) or tensor.is_inference():
             return fn(tensor, *args, **kwargs)  # another thread, or no version counter to check later
@@ -79,7 +89,7 @@ def _install() -> None:
         if _users == 0:
             for name in _INITS:
                 _originals[name] = fn = getattr(torch.nn.init, name)
-                setattr(torch.nn.init, name, _deferring(name, fn))
+                setattr(torch.nn.init, name, _deferring(name, fn, skippable=True))
         _users += 1
 
 
@@ -103,6 +113,10 @@ def deferred_init() -> Generator[None]:
     """Build and load a network inside this block: initialisers run only for tensors still unwritten at its end.
 
     Nested blocks on one thread share the outer block's record. If the block raises, nothing is initialised.
+
+    Inference mode is off inside the block (as in a plain script): a tensor made in it is an inference tensor, which
+    has no version counter to check, so its initialiser would run at once. ComfyUI runs its nodes, and so their model
+    loads, in inference mode.
     """
     if getattr(_local, "pending", None) is not None:
         yield
@@ -111,7 +125,8 @@ def deferred_init() -> Generator[None]:
     _install()
     _local.pending = pending
     try:
-        yield
+        with torch.inference_mode(mode=False):
+            yield
     finally:
         del _local.pending
         _uninstall()
@@ -126,9 +141,65 @@ def deferred_init() -> Generator[None]:
                 fn(tensor, *args, **kwargs)
 
 
+@contextlib.contextmanager
+def skipped_init() -> Generator[_Skipped]:
+    """Inside this block, on this thread, `torch.nn.init`'s random initialisers do nothing at all.
+
+    For a build whose every parameter is given a value afterwards (`fastforks.shared.mlx_wrap`: the checkpoint's
+    tensors are assigned, so not even the memset of `deferred_init` is wanted). Yields the record of the skipped
+    calls, `id(tensor) -> (weak reference, version counter at the call)`: a tensor still at that version when the
+    block ends holds uninitialised memory and is the caller's to reject. Wins over an enclosing `deferred_init`.
+
+    The patch of `torch.nn.init` is the one `deferred_init` installs (one lock, one count of open blocks, restored
+    when the last block of any thread closes); other threads keep the ordinary initialisers throughout.
+    """
+    skipped: _Skipped = {}
+    outer: _Skipped | None = getattr(_local, "skipped", None)
+    _install()
+    _local.skipped = skipped
+    try:
+        yield skipped
+    finally:
+        if outer is None:
+            del _local.skipped
+        else:
+            _local.skipped = outer
+        _uninstall()
+
+
 _dt_lock = threading.Lock()
 _dt_users = 0  # threads inside `float32_default`
 _dt_saved = torch.float32  # the default dtype before the first one entered
+
+
+@contextlib.contextmanager
+def deferred_library_inits(modules: Iterable[ModuleType], names: Sequence[str]) -> Generator[None]:
+    """Inside `deferred_init`: also defer the random initialisers `names` that `modules` bind by name.
+
+    For a library's own initialisers, which bypass `torch.nn.init` (timm's `trunc_normal_`, imported by name into each
+    model module). Each wraps the whole public function, so a tensor it scales or shifts after its random fill is
+    recorded once, after all of it. Outside a `deferred_init` block, or for a module already patched by another
+    thread's block, nothing changes (that build only initialises at once).
+    """
+    if getattr(_local, "pending", None) is None:
+        yield
+        return
+    saved: list[tuple[ModuleType, str, Callable[..., Any]]] = []
+    with _lock:
+        for module in modules:
+            for name in names:
+                fn = getattr(module, name, None)
+                if callable(fn) and fn not in _library_wrappers:
+                    wrapper = _deferring(name, fn)
+                    _library_wrappers.add(wrapper)
+                    setattr(module, name, wrapper)
+                    saved.append((module, name, fn))
+    try:
+        yield
+    finally:
+        with _lock:
+            for module, name, fn in reversed(saved):
+                setattr(module, name, fn)
 
 
 @contextlib.contextmanager

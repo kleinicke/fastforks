@@ -27,7 +27,7 @@ COLORS = {"original": "#2a78d6", "portable": "#eb6834", "kernels": "#1baf7a"}  #
 def times() -> dict[str, dict[str, float]]:
     """Fastest original (any of the authors' settings), portable and kernels ms per model at its standard input."""
     best: dict[str, dict[str, float]] = {}
-    for line in (ROOT / "docs/data/speed.jsonl").read_text().splitlines():
+    for line in (ROOT / "docs/data/speed.jsonl").read_text(encoding="utf-8").splitlines():
         r = json.loads(line) if line.strip() else {}
         if r.get("ref") not in MODELS or not isinstance(r.get("ms"), int | float):
             continue

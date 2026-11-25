@@ -1,6 +1,6 @@
 """Speed survey of a non-reference device (docs/data/devices.toml): rows for docs/data/speed/<slug>.jsonl.
 
-    python tools/speed_survey.py detect                                  # this machine's GPU as a devices.toml entry
+    python tools/speed_survey.py detect [--mlx]                          # this machine's GPU as a devices.toml entry
     python tools/speed_survey.py list --device SLUG [--subset] [--only REF ...]       # the jobs, no torch
     python tools/speed_survey.py prepare --device SLUG [--subset]         # download weights + kernels, then check
     python tools/speed_survey.py run --device SLUG [--subset] [--only REF ...] [--modes portable kernels] [--force]
@@ -17,6 +17,9 @@ subset (`*` in `list`: one variant per family, the card's first variant the floo
 - mps: portable in every dtype of `portable_mps_dtypes` (none: one `unsupported` row); kernels in the card's MPS
   kernels dtype if it has Metal kernel libraries.
 - cpu (Apple silicon's CPU cores): portable in float32; kernels `unsupported` (they need CUDA or Metal).
+- mlx (`load(..., device="mlx")`, a device entry of its own beside the Mac's mps one: the same ref / mode / dtype
+  exists on both, and the two columns side by side are the comparison): only the families with an MLX port, in every
+  dtype of the card's `mlx_dtypes` of the mode (a port without MLX kernels: one `unsupported` kernels row).
 
 A mode or dtype the card does not offer becomes an `unsupported` row, never a measurement. Each (ref, mode, dtype) runs
 in a fresh process; a crash or timeout becomes a `failed` row, out of memory an `oom` row.
@@ -24,6 +27,8 @@ in a fresh process; a crash or timeout becomes a `failed` row, out of memory an 
 - cuda / rocm: the worker is tools/merge_check.py's (tools/speed_check.py's worker plus the golden step), so timing,
   memory (`torch-peak`) and startup fields are exactly those of the reference floor: first call, 3 warm-up calls,
   peak reset, median of 3 rounds x median of 5 synchronised calls.
+- mlx: the mps worker and protocol (an MLX call returns host tensors, so every call is complete when it returns);
+  memory `process-footprint`, MLX's buffer cache capped as in every MLX load. Rows record the `mlx` version.
 - mps: first call, MPS_WARMUP warm-up calls, median of MPS_RUNS synchronised calls; memory `process-footprint` (the
   process's lifetime peak physical footprint, `proc_pid_rusage`: model + activations in unified memory, what Activity
   Monitor shows as Memory). The MPS allocator is capped at the device's recommended working set
@@ -78,7 +83,7 @@ CPU_PROTOCOL = (
     f"first call, {CPU_WARMUP} warm-up, median of {CPU_RUNS} calls ({CPU_RUNS_SLOW} when the first takes over"
     f" {SLOW_S:g} s; tools/speed_survey.py)"
 )
-LOCAL = ("mps", "cpu")  # backends measured on this Mac by worker_local (unified memory, swap on the system disk)
+LOCAL = ("mps", "mlx", "cpu")  # backends measured on this Mac by worker_local (unified memory, swap on the system disk)
 SWAP_WAIT_S = 1800
 # free system disk (GiB) before an MPS run: macOS swaps there; with ~5 GB free a big model froze the Mac
 MIN_FREE_GB = float(os.environ.get("FASTFORKS_MIN_FREE_GB", "15"))
@@ -86,7 +91,8 @@ TIMEOUT_S = 1800
 GOLDEN = "golden"  # merge_check's `input` of a golden row
 _DROP = ("side", "files", "cold", "first_call_cold", "fork_key", "golden_ref", "input_kind", "fails")
 _ENV_KEYS = (
-    "gpu", "gpu_cores", "arch", "os", "torch", "cuda", "hip", "driver", "power_limit", "clocks", "throttle_reasons"
+    "gpu", "gpu_cores", "arch", "os", "torch", "mlx", "cuda", "hip", "driver", "power_limit", "clocks",
+    "throttle_reasons",
 )  # fmt: skip
 
 
@@ -129,6 +135,7 @@ def plan(
 ) -> list[dict[str, Any]]:
     """The survey's jobs, cross-device subset first: one per (ref, mode, dtype), `skip` = why it is `unsupported`."""
     only, want = set(only), [m for m in MODES if m in set(modes)]
+    only_dtype = os.environ.get("FF_SURVEY_DTYPE", "")  # sweeps: one dtype of every mode
     cards, inputs = _cards(), _std_inputs()
     first: dict[str, str] = {}  # family -> its cross-device ref: the card's first variant the floor has
     for ref in sorted(inputs, key=lambda r: (cards[r.split("@")[0]][1], r)):
@@ -140,9 +147,15 @@ def plan(
         if only and ref not in only:
             continue
         inp, card = inputs[ref], cards[ref.split("@")[0]][0]
+        if dev.backend == "mlx" and not card.portable_mlx_dtypes:
+            continue  # no MLX port: no row (a port is the exception; the mps entry of the Mac has the family)
         base = {"ref": ref, "task": inp["task"], "input": inp["label"], "scene": inp["scene"], "cross": ref in picked}
         for mode in want:
-            out += [{**base, "mode": mode, "dtype": d, "skip": why} for d, why in _dtypes(card, mode, dev.backend)]
+            out += [
+                {**base, "mode": mode, "dtype": d, "skip": why}
+                for d, why in _dtypes(card, mode, dev.backend)
+                if not only_dtype or d == only_dtype
+            ]
     return out
 
 
@@ -150,6 +163,9 @@ def _dtypes(card: Any, mode: str, backend: str) -> list[tuple[str, str]]:  # noq
     """(dtype, reason it is not measured) of a card's mode on a backend; empty reason = measure it."""
     if mode not in card.modes:
         return [("float32", f"the card has no {mode} mode")]
+    if backend == "mlx":
+        have = card.mlx_dtypes(mode)
+        return [(d, "") for d in have] or [("float32", f"the MLX port has no {mode} mode (card mlx_dtypes)")]
     if mode == "portable":
         if backend == "cpu":
             return [("float32", "")]
@@ -168,7 +184,7 @@ def _dtypes(card: Any, mode: str, backend: str) -> list[tuple[str, str]]:  # noq
     return [(card.kernels_dtype, "" if card.kernel_libs else "the card has no CUDA kernel libraries")]
 
 
-# MPS / CPU worker: imports torch lazily. (cuda / rocm run tools/merge_check.py's worker.)
+# MPS / MLX / CPU worker: imports torch lazily. (cuda / rocm run tools/merge_check.py's worker.)
 def _footprint_peak() -> int:
     """Lifetime peak physical footprint of this process in bytes (macOS `proc_pid_rusage`, RUSAGE_INFO_V4)."""
     buf = (ctypes.c_uint64 * 64)()  # rusage_info_v4: 16-byte uuid, then uint64 fields
@@ -199,12 +215,42 @@ def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str,
     if scene is None or not scene.exists():
         return args, kw, "synthetic"
     right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
-    d = job["device"]
-    return ((_image(scene, d), _image(right, d)) if job["task"] == "stereo" else (_image(scene, d),)), kw, job["scene"]
+    host = str(model._device)  # noqa: SLF001 - mps or cpu; on MLX the images stay on the CPU
+    images = (_image(scene, host), _image(right, host)) if job["task"] == "stereo" else (_image(scene, host),)
+    return images, kw, job["scene"]
+
+
+def _second_shape(model: Any, job: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN401
+    """`second_shape_s`: the first call at a second input size (3/4 of the job's, synthetic), `second_shape_input`.
+
+    An MLX graph is built per input shape, so this is what a new image size costs once the model runs; {} when the call
+    fails (a model with a fixed input size, too little memory). Not a timing of the table: one call, never warm.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415
+
+    h, w = (max(64, int(v) * 3 // 4 // 32 * 32) for v in job["input"].split("x"))
+    if job["ref"] in SWAPPED:
+        h, w = w, h
+    try:
+        args, kw = bench_inputs(model, BenchSize(h, w, VIEWS.get(job["ref"], 8)))
+        sync = torch.mps.synchronize if job["device"] == "mps" else (lambda: None)
+        sync()
+        t0 = time.perf_counter()
+        with torch.inference_mode():
+            model(*args, **kw)
+        sync()
+    except Exception:  # noqa: BLE001 - optional field
+        return {}
+    return {"second_shape_s": round(time.perf_counter() - t0, 3), "second_shape_input": f"{h}x{w}"}
 
 
 def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:
-    """First call, warm-up, median of the timed calls: MPS_* on mps, CPU_* on cpu."""
+    """First call, warm-up, median of the timed calls: MPS_* on mps and mlx, CPU_* on cpu.
+
+    Only mps synchronises: an MLX call returns host tensors, so it is complete when it returns.
+    """
     import torch  # noqa: PLC0415
 
     sync = torch.mps.synchronize if device == "mps" else (lambda: None)
@@ -214,7 +260,7 @@ def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:
     sync()
     first = time.perf_counter() - t0
     warmup, runs = (
-        (MPS_WARMUP, MPS_RUNS) if device == "mps" else (CPU_WARMUP, CPU_RUNS if first <= SLOW_S else CPU_RUNS_SLOW)
+        (MPS_WARMUP, MPS_RUNS) if device != "cpu" else (CPU_WARMUP, CPU_RUNS if first <= SLOW_S else CPU_RUNS_SLOW)
     )
     for _ in range(warmup):
         call()
@@ -230,9 +276,10 @@ def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:
 
 
 def worker_local(spec: dict[str, Any]) -> int:
-    """One (ref, mode, dtype) on spec["device"] (mps or cpu): a speed row, then a golden row, into spec["out"]."""
+    """One (ref, mode, dtype) on spec["device"] (mps, mlx or cpu): a speed row, then a golden row, into spec["out"]."""
     os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "1.0")  # before torch: no allocation past the working set
     os.environ.setdefault("PYTORCH_MPS_LOW_WATERMARK_RATIO", "1.0")  # must not exceed the high ratio (default 1.4)
+    os.environ["FASTFORKS_MLX"] = "0"  # mps rows measure PyTorch MPS, not the MLX port that load() may route to
     import torch  # noqa: PLC0415
 
     import merge_check  # noqa: PLC0415 - its golden step (tools/ is this script's directory)
@@ -248,6 +295,7 @@ def worker_local(spec: dict[str, Any]) -> int:
         if spec["device"] == "mps":
             torch.mps.synchronize()
         common["load_s"] = round(time.perf_counter() - t0, 2)
+        load_peak = _footprint_peak()
         common["backend"] = {"mode": m.backend.mode, "dtype": str(m.backend.dtype), "kernels": list(m.backend.kernels)}
         args, kw, scene = _inputs(m, spec)
 
@@ -257,13 +305,20 @@ def worker_local(spec: dict[str, Any]) -> int:
 
         row = {**common, "scene": scene, **_time_local(call, spec["device"])}
         row["peak_footprint_mb"] = round(_footprint_peak() / 2**20)
+        row["load_peak_footprint_mb"] = round(load_peak / 2**20)
+        row |= _second_shape(model, spec)  # after the peak: a cold call at another size never raises the recorded peak
         if spec["device"] == "cpu":
             row["threads"] = torch.get_num_threads()
     except Exception as e:  # noqa: BLE001 - recorded as a failed / oom row
         row = {**common, "error": " ".join(f"{type(e).__name__}: {e}".split())[:600]}
     merge_check.speed_check()._append(out, row)  # noqa: SLF001 - the row writer of the floor's worker
     if m is not None and "ms" in row:
-        merge_check.golden_step(m, spec, common, [], out)
+        # Only the golden step may hold the model: a golden with load options reloads it, and the timed copy must be
+        # freed first (lingbot-map fp32 on MPS: two copies of 4.4 GB of weights ran out of memory).
+        held = [m]
+        m = model = None
+        del args, kw
+        merge_check.golden_step(held.pop(), spec, common, [], out)
     m = None  # the golden step dropped its own reference
     gc.collect()
     return 0
@@ -306,6 +361,9 @@ def _probe(backend: str) -> dict[str, Any]:
             "memory_gb": round(int(mem or 0) / 2**30),
             "torch": importlib.metadata.version("torch"),
         }
+        if backend == "mlx":
+            with contextlib.suppress(importlib.metadata.PackageNotFoundError):  # absent: the rows fail and say so
+                info["mlx"] = importlib.metadata.version("mlx")
         return {k: v for k, v in info.items() if v not in (None, "")}
     code = (
         "import json, torch; p = torch.cuda.get_device_properties(0); print(json.dumps({'gpu': p.name,"
@@ -334,17 +392,26 @@ def _backend_now() -> str:
     return r.stdout.strip() or "cuda"
 
 
-def detect(_a: argparse.Namespace) -> int:
-    """Print this machine's GPU as a devices.toml entry to paste (slug: model + memory; edit as you like)."""
+def detect(a: argparse.Namespace) -> int:
+    """Print this machine's GPU as a devices.toml entry to paste (slug: model + memory; edit as you like).
+
+    `--mlx` (a Mac): the entry of its MLX survey instead (backend `mlx`, `-mlx` in the slug and `(MLX)` in the name).
+    """
     backend = _backend_now()
+    if a.mlx and backend != "mps":
+        msg = "--mlx: MLX runs on Apple silicon only"
+        raise SystemExit(msg)
+    backend = "mlx" if a.mlx else backend
     info = _probe(backend)
     if not info.get("gpu"):
         msg = "no GPU found (torch.cuda / sysctl)"
         raise SystemExit(msg)
     base, mem = re.sub(r"^(nvidia( geforce)?|amd( radeon)?) ", "", info["gpu"].lower()), info.get("memory_gb", 0)
+    base = f"{base} mlx" if a.mlx else base
     slug = re.sub(r"[^a-z0-9]+", "-", base if re.search(rf"{mem}\s*gb", base) else f"{base} {mem}gb").strip("-")
-    sw = ", ".join(f"{k} {info[k]}" for k in ("torch", "cuda", "hip", "driver") if info.get(k))
-    print(f'[{slug}]\nname = "{info["gpu"]}"\nbackend = "{backend}"\nmatch = "{info["gpu"]}"')
+    sw = ", ".join(f"{k} {info[k]}" for k in ("torch", "mlx", "cuda", "hip", "driver") if info.get(k))
+    name = f"{info['gpu']} (MLX)" if a.mlx else info["gpu"]
+    print(f'[{slug}]\nname = "{name}"\nbackend = "{backend}"\nmatch = "{info["gpu"]}"')
     cores = f"{info['gpu_cores']}-core GPU" if info.get("gpu_cores") else ""
     details = ", ".join(filter(None, [info.get("arch"), cores, info.get("os")]))
     print(f'memory = "{mem} GB"\ndetails = "{details}"\nsoftware = "{sw}"')
@@ -388,10 +455,10 @@ def _merge(dev: _devices.Device, new: dict[str, Any]) -> None:
     path = dev.data
     path.parent.mkdir(parents=True, exist_ok=True)
     key = (new["ref"], new["mode"], new["dtype"], new["input"])
-    rows = [json.loads(s) for s in path.read_text().splitlines() if s.strip()] if path.is_file() else []
+    rows = [json.loads(s) for s in path.read_text(encoding="utf-8").splitlines() if s.strip()] if path.is_file() else []
     rows = [r for r in rows if (r["ref"], r["mode"], r["dtype"], r["input"]) != key] + [new]
     rows.sort(key=lambda r: (r["task"], r["ref"], _devices.MODES.index(r["mode"]), r["dtype"], r["input"]))
-    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
 
 
 def _worker_cmd(dev: _devices.Device, job: dict[str, Any], out: Path, commit: str) -> list[str]:
@@ -455,7 +522,9 @@ def _measure(
             tail = f"rc={r.returncode}: " + " ".join(r.stderr.split()[-60:])
         except subprocess.TimeoutExpired:
             tail = f"timeout after {timeout:g} s"
-        got = [json.loads(s) for s in out.read_text().splitlines() if s.strip()] if out.is_file() else []
+        got = (
+            [json.loads(s) for s in out.read_text(encoding="utf-8").splitlines() if s.strip()] if out.is_file() else []
+        )
     return got if any(g.get("input") != GOLDEN for g in got) else [{"error": f"worker {tail}"}]
 
 
@@ -480,7 +549,7 @@ def run(a: argparse.Namespace) -> int:
     env, commit = _env(online=a.online), os.environ.get("FASTFORKS_COMMIT") or _commit()  # no .git: modal_survey
     common = {k: info[k] for k in _ENV_KEYS if k in info}
     common |= {"date": time.strftime("%F"), "commit": commit, "protocol_id": "warm-median"}
-    common["protocol"] = {"mps": MPS_PROTOCOL, "cpu": CPU_PROTOCOL}.get(
+    common["protocol"] = {"mps": MPS_PROTOCOL, "mlx": MPS_PROTOCOL, "cpu": CPU_PROTOCOL}.get(
         dev.backend
     ) or "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5"
     todo = plan(dev, a.only, a.modes, subset=a.subset)
@@ -527,7 +596,7 @@ def list_jobs(a: argparse.Namespace) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("detect")
+    sub.add_parser("detect").add_argument("--mlx", action="store_true", help="a Mac's MLX survey entry")
     for name in ("list", "prepare", "run"):
         p = sub.add_parser(name)
         p.add_argument("--device", required=True, help="survey slug of docs/data/devices.toml")

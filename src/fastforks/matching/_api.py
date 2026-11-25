@@ -17,6 +17,7 @@ from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, short_repr
+from fastforks._core.upload import device_tensor
 from fastforks.matching._pairs import DecodedImages, PairCache
 from fastforks.matching._runner import scale
 from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
@@ -159,7 +160,7 @@ class MatchingResult(NumpyOutputs):
             m = min(4 * n, int((weight > 0).sum(1).min()))
             cand = _draw(weight, m, gen)  # [B, 4 n]
             xy = torch.cat((torch.stack((cand % w, cand // w), -1).float(), _at(warp, cand)), -1)
-            density = _density(xy / torch.tensor([w, h, w, h], device=warp.device) * 2 - 1)
+            density = _density(xy / device_tensor([w, h, w, h], device=warp.device) * 2 - 1)
             p = torch.where(density < _MIN_DENSITY, 1e-7, 1 / (density + 1))
             ind = torch.gather(cand, 1, _draw(p, n, gen))
         else:
@@ -348,7 +349,7 @@ class MatchingModel(core.Model):
         Raises:
             InputError: Unsupported or too small inputs, or batches of different lengths.
         """
-        t1, t2 = to_rgb_batches((image1, image2), self.device)
+        t1, t2 = to_rgb_batches((image1, image2), self._device)
         if is_batch(image1) != is_batch(image2) or t1.shape[0] != t2.shape[0]:
             msg = f"image1 and image2 must be two images or equal-length batches, got {t1.shape[0]}, {t2.shape[0]}"
             raise InputError(msg)
@@ -397,7 +398,8 @@ class MatchingModel(core.Model):
         cache = PairCache(pairs, int(cache_mb * 2**20))
         lazy = self.sparse and not self._runner.match_reads_images
         with DecodedImages(images, pairs, int(DECODED_MB * 2**20), lambda i: lazy and i in cache.kept) as decoded:
-            yield from self._match_pairs(images, pairs, cache, decoded, lazy=lazy)
+            for result in self._match_pairs(images, pairs, cache, decoded, lazy=lazy):
+                yield self._move_result(result)
 
     def _match_pairs(
         self,
@@ -442,7 +444,7 @@ class MatchingModel(core.Model):
         `_AT_ONCE_WINDOW` pairs. The same kernels: equal results. A runner with `match_many` gets the window's
         pairs in one call instead.
         """
-        cuda = self.device.type == "cuda" and not self._runner.matches_many
+        cuda = self._device.type == "cuda" and not self._runner.matches_many
         local = threading.local()
 
         def match(described: tuple[Any, Any], ready: torch.cuda.Event | None) -> dict[str, torch.Tensor]:
@@ -450,8 +452,8 @@ class MatchingModel(core.Model):
                 with torch.inference_mode():
                     return self._runner.match(None, None, described)  # ty: ignore[invalid-argument-type]
             if not hasattr(local, "stream"):
-                local.stream = torch.cuda.Stream(self.device)
-            with torch.inference_mode(), torch.cuda.device(self.device), torch.cuda.stream(local.stream):
+                local.stream = torch.cuda.Stream(self._device)
+            with torch.inference_mode(), torch.cuda.device(self._device), torch.cuda.stream(local.stream):
                 local.stream.wait_event(ready)
                 out = self._runner.match(None, None, described)  # ty: ignore[invalid-argument-type]
             local.stream.synchronize()  # before the inputs or outputs are freed or read on another stream
@@ -502,7 +504,7 @@ class MatchingModel(core.Model):
 
     def _checked(self, image: ImageLike) -> torch.Tensor:
         """`image` on the device as `[1, 3, H, W]`, its size checked."""
-        t = to_rgb_batch(image, self.device)
+        t = to_rgb_batch(image, self._device)
         self._check_size(t)
         return t
 
@@ -530,7 +532,8 @@ class MatchingModel(core.Model):
         shapes = {"keypoints1": (n, 2), "keypoints2": (m, 2), "pairs": (k, 2), "scores": (k,)}
         maps = self._check_outputs(out, shapes)
         pairs = maps["pairs"].long()
-        if k and (pairs.min() < 0 or pairs[:, 0].max() >= n or pairs[:, 1].max() >= m):
+        bad = torch.stack([pairs.min() < 0, pairs[:, 0].max() >= n, pairs[:, 1].max() >= m]) if k else None
+        if bad is not None and bool(bad.any()):  # one host sync (three on device)
             msg = f"{self.variant.ref}: runner returned pairs outside the keypoint sets ({n}, {m})"
             raise CardError(msg)
         return SparseMatchingResult(
@@ -564,7 +567,7 @@ class _PortableModule(torch.nn.Module):
 
 def bench_inputs(model: MatchingModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: a synthetic textured pair `[1, 3, H, W]` (the second image shifted by 8 px)."""
-    return synthetic_pair(size.height, size.width, model.device), {}
+    return synthetic_pair(size.height, size.width, model._device), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, MatchingModel)

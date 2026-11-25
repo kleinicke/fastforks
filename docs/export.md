@@ -35,10 +35,11 @@ fastforks export s2m2-s --format trt --size 384x1248 --fp16       # the model's 
 | depth | `image`: RGB in `[0, 1]` | the model's main output (`depth`, `inverse_depth`, ...) at the input size | any H x W >= the minimum; the net resizes or pads inside; no default, `--size` is required |
 | classification | `image`: the transformed crop (resized, cropped, normalised; see `model.data_config`) | `logits` `[B, classes]` | fixed: the model's crop, e.g. 224 x 224 (the default; 224 is the eval crop, `--size` takes another fixed size) |
 | segmentation | `image`: RGB in `[0, 1]` | the model's main output | per model, see `model.size_range()`; no default, `--size` is required |
-| promptable segmentation | `image`: RGB in `[0, 1]` (image encoder only) | SAM / SAM 2: `image_embeddings` `[1, 256, 64, 64]`; SAM 3: the FPN levels `fpn0`, `fpn1`, `fpn2` | any H x W, resized inside to the fixed encoder input (SAM / SAM 2: 1024, SAM 3: 1008), which is also the default export size |
+| promptable segmentation | SAM families: `image`, RGB in `[0, 1]` (image encoder only); CLIPSeg: normalized `image` and projected text `condition` | SAM / SAM 2: `image_embeddings` `[1, 256, 64, 64]`; SAM 3: FPN levels `fpn0`, `fpn1`, `fpn2`; CLIPSeg: `logits` `[B, 352, 352]` | SAM families resize inside to the fixed encoder input (SAM / SAM 2: 1024, SAM 3: 1008); CLIPSeg's module takes the fixed 352 x 352 network input |
 | detection | `image`: RGB in `[0, 1]` at the network size (normalised inside; R-CNN and DETR also pad inside, RT-DETRv2 takes multiples of 32 only, `InputError` otherwise) | R-CNN: the feature pyramid (backbone + FPN) `p2` .. `p6`; DETR / RT-DETR: `logits`, `boxes` | any H x W >= the minimum (RT-DETRv2: multiples of 32; COCO inference uses shortest edge 800, e.g. 800x1344); no default, `--size` is required |
 | features | `image`: RGB in `[0, 1]` (resized inside to a multiple of the patch stride) | `last_hidden_state` `[B, N, C]` | any H x W; default 224 x 224 |
 | multi-view depth | `images` `[V, 3, H, W]`: the V views of one scene, RGB in `[0, 1]`; then the cameras the model requires (`intrinsics` `[V, 3, 3]`, `cam_to_world` `[V, 4, 4]`, `depth_range` `[2]`) | the model's main output (`depth`, ...); a model returning several outputs keeps their names (PatchmatchNet: `depth`, `confidence`) | one fixed size per export (no size range); no default, `--size` is required |
+| interactive volume (nnInteractive) | `volume` `[B, 8, 192, 192, 192]`: normalized image, previous mask, and positive/negative box, point and scribble maps | `logits` `[B, 2, 192, 192, 192]` | fixed 192-cubed patch (the default); the session constructs the input and assembles results outside the graph |
 
 `model.example_inputs(H, W)` gives synthetic inputs of exactly this form (what the export traces and checks with);
 `model.size_range().export_size` is the default size where the task has one (classification: the crop; features: 224; promptable
@@ -50,11 +51,29 @@ segmentation: the encoder side) and `None` otherwise; stereo, depth, segmentatio
 fp16 on one RTX 5060 Ti 16 GB; "not measured" where no size run exists). Resizing to a family's processing size, padding and cropping are inside
 `module()`, so a depth engine built at 518x770 takes a 518 x 770 image and returns maps at 518 x 770.
 
+CLIPSeg is an exception to the raw-image convention: its exported graph takes an image already resized to 352 x 352
+and normalized with the model's mean and standard deviation, plus a `[B, 512]` text embedding projected by the
+matching CLIPSeg text encoder. The graph does not include the tokenizer or text encoder; `example_inputs()` supplies
+a synthetic image and the condition for "object" for testing. Use the same checkpoint's text encoder to prepare other
+prompts. The output is logits at 352 x 352; resizing to the original image is outside the exported graph.
+On an RTX 5060 Ti, the fp16 module took 3.746 ms portable and 1.749 ms TensorRT (CUDA-event median of 30 after five
+warmups, same preprocessed image and text condition). These timings exclude preprocessing, text encoding,
+postprocessing and host overhead, so they are not full-call benchmark numbers. On five COCO images with three prompts
+each, thresholded TensorRT masks had IoU at least 0.982 against portable; this is a small parity check.
+
+nnInteractive's ONNX graph exports only its 192-cubed network patch, not the complete session. Its eight channels
+are the normalized image, previous mask, positive/negative box, positive/negative point and positive/negative
+scribble maps. Crop, normalization, prompt-map generation, autozoom and mask assembly remain outside the graph.
+The fixed-size FP16 graph was checked with ONNX Runtime on a synthetic patch (identical argmax mask) and the first
+patch from one real CT golden (831 of 7,077,888 voxels differed from portable, mask IoU 0.9973). TensorRT remains
+gated pending full-session accuracy validation.
+
 Rules for every task:
 
 - Only the portable backend exports. `kernels` raises `BackendUnavailableError` from `export_onnx` / `export_tensorrt`
   (ONNX cannot hold our kernels); load with `mode="portable"`. There is no silent fallback.
-- An export has one fixed size and batch (`batch=` argument). A size below the model's minimum raises `InputError` (e.g. CoEx with `--size 4x4`: below 32).
+- An export has a fixed batch size (`batch=` argument). It uses one image size by default. Supported models can
+  vary image height and width within a size range. An image size below the model's minimum raises `InputError`.
 - The graph keeps the model's compute dtype: `dtype="float32"` exports float32 (closest to the original reference); the
   default keeps the model's tested fp16 casts, and TensorRT builds it strongly typed, in exactly that precision.
   The CLI exports float32 unless `--fp16` is given.
@@ -69,13 +88,14 @@ Rules for every task:
 
 ## What works
 
-Compile and TensorRT per family (one variant each, at the task's standard size, with the failure reasons):
-[benchmarks](benchmarks.md#torchcompile-and-tensorrt). In short: `torch.compile` works for every family, the fp16
-TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file with onnxruntime instead):
+Use `fastforks info MODEL` or the model card for current compile, ONNX and TensorRT availability. The benchmark
+tables record the measured result for one variant per family at the task's standard size. The following TensorRT
+failures were observed at those sizes. [Compile and TensorRT benchmarks](benchmarks.md#torchcompile-and-tensorrt)
 
 | model | TensorRT error | fp32 engine (`load(..., dtype="float32")`) |
 |---|---|---|
 | BridgeDepth | Myelin "Inconsistent strides" | builds |
+| CAS-GwcNet-C / GC | Disparity differs from portable on KITTI | same discrepancy, use ONNX Runtime |
 | DEFOM | Myelin "Must have costs" | fails the same way |
 | LAS2-H (994x1482; LAS2-S / M / L build) | Myelin "Must have costs" | fails the same way |
 | MVSAnywhere | builds, but outputs NaN (`export_tensorrt` removes the engine and raises `BackendUnavailableError`) | NaN too |
@@ -83,16 +103,20 @@ TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file
 - Stereo `kernels` is one opaque custom op (`fastforks::stereo_disparity`): it
   compiles and `torch.export`s for this process, but ONNX and TensorRT raise `BackendUnavailableError`. The other tasks'
   `kernels` have no exportable module.
-- Stereo: ONNX is checked against onnxruntime on the CPU for every family; FoundationStereo, C-FS and Selective-IGEV
-  need torch >= 2.14.
+- Stereo: the CPU ONNX Runtime checks compare exported outputs with eager. FoundationStereo, C-FS and Selective-IGEV
+  need torch >= 2.14 for those checks.
 - Depth: ZoeDepth NK does not compile or export (graph break in the vendored MiDaS core, its NYU / KITTI head is picked
   per image). Marigold is not in the CPU export suite (Stable Diffusion UNet + VAE, > 2 GB graph). The exported
   graphs take only the image, no camera intrinsics: Metric3D's exported metric depth assumes its canonical camera
   (focal length 1000 px at the input size); rescale it yourself by `fx * s / 1000` (`fx` your focal length in px,
   `s` the resize factor to the export size). UniDepth's export uses its own predicted camera.
+- AnyCalib ONNX was checked at 480 x 640 on one synthetic and three real images; ONNX Runtime intrinsics differed from
+  CUDA portable by at most 0.023% relative. TensorRT remains gated pending an established dataset-level acceptance
+  threshold: on 200 LaMAR images resized to this fixed size its mean vertical field-of-view difference from portable
+  was 0.030 degrees, with a maximum of 0.467 degrees. This resized protocol differs from the standard site evaluation.
 
-The CPU suite (`tests/test_export.py`) runs compile (`fullgraph`, zero graph breaks), export and ONNX + onnxruntime
-for the smallest variant of every family and compares each with eager.
+The CPU suite (`tests/test_export.py`) checks compile and export on the smallest variants, with comparisons against
+eager for the supported paths.
 
 Notes:
 
@@ -119,13 +143,14 @@ Checked engines at 384x1248 (2026-10-27), TensorRT 11.4, one RTX 5060 Ti (ms vs 
 | igev-stereo-sceneflow | 94.2 | 214.8 | 0.01 | 281.9 | 424.9 | 0.005 |
 | raft-stereo-middlebury | 101.8 | 214.5 | 0.15 | 590.7 | 457.3 | 0.13 |
 
-Engines have a fixed input shape (the size they were built for).
+For engines with fixed input shapes, `TensorRTEngine.run()` supports output dimensions that depend on input values.
+It returns CUDA tensors with the actual dimensions for that call, including empty outputs.
 
 Dynamic shapes are optional and not recommended: `export_onnx(..., size_range=((min_h, min_w), (max_h, max_w)))` /
 `fastforks export --size-range MINxMIN:MAXxMAX` mark height and width as dynamic axes (sizes must be multiples of the
 model's padding, and max must exceed min), and `export_tensorrt` adds an optimization profile (opt = the given size).
 Only families whose dynamic file was checked against eager `module()` across a range accept a size range: AANet,
-CAS-GwcNet, CoEx, DETR, IGEV-Stereo, PSMNet, RAFT-Stereo, R-CNN (Faster / Mask), S2M2, Sapiens and SegFormer
+CAS-GwcNet, CoEx, DETR, GwcNet, IGEV-Stereo, PSMNet, RAFT-Stereo, R-CNN (Faster / Mask), S2M2, Sapiens and SegFormer
 (`fastforks._core.export.DYNAMIC_VERIFIED`). Every other model is refused up front with the reason (`InputError`):
 fixed-input models (classification, features, promptable segmentation), families whose traced graph fixes the size,
 fails or gives wrong values inside the range (Depth Anything V2, HITNet, MoGe, LAS2, RT-DETRv2, Fast-ACVNet,
@@ -138,12 +163,15 @@ A dynamic engine run at a size inside its profile that is not a multiple of `mod
 build 84 s vs 116 s, and the dynamic engine failed at another size inside its range (TensorRT: a shape-dependent node
 of the traced graph is not consistent), so the fixed engine stays the default. HITNet's height is fixed by the
 exporter even when requested dynamic, and Depth Anything V2 cannot be exported dynamically (its resize target is
-computed with Python `round`). The measurement is one model (LAS2-S).
+computed with Python `round`). The measurement is one model (LAS2-S). On an RTX 5060 Ti with TensorRT 11.4.0.106,
+PSMNet's tested 256 × 256 to 320 × 384 FP16 dynamic profile also fails during engine optimization. The fixed
+256 × 256 FP16 engine and the FP32 dynamic ONNX file passed parity on the same machine. This TensorRT failure
+reproduces with fastforks 0.2.0.
 
 ## TensorRT or kernels?
 
 [Benchmarks](benchmarks.md#torchcompile-and-tensorrt) has the fp16 engine next to `kernels` (speed and memory, one
 variant per family at its standard size, same run). At 994x1482 the engine is faster for LAS2-S (10.3 vs 14.3 ms),
 the same for Depth Anything V2 S (4.5 ms) and slower for HITNet, CREStereo, IGEV, RAFT and S2M2 (`kernels` 1.2-1.3x
-faster). `kernels` needs no build step, takes any input size (an engine has one fixed shape) and runs the same weights
-on every supported GPU; an engine must be rebuilt per GPU model, TensorRT version and input size.
+faster). `kernels` uses the same weights and accepts any supported input size without a build step.
+A TensorRT engine is tied to its GPU model, TensorRT version and fixed size or optimization profile.

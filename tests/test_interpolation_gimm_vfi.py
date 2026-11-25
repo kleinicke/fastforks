@@ -11,10 +11,12 @@ import torch.nn.functional as F
 from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
+from fastforks.interpolation.models.gimm_vfi import model as family
 from fastforks.interpolation.models.gimm_vfi.model import (
     Params,
     _banded,
     _config,
+    _hyponet,
     _interpolate,
     _sample,
     _VolumeCorr,
@@ -67,8 +69,24 @@ def test_forward_matches_upstream(net: GIMMVFI_R) -> None:
     with torch.inference_mode():
         coord = [(net.sample_coord_input(1, xs.shape[-2:], [0.3], device=xs.device), None)]
         want = net(xs, coord, t=[0.3 * torch.ones(1)], ds_factor=1.0)["imgt_pred"][0]
-        got = _interpolate(net, a, b, torch.full((1,), 0.3), Params(iters=20, ds_factor=1.0), make=_VolumeCorr)
+        got = _interpolate(
+            net, a, b, torch.full((1,), 0.3), Params(iters=20, ds_factor=1.0, cuda_graphs=False), make=_VolumeCorr
+        )
     assert torch.isfinite(want).all()
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
+
+
+@pytest.mark.parametrize("b", [1, 2])
+def test_hyponet_bias_epilogue_is_the_ones_column(net: GIMMVFI_R, b: int) -> None:
+    """The kernels hyponet (`addmm` bias, `w0` and the output bias folded in) is upstream's `[hidden, 1] @ [W; b]`."""
+    g = torch.Generator().manual_seed(0)
+    channels = net.hyponet.params_dict["linear_wb0"].shape[0] - 4  # the first [W; b] rows: latent, (t, y, x), 1
+    lat = torch.randn(b, channels, 12, 20, generator=g)
+    coord = torch.rand(b, 24, 40, 3, generator=g) * 2 - 1
+    with torch.inference_mode():
+        want = _hyponet(net.hyponet, coord, lat, chunk=256)
+        got = _hyponet(net.hyponet, coord, lat, chunk=256, bias_epilogue=True)
+    assert got.shape == want.shape == (b, 24, 40, 2)
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
 
 
@@ -81,6 +99,24 @@ def test_half_volume_sampling_is_grid_sample() -> None:
     want = F.grid_sample(vol.float(), g[:, None], align_corners=True)[:, 0, 0]
     torch.testing.assert_close(_sample(vol, xy), want, rtol=0, atol=1e-5)
     torch.testing.assert_close(_sample(vol.float(), xy), want, rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+def test_reverse_volume_matches_independent_lookup(monkeypatch: pytest.MonkeyPatch, dtype: torch.dtype) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    h, w = 16, 17
+    gen = torch.Generator(device="cuda").manual_seed(5)
+    f0, f1 = (torch.randn(1, 16, h, w, device="cuda", dtype=dtype, generator=gen) for _ in range(2))
+    coords = torch.rand(1, 2, h, w, device="cuda", generator=gen) * 16
+    monkeypatch.setattr(family, "_REVERSE_TILE_BYTES", 29 * h * w * f0.element_size())
+    with torch.inference_mode():
+        forward = _VolumeCorr(f0, f1)
+        shared = forward.reverse()
+        independent = _VolumeCorr(f1, f0)
+        assert shared.pyramid[0].data_ptr() == forward.pyramid[0].data_ptr()
+        torch.testing.assert_close(shared(coords), independent(coords), atol=2e-5, rtol=0)
 
 
 def test_decoder_bands_are_one_pass() -> None:

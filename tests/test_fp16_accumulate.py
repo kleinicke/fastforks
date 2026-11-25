@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from fastforks import _optimize
-from fastforks._core.half import cublas_gemms, cublas_gemms_on, fp16_accumulate
+from fastforks._core.half import cublas_gemms, cublas_gemms_on, fp16_accumulate, fp32_accumulate
 from fastforks.shared.depth_anything_v2 import fast_vit
 
 
@@ -44,6 +44,32 @@ def test_fp16_accumulate_threads(ctx):
         with ctx(), ctx():
             assert mm.allow_fp16_accumulation is True
         assert mm.allow_fp16_accumulation is False
+    finally:
+        mm.allow_fp16_accumulation = old
+
+
+def test_fp32_accumulate_inside_fp16_accumulate():
+    """`fp32_accumulate` turns the flag off inside `fp16_accumulate` (either entry order), changes nothing outside."""
+    mm = torch.backends.cuda.matmul
+    old = mm.allow_fp16_accumulation
+    try:
+        mm.allow_fp16_accumulation = False
+        with fp32_accumulate():
+            assert mm.allow_fp16_accumulation is False
+        with fp16_accumulate():
+            with fp32_accumulate():
+                assert mm.allow_fp16_accumulation is False
+                with fp16_accumulate(), fp32_accumulate():
+                    assert mm.allow_fp16_accumulation is False
+                assert mm.allow_fp16_accumulation is False
+            assert mm.allow_fp16_accumulation is True
+        with fp32_accumulate(), fp16_accumulate():
+            assert mm.allow_fp16_accumulation is False  # a thread already in an fp32 section keeps fp32
+        assert mm.allow_fp16_accumulation is False
+        mm.allow_fp16_accumulation = True
+        with fp16_accumulate(), fp32_accumulate():
+            assert mm.allow_fp16_accumulation is False
+        assert mm.allow_fp16_accumulation is True  # the caller's value
     finally:
         mm.allow_fp16_accumulation = old
 

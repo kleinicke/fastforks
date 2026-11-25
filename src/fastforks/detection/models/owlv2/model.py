@@ -27,8 +27,11 @@ import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.labels import label_set
+from fastforks._core.mlx_cast import float32_call, to_float32
 from fastforks._core.runner import host
+from fastforks._core.tracing import in_onnx_export
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.clip_tokenizer import ClipTokenizer
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.seginfer import pretrained
@@ -140,8 +143,8 @@ class Portable(Runner):
         """`[1, 3, H, W]` in [0, 1] -> the normalised network input `[1, 3, S, S]` float32 (module docstring)."""
         h, w = image.shape[-2:]
         s = max(h, w)
-        x = F.pad(image.float(), (0, s - w, 0, s - h))
-        x = gaussian_resize(x, self.size) if s != self.size else x
+        pad = (image.float(), (0, s - w, 0, s - h))
+        x = F.pad(*pad) if s == self.size else gaussian_resize(F.pad(*pad), self.size)
         return (x - self.mean) / self.std
 
     def layer(self, lay: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - an Owlv2EncoderLayer
@@ -151,9 +154,20 @@ class Portable(Runner):
         h = a.num_heads
         y = lay.layer_norm1(x)
         q, k, v = F.linear(y, lay.ff_wqkv, lay.ff_bqkv).view(b, n, 3, h, c // h).permute(2, 0, 3, 1, 4).unbind(0)
+        del y
         o = F.scaled_dot_product_attention(q, k, v, scale=a.scale).transpose(1, 2).reshape(b, n, c)
+        del q, k, v
         x = x + a.out_proj(o)
+        del o
         y = m.fc1(lay.layer_norm2(x))
+        if (
+            y.is_cuda
+            and y.dtype == torch.float16
+            and not (
+                torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+            )
+        ):
+            return x + m.fc2((QUICK_GELU * y).sigmoid_().mul_(y))
         return x + m.fc2(y * torch.sigmoid(QUICK_GELU * y))
 
     def image(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -172,15 +186,19 @@ class Portable(Runner):
         return self.heads(t)
 
     def heads(self, t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """The float32 part after the encoder (see `image`)."""
+        """The float32 part after the encoder (see `image`).
+
+        `float32_call`, not `.float()`: an MLX replay is exported from a float32 twin, where `.float()` records
+        nothing and these heads would run in the replay's float16 (b16 boxes 0.19 px off, limit 0.15).
+        """
         net = self.net
-        t = net.owlv2.vision_model.post_layernorm(t.float())
-        f = net.layer_norm(t[:, 1:] * t[:, :1])
+        t = float32_call(net.owlv2.vision_model.post_layernorm, t)
+        f = float32_call(net.layer_norm, t[:, 1:] * t[:, :1])
         ch = net.class_head
-        emb = ch.dense0(f)
+        emb = float32_call(ch.dense0, f)
         emb = emb / (torch.linalg.norm(emb, dim=-1, keepdim=True) + 1e-6)
-        boxes = torch.sigmoid(net.box_head(f) + net.box_bias)
-        return emb, ch.logit_shift(f), F.elu(ch.logit_scale(f)) + 1, boxes
+        boxes = torch.sigmoid(float32_call(net.box_head, f) + to_float32(net.box_bias))
+        return emb, float32_call(ch.logit_shift, f), F.elu(float32_call(ch.logit_scale, f)) + 1, boxes
 
     def _image(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         return self.image(x)
@@ -283,4 +301,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",)),
+}

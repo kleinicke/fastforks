@@ -30,7 +30,10 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.upload import device_tensor
+from fastforks.kernels.romav2 import correlate_roma1
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import sdpa_attention, use_fast_vit, vit_large
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
 
@@ -69,7 +72,7 @@ def forward(net: RoMa, image1: torch.Tensor, image2: torch.Tensor, params: Param
     if warp.shape[-2:] != (h1, w1):
         warp = F.interpolate(warp, (h1, w1), mode="bilinear", align_corners=False)
         certainty = F.interpolate(certainty[:, None], (h1, w1), mode="bilinear", align_corners=False)[:, 0]
-    size = torch.tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
+    size = device_tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
     return {"warp": (warp + 1) * (size / 2) - 0.5, "certainty": certainty}
 
 
@@ -168,6 +171,9 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network and route the DINOv2 pass through `FastViT`."""
         super().__init__(ctx)
+        for refiner in self.net.decoder.conv_refiner.values():
+            if isinstance(refiner, ConvRefiner) and refiner.local_corr_radius:
+                refiner.correlate = correlate_roma1
         vit = cast("DinoVisionTransformer", self.net.encoder.dinov2)
         use_fast_vit(vit, attn="hh", cache_pos=False)  # upstream: the fp16 table
 
@@ -176,4 +182,8 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net",)),
+}

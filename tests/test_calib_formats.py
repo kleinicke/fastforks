@@ -74,7 +74,7 @@ def test_oak_depthai_json(tmp_path):
            "translation": {"x": RIG.T[0] * 100, "y": RIG.T[1] * 100, "z": RIG.T[2] * 100}}  # fmt: skip
     data = {"cameraData": [[0, entry(RIG.left, None)], [1, entry(RIG.left, ext)], [2, entry(RIG.right, None)]]}
     path = tmp_path / "calib.json"
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     ref = g.StereoRig(g.camera("pinhole-opencv", W, H, FX, FY, RIG.left.cx, RIG.left.cy, *DIST, *[0] * 10), g.camera("pinhole-opencv", W, H, FX, FY, RIG.right.cx, RIG.right.cy, *DIST, *[0] * 10), RIG.R, RIG.T)  # fmt: skip
     _same(g.read_calib(path), ref)  # detected, cm to m
     _same(g.read_calib(path, "oak", cameras=(1, 2)), ref)
@@ -87,7 +87,7 @@ def test_oak_depthai_json(tmp_path):
         "translation": dict(zip("xyz", (inv[:3, 3] * 100).tolist(), strict=True)),
     }
     data["cameraData"] = [[1, entry(RIG.left, None)], ["CAM_C", entry(RIG.right, back)]]
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     _same(g.read_calib(path), ref)
     with pytest.raises(InputError, match="socket 3"):
         g.read_calib(path, cameras=(1, 3))
@@ -100,17 +100,17 @@ def test_realsense_profile(tmp_path):
     data = {"infrared2": stream(RIG.right), "infrared1": stream(RIG.left),
             "extrinsics": {"rotation": RIG.R.ravel(order="F").tolist(), "translation": RIG.T.tolist()}}  # fmt: skip
     path = tmp_path / "rs.json"
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     ref = g.StereoRig(g.camera("pinhole-opencv", W, H, FX, FY, RIG.left.cx, RIG.left.cy, *DIST, 0.0), g.camera("pinhole-opencv", W, H, FX, FY, RIG.right.cx, RIG.right.cy, *DIST, 0.0), RIG.R, RIG.T)  # fmt: skip
     _same(g.read_calib(path), ref)  # infrared1 -> infrared2 regardless of the key order
     data["color_stream"] = data.pop("infrared1")
     data["depth_stream"] = data.pop("infrared2")
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     _same(g.read_calib(path, names=("color_stream", "depth_stream")), ref)
     with pytest.raises(InputError, match="names="):
         g.read_calib(path, "realsense", names=("a", "b"))
     data["depth_stream"]["intrinsics"].update(model="inverse_brown_conrady")
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(InputError, match="inverse_brown_conrady"):
         g.read_calib(path, "realsense", names=("color_stream", "depth_stream"))
 
@@ -121,7 +121,9 @@ def test_realsense_error_names_the_file_once(tmp_path):
 
     ext = {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.1, 0, 0]}
     path = tmp_path / "rs.json"
-    path.write_text(json.dumps({"left": stream([0.0] * 3), "right": stream([0.0] * 5), "extrinsics": ext}))
+    path.write_text(
+        json.dumps({"left": stream([0.0] * 3), "right": stream([0.0] * 5), "extrinsics": ext}), encoding="utf-8"
+    )
     with pytest.raises(InputError) as e:
         g.read_calib(path, "realsense")
     assert str(e.value).count(str(path)) == 1
@@ -136,20 +138,22 @@ def test_different_left_right_sizes_read_but_do_not_rectify(tmp_path, fmt):
         e = {"intrinsicMatrix": [[FX, 0, cx], [0, FX, cy], [0, 0, 1]], "distortionCoeff": [], "width": W, "height": H}
         ext = {"rotationMatrix": np.eye(3).tolist(), "toCameraSocket": 2, "translation": {"x": -10, "y": 0, "z": 0}}
         p = tmp_path / "o.json"
-        p.write_text(json.dumps({"cameraData": [[1, {**e, "extrinsics": ext}], [2, {**e, "width": w2}]]}))
+        p.write_text(
+            json.dumps({"cameraData": [[1, {**e, "extrinsics": ext}], [2, {**e, "width": w2}]]}), encoding="utf-8"
+        )
         call = (p,)
     elif fmt == "ros":
         k = [[FX, 0, cx], [0, FX, cy], [0, 0, 1]]
         for n, width, tx in (("l", W, 0), ("r", w2, -FX * 0.1)):
             (tmp_path / f"{n}.yaml").write_text(
                 f"image_width: {width}\nimage_height: {H}\ncamera_matrix: {_flow(k)}\ndistortion_coefficients: \n  rows: 1\n  cols: 5\n  data: [0, 0, 0, 0, 0]\n"
-                f"rectification_matrix: {_flow(np.eye(3))}\nprojection_matrix: {_flow([[FX, 0, cx, tx], [0, FX, cy, 0], [0, 0, 1, 0]])}\n"
+                f"rectification_matrix: {_flow(np.eye(3))}\nprojection_matrix: {_flow([[FX, 0, cx, tx], [0, FX, cy, 0], [0, 0, 1, 0]])}\n", encoding="utf-8"
             )  # fmt: skip
         call = (tmp_path / "l.yaml",)
     else:
         t = _transform(np.eye(3), [-0.1, 0, 0])
         p = tmp_path / "c.yaml"
-        p.write_text("".join(f"cam{i}:\n  camera_model: pinhole\n  intrinsics: [{FX}, {FX}, {cx}, {cy}]\n  distortion_model: none\n  distortion_coeffs: []\n  resolution: [{(W, w2)[i]}, {H}]\n" + ("  T_cn_cnm1:\n" + "".join(f"    - {r.tolist()}\n" for r in t) if i else "") for i in range(2)))  # fmt: skip
+        p.write_text("".join(f"cam{i}:\n  camera_model: pinhole\n  intrinsics: [{FX}, {FX}, {cx}, {cy}]\n  distortion_model: none\n  distortion_coeffs: []\n  resolution: [{(W, w2)[i]}, {H}]\n" + ("  T_cn_cnm1:\n" + "".join(f"    - {r.tolist()}\n" for r in t) if i else "") for i in range(2)), encoding="utf-8")  # fmt: skip
         call = (p, fmt)
     kwargs = {"right": tmp_path / "r.yaml"} if fmt == "ros" else {}
     rig = g.read_calib(*call, **kwargs)
@@ -167,7 +171,7 @@ def test_tum_is_the_kalibr_camchain(tmp_path):
         for i, c in enumerate((RIG.left, RIG.right))
     )  # fmt: skip
     path = tmp_path / "camchain.yaml"
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
     _same(g.read_calib(path, "tum"), RIG)
     _same(g.read_calib(path, "tum"), g.read_calib(path, "kalibr"))
     _same(g.read_calib(path), RIG)
@@ -185,8 +189,8 @@ def test_ros_camera_info_pair_from_stereo_rectify(tmp_path):
     f = rect.P1[0, 0]
     left = tmp_path / "left.yaml"
     right = tmp_path / "right.yaml"
-    left.write_text(_ros_text(RIG.left, rect.R1, rect.P1, "left"))
-    right.write_text(_ros_text(RIG.right, rect.R2, rect.P2, "right"))
+    left.write_text(_ros_text(RIG.left, rect.R1, rect.P1, "left"), encoding="utf-8")
+    right.write_text(_ros_text(RIG.right, rect.R2, rect.P2, "right"), encoding="utf-8")
     assert rect.P2[0, 3] == pytest.approx(-f * 0.12, rel=1e-3)
     ref = g.StereoRig(g.camera("pinhole-opencv", W, H, FX, FY, RIG.left.cx, RIG.left.cy, *DIST, 0.0), g.camera("pinhole-opencv", W, H, FX, FY, RIG.right.cx, RIG.right.cy, *DIST, 0.0), RIG.R, RIG.T)  # fmt: skip
     _same(
@@ -205,7 +209,7 @@ def test_ros_rectified_pair_is_identity_rotation(tmp_path):
         (tmp_path / f"{name}.yaml").write_text(
             f"image_width: {W}\nimage_height: {H}\ncamera_matrix: {_flow(k)}\ndistortion_model: plumb_bob\n"
             f"distortion_coefficients: \n  rows: 1\n  cols: 5\n  data: [0, 0, 0, 0, 0]\nrectification_matrix: {_flow(np.eye(3))}\n"
-            f"projection_matrix: {_flow([[f, 0, 319.5, tx], [0, f, 239.5, 0], [0, 0, 1, 0]])}\n"
+            f"projection_matrix: {_flow([[f, 0, 319.5, tx], [0, f, 239.5, 0], [0, 0, 1, 0]])}\n", encoding="utf-8"
         )  # fmt: skip
     rig = g.read_calib(tmp_path / "l.yaml", right=tmp_path / "r.yaml")
     np.testing.assert_allclose(rig.R, np.eye(3), atol=1e-12)
@@ -224,7 +228,7 @@ def test_euroc_sensor_yaml_pair(tmp_path):
     t_r = t_l @ np.linalg.inv(_transform(RIG.R, RIG.T))
     for name, cam, t in (("cam0", RIG.left, t_l), ("cam1", RIG.right, t_r)):
         (tmp_path / name).mkdir()
-        (tmp_path / name / "sensor.yaml").write_text(_euroc_text(cam, t))
+        (tmp_path / name / "sensor.yaml").write_text(_euroc_text(cam, t), encoding="utf-8")
     _same(g.read_calib(tmp_path / "cam0" / "sensor.yaml"), RIG)  # detected; cam1 found next to cam0
     _same(g.read_calib(tmp_path / "cam0" / "sensor.yaml", "euroc", right=tmp_path / "cam1" / "sensor.yaml"), RIG)
     with pytest.raises(InputError, match="right="):
@@ -261,12 +265,13 @@ def _write_colmap(folder, binary):
         return
     (folder / "cameras.txt").write_text(
         "# Camera list with one line of data per camera:\n"
-        + "".join(f"{c} {m} {W} {H} {' '.join(repr(float(v)) for v in p)}\n" for c, (m, p) in cams.items())
+        + "".join(f"{c} {m} {W} {H} {' '.join(repr(float(v)) for v in p)}\n" for c, (m, p) in cams.items()),
+        encoding="utf-8",
     )
     lines = "# Image list\n"
     for i, (name, (r, t)) in enumerate(poses.items(), 1):
         lines += f"{i} {' '.join(repr(float(v)) for v in _quat(r))} {' '.join(repr(float(v)) for v in t)} {ids[name]} {name}\n1.0 2.0 7 3.0 4.0 -1\n"
-    (folder / "images.txt").write_text(lines)
+    (folder / "images.txt").write_text(lines, encoding="utf-8")
 
 
 @pytest.mark.parametrize("binary", [False, True])
@@ -314,7 +319,9 @@ def test_colmap_real_binary_model():
 
 def _first_two(folder):
     names = [
-        ln.split()[9] for ln in (folder / "images.txt").read_text().splitlines()[4::2] if ln and not ln.startswith("#")
+        ln.split()[9]
+        for ln in (folder / "images.txt").read_text(encoding="utf-8").splitlines()[4::2]
+        if ln and not ln.startswith("#")
     ]
     return names[0], names[1]
 
@@ -328,14 +335,14 @@ def test_principal_point_convention_per_format(tmp_path, fmt):
     if fmt == "colmap":
         folder = tmp_path / "m"
         folder.mkdir()
-        (folder / "cameras.txt").write_text(f"1 PINHOLE {W} {H} {FX} {FX} {cx} {cy}\n")
-        (folder / "images.txt").write_text("1 1 0 0 0 0 0 0 1 a\n\n2 1 0 0 0 -0.1 0 0 1 b\n\n")
+        (folder / "cameras.txt").write_text(f"1 PINHOLE {W} {H} {FX} {FX} {cx} {cy}\n", encoding="utf-8")
+        (folder / "images.txt").write_text("1 1 0 0 0 0 0 0 1 a\n\n2 1 0 0 0 -0.1 0 0 1 b\n\n", encoding="utf-8")
         rig = g.read_calib(folder)
     elif fmt == "oak":
         e = {"intrinsicMatrix": [[FX, 0, cx], [0, FX, cy], [0, 0, 1]], "distortionCoeff": [], "width": W, "height": H,
              "extrinsics": {"rotationMatrix": np.eye(3).tolist(), "toCameraSocket": 2, "translation": {"x": -10, "y": 0, "z": 0}}}  # fmt: skip
         p = tmp_path / "o.json"
-        p.write_text(json.dumps({"cameraData": [[1, e], [2, {**e, "extrinsics": {}}]]}))
+        p.write_text(json.dumps({"cameraData": [[1, e], [2, {**e, "extrinsics": {}}]]}), encoding="utf-8")
         rig = g.read_calib(p)
     elif fmt == "realsense":
         s = {"width": W, "height": H, "intrinsics": {"fx": FX, "fy": FX, "ppx": cx, "ppy": cy, "coeffs": [0] * 5}}
@@ -347,7 +354,8 @@ def test_principal_point_convention_per_format(tmp_path, fmt):
                     "infrared2": s,
                     "extrinsics": {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.1, 0, 0]},
                 }
-            )
+            ),
+            encoding="utf-8",
         )
         rig = g.read_calib(p)
     elif fmt == "ros":
@@ -355,23 +363,25 @@ def test_principal_point_convention_per_format(tmp_path, fmt):
         for n, tx in (("l", 0), ("r", -FX * 0.1)):
             (tmp_path / f"{n}.yaml").write_text(
                 f"image_width: {W}\nimage_height: {H}\ncamera_matrix: {_flow(k)}\ndistortion_coefficients: \n  rows: 1\n  cols: 5\n  data: [0, 0, 0, 0, 0]\n"
-                f"rectification_matrix: {_flow(np.eye(3))}\nprojection_matrix: {_flow([[FX, 0, cx, tx], [0, FX, cy, 0], [0, 0, 1, 0]])}\n"
+                f"rectification_matrix: {_flow(np.eye(3))}\nprojection_matrix: {_flow([[FX, 0, cx, tx], [0, FX, cy, 0], [0, 0, 1, 0]])}\n", encoding="utf-8"
             )  # fmt: skip
         rig = g.read_calib(tmp_path / "l.yaml", right=tmp_path / "r.yaml")
     elif fmt == "euroc":
         c = g.camera("pinhole", W, H, FX, FX, cx, cy)
         for n, t in (("cam0", np.eye(4)), ("cam1", _transform(np.eye(3), [0.1, 0, 0]))):
             (tmp_path / n).mkdir()
-            (tmp_path / n / "sensor.yaml").write_text(_euroc_text(c, t).replace(str(list(DIST)), "[0, 0, 0, 0]"))
+            (tmp_path / n / "sensor.yaml").write_text(
+                _euroc_text(c, t).replace(str(list(DIST)), "[0, 0, 0, 0]"), encoding="utf-8"
+            )
         rig = g.read_calib(tmp_path / "cam0" / "sensor.yaml")
     elif fmt in ("kalibr", "tum"):
         t = _transform(np.eye(3), [-0.1, 0, 0])
         p = tmp_path / "c.yaml"
-        p.write_text("".join(f"cam{i}:\n  camera_model: pinhole\n  intrinsics: [{FX}, {FX}, {cx}, {cy}]\n  distortion_model: none\n  distortion_coeffs: []\n  resolution: [{W}, {H}]\n" + ("  T_cn_cnm1:\n" + "".join(f"    - {r.tolist()}\n" for r in t) if i else "") for i in range(2)))  # fmt: skip
+        p.write_text("".join(f"cam{i}:\n  camera_model: pinhole\n  intrinsics: [{FX}, {FX}, {cx}, {cy}]\n  distortion_model: none\n  distortion_coeffs: []\n  resolution: [{W}, {H}]\n" + ("  T_cn_cnm1:\n" + "".join(f"    - {r.tolist()}\n" for r in t) if i else "") for i in range(2)), encoding="utf-8")  # fmt: skip
         rig = g.read_calib(p, fmt)
     else:
         p = tmp_path / "s.yml"
-        p.write_text(f"%YAML:1.0\n---\nM1: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [{FX}, 0, {cx}, 0, {FX}, {cy}, 0, 0, 1]\nD1: !!opencv-matrix\n   rows: 1\n   cols: 5\n   dt: d\n   data: [0, 0, 0, 0, 0]\nM2: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [{FX}, 0, {cx}, 0, {FX}, {cy}, 0, 0, 1]\nD2: !!opencv-matrix\n   rows: 1\n   cols: 5\n   dt: d\n   data: [0, 0, 0, 0, 0]\nR: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [1, 0, 0, 0, 1, 0, 0, 0, 1]\nT: !!opencv-matrix\n   rows: 3\n   cols: 1\n   dt: d\n   data: [-0.1, 0, 0]\nimage_width: {W}\nimage_height: {H}\n")  # fmt: skip
+        p.write_text(f"%YAML:1.0\n---\nM1: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [{FX}, 0, {cx}, 0, {FX}, {cy}, 0, 0, 1]\nD1: !!opencv-matrix\n   rows: 1\n   cols: 5\n   dt: d\n   data: [0, 0, 0, 0, 0]\nM2: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [{FX}, 0, {cx}, 0, {FX}, {cy}, 0, 0, 1]\nD2: !!opencv-matrix\n   rows: 1\n   cols: 5\n   dt: d\n   data: [0, 0, 0, 0, 0]\nR: !!opencv-matrix\n   rows: 3\n   cols: 3\n   dt: d\n   data: [1, 0, 0, 0, 1, 0, 0, 0, 1]\nT: !!opencv-matrix\n   rows: 3\n   cols: 1\n   dt: d\n   data: [-0.1, 0, 0]\nimage_width: {W}\nimage_height: {H}\n", encoding="utf-8")  # fmt: skip
         rig = g.read_calib(p)
     cam = rig.left
     assert (cam.cx, cam.cy) == pytest.approx(((W - 1) / 2, (H - 1) / 2))
@@ -401,11 +411,11 @@ def test_device_extrinsics_with_swapped_cameras_raise_and_a_wrong_unit_warns(tmp
         "extrinsics": {"rotation": inv[:3, :3].ravel(order="F").tolist(), "translation": inv[:3, 3].tolist()},
     }
     path = tmp_path / "rs.json"
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(InputError, match="swapped"):
         g.read_calib(path)
     data["extrinsics"] = {"rotation": RIG.R.ravel(order="F").tolist(), "translation": (RIG.T * 1000).tolist()}  # mm
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.warns(UserWarning, match="wrong unit"):
         g.read_calib(path)
 
@@ -413,12 +423,12 @@ def test_device_extrinsics_with_swapped_cameras_raise_and_a_wrong_unit_warns(tmp
 def test_colmap_images_txt_tolerates_stripped_point_lines_and_spaced_names(tmp_path):
     cams = "# Camera list with one line of data per camera:\n1 PINHOLE 64 48 50 50 32.5 24.5\n2 PINHOLE 64 48 50 50 32.5 24.5\n"
     imgs = "# Image list\n1 1 0 0 0 0 0 0 1 left cam.png\n2 1 0 0 0 -0.1 0 0 2 right cam.png\n"  # no point lines at all
-    (tmp_path / "cameras.txt").write_text(cams)
-    (tmp_path / "images.txt").write_text(imgs)
+    (tmp_path / "cameras.txt").write_text(cams, encoding="utf-8")
+    (tmp_path / "images.txt").write_text(imgs, encoding="utf-8")
     rig = g.read_calib(tmp_path, "colmap", names=("left cam.png", "right cam.png"))
     np.testing.assert_allclose(rig.T, [-0.1, 0, 0], atol=1e-12)
     imgs_pts = "# Image list\n1 1 0 0 0 0 0 0 1 left cam.png\n10 20 1 30 40 2\n2 1 0 0 0 -0.1 0 0 2 right cam.png\n\n"
-    (tmp_path / "images.txt").write_text(imgs_pts)
+    (tmp_path / "images.txt").write_text(imgs_pts, encoding="utf-8")
     np.testing.assert_allclose(
         g.read_calib(tmp_path, "colmap", names=("left cam.png", "right cam.png")).T, [-0.1, 0, 0], atol=1e-12
     )
@@ -476,7 +486,9 @@ def test_aria_device_calibration(tmp_path):
         _aria_entry("camera-slam-right", ARIA_PARAMS[1], t_dr[:3, :3], t_dr[:3, 3]),
     ]
     path = tmp_path / "calibration.json"
-    path.write_text(json.dumps({"DeviceClassInfo": {"DeviceClass": "Aria"}, "CameraCalibrations": cams}))
+    path.write_text(
+        json.dumps({"DeviceClassInfo": {"DeviceClass": "Aria"}, "CameraCalibrations": cams}), encoding="utf-8"
+    )
     rig = g.read_calib(path)
     assert isinstance(rig.left, g.Fisheye624)
     assert rig.left.size == (H, W)
@@ -502,7 +514,8 @@ def test_aria_device_calibration(tmp_path):
                     for i, c in enumerate(cams[1:])
                 ]
             }
-        )
+        ),
+        encoding="utf-8",
     )
     assert g.read_calib(no_size).right.size == (480, 640)  # the size projectaria_tools gives camera-slam-*
     assert g.read_calib(no_size, size=(H, W)).right.size == (H, W)
@@ -522,7 +535,7 @@ def test_calibration_files_keep_width_height_and_read_as_height_width(tmp_path, 
         for i, tx in ((2, 0.0), (3, -0.1)):
             rows += [f"S_0{i}: {w} {h}", f"K_0{i}: 400 0 239.5 0 401 319.5 0 0 1", f"D_0{i}: 0 0 0 0 0"]
             rows += [f"R_0{i}: 1 0 0 0 1 0 0 0 1", f"T_0{i}: {tx} 0 0"]
-        path.write_text("\n".join(rows) + "\n")
+        path.write_text("\n".join(rows) + "\n", encoding="utf-8")
     elif fmt == "opencv":
         path = tmp_path / "stereo.yml"
         k = _mat([[400, 0, 239.5], [0, 401, 319.5], [0, 0, 1]])
@@ -534,13 +547,16 @@ def test_calibration_files_keep_width_height_and_read_as_height_width(tmp_path, 
             else f"{key}: !!opencv-matrix\n   rows: {value['rows']}\n   cols: {value['cols']}\n   dt: d\n   data: {value['data']}"
             for key, value in body.items()
         ]
-        path.write_text("\n".join(lines) + "\n")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     else:
         path = tmp_path / "profile.json"
         intr = {"fx": 400.0, "fy": 401.0, "ppx": 239.5, "ppy": 319.5, "coeffs": [0] * 5, "model": "brown_conrady"}
         streams = {n: {"width": w, "height": h, "intrinsics": intr} for n in ("infrared1", "infrared2")}
         path.write_text(
-            json.dumps(streams | {"extrinsics": {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.05, 0, 0]}})
+            json.dumps(
+                streams | {"extrinsics": {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.05, 0, 0]}}
+            ),
+            encoding="utf-8",
         )
     rig = g.read_calib(path, fmt)
     assert rig.left.size == (h, w)
@@ -583,7 +599,7 @@ def test_realsense_modified_brown_and_kb4_coefficients(tmp_path):
     def read(model, coeffs):
         s = {"width": W, "height": H, "intrinsics": {"fx": FX, "fy": FY, "ppx": W / 2, "ppy": H / 2, "coeffs": coeffs, "model": model}}  # fmt: skip
         path = tmp_path / "rs.json"
-        path.write_text(json.dumps({"left": s, "right": s, "extrinsics": {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.1, 0, 0]}}))  # fmt: skip
+        path.write_text(json.dumps({"left": s, "right": s, "extrinsics": {"rotation": np.eye(3).ravel().tolist(), "translation": [-0.1, 0, 0]}}), encoding="utf-8")  # fmt: skip
         return g.read_calib(path, "realsense")
 
     with pytest.raises(InputError, match=r"modified_brown_conrady.*tangential"):

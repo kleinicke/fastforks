@@ -3,9 +3,10 @@ name = "BridgeDepth"
 summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2", "instance_norm", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: bridgedepth-sf differs by up to 0.010 px (mean 0.001) on a synthetic textured pair.",
+  "At fixed 375 x 1242, the FP32 standalone monocular TensorRT branch took 284 ms on both checkpoints versus 324 to 325 ms for paired portable FP32. The stereo branch stayed in PyTorch. The largest individual NOC endpoint-error change was 0.0023 px across the two 15-pair Middlebury checks.",
 ]
 licence_notes = [
   "The weights embed Depth Anything V2 weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.",
@@ -32,9 +33,13 @@ backbone = "resnet"  # stereo feature encoder: "resnet" (BasicEncoder) or "convn
 backbone_channels = 256
 max_disp = 320  # disparity range of the proposal cost volume (at full resolution)
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [modes.portable]
 cuda_dtype = "float16"  # original runs the mono branch under float16 autocast; our fork runs the whole net so
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb"]
@@ -42,6 +47,11 @@ mps_kernels = ["stereo_metal"]
 # Kernels: the portable float16 path with every window attention as one fused kernel (fastbb win_rpe_attn, as NMRF) and
 # the Depth Anything V2 ViT-L as the fp16 DINOv2 of fastforks.shared.depth_anything_v2 (fp16-accumulate GEMMs, fastbb
 # flash attention). Middlebury-H 350 vs 437 ms (our earlier fork 430), peak 2.7 vs 2.9 GB; KITTI 92.9 vs 111.6 ms
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model (Windows KITTI
+# 126 -> 93 ms). The graph pool stays reserved (KITTI 2.5 vs 1.4 GB eager) until `model.release_graphs()`;
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (Middlebury-H 356 vs 351 ms with a
+# graph, for 5.9 vs 2.6 GB reserved)
 
 # Upstream also publishes l_sf (a
 # Scene Flow pretraining checkpoint for fine-tuning; fails on real images: not added), rvc and the KITTI / ETH3D /
@@ -55,13 +65,13 @@ venue = "ICCV 2025"
 
 [[variants]]
 id = "bridgedepth-sf"
-planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482" }
 revision = 1
 weights = [{ name = "bridge_sf.pth", size = 1386085217, sha256 = "d2cd44b6f749ca5b0b901ed23df13e0454dc210e79b304c41c245f7085bba829", url = "https://huggingface.co/aeolusguan/BridgeDepth/resolve/4a96016c4cf01473f90ba80ff5983af7cfb026d3/bridge_sf.pth" }]
 
 [[variants]]
 id = "bridgedepth-rvc-pretrain"
-planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482 and 375 x 1242" }
 revision = 1
 params = { backbone = "convnext", backbone_channels = 128 }
 licence = { training_data = ["sceneflow", "falling_things", "crestereo", "tartanair", "sintel", "unstated"], training_note = "configs/rvc_pretrain.yaml: Scene Flow, Falling Things, CREStereo, TartanAir, CARLA high-res, Sintel, Virtual KITTI 2 (started from l_sf, Scene Flow); README recommends it for in-the-wild use" }

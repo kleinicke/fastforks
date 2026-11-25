@@ -158,7 +158,7 @@ def _read(cls: type[RigT], path, *args, **kwargs) -> RigT:
 
 def _write(tmp_path, text, name="calib.txt"):
     path = tmp_path / name
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
     return path
 
 
@@ -430,7 +430,7 @@ def test_opencv_stereo_rectify_output():
     assert isinstance(rig.left, g.PinholeOpenCV)
     assert rig.left.k1 == pytest.approx(-0.28)
     np.testing.assert_allclose(rig.T, [-0.1198, 0.0004, -0.0009])
-    stored = _yaml.loads(path.read_text())
+    stored = _yaml.loads(path.read_text(encoding="utf-8"))
     assert isinstance(stored, dict)
 
     def matrix(key):

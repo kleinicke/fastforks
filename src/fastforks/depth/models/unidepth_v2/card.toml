@@ -3,7 +3,7 @@ name = "UniDepth V2"
 summary = "UniDepth V2 (Piccinelli et al. 2025): universal metric depth from a DINOv2 ViT-L encoder and a camera-prompted decoder; predicts depth, 3-D points, a confidence map and the pinhole intrinsics, or uses given intrinsics."
 tier = "stable"
 outputs = ["depth", "points", "intrinsics", "confidence"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
+uses = ["depth_anything_v2", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
 limitations = [
   "The confidence head adds measurable time; the option confidence = false skips it.",
 ]
@@ -33,6 +33,7 @@ confidence = true  # false: skip the confidence branch (kernels runs faster; por
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc", "dpt_fused"]

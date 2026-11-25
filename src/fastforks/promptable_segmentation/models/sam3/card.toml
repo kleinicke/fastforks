@@ -1,14 +1,18 @@
 schema = 2
 name = "Segment Anything 3 (SAM 3), image + video tracker"
-summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder. `video` follows objects prompted on the first frame (points, boxes or masks) through a video with SAM 3's tracker (transformers `Sam3TrackerVideoModel`: the shared ViT trunk, its own neck, SAM 2-style memory attention with RoPE and memory encoder, forward, memory features in bfloat16 as upstream); the memory side has no fused kernels. The portable `module()` is the image encoder only."
+summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder. `video` follows objects prompted on the first frame (points, boxes or masks) through a video with SAM 3's tracker (transformers `Sam3TrackerVideoModel`: the shared ViT trunk, its own neck, SAM 2-style memory attention with RoPE and memory encoder, forward, memory features in bfloat16 as upstream). Kernels mode rotates spatial memory keys and queries in place while leaving object pointers unrotated. The portable `module()` is the image encoder only. On Apple MLX the whole detector runs in `mx` (`net/mlx_net.py`); the video tracker heads stay PyTorch on the CPU."
 tier = "stable"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "host_blocks", "mlx_weights"]  # fastforks.shared modules this family imports
 licence_notes = [
   "The weights use Meta's SAM License, not Apache-2.0; its terms were not re-checked here.",
 ]
 
 limitations = [
+  "Eager CUDA portable skips the mask decoder when no query passes the score threshold. The synthetic 1024 × 1024 speed input has zero detections. For a COCO person prompt with a surviving detection and a cached image embedding, paired latency was about 30 ms before and after the change.",
+  "On a 1920 × 1080 COCO image with a person prompt and `score_threshold=0`, portable returned 200 masks and used 2,215 MiB peak allocation, down from 3,765 MiB on the RTX 5060 Ti. Masks, boxes and scores matched bit for bit. Paired latency was 204.3 ms before and 206.0 ms after.",
+  "On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.",
+  "stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.",
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
@@ -34,12 +38,17 @@ input = "mean_std"  # original Sam3Processor: uint8 Resize((1008, 1008)) (biline
 mean = [0.5, 0.5, 0.5]
 std = [0.5, 0.5, 0.5]
 
+[options]
+stream = { default = false, effect = "speed" }  # stage the 32 image encoder blocks on CUDA
+cuda_graphs = { default = true, effect = "speed" }  # kernels detector heads: capture repeated prompt shapes
+
 [modes.portable]
 cuda_dtype = "float16"  # trunk, neck and text encoder; the geometry encoder, DETR encoder / decoder and the heads stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc"]
+kernels = ["fastbb", "cudnn_hacc", "dpt_fused", "sam3_fpn", "sam3_tracker", "sam3_resize"]
 
 [[papers]]
 title = "SAM 3: Segment Anything with Concepts"

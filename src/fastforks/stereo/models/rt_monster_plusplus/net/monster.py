@@ -1,5 +1,6 @@
 # ruff: noqa: RUF002  (fastforks: upstream Chinese docstrings with full-width commas)
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 # fastforks: relative imports (were core.*); the unused REMP import (refinement.py, not vendored), matplotlib / time,
@@ -24,6 +25,11 @@ class _Normalize:
     def __call__(self, x):
         # the constants are built once per (dtype, device): a host-to-device copy per call is a stream sync
         key = (x.dtype, x.device)
+        if torch.compiler.is_compiling():  # traced (e.g. exported for MLX): a cached constant would be a fake tensor
+            mean, std = (
+                torch.as_tensor(v, dtype=x.dtype, device=x.device).view(-1, 1, 1) for v in (self.mean, self.std)
+            )
+            return (x - mean) / std
         if key not in self._cache:
             self._cache[key] = tuple(
                 torch.as_tensor(v, dtype=x.dtype, device=x.device).view(-1, 1, 1) for v in (self.mean, self.std)
@@ -453,7 +459,7 @@ class Monster(nn.Module):
             geo_block = Combined_Geo_Encoding_Volume
             geo_fn = geo_block(match_left.float(), match_right.float(), geo_encoding_volume.float(), radius=self.args.corr_radius[i])
             b, c, h, w = match_left.shape
-            coords = torch.arange(w).float().to(match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1).contiguous()
+            coords = to_device(torch.arange(w).float(), match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1).contiguous()  # fastforks: to_device (a pageable upload syncs the host)
             disp = cur_disp
 
 

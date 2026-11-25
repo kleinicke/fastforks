@@ -3,7 +3,7 @@ name = "DINOv2 linear"
 summary = "DINOv2 (Oquab et al. 2023) linear probe: the frozen self-supervised ViT-S/B/L/14, a batch norm and a 1x1 classifier on the last block's patch tokens; the authors' ADE20K `linear` heads, sliding-window inference."
 tier = "stable"
 outputs = ["logits"]
-uses = ["depth_anything_v2", "seginfer"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_seg", "mlx_vit", "mlx_wrap", "seginfer"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/facebookresearch/dinov2"
@@ -27,6 +27,7 @@ crop = 512  # mmseg slide_inference crop and stride (test_cfg); each crop zero-p
 stride = 341
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

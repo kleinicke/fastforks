@@ -20,7 +20,11 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cnn_kernels import prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import MobileV2_MLSD_Large
 
@@ -38,11 +42,13 @@ class Params:
         short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         thr_v: Center score threshold (kept if above).
         thr_d: Segment length threshold in half-resolution pixels (kept if above).
+        cuda_graphs: Kernels replays the network and the line decoding from a CUDA graph for small repeated shapes.
     """
 
     short_side: int
     thr_v: float
     thr_d: float
+    cuda_graphs: bool = True
 
 
 def decode(maps: torch.Tensor, thr_v: float, thr_d: float) -> tuple[torch.Tensor, torch.Tensor]:
@@ -74,17 +80,26 @@ def _clip(seg: torch.Tensor, h: int, w: int) -> tuple[torch.Tensor, ...]:
         """OpenCV's `b0 + (int64)((double)(a - a0) * db / da)`."""
         return b0 + torch.trunc((a - a0).double() * db.double() / da.double()).long()
 
+    def shared_outside() -> torch.Tensor:
+        """Both endpoints lie beyond the same border (the outcodes have a common bit)."""
+        return (
+            ((x1 < 0) & (x2 < 0))
+            | ((x1 > right) & (x2 > right))
+            | ((y1 < 0) & (y2 < 0))
+            | ((y1 > bottom) & (y2 > bottom))
+        )
+
     c1, c2 = code(x1, y1), code(x2, y2)
-    todo = ((c1 & c2) == 0) & ((c1 | c2) != 0)
-    m = todo & ((c1 & 12) != 0)  # y clipping of point 1, then point 2
+    todo = ~shared_outside() & ((c1 != 0) | (c2 != 0))
+    m = todo & ((y1 < 0) | (y1 > bottom))  # y clipping of point 1, then point 2
     a = torch.where(c1 < 8, 0, bottom)  # noqa: PLR2004 - OpenCV's outcode bits
     x1, y1 = torch.where(m, move(a, y1, x1, x2 - x1, torch.where(m, y2 - y1, 1)), x1), torch.where(m, a, y1)
     c1 = torch.where(m, (x1 < 0).long() + (x1 > right).long() * 2, c1)
-    m = todo & ((c2 & 12) != 0)
+    m = todo & ((y2 < 0) | (y2 > bottom))
     a = torch.where(c2 < 8, 0, bottom)  # noqa: PLR2004 - OpenCV's outcode bits
     x2, y2 = torch.where(m, move(a, y2, x2, x2 - x1, torch.where(m, y2 - y1, 1)), x2), torch.where(m, a, y2)
     c2 = torch.where(m, (x2 < 0).long() + (x2 > right).long() * 2, c2)
-    todo = todo & ((c1 & c2) == 0) & ((c1 | c2) != 0)
+    todo = todo & ~shared_outside() & ((c1 != 0) | (c2 != 0))
     m = todo & (c1 != 0)  # x clipping
     a = torch.where(c1 == 1, 0, right)
     x1, y1, c1 = (
@@ -99,7 +114,7 @@ def _clip(seg: torch.Tensor, h: int, w: int) -> tuple[torch.Tensor, ...]:
         torch.where(m, move(a, x2, y2, y2 - y1, torch.where(m, x2 - x1, 1)), y2),
         torch.where(m, 0, c2),
     )
-    return x1, y1, x2, y2, (c1 | c2) == 0
+    return x1, y1, x2, y2, (c1 == 0) & (c2 == 0)
 
 
 def draw(seg: torch.Tensor, keep: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -131,7 +146,7 @@ def draw(seg: torch.Tensor, keep: torch.Tensor, h: int, w: int) -> torch.Tensor:
     image = torch.arange(b, device=seg.device).repeat_interleave(k)[:, None].expand_as(px)
     flat = torch.where(valid, (image * h + py.clamp(0, h - 1)) * w + px.clamp(0, w - 1), b * h * w)
     out = torch.zeros(b * h * w + 1, device=seg.device)
-    out[flat.flatten()] = 1
+    out.index_fill_(0, flat.flatten(), 1)  # a Python value: an index_put of 1 copies it from the host
     return out[:-1].view(b, h, w)
 
 
@@ -155,11 +170,16 @@ class Portable(Runner):
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-    @host
-    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
-        """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
+    def _edges_and_segments(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
+        """Compute the line map and fixed-size segment candidates before filtering."""
+        x = to_detect(image, self.ctx.params.short_side)
+        hd, wd = x.shape[-2:]
+        edges, seg, keep = self._detect_lines(x)
+        return to_input(edges.to(image.device), image), seg, keep, hd, wd
+
+    def _detect_lines(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Line map `[B, hd, wd]`, segment candidates `[B, K, 4]` and `keep` `[B, K]` of `x` at the detect size."""
         p = self.ctx.params
-        x = to_detect(image, p.short_side)
         hd, wd = x.shape[-2:]
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:
@@ -168,14 +188,52 @@ class Portable(Runner):
         if maps.device.type == "mps":  # the decoding and drawing are float64 / int64 maths, which MPS lacks
             maps = maps.cpu()
         seg, keep = decode(maps, p.thr_v, p.thr_d)
-        edges = draw(seg.trunc().long(), keep, hd, wd)
-        scale = seg.new_tensor([image.shape[-1] / wd, image.shape[-2] / hd]).repeat(2)
+        return draw(seg.trunc().long(), keep, hd, wd), seg, keep
+
+    @host
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
+        """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
+        edges, seg, keep, hd, wd = self._edges_and_segments(image)
+        scale = device_tensor([image.shape[-1] / wd, image.shape[-2] / hd], device=seg.device, dtype=seg.dtype).repeat(
+            2
+        )
         lines = [(s[k] * scale).float().to(image.device) for s, k in zip(seg, keep, strict=True)]
-        return {"edges": to_input(edges.to(image.device), image), "lines": lines}
+        return {"edges": edges, "lines": lines}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> edges `[B, H, W]`."""
-        return Forward(self.net, lambda _net, image: self(image)["edges"])
+        return Forward(self.net, lambda _net, image: self._edges_and_segments(image)[0])
 
 
-RUNNERS = {"portable": Portable}
+# kernels replays a CUDA graph up to this many images x H x W at the detect size: the fixed-size line decoding is
+# ~400 tiny kernels, launch bound (RTX 5060 Ti, Windows, fp16, ms per image: 512 px 11.3 -> 3.0, 1024 x 768
+# 11.7 -> 3.9; +160 MB reserved)
+GRAPH_PIXELS = 4 * 512 * 512  # fixed: a speed threshold, not the architecture
+
+
+class Kernels(Portable):
+    """Run the convolution blocks with fused CUDA kernels."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the convolution blocks for inference."""
+        super().__init__(ctx)
+        prepare_generic(self.net, ctx.device)
+        forward = super()._detect_lines
+        self.graphs = SmallShapeGraphs(forward, pixels=GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
+
+    def release_graphs(self) -> None:
+        """Release the CUDA graphs and their pool."""
+        self.graphs.release()
+
+    def _detect_lines(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """`Portable._detect_lines`, from a CUDA graph for a small repeated shape (the decoding is fixed-size)."""
+        return self.graphs(x)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

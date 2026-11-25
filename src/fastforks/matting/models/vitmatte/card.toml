@@ -3,7 +3,7 @@ name = "ViTMatte"
 summary = "ViTMatte (Yao et al., HUST, Information Fusion 2024): trimap-based natural image matting. A plain ViT (ViTDet: windowed attention with relative positions plus four global blocks with convolutional residual blocks) sees the image and its trimap as one 4-channel input; a light convolutional detail-capture decoder fuses the ViT features with a full-resolution conv stream into the alpha. Needs a trimap (0 background, 128 unknown, 255 foreground)."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap", "sam_attention"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/hustvl/ViTMatte"
@@ -26,9 +26,13 @@ std = [0.5, 0.5, 0.5]
 hidden_size = 384
 num_heads = 6
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["dpt_fused", "cudnn_hacc", "igev", "cutlass_conv"]

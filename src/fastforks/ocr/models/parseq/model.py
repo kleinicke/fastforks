@@ -17,9 +17,11 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks.ocr._runner import Forward, Runner, levels
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
-from fastforks.shared.pil_resize import pil_bicubic
+from fastforks.shared.pil_resize import pil_bicubic, pil_bicubic_cuda
 
 from .net import IMAGE, PARSeq
 
@@ -45,16 +47,18 @@ class Params:
     cuda_graphs: bool  # option: replay the full 26-step decoding from a CUDA graph on CUDA (speed only)
 
 
-def to_input(image: torch.Tensor) -> torch.Tensor:
+def to_input(image: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """`[B, 3, H, W]` RGB uint8 (or float in [0, 1]) -> the network input `[B, 3, 32, 128]` float32 in `[-1, 1]`."""
     x = levels(image).flip(1) if image.dtype != torch.uint8 else image
-    x = pil_bicubic(x, IMAGE) if tuple(x.shape[-2:]) != IMAGE else x.float()
+    resize = pil_bicubic_cuda if fused else pil_bicubic
+    x = resize(x, IMAGE) if tuple(x.shape[-2:]) != IMAGE else x.float()
     return x.div_(255).sub_(0.5).div_(0.5)
 
 
 class Portable(Runner):
     """PARSeq in plain PyTorch, float32 or float16."""
 
+    fused_resize = False
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -78,7 +82,7 @@ class Portable(Runner):
             self._graphs.release()
 
     def _logits(self, image: torch.Tensor) -> torch.Tensor:
-        x = to_input(image).to(self.dtype)
+        x = to_input(image, fused=self.fused_resize).to(self.dtype)
         if self._graphs is not None:
             out = self._graphs.run((x.device, x.dtype, tuple(x.shape)), x)
             if out is not None:
@@ -94,7 +98,7 @@ class Portable(Runner):
         text = "".join(CHARSET[i - 1] for i in ids_l[:end])
         score = p[: end + 1].mean()  # the characters and the end token, as upstream's `Tokenizer._filter`
         h, w = image.shape[-2:]
-        box = torch.tensor([[[0, 0], [w, 0], [w, h], [0, h]]], dtype=torch.float32, device=image.device)
+        box = device_tensor([[[0, 0], [w, 0], [w, h], [0, h]]], dtype=torch.float32, device=image.device)
         return {"boxes": box, "texts": [text], "scores": score.view(1)}
 
     def module(self) -> torch.nn.Module:
@@ -106,4 +110,22 @@ class Portable(Runner):
         return Forward(self.net, forward)
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Use fixed-point CUDA resampling before the original encoder and decoder."""
+
+    fused_resize = True
+    module = Runner.module
+
+
+class _Decoding(Portable):
+    """The full 26-step decoding as one graph (no data-dependent early exit), for the MLX port."""
+
+    def _logits(self, image: torch.Tensor) -> torch.Tensor:
+        return self._decode(to_input(image).to(self.dtype))
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Decoding, attrs=(), methods=("_decode",)),
+}

@@ -14,7 +14,7 @@ forward(model, left, right, iters): == upstream `DLNR.forward(test_mode=True)`: 
   the whole batch). Returns the disparity [B, H, W] (= -flow).
 """
 import torch
-from fastforks._core.tracing import in_onnx_export
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -71,6 +71,8 @@ def _refine(model, flow, i1, i2):
     def unchanged(flow, i1, i2, neg):
         return flow.clone()
 
+    if exporting_for_mlx():  # no `cond` on MLX: select per sample (the refinement runs always)
+        return refined(flow, i1, i2, neg)
     if _tracing():
         return torch.cond(neg.any(), refined, unchanged, (flow, i1, i2, neg))
     return refined(flow, i1, i2, neg) if bool(neg.any()) else flow
@@ -85,9 +87,11 @@ def forward(model, left, right, iters):
     i2 = 2 * (right / 255.0) - 1.0
     *cnet_list, x = model.extractor(torch.cat((i1, i2), dim=0).to(dt).contiguous(memory_format=mf))
     fmap1, fmap2 = model.volume_conv(x).float().split(dim=0, split_size=x.shape[0] // 2)
+    del x
     net = [torch.tanh(c[0]) for c in cnet_list]
     ctx = [conv(torch.relu(c[1])) for c, conv in zip(cnet_list, model.bias_convs)]
     corr_fn = CorrBlockGather1D(fmap1, fmap2, radius=a.corr_radius, num_levels=a.corr_levels)
+    del cnet_list, fmap1, fmap2
 
     b, _, h, w = net[0].shape
     x0 = torch.arange(w, device=left.device, dtype=torch.float32).view(1, 1, 1, w)
@@ -100,7 +104,11 @@ def forward(model, left, right, iters):
         motion = ub.encoder(flow2, corr)
         net[0] = _lstm(ub.lstm08, net[0], ctx[0], motion, interp(net[1], net[0]))
         flow = flow + ub.flow_head(net[0])[:, :1].float()
+        del corr, flow2, motion
 
+    del corr_fn, ctx
     mask = 0.25 * ub.mask(net[0]).float()
+    del net
     flow = _upsample(flow, mask, 2**a.n_downsample)
+    del mask
     return -_refine(model, flow, i1, i2)[:, 0]

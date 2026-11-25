@@ -19,8 +19,10 @@ import contextlib
 import datetime as dt
 import gc
 import hashlib
+import importlib.util
 import os
 import re
+import sys
 import warnings
 from pathlib import Path
 from typing import Any
@@ -419,29 +421,36 @@ def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
 
 
 def tolerance(ref: str, mode: str | None = None) -> dict[str, float]:
-    """The family's `[tolerance]`; a `[refs]` entry may override `gpu_mean`, `gpu_p99`, `gpu_extra` and `cpu_extra`.
+    """The family's `[tolerance]`; a `[refs]` entry may override `gpu_mean`, `gpu_p99`, `gpu_extra`, `cpu_extra` and
+    `cpu_outliers`.
 
     `gpu_mean_<mode>` / `gpu_p99_<mode>` (family or ref) bound one mode only, e.g. a kernels path that is much closer to
     the reference than portable fp16, so a bound fitted to portable would not catch a kernels regression. Sparse
     matchers take `gpu_min_recall_<mode>` / `gpu_min_match_<mode>` the same way (a kernels path that keeps different
     keypoints than portable but matches better on the task).
     """
-    own = {k: v for k, v in GOLDEN[ref].items() if k.startswith(("gpu_mean", "gpu_p99", "gpu_extra", "cpu_extra"))}
+    own = {
+        k: v
+        for k, v in GOLDEN[ref].items()
+        if k.startswith(("gpu_mean", "gpu_p99", "gpu_extra", "cpu_extra", "cpu_outliers"))
+    }
     tol = FAMILIES[FAMILY[ref]]["tolerance"] | own
     keys = ("gpu_mean", "gpu_p99", "gpu_min_recall", "gpu_min_match")
     return tol | {k: tol[f"{k}_{mode}"] for k in keys if f"{k}_{mode}" in tol}
 
 
 def golden(ref: str) -> dict[str, np.ndarray]:
+    """The golden of `ref` this OS compares with: its per-OS file if it has one (`goldens.platform_golden`)."""
     root = os.environ.get("FASTFORKS_GOLDEN_PATH")
-    path = Path(root or ".") / f"{ref}.npz"
+    name, _, sha256 = goldens.platform_golden(ref, GOLDEN[ref])
+    path = Path(root or ".") / name
     if not root or not path.is_file():
-        why = f"golden {ref} not available (set FASTFORKS_GOLDEN_PATH)"
+        why = f"golden {name} not available (set FASTFORKS_GOLDEN_PATH)"
         if _required(ref):
             pytest.fail(why)
         pytest.skip(why)
     data = path.read_bytes()
-    assert hashlib.sha256(data).hexdigest() == GOLDEN[ref]["sha256"], f"{path} does not match golden.toml"
+    assert hashlib.sha256(data).hexdigest() == sha256, f"{path} does not match golden.toml"
     with np.load(path) as z:
         return dict(z)
 
@@ -452,7 +461,9 @@ def _required(ref: str) -> bool:
         return False
     if req == "1":
         return True
-    return ref in Path(req).read_text().split()  # a missing list file fails the test: the CI setup is broken
+    return (
+        ref in Path(req).read_text(encoding="utf-8").split()
+    )  # a missing list file fails the test: the CI setup is broken
 
 
 def run_or_skip(ref: str, **kw: Any) -> tuple[list[dict[str, torch.Tensor]], Any]:
@@ -714,7 +725,7 @@ def test_gpu(ref, mode, request, monkeypatch):
             else:
                 symbols.pop(lib, None)
         store = goldens.load(FAMILY[ref], TASK[ref])
-        store["validated"][ref] = {
+        rec = {
             "kernels": sorted(backend.kernels),
             "symbols": symbols,
             "gpu": torch.cuda.get_device_name(),
@@ -723,6 +734,11 @@ def test_gpu(ref, mode, request, monkeypatch):
             "mean_px": round(float(err.mean()), 5),
             "p99_px": round(float(np.percentile(err, 99)), 5),
         }
+        old = store["validated"].get(ref, {})
+        if sys.platform == "win32":  # the Windows record: its own slot, the Linux one stays
+            store["validated"][ref] = old | {"windows": rec}
+        else:  # the Linux record: the entry's own keys, other OS slots stay
+            store["validated"][ref] = rec | {k: old[k] for k in goldens.OS_SLOTS if k in old}
         goldens.dump(FAMILY[ref], store, TASK[ref])
 
 
@@ -731,9 +747,18 @@ def _declared_launches(ref: str, declared: set[str], observed: set[str]) -> None
     assert observed <= declared, f"{ref}: launched undeclared kernel libraries: {sorted(observed - declared)}"
 
 
+# The MPS run covers one variant per family by default (the card's first, the cross-device subset of the speed survey)
+# so the whole run fits in about an hour; FASTFORKS_MPS_FULL=1 runs every variant.
+MPS_REFS = (
+    sorted(GOLDEN)
+    if os.environ.get("FASTFORKS_MPS_FULL")
+    else sorted({next(iter(fam["refs"])) for fam in FAMILIES.values() if fam["refs"]})
+)
+
+
 @pytest.mark.model
 @pytest.mark.mps
-@pytest.mark.parametrize("ref", sorted(GOLDEN))
+@pytest.mark.parametrize("ref", MPS_REFS)
 def test_mps(ref):
     """Portable on Apple MPS, in every dtype the card validates there, and the Metal kernels backend if the family has
     one, within the GPU tolerances of the golden."""
@@ -752,10 +777,29 @@ def test_mps(ref):
         _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
 
 
+@pytest.mark.model
+@pytest.mark.mlx
+@pytest.mark.parametrize("ref", sorted(GOLDEN))
+def test_mlx(ref):
+    """Apple MLX (`device="mlx"`): every mode and dtype the card declares, within the GPU tolerances of the golden."""
+    card = API[TASK[ref]].model_card(ref)
+    runs = [(mode, d) for mode in ("portable", "kernels") for d in card.mlx_dtypes(mode)]
+    if not runs:
+        pytest.skip(f"{ref} has no MLX port")
+    if importlib.util.find_spec("mlx") is None:
+        pytest.skip("no mlx")
+    want = golden(ref)
+    for mode, dtype in runs:
+        (got,), backend = run_or_skip(ref, device="mlx", mode=mode, dtype=dtype, opts=options(ref, want), want=want)
+        assert (backend.mode, backend.device, str(backend.dtype)) == (mode, "mlx", dtype)
+        assert len(backend.kernels) == len(card.mlx_kernel_libs) if mode == "kernels" else not backend.kernels
+        _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
+
+
 def _manifest(lib: str) -> kernels.KernelManifest | None:
     if lib == "cudnn_hacc":  # its binary only builds cuDNN's plans on the host (the ctypes path's plans, see
         return None  # test_native_build_gives_the_ctypes_plan): validated per cuDNN version, like its tag
-    path = Path(kernels.__file__).parents[1] / "kernels" / lib / "manifest.toml"
+    path = kernels.platform_manifest(Path(kernels.__file__).parents[1] / "kernels" / lib / "manifest.toml")
     return kernels.read_manifest(path) if path.is_file() else None  # None: cuDNN libraries (tagged by version)
 
 
@@ -769,7 +813,9 @@ def _used_symbols(ref: str) -> dict[str, dict[str, str]]:
     for name in card.uses:
         mod = src / "shared" / name
         files += list(mod.rglob("*.py")) if mod.is_dir() else [mod.with_suffix(".py")]
-    quoted = set(re.findall(r"""["'](\w+)["']""", "\n".join(f.read_text() for f in files if f.is_file())))
+    quoted = set(
+        re.findall(r"""["'](\w+)["']""", "\n".join(f.read_text(encoding="utf-8") for f in files if f.is_file()))
+    )
     used = {}
     for lib in card.kernel_libs:
         m = _manifest(lib)
@@ -787,7 +833,7 @@ def test_gpu_module(ref):
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     want = golden(ref)["logits"]
-    m = classification.load(ref, device="cuda")
+    m = classification.load(ref, mode="portable", device="cuda")
     try:
         module = m.module()
     except BackendUnavailableError as e:
@@ -813,22 +859,48 @@ def test_kernels_validated(ref):
     card = API[TASK[ref]].model_card(ref)
     if "kernels" not in card.modes:
         return
-    entry = FAMILIES[FAMILY[ref]]["validated"].get(ref)
-    assert entry, f"{ref}: max never validated; run the GPU goldens with --record"
-    recorded = {_built(t) for t in entry["kernels"]}
+    records = goldens.validated_records(FAMILIES[FAMILY[ref]]["validated"].get(ref, {}))
+    assert records, f"{ref}: max never validated; run the GPU goldens with --record"
+    manifests = {lib: _manifest(lib) for lib in card.kernel_libs}  # the ones this OS loads (Windows: DLL builds)
+    if sys.platform == "win32" and any(m is not None and kernels.platform_reason(m) for m in manifests.values()):
+        return  # a library has no Windows build yet (a Linux .so): kernels mode cannot run here, nothing to validate
     current = _used_symbols(ref)
-    for lib in card.kernel_libs:
-        manifest = _manifest(lib)
+    for lib, manifest in manifests.items():
         if manifest is None:
             continue
-        tag = manifest.tag
-        old = entry.get("symbols", {}).get(lib)
-        if tag not in recorded and old is not None:  # another build: valid if every function in use is unchanged
-            assert set(current[lib]) <= set(old), f"{ref}: {lib} uses unrecorded functions; rerun --record"
-            changed = sorted(n for n in current[lib] if current[lib][n] != old[n])
-            assert not changed, f"{ref}: {lib} functions changed since validation: {changed}; rerun --record"
-            continue
-        assert tag in recorded, f"{ref}: {tag} not validated (recorded {sorted(recorded)}); rerun GPU goldens --record"
+        problems = [_unvalidated(ref, lib, manifest.tag, current, rec) for rec in records]  # either OS's record
+        if None not in problems:
+            _skip_unrecordable_on_windows(ref, card)
+        assert None in problems, "; ".join(p for p in problems if p)
+
+
+def _skip_unrecordable_on_windows(ref: str, card: Any) -> None:
+    """Windows, no Windows record yet and the weights are not local: skip, as the GPU goldens that would record it do.
+
+    Linux keeps failing (the committed records are checked there, no weights needed); a Windows record that exists
+    but is stale still fails.
+    """
+    if sys.platform != "win32" or "windows" in FAMILIES[FAMILY[ref]]["validated"].get(ref, {}):
+        return
+    _, variant = registry.resolve(TASK[ref], ref)
+    try:
+        registry.weights(card, variant, allow_download=False)
+    except WeightsError as e:
+        pytest.skip(f"weights of {ref} not available locally (no Windows record to check): {e}")
+
+
+def _unvalidated(ref: str, lib: str, tag: str, current: dict[str, dict[str, str]], rec: dict) -> str | None:
+    """Why `rec` (one OS's `[validated]` record) does not validate build `tag` of `lib`; None if it does."""
+    recorded = {_built(t) for t in rec.get("kernels", ())}
+    old = rec.get("symbols", {}).get(lib)
+    if tag not in recorded and old is not None:  # another build: valid if every function in use is unchanged
+        if not set(current[lib]) <= set(old):
+            return f"{ref}: {lib} uses unrecorded functions; rerun --record"
+        changed = sorted(n for n in current[lib] if current[lib][n] != old[n])
+        return f"{ref}: {lib} functions changed since validation: {changed}; rerun --record" if changed else None
+    if tag not in recorded:
+        return f"{ref}: {tag} not validated (recorded {sorted(recorded)}); rerun GPU goldens --record"
+    return None
 
 
 def test_every_variant_has_a_golden():
@@ -848,16 +920,89 @@ def test_dump_writes_valid_toml(tmp_path, monkeypatch):
     assert goldens.load("fam") == store
 
 
+def test_dump_writes_the_windows_record_as_a_sub_table(tmp_path, monkeypatch):
+    """A Windows `--record` lands in `[validated."<ref>".windows]`: the Linux keys stay, the file loads back unchanged
+    and is written with LF line endings on every OS."""
+    monkeypatch.setattr(goldens, "SRC", tmp_path)
+    (tmp_path / "stereo" / "models" / "fam").mkdir(parents=True)
+    linux = {"kernels": ["lib@abc:sm_120"], "symbols": {"lib": {"k": "11"}}, "mean_px": 0.01}
+    win = {"kernels": ["lib@def:sm_120"], "symbols": {"lib": {"k": "22"}}, "mean_px": 0.01}
+    store = {
+        "tolerance": dict(goldens.DEFAULT_TOLERANCE),
+        "refs": {},
+        "validated": {"fam-a@1": linux | {"windows": win}},
+    }
+    goldens.dump("fam", store)
+    raw = goldens.path("fam").read_bytes()
+    assert b"\r" not in raw
+    assert b'[validated."fam-a@1".windows]\n' in raw
+    assert goldens.load("fam") == store
+    assert goldens.validated_records(store["validated"]["fam-a@1"]) == [linux, win]
+    assert goldens.validated_records({"windows": win}) == [win]
+
+
+def test_per_os_golden(tmp_path, monkeypatch):
+    """A `[refs."<ref>".windows]` golden: written as a sub-table by `_common.write` run on Windows, read there only.
+
+    The ref's own golden, its tolerances and the Linux `[validated]` record stay; only the Windows record is dropped.
+    """
+    spec = importlib.util.spec_from_file_location("_common", Path(goldens.__file__).parent / "golden" / "_common.py")
+    assert spec is not None
+    assert spec.loader is not None
+    common = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(common)
+    monkeypatch.setattr(goldens, "SRC", tmp_path / "src")
+    (tmp_path / "src" / "stereo" / "models" / "fam").mkdir(parents=True)
+    monkeypatch.setenv("FASTFORKS_GOLDEN_PATH", str(tmp_path / "g"))
+    own = {"sha256": "aa", "upstream": "u", "settings": "s", "gpu_mean": 0.5}
+    linux, win = {"mean_px": 0.01}, {"mean_px": 0.02}
+    store = {"tolerance": dict(goldens.DEFAULT_TOLERANCE), "refs": {"fam-a@1": own}, "validated": {}}
+    store["validated"]["fam-a@1"] = linux | {"windows": win}
+    goldens.dump("fam", store)
+    monkeypatch.setattr(goldens.sys, "platform", "win32")
+    monkeypatch.setenv("FASTFORKS_GOLDEN_OS", "windows")
+    common.write("fam-a@1", {"x": np.ones(2)}, family="fam", upstream="u", patch=None, settings="win")
+    after = goldens.load("fam")
+    entry = after["refs"]["fam-a@1"]
+    assert {k: v for k, v in entry.items() if k != "windows"} == own
+    assert entry["windows"]["settings"] == "win"
+    assert after["validated"]["fam-a@1"] == linux
+    assert b'[refs."fam-a@1".windows]\n' in goldens.path("fam").read_bytes()
+    data = (tmp_path / "g" / "fam-a@1.windows.npz").read_bytes()
+    assert entry["windows"]["sha256"] == hashlib.sha256(data).hexdigest()
+    assert goldens.platform_golden("fam-a@1", entry) == (
+        "fam-a@1.windows.npz",
+        "fam-a@1.windows.npz",
+        hashlib.sha256(data).hexdigest(),
+    )
+    monkeypatch.setattr(goldens.sys, "platform", "linux")
+    assert goldens.platform_golden("fam-a@1", entry) == ("fam-a@1.npz", "fam-a@1.npz", "aa")
+    with pytest.raises(SystemExit, match="per-OS golden"):  # a Windows golden comes from a Windows run
+        common.write("fam-a@1", {"x": np.ones(2)}, family="fam", upstream="u", patch=None, settings="x")
+
+
+def test_a_record_validates_its_build_or_unchanged_functions():
+    """`test_kernels_validated` takes either OS's record: the build itself, or another build with the same functions."""
+    cur = {"lib": {"k": "11"}}
+    rec = {"kernels": ["lib@abc:sm_120"], "symbols": {"lib": {"k": "11"}}}
+    assert _unvalidated("r", "lib", "lib@abc", cur, rec) is None
+    assert _unvalidated("r", "lib", "lib@new", cur, rec) is None  # same function hashes
+    assert "changed" in _unvalidated("r", "lib", "lib@new", {"lib": {"k": "99"}}, rec)
+    assert "not validated" in _unvalidated("r", "lib", "lib@new", cur, {"kernels": ["lib@abc:sm_120"]})
+
+
 def test_dump_keeps_notes(tmp_path, monkeypatch):
     """A `--record` rewrite keeps hand-written comments and the lines of unchanged values (format, trailing note)."""
     monkeypatch.setattr(goldens, "SRC", tmp_path)
     (tmp_path / "stereo" / "models" / "fam").mkdir(parents=True)
-    goldens.path("fam").write_text("[tolerance]\n# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.5\n")
+    goldens.path("fam").write_text(
+        "[tolerance]\n# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.5\n", encoding="utf-8"
+    )
     store = goldens.load("fam")
     store["tolerance"]["gpu_mean"] = 0.25
     store["validated"]["fam-a@1"] = {"mean_px": 0.01}
     goldens.dump("fam", store)
-    text = goldens.path("fam").read_text()
+    text = goldens.path("fam").read_text(encoding="utf-8")
     assert "# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.25\n" in text
     assert goldens.load("fam") == store
 

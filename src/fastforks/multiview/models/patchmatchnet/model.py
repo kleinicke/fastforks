@@ -16,6 +16,7 @@ the 1x1x1 Conv3d nets as 1x1 Conv2d, the sources warped and correlated one at a 
 from __future__ import annotations
 
 import contextlib
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +24,9 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
-from fastforks.multiview._runner import Forward, NoParams, Runner, f64, invert, take
+from fastforks.multiview._runner import Forward, Runner, f64, invert, take
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.net import PatchmatchNet
 
@@ -82,12 +85,58 @@ def _mlp(m: Any, last: Any) -> tuple[torch.Tensor, list[Conv]]:  # noqa: ANN401 
     return packed, convs
 
 
+_MLP_CHUNK = 2**20  # pixels per `_mlp2d` chunk on MPS (a 64 MB fp32 hidden layer of 16 channels)
+
+
+def _border(x: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    return F.grid_sample(x, grid, mode="bilinear", padding_mode="border", align_corners=False)
+
+
+def _correlate(src: torch.Tensor, grid: torch.Tensor, ref: torch.Tensor, g: int, d: int) -> torch.Tensor:
+    """Group-wise channel sums `[G, D, h*w]` of `src` `[1, C, h, w]` warped by `grid` `[1, D*h, w, 2]` times `ref`.
+
+    MPS: one group at a time (no `[1, C, D*h, w]` warp, a fresh 1 GB heap at 1536x1024).
+    """
+    c, hw = src.shape[1], ref.shape[-2] * ref.shape[-1]
+    cg, step = c // g, 1 if src.device.type == "mps" else g
+    rv = ref.view(g, cg, 1, hw)
+    sim = ref.new_empty(g, d, hw)
+    for g0 in range(0, g, step):
+        with _no_cudnn():  # the native sampler is 10-25 % faster than cuDNN's
+            wv = grid_sample(
+                src[:, g0 * cg : (g0 + step) * cg], grid, mode="bilinear", padding_mode="zeros", align_corners=True
+            ).view(step, cg, d, hw)
+        out = sim[g0 : g0 + step]
+        torch.mul(wv[:, 0], rv[g0 : g0 + step, 0], out=out)
+        for j in range(1, cg):
+            out.addcmul_(wv[:, j], rv[g0 : g0 + step, j])
+    return sim
+
+
 def _mlp2d(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
     """`[B, G, D, H, W]` -> `[B, D, H, W]` through the 1x1x1 nets as 1x1 Conv2d over a `[B, G, D*H, W]` view."""
     b, g, d, h, w = x.shape
-    y = F.relu_(F.conv2d(x.reshape(b, g, d * h, w), *convs[0]))  # in place: the conv outputs are fresh (peak memory)
+    x = x.reshape(b, g, d * h, w)
+    if x.device.type == "mps":  # fastforks (MPS): a few depth planes at a time, no [B, 16, D*H, W] hidden layer
+        out = x.new_empty(b, convs[2][0].shape[0], d * h, w)
+        step = h * max(1, _MLP_CHUNK // (h * w))
+        for r in range(0, d * h, step):
+            out[:, :, r : r + step] = _mlp2d_rows(x[:, :, r : r + step], convs)
+        return out.view(b, d, h, w)
+    return _mlp2d_rows(x, convs).view(b, d, h, w)
+
+
+def _mlp2d_rows(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
+    y = F.relu_(F.conv2d(x, *convs[0]))  # in place: the conv outputs are fresh (peak memory)
     y = F.relu_(F.conv2d(y, *convs[1]))
-    return F.conv2d(y, *convs[2]).view(b, d, h, w)
+    return F.conv2d(y, *convs[2])
+
+
+@dataclass(frozen=True)
+class Params:
+    """Load options."""
+
+    cuda_graphs: bool  # kernels: replay the features and PatchMatch stages from a CUDA graph per input shape
 
 
 @dataclass
@@ -172,7 +221,7 @@ class _Base(Runner):
     per_view = False
     min_views = 2
     batch = None
-    Params = NoParams
+    Params = Params
     compiled_methods = ("__call__", "prepare", "predict")  # `scene` (several references) calls the last two
 
     def __init__(self, ctx: Context) -> None:
@@ -464,8 +513,15 @@ class Portable(_Base):
         src = f[1:].float()
         pgrid, egrid = self.offsets(st, f[:1], h, w)
         ne = st.evaluate
-        wt = F.grid_sample(ref, egrid, mode="bilinear", padding_mode="border", align_corners=False)
-        wt = (wt.view(1, g, c // g, ne, h, w) * ref.view(1, g, c // g, 1, h, w)).mean(2)
+        if f.device.type == "mps":  # fastforks (MPS): one evaluation neighbour at a time, no [1, C, NE*h, w] sample
+            rg, eg = ref.view(1, g, c // g, h, w), egrid.view(1, ne, h, w, 2)
+            wt = torch.stack(
+                [(_border(ref, eg[:, k]).view_as(rg) * rg).mean(2) for k in range(ne)],
+                2,
+            )
+        else:
+            wt = _border(ref, egrid)
+            wt = (wt.view(1, g, c // g, ne, h, w) * ref.view(1, g, c // g, 1, h, w)).mean(2)
         fweight = torch.sigmoid(_mlp2d(wt, st.fw2d))
         ys, xs = torch.meshgrid(
             torch.arange(h, device=f.device, dtype=torch.float32),
@@ -513,16 +569,9 @@ class Portable(_Base):
                 gy = (py / pz) / ((h - 1) / 2) - 1
                 grid = torch.stack((gx[:, 0], gy[:, 0]), 3).view(1, d * h, w, 2)
                 del p, neg, px, py, pz, gx, gy  # not held during the warp (peak memory: ~290 MB at 1536x1024)
-                with _no_cudnn():  # the native sampler is 10-25 % faster than cuDNN's
-                    warped = grid_sample(
-                        src[s : s + 1], grid, mode="bilinear", padding_mode="zeros", align_corners=True
-                    )
-                wv, rv = warped.view(g, c // g, d, h * w), ref.view(g, c // g, 1, h * w)
-                sim = wv[:, 0] * rv[:, 0]
-                for j in range(1, c // g):
-                    sim.addcmul_(wv[:, j], rv[:, j])
+                sim = _correlate(src[s : s + 1], grid, ref, g, d)
                 sim = sim.mul_(g / c).view(1, g, d, h, w)
-                del wv, warped, grid
+                del grid
                 if new_vw:
                     v = torch.sigmoid(_mlp2d(sim, st.pw2d)).amax(1, keepdim=True)  # [1, 1, h, w]
                     vws.append(v)
@@ -582,9 +631,39 @@ class Kernels(_Base):
             if (c, st.groups) not in CONFIGS or st.evaluate != 9:  # noqa: PLR2004 - aggregate kernel: 9 neighbours
                 msg = f"PatchmatchNet kernels: stage {st.stage} ({c} channels, {st.groups} groups) has no kernel"
                 raise ValueError(msg)
+        # about 700 launches per call: WDDM's per-launch cost made Windows host-bound; the depth range's inverse is a
+        # scalar kernel argument, so it is part of the key
+        self.graphs = GraphCache(self._graphed, graphs=2) if ctx.params.cuda_graphs else None
+        self._inv: tuple[float, float] | None = None  # `host_range` of the call being captured
+        self._lock = threading.Lock()
 
     def _dtype(self) -> torch.dtype:
         return torch.float16
+
+    def _graphed(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        x, feats = self.prepare(images)
+        size = (images.shape[-2], images.shape[-1])
+        return self.predict(x, feats, size, intrinsics, cam_to_world, depth_range, inv=self._inv)
+
+    def forward(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """`_Base.forward`, replayed from the input shapes' and depth range's CUDA graph once captured."""
+        if self.graphs is None or torch.compiler.is_compiling():
+            return super().forward(images, intrinsics, cam_to_world, depth_range)
+        inputs = (images, intrinsics, cam_to_world, depth_range)
+        with self._lock:
+            self._inv = self.host_range(depth_range)  # before any GPU work, so its host sync does not wait
+            key = (self._inv, *((t.device, t.dtype, tuple(t.shape)) for t in inputs))
+            out = self.graphs.run(key, *inputs)
+            return self._graphed(*inputs) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def host_range(self, depth_range: torch.Tensor) -> tuple[float, float]:
         """`(1 / near, 1 / far)` on the host for the kernels' scalar arguments: one sync per scene."""
@@ -689,4 +768,21 @@ class Kernels(_Base):
         return depth, vw, conf
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Traceable(Portable):
+    """The seeded random hypotheses are drawn outside the export trace, so the graph holds them as constants."""
+
+    def random_init(self, dmin: torch.Tensor, dmax: torch.Tensor, h: int, w: int) -> torch.Tensor:
+        """`_Base.random_init` with its seeded draw on real tensors."""
+        if (h, w) not in self._init_cache:
+            from torch.utils._python_dispatch import _disable_current_modes  # noqa: PLC0415 - untraced draw
+
+            with _disable_current_modes():
+                super().random_init(torch.ones(1), torch.ones(1), h, w)
+        return super().random_init(dmin, dmax, h, w)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Traceable, attrs=(), methods=("prepare", "predict"), net_attr="ref"),
+}

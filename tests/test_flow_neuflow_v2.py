@@ -92,6 +92,20 @@ def test_half_lookup_matches_grid_sample(height: int, width: int, batch: int) ->
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width", "batch"), [(68, 120, 1), (45, 97, 2)])
+def test_large_match_keeps_sdpa_coordinates(height: int, width: int, batch: int) -> None:
+    """Tiled softmax must retain the FP32 match coordinates consumed by iterative refinement."""
+    torch.manual_seed(0)
+    left = torch.randn(batch, nf.FEATURE, height, width, device="cuda")
+    right = torch.randn_like(left)
+    with torch.inference_mode(mode=False), torch.no_grad():
+        expected = nf._match(left, right)
+    with torch.inference_mode():
+        actual = nf._match(left, right)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize(("height", "width", "batch"), [(17, 21, 2), (136, 240, 1)])  # odd cells; the 1080p cells
 def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> None:
     """The on-the-fly window equals the volume lookup (fp16 operands, fp32 sums) up to the fp16 output rounding."""
@@ -102,3 +116,35 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), features)(flow_)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want.half().float(), rtol=0, atol=2e-3)  # fp16 ulp of |corr| < 4
+
+
+@pytest.mark.gpu
+def test_kernels_graph_replay_matches_eager(weights: Path) -> None:
+    """Kernels replays a repeated small shape from a CUDA graph: the eager numbers, fresh outputs, opt-out."""
+    model = flow.load("neuflow-v2", weights=weights, device="cuda", mode="kernels", iters=2)
+    r = model._runner
+    g = r._graphs
+    assert g.cache is not None
+    pairs = [tuple(t.cuda() for t in _pair(64, 96, batch=2)), tuple(t.cuda().flip(-1) for t in _pair(64, 96, batch=2))]
+
+    def eager(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return r(a, b)["flow"]
+        finally:
+            g.pixels = pixels
+
+    with torch.inference_mode():
+        want = [eager(*p) for p in pairs]
+        r(*pairs[0])  # first call: eager
+        assert not g.cache.graphs
+        first = r(*pairs[0])["flow"]  # second call: captures
+        assert len(g.cache.graphs) == 1
+        second = r(*pairs[1])["flow"]  # replay with new data; `first` must not change
+    torch.testing.assert_close(first, want[0], rtol=0, atol=0)
+    torch.testing.assert_close(second, want[1], rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    model.release_graphs()
+    assert not g.cache.graphs
+    off = flow.load("neuflow-v2", weights=weights, device="cuda", mode="kernels", iters=2, cuda_graphs=False)
+    assert off._runner._graphs.cache is None

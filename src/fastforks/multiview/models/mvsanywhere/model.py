@@ -25,8 +25,12 @@ from torch import nn
 
 from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import dpt_fused
+from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import cudnn_hacc, dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import DINOv2, FastViT, use_sdpa_attention
 from fastforks.shared.quantile import quantile
 
@@ -44,6 +48,7 @@ PLANES = 64  # fixed: upstream matching_num_depth_bins
 MATCH = 4  # fixed: matching features at 1/4 of the network size
 MULTIPLE = 16  # fixed: the network size is a multiple of the ViT stride (16 after the 14/16 resize)
 CHUNK = 4  # fixed: depth planes per cost-volume step (fastest at 448x672)
+_STEM_POOL_VIEWS = 4  # fixed: bound max-pool and reflection-pad buffers across independent views
 MAX_SOURCES = 16  # fixed: the cost-volume kernel keeps the per-view terms of at most 16 sources in registers
 _PREFIXES = {  # our module -> checkpoint prefix
     "vit.": "encoder.model.",
@@ -79,6 +84,7 @@ class Params:
 
     long_side: int  # network long side (both sides rounded to multiples of 16)
     refinement_steps: int  # depth-range refinement passes (upstream num_refinement_steps)
+    cuda_graphs: bool  # kernels: replay a CUDA graph of the forward per input shapes (option)
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -124,7 +130,12 @@ def _net(ctx: Context) -> Net:
 
 def _pose_distance(pose: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Upstream `pose_distance`: combined, rotation and translation distance of `[K, 4, 4]` relative poses."""
-    r = torch.sqrt(2 * (1 - torch.clamp(pose[:, :3, :3].diagonal(dim1=-1, dim2=-2).sum(-1), max=3.0) / 3))
+    trace = pose[:, :3, :3].diagonal(dim1=-1, dim2=-2).sum(-1)
+    if torch.compiler.is_exporting():
+        # TensorRT can round its reciprocal multiplication above one for an identity rotation.
+        r = torch.sqrt((3.0 - trace).clamp_min(0) * (2.0 / 3.0))
+    else:
+        r = torch.sqrt(2 * (1 - trace.clamp_max(3.0) / 3))
     tm = torch.norm(pose[:, :3, 3], dim=1)
     return torch.sqrt(tm**2 + r**2), r, tm
 
@@ -195,7 +206,7 @@ def refine_range(depth: torch.Tensor, rng: torch.Tensor) -> torch.Tensor:
     if torch.compiler.is_exporting():  # fastforks: TensorRT's TopK (the exported sort) takes at most 3840 elements
         q = torch.stack([quantile(flat, lo), quantile(flat, hi)])
     else:
-        q = torch.quantile(flat, torch.tensor([lo, hi], device=depth.device))
+        q = torch.quantile(flat, device_tensor([lo, hi], device=depth.device))
     new_min = torch.where(frac_min > lo, mn * 0.5, torch.maximum(mn, q[0] * shrink))
     new_max = torch.where(frac_max > lo, mx * 2.0, torch.minimum(mx, q[1] * grow))
     return torch.stack([new_min, new_max])
@@ -239,7 +250,7 @@ def cost_volume(
     t = g.proj[:, :, 3]
     crayd = g.cray.to(dt).view(1, 1, 3, hw)
     posed = g.pose.to(dt).view(k, 1, 3, 1)
-    to_grid = torch.tensor([2.0 / w, 2.0 / h], device=src.device).view(1, 1, 2, 1)
+    to_grid = device_tensor([2.0 / w, 2.0 / h], device=src.device).view(1, 1, 2, 1)
     deps = planes(rng)
     outs = []
     for d0 in range(0, PLANES, CHUNK):
@@ -429,6 +440,18 @@ class _Base(Runner):
         return predict
 
 
+def _pool_matching_views(pool: nn.Sequential, x: torch.Tensor) -> torch.Tensor:
+    """Run the matching stem's max-pool and blur-pool with a bounded temporary."""
+    if (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or x.shape[0] <= _STEM_POOL_VIEWS
+    ):
+        return nn.Sequential.forward(pool, x)
+    return torch.cat([nn.Sequential.forward(pool, views) for views in x.split(_STEM_POOL_VIEWS)])
+
+
 class Portable(_Base):
     """Plain PyTorch: float32, or fp16 weights + autocast (fp16 cost volume, channels-last convs), SDPA."""
 
@@ -444,6 +467,8 @@ class Portable(_Base):
         self.weights = tuple(w.half() for w in a) if self.half else a
         if self.half:  # fp16 weights (as friendly): half the memory, no per-call casts under autocast
             self.net.half().to(memory_format=torch.channels_last)
+            if ctx.device.type == "cuda":
+                override(self.net.matching.net[3], _pool_matching_views)
 
     def _amp(self) -> contextlib.AbstractContextManager[Any]:
         return torch.autocast(self.ctx.device.type, dtype=torch.float16, enabled=self.half)
@@ -521,6 +546,10 @@ class Kernels(_Base):
     cuDNN / CUTLASS convs, fused BatchNorm and instance-norm kernels). The `mvsanywhere` kernels compute the whole
     cost volume per pixel and plane (warp, MLP, softmax over the views, at most 16 sources) and the matching encoder's
     stem pooling.
+
+    About 950 launches a call left Windows (WDDM) host-bound, so a scene layout seen again (view count, image size,
+    camera dtypes, with or without a depth range) replays `forward` from a CUDA graph (`release_graphs()` frees it);
+    `scene`'s per-reference predictions stay eager.
     """
 
     max_views = MAX_SOURCES + 1
@@ -566,6 +595,40 @@ class Kernels(_Base):
             msg = "MVSAnywhere matching stem does not have the layout of the stem-pool kernel"
             raise ValueError(msg)
         seq[3] = _StemPool(self.kern)
+        self.graphs = (
+            GraphCache(self._graphed, graphs=2, capture_after=cudnn_hacc.capture_after())
+            if ctx.params.cuda_graphs
+            else None
+        )
+
+    def _graphed(
+        self,
+        images: torch.Tensor,
+        intrinsics: torch.Tensor,
+        cam_to_world: torch.Tensor,
+        depth_range: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        return super().forward(images, intrinsics, cam_to_world, depth_range)
+
+    def forward(
+        self,
+        images: torch.Tensor,
+        intrinsics: torch.Tensor,
+        cam_to_world: torch.Tensor,
+        depth_range: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """`_Base.forward`, replayed from the input shapes' CUDA graph once captured."""
+        inputs = tuple(t for t in (images, intrinsics, cam_to_world, depth_range) if t is not None)
+        if self.graphs is None or torch.compiler.is_compiling() or any(t.device.type != "cuda" for t in inputs):
+            return self._graphed(images, intrinsics, cam_to_world, depth_range)
+        key = tuple((t.device, t.dtype, tuple(t.shape)) for t in inputs)  # a depth range: one input more
+        out = self.graphs.run(key, *inputs)
+        return self._graphed(images, intrinsics, cam_to_world, depth_range) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool (captured again when needed)."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def encode_image(self, x: torch.Tensor) -> Sequence[tuple[torch.Tensor, torch.Tensor]]:
         """Upstream `DINOv2.forward` on the fast ViT."""
@@ -610,4 +673,26 @@ class Kernels(_Base):
             return super().cv_encoder(cv, feats)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+_MlxBase = mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode"), prune=True)
+
+
+class MlxPortable(_MlxBase):  # ty: ignore[unsupported-base]
+    """Apple MLX: the ViTs, conv nets and heads as exported graphs, the cost volume as one Metal kernel (`mlx_cv`)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX runner and pack the cost-volume MLP for the kernel."""
+        from .mlx_cv import CostVolume  # noqa: PLC0415 - MLX only
+
+        super().__init__(ctx)
+        self.cv_kernel = CostVolume(self.net.mlp)
+
+    def cost_volume(self, cur: torch.Tensor, src: torch.Tensor, g: Geometry, rng: torch.Tensor) -> torch.Tensor:
+        """The fused Metal cost volume (float32, as the CUDA kernel)."""
+        return self.cv_kernel(cur, src, g, rng, planes(rng))
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+}

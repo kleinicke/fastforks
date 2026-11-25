@@ -187,6 +187,7 @@ def forward(fast: _Fast, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tens
     proj = pe.patch_embed.proj
     e = torch.cat([proj(v).flatten(2) for v in (x, x1, x2)], 2)[0].t()  # [96^2 + 48^2 + 24^2, C]
     t = e[fast.tok]  # [35, 576, C]
+    del e, x1
     t = torch.cat([pe.cls_token.expand(t.shape[0], -1, -1), t], 1) + pe.pos_embed
     lat = []
     for i, blk in enumerate(pe.blocks):
@@ -199,6 +200,7 @@ def forward(fast: _Fast, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tens
         return r.permute(2, 0, 1).unsqueeze(0)
 
     f0, f1, f2 = (_ln(pe.norm, rows[m]) for m in (fast.m0, fast.m1, fast.m2))
+    del t, rows
     g = _vit(enc.image_encoder, x2)[0, 1:].reshape(f2.shape)
     lowres = torch.cat((enc.upsample2(nchw(f2)), enc.upsample_lowres(nchw(g))), dim=1)
     encs = [
@@ -208,18 +210,22 @@ def forward(fast: _Fast, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tens
         enc.upsample1(nchw(f1)),
         enc.fuse_lowres(lowres),
     ]
-    feat = dec.convs[4](encs[4])
+    del lat, f0, f1, f2, g, lowres
+    # Consume each skip once. The highest-resolution skip would otherwise remain live through the head.
+    feat = dec.convs[4](encs.pop())
     lowres = feat
     for i in range(4, -1, -1):
         fu = dec.fusions[i]
         if i < 4:  # noqa: PLR2004 - the lowest level starts the chain
-            feat = feat + fu.resnet1(dec.convs[i](encs[i]))
+            feat = feat + fu.resnet1(dec.convs[i](encs.pop()))
         feat = fu.resnet2(feat)
         if i:
             feat = F.conv_transpose2d(feat, getattr(fast, f"fw{i}"), getattr(fast, f"fb{i}"), stride=2)
         else:
             feat = fu.out_conv(feat)
-    y = F.relu(F.conv2d(F.conv2d(feat, fast.h0w, fast.h0b, padding=1), fast.h1w, fast.h1b, padding=1))
+    y = F.conv2d(feat, fast.h0w, fast.h0b, padding=1)
+    del feat
+    y = F.relu(F.conv2d(y, fast.h1w, fast.h1b, padding=1))
     cid = F.pixel_shuffle(F.relu(F.conv2d(y, fast.h2w[:, :, None, None], fast.h2b)), 2)
     fov = None
     if with_fov:
@@ -240,6 +246,7 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         self.half = ctx.dtype == "float16"
+        self.in_dtype = torch.float16 if self.half else torch.float32
         net = _net(ctx)
         if not self.half:
             net = net.float()
@@ -250,10 +257,14 @@ class Portable(Runner):
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:
         h, w = image.shape[-2:]
-        x = _prepare(self.ctx, image, torch.float16 if self.half else torch.float32)
+        x = _prepare(self.ctx, image, self.in_dtype)
         with torch.autocast(x.device.type, dtype=torch.float16, enabled=self.half):
-            cid, fov = forward(self.fast, x, with_fov=k is None)
+            cid, fov = self._graph(x, with_fov=k is None)
         return _finish(cid, fov, k, h, w)
+
+    def _graph(self, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """The network on the prepared image (what MLX runs)."""
+        return forward(self.fast, x, with_fov=with_fov)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Depth (and intrinsics when none are given) of one image."""
@@ -497,8 +508,37 @@ class Kernels(Runner):
 _MEAN = (0.5, 0.5, 0.5)  # fixed: upstream Normalize([0.5] * 3, [0.5] * 3) (mean = std)
 
 # after the portable part: kernels-only dependencies
-from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _conv, _linear_1x1  # noqa: E402 - shared conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared conversions
+    FusedViT,
+    _conv,
+    _linear_1x1,
+)
 from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the ViTs, the decoder and the heads in MLX array operations (`mlx_net`).
+
+    float32, or float16 with the head's last convolution and the field-of-view head in float32.
+    """
+
+    intrinsics = "optional"  # given intrinsics replace the FOV estimate (fx)
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        self.net = mlx_net.Net(converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx))), ctx.dtype)
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Depth (and intrinsics when none are given) of one image."""
+        h, w = image.shape[-2:]
+        cid, fov = self.net(_prepare(self.ctx, image, torch.float32), with_fov=intrinsics is None)
+        return _finish(cid, fov, intrinsics, h, w)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable, "kernels_mlx": MlxPortable}

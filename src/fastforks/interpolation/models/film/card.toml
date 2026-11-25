@@ -3,7 +3,7 @@ name = "FILM"
 summary = "FILM (Reda et al., ECCV 2022): frame interpolation for large motion, the authors' film_net with the Style weights (the published default) as dajes/frame-interpolation-pytorch ports it. A 7-level image pyramid of both frames, cascaded features (one convolutional sub-tree extractor shared by all levels, so the coarse levels learn from fine training samples), a residual flow pyramid in both directions with one predictor shared by the coarse levels, both frames' images and features warped to the time on the 5 finest levels, and a U-Net-like decoder. Trained for the middle frame; other times run as upstream allows."
 tier = "experimental"
 outputs = ["frame"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/dajes/frame-interpolation-pytorch"
@@ -38,9 +38,10 @@ flow_filters = [32, 64, 128, 256]
 [modes.portable]
 cuda_dtype = "float16"  # inference.py --fp16 (`model.half()`; the flows and warps run in float32 here)
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convs, one CUDA graph per input shape; otherwise the portable float16 network
+kernels = ["cudnn_hacc", "ema_warp"]  # fp16-accumulate convs, warp kernels, one CUDA graph per input shape; otherwise the portable float16 network
 
 [[papers]]
 title = "FILM: Frame Interpolation for Large Motion"
@@ -50,6 +51,5 @@ venue = "ECCV 2022"
 
 [[variants]]
 id = "film"  # the Style model (README: the default `--model_path .../film_net/Style/saved_model`)
-planned = { tensorrt = "the TensorRT ONNX parser has no SequenceEmpty" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "film-net-style-fp32.pt", size = 137922129, sha256 = "f810cada26d0c288e50a27eac43af74446eb84b857ccbc77a22bb006f4d27240", url = "https://github.com/dajes/frame-interpolation-pytorch/releases/download/v1.0.2/film_net_fp32.pt" }]

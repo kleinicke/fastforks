@@ -54,7 +54,7 @@ class CoordSampler3D(nn.Module):
         device=None,
     ):
         coords = []
-        _coords = torch.tensor(1, device=device)
+        _coords = torch.ones((), device=device)  # fastforks: not `torch.tensor(1)`, a constant torch.export cannot lift
         coords.append(_coords.to(torch.float32))
         for num_s in spatial_shape:
             num_s = int(num_s * upsample_ratio)

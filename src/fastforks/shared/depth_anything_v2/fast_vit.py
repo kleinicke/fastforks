@@ -29,8 +29,10 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate as _fp16_accumulate  # re-exported for the ViT families
+from fastforks._core.patch import override
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.dinov2_layers.mlp import Mlp
 from .net.dinov2_layers.swiglu_ffn import SwiGLUFFN
@@ -53,6 +55,11 @@ def _flash(qkv: torch.Tensor, scale: float, attn: Flash64) -> torch.Tensor:
     """softmax(q k^T * scale) v for the packed qkv `[B, N, 3, H, 64]` (fp16) -> `[B, N, H * 64]`."""
     b, n, _, h, d = qkv.shape
     return attn(*qkv.unbind(2), scale).view(b, n, h * d)
+
+
+def _streamed_fast_block(block: torch.nn.Module, x: torch.Tensor, fast: FastViT) -> torch.Tensor:
+    """Use the selected CUDA attention and GEMMs with the currently staged block."""
+    return fast.block(block, x)
 
 
 class FastViT:
@@ -139,6 +146,25 @@ class FastViT:
             antialias=vit.interpolate_antialias,
         )
         return torch.cat([pe[:, :1], p.permute(0, 2, 3, 1).flatten(1, 2)], 1)
+
+    def stage_blocks(self, device: torch.device) -> StreamedModuleList:
+        """Keep packed blocks on the host and transfer their weights for each forward."""
+        for block in self.blocks:
+            override(block, _streamed_fast_block)
+        staged = StreamedModuleList(self.blocks, device)
+        self.blocks = []
+        self.vit.blocks = nn.ModuleList()
+        return staged
+
+    def run_blocks(self, tokens: torch.Tensor, staged: StreamedModuleList | None) -> torch.Tensor:
+        """Run all transformer blocks in order, returning the last tokens."""
+        if staged is None:
+            for block in self.blocks:
+                tokens = self.block(block, tokens)
+        else:
+            for block in staged:
+                tokens = block(tokens, self)
+        return tokens
 
     def tokens(self, x: torch.Tensor) -> torch.Tensor:
         """Patch tokens + cls (+ register) tokens + positions, fp16."""

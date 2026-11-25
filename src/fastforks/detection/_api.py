@@ -83,11 +83,19 @@ class DetectionModel(core.Model):
         """
         threshold = self._threshold(score_threshold)
         names = self._queries(text)
-        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
+        x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         changed = score_threshold is not None
         options = core.ReadOnlyDict(self.options, score_threshold=threshold) if changed else self.options
-        results = [self._detect(x[i : i + 1], threshold, options, names) for i in range(x.shape[0])]
+        if self._runner.batch == 1 or names is not None or x.shape[0] == 1:
+            results = [self._detect(x[i : i + 1], threshold, options, names) for i in range(x.shape[0])]
+        else:
+            step = self._runner.batch or x.shape[0]
+            with self._session():
+                outs = [
+                    o for i in range(0, x.shape[0], step) for o in self._runner.detect_batch(x[i : i + step], threshold)
+                ]
+            results = [self._result(out, x, options, None) for out in outs]
         return results if is_batch(image) else results[0]
 
     @property
@@ -127,6 +135,11 @@ class DetectionModel(core.Model):
     ) -> DetectionResult:
         with self._session():
             out = self._runner(x, threshold) if names is None else self._runner(x, threshold, text=names)  # ty: ignore[unknown-argument]
+        return self._result(out, x, options, names)
+
+    def _result(
+        self, out: dict[str, torch.Tensor], x: torch.Tensor, options: Mapping[str, Any], names: tuple[str, ...] | None
+    ) -> DetectionResult:
         n = out["boxes"].shape[0] if "boxes" in out else 0
         shapes = {"boxes": (n, 4), "scores": (n,), "labels": (n,), "masks": (n, *x.shape[-2:])}
         self._check_outputs(out, shapes)
@@ -145,7 +158,7 @@ class DetectionModel(core.Model):
 
 def bench_inputs(model: DetectionModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic uint8 image `[3, H, W]` (a photo's type; resized by the model as usual)."""
-    return ((synthetic_image(size.height, size.width, model.device)[0] * 255).round().to(torch.uint8),), {}
+    return ((synthetic_image(size.height, size.width, model._device)[0] * 255).round().to(torch.uint8),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(

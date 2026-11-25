@@ -39,6 +39,10 @@ from typing import cast
 import torch
 import torch.nn.functional as F
 from torch import nn
+from fastforks._core.upload import device_tensor  # fastforks
+
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.tracing import in_onnx_export
 
 from .dinov3 import CONFIGS, PATCH, REGISTERS, DINOv3ViT
 
@@ -91,9 +95,11 @@ class MSDA(nn.Module):
         b, q, _ = query.shape
         h, nl, p = self.heads, self.levels, self.points
         v = self.value_proj(value).view(b, value.shape[1], h, -1)
+        # `.float()`, not `to_float32`: on MLX these stay float16 (float32 cost ~8% of track-on2's time for no golden
+        # need; golden mean 0.0010 against 0.0167, tol 0.04)
         off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
         w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
-        norm = torch.tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
+        norm = device_tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)  # fastforks: no host sync (a pageable upload syncs the host)
         loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
         return self.output_proj(msda_sample(v, shapes, loc, w))
 
@@ -374,7 +380,9 @@ class SimpleFPN(nn.Module):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.lateral32, self.lateral16, self.lateral8 = _lateral(), _lateral(), _lateral()
-        self.output = nn.Sequential(nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1))
+        self.output = nn.Sequential(
+            nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1)
+        )
 
     def forward(self, f4: torch.Tensor, f8: torch.Tensor, f16: torch.Tensor, f32: torch.Tensor) -> torch.Tensor:
         """Maps -> fused 1/4 map."""
@@ -388,7 +396,7 @@ class SimpleFPN(nn.Module):
 class Frame:
     """One frame's features: tokens `[1, P_l, D]` per level, their concatenation, the fused tokens."""
 
-    levels: list[torch.Tensor]
+    levels: list[torch.Tensor]  # views into value
     value: torch.Tensor  # the 4 levels concatenated (deformable attention value)
     unit: list[torch.Tensor]  # L2-normalised levels `[P_l, D]` (correlation)
     fused: torch.Tensor
@@ -435,7 +443,11 @@ class TrackOn2(nn.Module):
         self.fpn = SimpleFPN()
         self.reranking_head = RerankModule()
         self.prediction_head = PredictionHead()
-        self.feature_attention, self.query_attention, self.memory_attention = _layers(LAYERS), _layers(LAYERS), _layers(LAYERS)
+        self.feature_attention, self.query_attention, self.memory_attention = (
+            _layers(LAYERS),
+            _layers(LAYERS),
+            _layers(LAYERS),
+        )
         self.projection1, self.projection2 = nn.Linear(D, D), nn.Linear(D, D)
         self.ms_corr_proj = nn.Conv2d(4, 1, 1)
         self.t_embedding = nn.Parameter(torch.empty(1, memory + 1, D))
@@ -453,11 +465,13 @@ class TrackOn2(nn.Module):
         maps = self.backbone(video)
         fused = self.fpn(*maps).flatten(2).transpose(1, 2)
         levels = [m.flatten(2).transpose(1, 2) for m in maps]
+        level_sizes = [level.shape[1] for level in levels]
         out = []
         for b in range(video.shape[0]):
             lv = [lvl[b : b + 1] for lvl in levels]
             unit = [F.normalize(lvl[0].float(), dim=-1) for lvl in lv]
-            out.append(Frame(lv, torch.cat(lv, 1), unit, fused[b : b + 1]))
+            value = torch.cat(lv, 1)
+            out.append(Frame(list(value.split(level_sizes, dim=1)), value, unit, fused[b : b + 1]))
         return out
 
     def sample(self, frame: Frame, xy: torch.Tensor) -> torch.Tensor:
@@ -469,20 +483,42 @@ class TrackOn2(nn.Module):
     def correlation(self, q: torch.Tensor, frame: Frame) -> torch.Tensor:
         """`multiscale_correlation`: cosine similarity per level, upsampled to 1/4, mixed by a 1 x 1 conv -> `[N, P]`."""
         n = q.shape[0]
-        qn = F.normalize(q.float(), dim=-1)
-        cs = []
-        for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
-            c = (qn @ u.T).view(n, 1, h, w)
-            cs.append(F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False) if i else c)
+        qn = F.normalize(to_float32(q), dim=-1)
+        pack = (
+            q.is_cuda
+            and not torch.compiler.is_compiling()
+            and torch.is_inference_mode_enabled()
+            and not (torch.jit.is_tracing() or in_onnx_export())
+        )
         conv = self.ms_corr_proj
-        return F.conv2d(torch.cat(cs, 1), conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
+        bias = to_float32(cast("torch.Tensor", conv.bias))
+        weight = to_float32(conv.weight).view(-1, 1, 1, 1) if pack else None
+        maps = []
+        mixed = None
+        for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
+            c = (qn @ to_float32(u).T).view(n, 1, h, w)
+            if i:
+                c = F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
+            if pack:
+                # fastforks: the 1 x 1 conv as a running weighted sum of the levels (one level live, no packed
+                # [N, 4, H, W] input; cuDNN's float32 4 -> 1 conv was 0.9 ms per call at 96 x 128, 656 queries)
+                if mixed is None:
+                    mixed = torch.addcmul(bias, c, cast("torch.Tensor", weight)[i])
+                else:
+                    mixed.addcmul_(c, cast("torch.Tensor", weight)[i])
+            else:
+                maps.append(c)
+            del c
+        if mixed is not None:
+            return mixed.view(n, -1)
+        return F.conv2d(torch.cat(maps, 1), to_float32(conv.weight), bias).view(n, -1)
 
     def coords(self, idx: torch.Tensor) -> torch.Tensor:
         """`indices_to_coords`: cell centres `(x, y)` in network pixels of flat 1/4 indices."""
         return torch.stack(((idx % self.wf).float() + 0.5, (idx // self.wf).float() + 0.5), -1) * STRIDE
 
     def _norm(self, p: torch.Tensor) -> torch.Tensor:
-        return (p / p.new_tensor((self.size[1], self.size[0]))).clamp(0, 1)
+        return (p / device_tensor((self.size[1], self.size[0]), device=p.device, dtype=p.dtype)).clamp(0, 1)  # fastforks: no host sync (a pageable upload syncs the host)
 
     def rerank(self, q: torch.Tensor, frame: Frame, c1: torch.Tensor) -> torch.Tensor:
         """`Rerank_Module.forward` (inference outputs): the re-ranked query `[N, D]`."""
@@ -504,7 +540,7 @@ class TrackOn2(nn.Module):
         qo = q[None]
         for blk in ph.offset_transformer:
             qo = blk(qo, frame.value, ref, self.shapes)
-        return ph.offset_layer(qo)[0].float() * STRIDE, ph.vis_layer(q)[:, 0].float()
+        return ph.offset_layer(qo)[0].float() * STRIDE, ph.vis_layer(q)[:, 0].float()  # float16 on MLX: no golden cost
 
     def step(
         self, q_init: torch.Tensor, mask: torch.Tensor, memory: torch.Tensor, frame: Frame

@@ -32,7 +32,7 @@ def main() -> None:
     sys.path.insert(0, str(reference_tree(repo, REF_COMMIT, PATCH)))
     from unidepth.models import UniDepthV2  # noqa: PLC0415  # reference checkout
 
-    net = UniDepthV2(json.loads((weights / "config.json").read_text()))
+    net = UniDepthV2(json.loads((weights / "config.json").read_text(encoding="utf-8")))
     net.load_state_dict(load_file(weights / "model.safetensors"))
     net.interpolation_mode = "bilinear"
     rgb = torch.from_numpy(image()).permute(2, 0, 1)  # uint8 CHW, as the upstream demo

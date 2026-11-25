@@ -9,6 +9,10 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.half import pure_half
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.aanet import AANet
@@ -33,6 +37,7 @@ class Params:
 
     plus: bool
     max_disp: int
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 def _net(ctx: Context) -> AANet:
@@ -72,8 +77,14 @@ class Portable(Runner):
     """Plain PyTorch: float32 or fp16 autocast on CUDA (the deformable convolution is `grid_sample` + matmuls).
 
     fp16 AANet runs channels-last; AANet+ stays NCHW like upstream: its full-resolution hourglass refinement and GA-Net
-    features ran 7-15 % slower channels-last.
+    features ran 7-15 % slower channels-last. On MPS fp16 is the whole network in fp16, NCHW (`pure_half`): autocast
+    there ran slower than fp32 (AANet 1163 ms against 940 ms at 994x1482, pure fp16 736 ms).
     """
+
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 63.7 -> 32.6 ms per pair)
+    batch_pixels = 1_300_000
 
     dtypes = ("float32", "float16")
     Params = Params
@@ -83,12 +94,18 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
-        self.fmt = torch.channels_last if self.half and not ctx.params.plus else torch.contiguous_format
+        self.pure = self.half and ctx.device.type == "mps"
+        cl = self.half and not ctx.params.plus and not self.pure
+        self.fmt = torch.channels_last if cl else torch.contiguous_format
         self.net.to(memory_format=self.fmt)
+        if self.pure:
+            pure_half(self.net, channels_last=False)
 
     def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         if not self.half:
             return forward(self.net, left, right)
+        if self.pure:
+            return forward(self.net, left, right).float()
         with torch.autocast(left.device.type, dtype=torch.float16):
             return forward(self.net, left.contiguous(memory_format=self.fmt), right.contiguous(memory_format=self.fmt))
 
@@ -101,8 +118,17 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, left, right: self._run(left, right))
 
 
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 44.1 -> 33.0 ms, 720x1280 60.2 -> 57.3 ms (reserved 794 -> 578 MiB)
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
-    """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16."""
+    """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     Params = Params
 
@@ -114,10 +140,24 @@ class Kernels(Runner):
         self.net = _net(ctx)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, left, right)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": self._forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
 
 
 class MetalKernels(Portable):
@@ -125,6 +165,8 @@ class MetalKernels(Portable):
 
     float16 weights and NCHW, no autocast (its casts took a quarter of the time).
     """
+
+    batch = 1  # not measured on Apple GPUs
 
     module = Runner.module  # the Metal kernel is not exportable
 
@@ -146,4 +188,30 @@ class MetalKernels(Portable):
         return forward(self.net, left.half(), right.half()).float()  # a float32 disparity
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), one pair per call."""
+
+    batch = 1  # not measured on Apple GPUs
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxAANet(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
+}

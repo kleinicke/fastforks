@@ -17,3 +17,21 @@ gpu_min_match = 0.98
 sha256 = "4d085560790898e70f567bb9d143aad09ac13701195f3237b675f1f35dd67643"
 upstream = "https://github.com/cvg/FlexGlue@99920296d082c9405ebfd612d674efe288e74881"
 settings = "CPU float32, upstream FlexGlue(mp=None).match_pair(sparse=True) with ALIKED(origin='corner', max_num_keypoints=2048) (LightGlue resize 1024), describe 512x512, threshold 0.1, max_distance_px 3.0, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."aliked-flexglue@1"]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.00118
+p99_px = 0.00319
+
+[validated."aliked-flexglue@1".windows]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00333
+p99_px = 0.00758

@@ -4,6 +4,8 @@ Port of our WAFT-Stereo fork's `cuda-kernels` branch (model/waft_fast.py @ 8dec3
 
 `prepare_kernels(model, device)`, then `forward_kernels(model, left, right)` (images `[B, 3, H, W]`, 0..255, any size):
   - LoRA adapters merged into the base weights (W + B A alpha / r, exact up to rounding), DINOv2 as the fastbb fp16 ViT (flash kernel, fp16-accumulate GEMMs)
+  - the iterative ViT's attention through the same fastbb flash kernel (`timm_blocks.flash`; SDPA's cuDNN kernel
+    before)
   - pure fp16 weights and NHWC activations; every conv through `cnn_kernels.conv_ep` (fp16-accumulate cuDNN graphs, or CUTLASS
     with the epilogue fused for >= 128 output channels)
   - the pre-activation `resconv` blocks as InstanceNorm + SiLU in one epilogue each and conv + bias + residual in
@@ -27,10 +29,11 @@ from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 from fastforks.shared.timm_blocks import Mlp
+from fastforks.shared.timm_blocks.flash import use_flash_attention
 
 from ..net._lora import PeftModel
 from ..net.block import resconv
-from ..net.utils import Padder, disp_warp
+from ..net.utils import Padder, normalize_coords
 
 if TYPE_CHECKING:
     from ..net.waft import WAFT
@@ -78,9 +81,7 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
     """
     model.eval()
     _merge_lora(model)
-    use_fast_vit(
-        model.encoder.encoder, fused=dpt_fused.load(device)
-    )  # fp16 DINOv2 with the fastbb flash kernel; the iterative modules use SDPA
+    use_fast_vit(model.encoder.encoder, fused=dpt_fused.load(device))  # fp16 DINOv2 with the fastbb flash kernel
     for m in model.modules():
         if isinstance(m, resconv):
             if not (isinstance(m.conv[1], nn.SiLU) and is_base(m.conv[0], nn.InstanceNorm2d) and not m.conv[0].affine):
@@ -88,13 +89,49 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
             override(m, _resconv_forward)
         elif isinstance(m, Mlp) and isinstance(m.fc1, nn.Conv2d):
             override(m, _mlp_conv_forward)
+    # The update's 2 E + D + 1 channel input (145) gets zero-weight channels up to a multiple of 8: 16-byte pixels, so
+    # `forward_kernels` writes its parts straight into one channels-last buffer with vectorized copies.
+    fc1 = model.delta_proj.fc1
+    if pad := -fc1.in_channels % 8:
+        wide = nn.Conv2d(fc1.in_channels + pad, fc1.out_channels, 1, device=fc1.weight.device)
+        wide.weight.data = F.pad(fc1.weight.data, (0, 0, 0, 0, 0, pad))
+        wide.bias.data = fc1.bias.data.clone()
+        model.delta_proj.fc1 = wide
     cnn_kernels.prepare_generic(model, device)
+    use_flash_attention(model)  # the iterative ViT (DINOv2's blocks are not timm `Attention`s)
+    # `WAFT.normalize_image`'s constants, on the device once: its `new_tensor` is a host copy per call
+    model._image_mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
+    model._image_std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
+
+
+# Host copies (a CPU `new_tensor` / `arange`) cannot be captured in a CUDA graph: the kernels path makes the same
+# tensors on the device instead of calling upstream's `normalize_image` / `disp_warp`
+def _normalize(model: WAFT, img: torch.Tensor) -> torch.Tensor:
+    """`WAFT.normalize_image` (`(img / 255 - mean) / std`) with the constants `prepare_kernels` put on the device."""
+    mean = model._image_mean.to(img.dtype)
+    std = model._image_std.to(img.dtype)
+    return ((img / 255.0 - mean) / std).contiguous()
+
+
+def _pixel_grid(feature: torch.Tensor) -> torch.Tensor:
+    """`net.utils.meshgrid(feature)`, made on the device: `[B, 2, H, W]`, `grid[:, :, i, j] = (j, i)`."""
+    b, _, h, w = feature.shape
+    x_range = torch.arange(w, device=feature.device, dtype=feature.dtype).view(1, 1, w).expand(1, h, w)
+    y_range = torch.arange(h, device=feature.device, dtype=feature.dtype).view(1, h, 1).expand(1, h, w)
+    return torch.cat((x_range, y_range), dim=0).unsqueeze(0).expand(b, 2, h, w)
+
+
+def _disp_warp(feature: torch.Tensor, disp: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    """`net.utils.disp_warp(feature, disp, padding_mode="zeros")` on the pixel grid `_pixel_grid(feature)`."""
+    offset = torch.cat((-disp, torch.zeros_like(disp)), dim=1)  # [B, 2, H, W]
+    sample_grid = normalize_coords(grid + offset)  # [B, H, W, 2] in [-1, 1]
+    return F.grid_sample(feature, sample_grid, mode="bilinear", padding_mode="zeros", align_corners=False)
 
 
 @torch.no_grad()
 def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Disparity `[B, H, W]` of a pair in 0..255; the same math as `WAFT.forward` (test path)."""
-    image1, image2 = model.normalize_image(left), model.normalize_image(right)
+    image1, image2 = _normalize(model, left), _normalize(model, right)
     padder = Padder(image1.shape, factor=model.factor)
     image1, image2 = padder.pad(image1), padder.pad(image2)
     fmap1, fmap2, hidden = model.encoder(torch.stack([image1, image2], dim=1).half())
@@ -105,9 +142,18 @@ def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> tor
     disp = torch.sum(prob * bins, dim=1, keepdim=True)
     del prob, prop
     fmap2_f32 = fmap2.float()
+    grid = _pixel_grid(fmap2_f32)
+    # the update's input `[fmap1, warped fmap2, hidden, disp]`, written part by part (and the zero channels once)
+    b, e, h, w = fmap1.shape
+    shape = (b, model.delta_proj.fc1.in_channels, h, w)
+    x = torch.empty(shape, dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
+    x[:, :e] = fmap1
+    d = hidden.shape[1]
+    x[:, 2 * e + d + 1 :] = 0
     for _ in range(model.iters):
-        warped = disp_warp(fmap2_f32, disp, padding_mode="zeros").half()
-        x = torch.cat([fmap1, warped, hidden, disp.half()], dim=1).contiguous(memory_format=CL)
+        x[:, e : 2 * e] = _disp_warp(fmap2_f32, disp, grid)
+        x[:, 2 * e : 2 * e + d] = hidden
+        x[:, 2 * e + d : 2 * e + d + 1] = disp
         hidden = model.delta_decoder(model.delta_proj(x))
         disp = disp + model.delta_disp_head(hidden).float()
     mask = 0.25 * model.delta_mask_head(hidden).float()

@@ -8,14 +8,14 @@ Input: one RGB image. Output: the text lines in reading order: a quad `[N, 4, 2]
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`parseq`](#parseq) | yes | no kernels | no kernels |
-| [`parseq-tiny`](#parseq) | yes | no kernels | no kernels |
-| [`ppocrv5-mobile`](#ppocrv5) | yes | no kernels | no kernels |
-| [`ppocrv5-server`](#ppocrv5) | yes | no kernels | no kernels |
+| [`parseq`](#parseq) | yes | 3.62, 4.4x (32x128) | 100, 0.69x |
+| [`parseq-tiny`](#parseq) | yes | 2.10, 6.9x (32x128) | 54, 0.93x |
+| [`ppocrv5-mobile`](#ppocrv5) | yes | 156, 2.7x | 448, 0.45x |
+| [`ppocrv5-server`](#ppocrv5) | yes | 231, 3.3x | 654, 0.23x |
 
 <a id="parseq"></a>
 
@@ -27,8 +27,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>no kernels<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>no kernels<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>82 / 90 |
+| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>3.62<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>79 / 100<br>111 / 118<br>148 / 168 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>2.10<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>44 / 54<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -38,19 +38,32 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c06600af574be/LICENSE>
 - Training data: The README does not say which data the released checkpoints were trained on; the paper's best models use its real-data union (COCO-Text, RCTW17, Uber-Text, ArT, LSVT, MLT19, ReCTS, TextOCR, OpenVINO; Datasets.md).
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: none (the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15))
+- Kernel libraries: `pil_resample`
 - Variants: `parseq`, `parseq-tiny`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved); `parseq-tiny` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15).
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
 - `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
+- `parseq` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `parseq-tiny` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
-- `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128)
-- `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128)
+- `parseq-tiny` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128), kernels 0.91 s / 0.205 s (32x128)
+- `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128), kernels 0.76 s / 0.192 s (32x128)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 |  |  |  |
+| `parseq-tiny` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 97.67 / 99.45 |  | 97.67 / 99.45 |  |  |  |  |
+| `parseq-tiny` | IIIT5K test (300 crops), word accuracy / normalized edit similarity % |  | 97.00 / 99.32 |  | 97.00 / 99.32 | 97.00 / 99.32 | 97.00 / 99.32 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb / 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00 / a54f74f7, 2026-11-19 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 
@@ -58,8 +71,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `parseq` | no kernels backend | - | - |
-| `parseq-tiny` | no kernels backend | - | - |
+| `parseq` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `pil_resample@a432ef0451fe:sm_120` |
+| `parseq-tiny` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `pil_resample@a432ef0451fe:sm_120` |
 
 </details>
 
@@ -73,8 +86,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>277<br>no kernels<br>277<br>25.1 | 2355 / 2901<br>1357 / 1452<br>no kernels<br>958 / 1132<br>1131 / 1146 |
-| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>no kernels<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>no kernels<br>292 / 448<br>241 / 268 |
+| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>279<br>231<br>277<br>25.1 | 2355 / 2901<br>615 / 752<br>607 / 654<br>958 / 1132<br>1131 / 1146 |
+| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>156<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>289 / 448<br>292 / 448<br>241 / 268 |
 
 <details><summary>Details</summary>
 
@@ -84,20 +97,33 @@ Commercial use: yes.
 - Licence evidence: https://github.com/PaddlePaddle/PaddleOCR/blob/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/LICENSE ; https://huggingface.co/PaddlePaddle/PP-OCRv5_server_det
 - Training data: The PP-OCRv5 technical report describes public and synthetic text data plus Baidu's own data; the exact sets are not listed.
 - Options: `box_threshold` = 0.6 (0.0 to 1.0; also `text_det_box_thresh`), `unclip_ratio` = 1.5 (>= 0.1; also `text_det_unclip_ratio`)
-- Kernel libraries: none (cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry)
+- Kernel libraries: `ocr_levels`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `ppocrv5-server`, `ppocrv5-mobile`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ppocrv5-server` 3000x4000 (7.1 GiB peak allocated, 9.8 reserved); `ppocrv5-mobile` 3000x4000 (1.4 GiB peak allocated, 2.3 reserved)
-- no kernels: cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `ppocrv5-server` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier; fp32 only: PaddleOCR's float16 needs TensorRT, and Paddle Inference float16 reads no text (detector overflow)
+- `ppocrv5-server` portable 1080x1920: FP16 native OCR with detector head strips. Public boxes, detection scores, and recognized text matched the full head on 24 pages including 23 constructed with labeled IIIT5K crops.
+- `ppocrv5-server` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
 - `ppocrv5-mobile` original (fp32) 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier
 - `ppocrv5-mobile` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle_fp16']), no orientation / unwarping / text-line classifier
-- `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s
-- `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s
+- `ppocrv5-mobile` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
+- `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s, kernels 1.07 s / 1.106 s
+- `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s, kernels 0.41 s / 3.002 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.27 | 94.80 / 98.26 | 94.80 / 98.25 |  |
+| `ppocrv5-mobile` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 89.43 / 96.19 | 89.40 / 96.18 | 89.40 / 96.19 | 89.40 / 96.18 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00, 2026-11-20.
 
 ### Parity
 
@@ -105,8 +131,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `ppocrv5-server` | no kernels backend | - | - |
-| `ppocrv5-mobile` | no kernels backend | - | - |
+| `ppocrv5-server` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `ocr_levels@3187ecc54497:sm_120` |
+| `ppocrv5-mobile` | 0.0625 / 1.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `ocr_levels@3187ecc54497:sm_120` |
 
 ### Limitations
 
@@ -123,10 +149,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`parseq`](#parseq) | portable | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
-| [`parseq-tiny`](#parseq) | portable | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
-| [`ppocrv5-mobile`](#ppocrv5) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
-| [`ppocrv5-server`](#ppocrv5) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
+| [`parseq`](#parseq) | portable, kernels | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
+| [`parseq-tiny`](#parseq) | portable, kernels | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
+| [`ppocrv5-mobile`](#ppocrv5) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
+| [`ppocrv5-server`](#ppocrv5) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
 
 </details>
 

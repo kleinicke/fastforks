@@ -4,40 +4,40 @@
 # (`from_pretrained`): the BridgeDepth checkpoint holds these weights. `infer` runs in the caller's precision (upstream
 # wraps it in torch.inference_mode + float16 autocast whenever the weights are float32, also on the CPU).
 import torch.nn as nn
+import torch.nn.functional as F
 
 from fastforks.shared.depth_anything_v2 import DINOv2, DPTHead
 
 
 class BridgeDPTHead(DPTHead):
     def forward(self, out_features, patch_h, patch_w):
-        out = []
-        for i, x in enumerate(out_features):
-            x = x[0]  # use_clstoken is False
-
-            x = x.permute(0, 2, 1).reshape((x.shape[0], x.shape[-1], patch_h, patch_w))
-
+        scratch = self.scratch
+        reductions = (scratch.layer1_rn, scratch.layer2_rn, scratch.layer3_rn, scratch.layer4_rn)
+        layers = []
+        for i, features in enumerate(out_features):
+            x = features[0]  # use_clstoken is False
+            x = x.permute(0, 2, 1).reshape(x.shape[0], x.shape[-1], patch_h, patch_w)
             x = self.projects[i](x)
-            x = self.resize_layers[i](x)
+            layers.append(reductions[i](self.resize_layers[i](x)))
 
-            out.append(x)
-
-        layer_1, layer_2, layer_3, layer_4 = out
-
-        layer_1_rn = self.scratch.layer1_rn(layer_1)
-        layer_2_rn = self.scratch.layer2_rn(layer_2)
-        layer_3_rn = self.scratch.layer3_rn(layer_3)
-        layer_4_rn = self.scratch.layer4_rn(layer_4)
-
-        path_4 = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
-        path_3 = self.scratch.refinenet3(path_4, layer_3_rn, size=layer_2_rn.shape[2:])
-        path_2 = self.scratch.refinenet2(path_3, layer_2_rn, size=layer_1_rn.shape[2:])
-        path_1 = self.scratch.refinenet1(path_2, layer_1_rn)
-
-        out = self.scratch.output_conv1(path_1)
-        # out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
-        # out = self.scratch.output_conv2(out)
-
-        return out
+        layer1, layer2, layer3, layer4 = layers
+        del layers, x
+        path = scratch.refinenet4(layer4, size=layer3.shape[2:])
+        del layer4
+        path = scratch.refinenet3(path, layer3, size=layer2.shape[2:])
+        del layer3
+        path = scratch.refinenet2(path, layer2, size=layer1.shape[2:])
+        del layer2
+        # Release the last skip and its residual before the full-resolution interpolation and projection.
+        block = scratch.refinenet1
+        residual = block.resConfUnit1(layer1)
+        del layer1
+        path = block.skip_add.add(path, residual)
+        del residual
+        path = block.resConfUnit2(path)
+        path = F.interpolate(path, scale_factor=2, mode="bilinear", align_corners=block.align_corners)
+        path = block.out_conv(path)
+        return scratch.output_conv1(path)
 
 
 class DepthAnything(nn.Module):

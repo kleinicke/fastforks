@@ -8,12 +8,12 @@ Input: one RGB image. Output: the camera intrinsics `[3, 3]` and, where the mode
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anycalib-pinhole`](#anycalib) | yes | 21.5, 1.8x | 812, 0.6x |
-| [`geocalib-pinhole`](#geocalib) | yes | 81.8, 1.3x | 338, 0.61x |
+| [`geocalib-pinhole`](#geocalib) | yes | 68.4, 1.6x | 336, 0.6x |
 
 <a id="anycalib"></a>
 
@@ -25,7 +25,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>planned for 0.2.1 | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>12.0 | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>778 / 780 |
+| `anycalib-pinhole` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>29.9<br>–<br>12.4 | –<br>693 / 704<br>–<br>750 / 768 |
 
 <details><summary>Details</summary>
 
@@ -37,25 +38,27 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `cudnn_hacc`
 - Variants: `anycalib-pinhole`
-- Not in this release (planned for 0.2.1): `anycalib-pinhole` ONNX / TensorRT export: the ONNX converter cannot decompose the exported graph (ConversionError, step 2/3)
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)
-- `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache).
+- `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 116 s (ONNX + engine).
+- `anycalib-pinhole` 480x640, first call: TensorRT fp16 118 s (ONNX + engine).
 - `anycalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; javrtg/AnyCalib@027a8497d893 AnyCalib.predict (pinhole), its resize / crop / linear + GN fit
 - `anycalib-pinhole` load / first call: original 4.09 s / 0.578 s, portable 1.73 s / 0.685 s, kernels 1.53 s / 0.371 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Resize all 2,000 images to 480 x 640 before inference. Compare vertical field of view against the dataset labels with the standard LaMAR AUC scoring. Resize every 40th LaMAR image to 1080 x 1920. Compare vertical field of view against the dataset labels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `anycalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 51.6 |  | – / – / 51.6 | – / – / 51.5 |  |
-| `anycalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 48.5 | – / – / 48.5 | – / – / 48.4 | – / – / 48.4 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `anycalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 51.6 |  | – / – / 51.6 | – / – / 51.6 | – / – / 51.5 |  |  |
+| `anycalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 48.5 | – / – / 48.5 | – / – / 48.4 | – / – / 48.5 | – / – / 48.4 |  |  |
+| `anycalib-pinhole` | LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees % |  |  | – / – / 13.0 |  |  | – / – / 13.1 |  |
+| `anycalib-pinhole` | LaMAR2k every 40th image at 1080 x 1920, vertical FoV AUC@5 degrees % |  |  | – / – / 7.4 |  |  | – / – / 7.4 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6637f957 / d24f589f, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 343b2f69 / ce213f43, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / d24f589f, 2026-11-18.
 
 ### Parity
 
@@ -68,6 +71,7 @@ CPU, float32: max |diff| <= 0.00019 vs the original. GPU, float16 (the default),
 ### Limitations
 
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- The fixed 480 x 640 FP16 TensorRT plan matched portable vertical field of view within 0.553 degrees across 2,000 resized LaMAR images. AUC@5 was 13.05% with TensorRT and 13.02% portable under that fixed-size protocol.
 
 </details>
 
@@ -81,7 +85,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>81.2<br>81.8<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>277 / 338<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>68.0<br>68.4<br>73.1<br>public API unavailable | 502 / 558<br>320 / 376<br>277 / 336<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1920x1440) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>123<br>–<br>109 (field predictor only, standalone build) | –<br>433 / 560<br>–<br>540 / 558 |
 
 <details><summary>Details</summary>
 
@@ -93,25 +98,29 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
-- Not in this release (planned for 0.2.1): `geocalib-pinhole` ONNX / TensorRT export: torch.export stops at a data-dependent branch ((norm_x == 0).any())
+- Public ONNX / TensorRT export is unavailable for `geocalib-pinhole` (dynamic optimizer convergence and unsupported ONNX Cholesky decomposition).
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `geocalib-pinhole` 1080x1920, first call: portable + torch.compile 28 s (cold Inductor cache).
+- `geocalib-pinhole` 1920x1440, first call: TensorRT fp32 43 s (ONNX + engine).
 - `geocalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; cvg/GeoCalibdedb29f94fc GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit
+- `geocalib-pinhole` portable 1080x1920, kernels 1080x1920: The eager Levenberg–Marquardt fit reuses the image pixel grid, residuals and weights. All five camera output tensors match on one synthetic input and eight labeled LaMAR photos.
 - `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.837 s, kernels 0.44 s / 0.745 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Every 20th LaMAR image in its original orientation and size. The compiled mode accelerates field prediction and keeps the camera fit eager. Take every 20th LaMAR image and score the 97 portrait images at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 |  |
-| `geocalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | 90.2 / 76.7 / 44.0 | 90.2 / 76.5 / 44.0 | 90.2 / 76.6 / 44.0 | 90.2 / 76.6 / 44.0 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 |  |
+| `geocalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | 90.2 / 76.7 / 44.0 | 90.2 / 76.5 / 44.0 | 90.2 / 76.6 / 44.0 | 90.2 / 76.7 / 44.0 | 90.2 / 76.6 / 44.0 |  |  |  |
+| `geocalib-pinhole` | LaMAR2k, every 20th image (100), roll / pitch / vertical FoV error AUC@5 degrees % |  |  |  | 89.9 / 75.0 / 43.0 |  | 89.9 / 75.0 / 43.0 |  |  |
+| `geocalib-pinhole` | LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees % |  |  |  | 89.6 / 74.5 / 42.6 |  |  | 89.6 / 74.5 / 42.6 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d / 6637f957 / ce213f43 / ffa9c54d, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d / ffa9c54d, 2026-11-18.
 
 ### Parity
 
@@ -124,6 +133,7 @@ CPU, float32: max |diff| <= 0.0032 vs the original. GPU, float16 (the default), 
 ### Limitations
 
 - The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.
+- The standalone FP32 TensorRT benchmark accelerates the 416 x 320 field predictor and uses the usual PyTorch camera optimizer. On 97 portrait LaMAR images the largest angle difference was 0.000048 degrees.
 
 </details>
 

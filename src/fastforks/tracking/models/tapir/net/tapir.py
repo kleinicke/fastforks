@@ -21,11 +21,13 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import NamedTuple
 
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 SIZE = 256  # training resolution; the network runs at it
 PIPS_ITERS = 4
@@ -185,7 +187,7 @@ def map_coordinates_3d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
     x = feats.permute(0, 4, 1, 2, 3)
     y = coords[:, :, None, None, :].float().clone()
     y[..., 0] += 0.5
-    y = 2 * (y / torch.tensor(x.shape[2:], device=y.device)) - 1
+    y = 2 * (y / device_tensor(x.shape[2:], device=y.device)) - 1  # fastforks: no host sync (a pageable upload syncs the host)
     out = F.grid_sample(x, y.flip(-1), mode="bilinear", align_corners=False, padding_mode="border")
     return out.squeeze(4).squeeze(3).permute(0, 2, 1)
 
@@ -207,11 +209,15 @@ def map_coordinates_2d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
 def soft_argmax(heat: torch.Tensor, threshold: float = 5) -> torch.Tensor:
     """`(x, y)` `[B, N, T, 2]` (grid cells, centres at +0.5): the mean of `heat` within `threshold` of its argmax."""
     b, n, t, h, w = heat.shape
-    yy, xx = torch.meshgrid(torch.arange(h, device=heat.device), torch.arange(w, device=heat.device), indexing="ij")
-    coords = torch.stack([xx + 0.5, yy + 0.5], -1)  # [h, w, 2]
+    y = torch.arange(h, device=heat.device) + 0.5
+    x = torch.arange(w, device=heat.device) + 0.5
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
+    coords = torch.stack([xx, yy], -1)  # [h, w, 2]
     pos = coords.reshape(-1, 2)[heat.reshape(b, n, t, -1).argmax(-1)]  # [b, n, t, 2]
-    valid = (coords - pos[:, :, :, None, None]).square().sum(-1, keepdim=True) < threshold**2
-    weight = valid * heat[..., None]
+    dx2 = (x - pos[..., :1]).square()
+    dy2 = (y - pos[..., 1:]).square()
+    valid = dx2[..., None, :] + dy2[..., :, None] < threshold**2
+    weight = valid[..., None] * heat[..., None]
     total = (coords * weight).sum((3, 4))
     return total / torch.clamp(weight.sum((3, 4)), min=1e-12)
 
@@ -247,7 +253,7 @@ class TAPIR(nn.Module):
         hires, lowres = hires[None], lowres[None]
         out = []
         for grid in (hires, lowres):
-            scale = torch.tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)
+            scale = device_tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)  # fastforks: no host sync (a pageable upload syncs the host)
             out.append(map_coordinates_3d(grid, queries * scale))
         return Features(hires, lowres, out[0], out[1])
 
@@ -263,7 +269,7 @@ class TAPIR(nn.Module):
         pos = mods["hid2"](hidden).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4).reshape(b, n, t, -1)
         heat = F.softmax(pos.mul_(SOFTMAX_TEMPERATURE), -1).view(b, n, t, h, w)
         del pos
-        points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=queries.device)
+        points = soft_argmax(heat) * device_tensor([SIZE / w, SIZE / h], device=queries.device)  # fastforks: no host sync (a pageable upload syncs the host)
         del heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
@@ -285,17 +291,23 @@ class TAPIR(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """One PIPs step: local correlations around `points` and the mixer's update of points, logits and features."""
         ctx = torch.stack(
-            torch.meshgrid(torch.arange(-3, 4), torch.arange(-3, 4), indexing="ij"), -1
-        ).reshape(-1, 2).to(points.device)
+            torch.meshgrid(torch.arange(-3, 4, device=points.device), torch.arange(-3, 4, device=points.device), indexing="ij"), -1
+        ).reshape(-1, 2)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync)
         corrs = []
+        # fastforks: on MPS the correlations of the fp32 neighbourhoods run in fp32 outside autocast (its fp16 casts of
+        # the strided neighbourhoods ran 4x slower than the fp32 product)
+        mps = points.device.type == "mps"
+        region = torch.autocast("mps", enabled=False) if mps else contextlib.nullcontext()
         for i, (query, grid) in enumerate(zip(queries, pyramid, strict=True)):
-            yx = (points * torch.tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)
+            yx = (points * device_tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)  # fastforks: no host sync (a pageable upload syncs the host)
             neighborhood = map_coordinates_2d(grid, yx[:, :, :, None] + ctx)
-            if last is None:
-                corrs.append(torch.einsum("bnfsc,bnc->bnfs", neighborhood, query))
-            else:
-                q = last[..., :HIRES] if i == 0 else last[..., HIRES:]
-                corrs.append(torch.einsum("bnfsc,bnfc->bnfs", neighborhood, q))
+            q = query if last is None else last[..., :HIRES] if i == 0 else last[..., HIRES:]
+            with region:
+                if mps:
+                    neighborhood, q = neighborhood.float(), q.float()
+                eq = "bnfsc,bnc->bnfs" if last is None else "bnfsc,bnfc->bnfs"
+                corrs.append(torch.einsum(eq, neighborhood, q))
+            del neighborhood
         if last is None:
             feats = torch.cat([queries[0], queries[1]], -1)[:, :, None].expand(-1, -1, points.shape[2], -1)
         else:
@@ -305,13 +317,21 @@ class TAPIR(nn.Module):
         res = self.torch_pips_mixer(x.reshape(b * n, t, c).float()).reshape(b, n, t, -1)
         return points + res[..., :2], occ + res[..., 2], expd + res[..., 3], feats + res[..., 4:]
 
-    def track(self, f: Features, queries: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def pyramid(self, features: Features) -> list[torch.Tensor]:
+        """The frame grids, shared by all chunks of queries."""
+        grids = [features.hires, features.lowres]
+        for _ in range(self.pyramid_level):
+            grids.append(F.avg_pool3d(grids[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        return grids
+
+    def track(
+        self, f: Features, queries: torch.Tensor, *, pyramid: list[torch.Tensor] | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Final points `[1, Q, T, 2]` `(x, y)`, occlusion and expected-distance logits `[1, Q, T]` of the queries."""
         points, occ, expd = self.initial(f.query_lowres, f.lowres, queries)
         queries_ = [f.query_hires, f.query_lowres] + [f.query_lowres] * self.pyramid_level
-        pyramid = [f.hires, f.lowres]
-        for _ in range(self.pyramid_level):
-            pyramid.append(F.avg_pool3d(pyramid[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        if pyramid is None:
+            pyramid = self.pyramid(f)
         last = None
         for _ in range(PIPS_ITERS):
             points, occ, expd, last = self.refine(queries_, pyramid, points, occ, expd, last)

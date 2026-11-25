@@ -47,6 +47,15 @@ def mlp(dims: list[int]) -> nn.Sequential:
     return nn.Sequential(*layers)
 
 
+def _cat(x: torch.Tensor, message: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    """fastforks: `[x, message]` in `dtype`, the (autocast) dtype of the messages the ffn's first Linear reads.
+
+    The float32 residual and norm are cast before the concatenation instead of after it: the same values, half the
+    bytes moved (no float32 copy of the doubled width).
+    """
+    return torch.cat([x.to(dtype), message.to(dtype)], -1)
+
+
 def ffn(dim: int) -> nn.Sequential:
     """The transformer blocks' feed-forward net on [x, message]."""
     return nn.Sequential(nn.Linear(2 * dim, 2 * dim), nn.LayerNorm(2 * dim), nn.GELU(), nn.Linear(2 * dim, dim))
@@ -85,7 +94,7 @@ class SelfBlock(nn.Module):
         encoding = encoding.transpose(-3, -2)  # broadcast over (N, H) instead of (H, N)
         q, k = apply_rotary(encoding, q), apply_rotary(encoding, k)
         message = self.out_proj(attention(q, k, v.contiguous()))
-        return x + self.ffn(torch.cat([x, self.message_norm(message)], -1))
+        return x + self.ffn(_cat(x, self.message_norm(message), message.dtype))
 
 
 class CrossBlock(nn.Module):
@@ -109,8 +118,8 @@ class CrossBlock(nn.Module):
         qk0, qk1 = self.qk_norm(qk0).to(v0.dtype), self.qk_norm(qk1).to(v1.dtype)
         m0 = self.to_out(attention(qk0, qk1, v1))
         m1 = self.to_out(attention(qk1, qk0, v0))
-        x0 = x0 + self.ffn(torch.cat([x0, self.message_norm(m0)], -1))
-        x1 = x1 + self.ffn(torch.cat([x1, self.message_norm(m1)], -1))
+        x0 = x0 + self.ffn(_cat(x0, self.message_norm(m0), m0.dtype))
+        x1 = x1 + self.ffn(_cat(x1, self.message_norm(m1), m1.dtype))
         return x0, x1
 
 

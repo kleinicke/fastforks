@@ -3,7 +3,7 @@ name = "HED soft edges (ControlNet 1.1)"
 summary = "Soft edge preprocessor of ControlNet 1.1 (controlnet_aux `HEDdetector`, ComfyUI's \"HED Soft-Edge Lines\"): lllyasviel's Apache-2.0 re-implementation of holistically-nested edge detection, a VGG-style network whose five side outputs are averaged into a soft edge map (RGB input, smoother edges than the original HED)."
 tier = "experimental"
 outputs = ["edges"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"
@@ -27,10 +27,10 @@ safe = false  # true: quantize the map to 3 levels (controlnet_aux `safe=True`, 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "Holistically-Nested Edge Detection"

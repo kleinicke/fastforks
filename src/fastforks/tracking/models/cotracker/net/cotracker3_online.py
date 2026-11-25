@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .model_utils import sample_features5d, bilinear_sampler
 from .embeddings import get_1d_sincos_pos_embed_from_grid
+from fastforks._core.upload import device_tensor  # fastforks
 
 from .blocks import Mlp, BasicEncoder
 from .cotracker import EfficientUpdateFormer
@@ -33,9 +34,8 @@ def posenc(x, min_deg, max_deg):
     """
     if min_deg == max_deg:
         return x
-    scales = torch.tensor(
-        [2**i for i in range(min_deg, max_deg)], dtype=x.dtype, device=x.device
-    )
+    # fastforks: made on the device (torch.tensor uploads, which syncs); exp2 of integers is exact, same values
+    scales = torch.arange(min_deg, max_deg, dtype=x.dtype, device=x.device).exp2()
 
     xb = (x[..., None, :] * scales[:, None]).reshape(list(x.shape[:-1]) + [-1])
     four_feat = torch.sin(torch.cat([xb, xb + 0.5 * torch.pi], dim=-1))
@@ -225,7 +225,7 @@ class CoTrackerThreeOnline(CoTrackerThreeBase):
             )
 
             scale = (
-                torch.tensor(
+                device_tensor(  # fastforks: no host sync (a pageable upload syncs the host)
                     [self.model_resolution[1], self.model_resolution[0]],
                     device=coords.device,
                 )
@@ -388,7 +388,7 @@ class CoTrackerThreeOnline(CoTrackerThreeBase):
         fmaps = fmaps / torch.sqrt(
             torch.maximum(
                 torch.sum(torch.square(fmaps), axis=-1, keepdims=True),
-                torch.tensor(1e-12, device=fmaps.device),
+                device_tensor(1e-12, device=fmaps.device),  # fastforks: no host sync (a pageable upload syncs the host)
             )
         )
         fmaps = fmaps.permute(0, 3, 1, 2).reshape(

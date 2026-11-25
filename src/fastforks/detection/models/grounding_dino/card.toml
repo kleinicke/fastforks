@@ -3,7 +3,7 @@ name = "Grounding DINO and MM-Grounding-DINO (open-vocabulary, Swin-T and Swin-B
 summary = "Grounding DINO (Liu et al. 2023, IDEA Research): open-set detection that fuses a Swin image backbone with a BERT text encoder in a DINO-style deformable transformer; each of 900 queries scores every caption token. MM-Grounding-DINO (Zhao et al. 2024, OpenMMLab) is the same network with a scaled, biased contrastive class head and unshared decoder heads, retrained on Objects365, GoldG and V3Det. Pass `text=[...]` at call time (default: the 80 COCO class names), joined into one caption; a class score is the mean token score of its name. Images are resized to 800 px on the short side (at most 1333 on the long side). The portable `module()` is the image side with the COCO caption's text features as constants."
 tier = "experimental"
 outputs = ["boxes", "scores", "labels"]
-uses = ["seginfer", "bert_tokenizer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "bert_tokenizer", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Requires the optional transformers library (the network is its `GroundingDinoForObjectDetection`).",
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (IDEA-Research/grounding-dino-*, openmmlab-community/mm_grounding_dino_*); the official GroundingDINO and mmdetection code (their CUDA deformable-attention ops) was not run.",
@@ -47,10 +47,10 @@ arch = "GroundingDinoForObjectDetection"
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder; the text tower (once per query list) and the last heads stay float32
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640)"
+kernels = ["msda"]
 
 [output]
 label_set = "coco-80"  # the default queries; `text=` replaces them per call

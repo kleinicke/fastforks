@@ -3,7 +3,7 @@ name = "DepthFM"
 summary = "DepthFM (Gui et al. 2024): affine-invariant monocular depth by flow matching from the image latent to the depth latent; a Stable Diffusion 2.1 UNet fine-tuned to the flow, a few Euler steps, ensemble of noise samples (v1)."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["pil_resize", "sd2"]  # fastforks.shared modules this family imports
+uses = ["pil_resize", "sd2", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Flow model on a noised latent: the seeded noise comes from a CPU generator and differs from the original code's device generator for the same seed.",
   "A traced or exported module reuses the noise of its traced shape.",
@@ -42,6 +42,7 @@ seed = 2024  # seed of the initial noise (CPU generator); the output depends on 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]

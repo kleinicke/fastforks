@@ -19,6 +19,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks._core.patch import base_type, override
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.monster_fit import fit
@@ -42,10 +44,13 @@ def _bn_forward(self, x):
 
 def _in_forward(self, x):
     # InstanceNorm2d(affine=False): fp32 statistics, applied in place for fp32 (keeps NHWC)
-    var, mean = torch.var_mean(x.float(), dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
-    if x.dtype == torch.float32:
+    xf = to_float32(x)
+    var, mean = torch.var_mean(xf, dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
+    if x.dtype == torch.float32 and not exporting_for_mlx():
         return x.sub_(mean).mul_(torch.rsqrt(var + self.eps))
-    return ((x.float() - mean) * torch.rsqrt(var + self.eps)).to(x.dtype)  # fp16: fp32 per element, as F.instance_norm
+    # fp16: fp32 per element, as F.instance_norm; an fp16 MLX replay too (normalising the feature transfers' conv
+    # outputs in fp16 took the golden mean error from 0.025 to 0.037)
+    return to_run_dtype((xf - mean) * torch.rsqrt(var + self.eps), x.dtype)
 
 
 def _basic_conv_forward(self, x):  # BasicConv / BasicConv_IN: conv -> norm -> LeakyReLU(0.01), in place
@@ -94,7 +99,7 @@ def warp(img, disp):
     gx = 2 * ((xs - disp[:, 0].float()) / (w - 1)) - 1
     gy = (2 * (torch.arange(h, device=img.device, dtype=torch.float32) / (h - 1)) - 1).view(1, h, 1).expand_as(gx)
     return F.grid_sample(
-        img.float(), torch.stack([gx, gy], -1), mode="bilinear", padding_mode="border", align_corners=False
+        to_float32(img), torch.stack([gx, gy], -1), mode="bilinear", padding_mode="border", align_corners=False
     )  # upstream: the default (False), not passed
 
 
@@ -106,11 +111,12 @@ def remp(R, disp_mono, disp_stereo, left, right, dt, mf):
         [R.conv1_mono(fm), R.conv2_mono(disp_mono.to(dt)), R.conv1_stereo(fs), R.conv2_stereo(disp_stereo.to(dt))], 1
     )
     del fm, fs
-    x = R.RefinementBlock(R.conv_start(x))
+    x = R.conv_start(x)
+    x = R.RefinementBlock(x)
     low = R.LFE(R.AP(x))
     motif = R.LMC(x)
     x = R.final_conv((1 - motif) * low + motif * x)
-    return F.leaky_relu(disp_stereo + x.float(), 0.01)
+    return F.leaky_relu(disp_stereo + to_float32(x), 0.01)
 
 
 @torch.no_grad()
@@ -124,17 +130,18 @@ def forward_fast(self, image1, image2, iters=32):
     i1, i2 = (x.to(dt).contiguous(memory_format=mf) for x in (im1, im2))
     depth_mono, fml, fmr = self.infer_mono(i1, i2)
     size = (int(depth_mono.shape[-2] * 0.25), int(depth_mono.shape[-1] * 0.25))
-    disp_mono_4x = F.interpolate(depth_mono.float(), size=size, mode="bilinear", align_corners=False)
+    disp_mono_4x = F.interpolate(to_float32(depth_mono), size=size, mode="bilinear", align_corners=False)
     del depth_mono
 
     # right view first: only its 1/4 features are kept
     features_right = self.feat_transfer(fmr)
     del fmr
     fr0 = torch.cat((features_right[0], self.stem_4(self.stem_2(i2))), 1)
-    del features_right
+    del features_right, i2
     match_right = self.desc(self.conv(fr0))
     features_left = self.feat_transfer(fml)
     stem_2x = self.stem_2(i1)
+    del i1
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
@@ -146,7 +153,7 @@ def forward_fast(self, image1, image2, iters=32):
     gwc_volume = self.corr_feature_att(gwc_volume, features_left[0])
     geo_encoding_volume = self.cost_agg(gwc_volume, features_left)
     del gwc_volume
-    prob = F.softmax(self.classifier(geo_encoding_volume).squeeze(1).float(), dim=1)
+    prob = F.softmax(to_float32(self.classifier(geo_encoding_volume).squeeze(1)), dim=1)
     init_disp = disparity_regression(prob, D)
     del prob
     fl0 = features_left[0]
@@ -170,10 +177,10 @@ def forward_fast(self, image1, image2, iters=32):
         out_dtype=dt,
     )
     del geo_encoding_volume, match_left, match_right
-    fl0f, fr0f = fl0.float(), fr0.float()
+    fl0f, fr0f = to_float32(fl0), to_float32(fr0)
     del fl0, fr0
 
-    disp = init_disp.float()
+    disp = to_float32(init_disp)
     mask_feat_4 = mask_mono = None
     for itr in range(iters):
         geo_feat = geo_fn(disp)
@@ -198,12 +205,17 @@ def forward_fast(self, image1, image2, iters=32):
                 net_mono, inp_list, flaw_mono, dm_h, geo_feat_mono, flaw_stereo, disp_h, geo_feat
             )
             disp_mono_4x = disp_mono_4x + delta_mono.float()
+            del flaw_mono, flaw_stereo, geo_feat_mono, dm_h, delta_mono
         disp = disp + delta_disp.float()
+        del geo_feat, disp_h, delta_disp
 
-    def up(dl, mask):
-        xspx = self.spx_2_gru(mask, stem_2x)
-        return context_upsample(dl * 4.0, F.softmax(self.spx_gru(xspx).float(), 1)).unsqueeze(1)
+    del geo_fn, fl0f, fr0f, net_list, net_mono, inp_list, init_disp
 
-    disp_up = up(disp, mask_feat_4)
-    disp_mono_up = up(disp_mono_4x, mask_mono)
+    def up(dl, mask, stem):
+        xspx = self.spx_2_gru(mask, stem)
+        return context_upsample(dl * 4.0, F.softmax(to_float32(self.spx_gru(xspx)), 1)).unsqueeze(1)
+
+    disp_up = up(disp, mask_feat_4, stem_2x)
+    disp_mono_up = up(disp_mono_4x, mask_mono, stem_2x)
+    del stem_2x, mask_feat_4, mask_mono
     return disp_up + remp(self.REMP, disp_mono_up, disp_up, im1, im2, dt, mf)

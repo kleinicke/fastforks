@@ -1,25 +1,30 @@
 """ReCoVEr runners: weights -> network and the portable / kernels forward passes.
 
-Both fold the encoders' batch norms into their convolutions. Portable on CUDA in float16 runs the whole network in
-fp16 channels-last (the flow state, the softmax of the upsampling weights and the convex upsampling in float32);
-kernels adds fp16-accumulate GEMMs (the ConvNeXt MLPs) and cuDNN fp16-accumulate convolutions.
+Both fold the encoders' batch norms into their convolutions and the ConvNeXt layer scales into the Linear before.
+Portable on CUDA in float16 runs the whole network in fp16 channels-last (the flow state, the softmax of the
+upsampling weights and the convex upsampling in float32); kernels adds fp16-accumulate GEMMs (the ConvNeXt MLPs)
+and cuDNN fp16-accumulate convolutions.
 """
 
 from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import cudnn_hacc, flow_upsample, recover_motion
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
-from .net import BasicBlock, ReCoVEr, ResNetFPN
+from .net import BasicBlock, CNBlock, ConvNextBlock, ReCoVEr, ResNetFPN
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
@@ -31,6 +36,7 @@ class Params:
 
     arch: Literal["rn", "mn", "cx"]  # context encoder: ResNet34, MobileNetV3-Large, ConvNeXt-T stages
     iters: int  # flow updates after the initial regression (upstream `iters`, 4)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 @torch.no_grad()
@@ -65,10 +71,36 @@ def fold_batchnorms(net: nn.Module) -> int:
     return n
 
 
+def _cn_block(self: CNBlock, x: torch.Tensor) -> torch.Tensor:
+    return x + self.block(x)  # layer scale folded into block[5] (`fold_layer_scales`)
+
+
+def _convnext_block(self: ConvNextBlock, x: torch.Tensor) -> torch.Tensor:
+    y = self.dwconv(x).permute(0, 2, 3, 1)
+    y = self.pwconv2(self.act(self.pwconv1(self.norm(y))))  # gamma folded into pwconv2 (`fold_layer_scales`)
+    return self.final(x + y.permute(0, 3, 1, 2))
+
+
+@torch.no_grad()
+def fold_layer_scales(net: nn.Module) -> int:
+    """`gamma * linear(x)` -> `linear'(x)` in the ConvNeXt blocks (one multiply kernel less each); returns how many."""
+    n = 0
+    for m in net.modules():
+        if isinstance(m, (CNBlock, ConvNextBlock)):
+            scale, linear = (m.layer_scale, m.block[5]) if isinstance(m, CNBlock) else (m.gamma, m.pwconv2)
+            linear = cast("nn.Linear", linear)
+            g = scale.reshape(-1, 1)
+            linear.weight.copy_(linear.weight * g)
+            cast("torch.Tensor", linear.bias).copy_(cast("torch.Tensor", linear.bias) * g[:, 0])
+            override(m, _cn_block if isinstance(m, CNBlock) else _convnext_block)
+            n += 1
+    return n
+
+
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     from fastforks.kernels.cudnn_hacc import conv_half_acc  # noqa: PLC0415 - kernels only
 
-    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride))  # ty: ignore
+    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride), fuse_bias=True)  # ty: ignore
 
 
 def _hacc_convs(module: nn.Module) -> int:
@@ -94,6 +126,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: mn 12.9 -> 6.6 ms per pair, kernels 14.1 -> 5.5; rn and cx gain 5-35 %), not at 720p
+    batch_pixels = 1_300_000
     gacc = False  # fp16-accumulate GEMMs
 
     def __init__(self, ctx: Context) -> None:
@@ -105,6 +141,7 @@ class Portable(Runner):
         self.net.load_state_dict(sd)
         self.net.eval()
         fold_batchnorms(self.net)
+        fold_layer_scales(self.net)
         dt = torch.float16 if ctx.dtype == "float16" else torch.float32
         self.layout = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
         self.net.to(ctx.device, dt).to(memory_format=self.layout)
@@ -115,7 +152,8 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
-        image1, image2 = (x.contiguous(memory_format=self.layout) for x in (image1, image2))
+        if not self.gacc:
+            image1, image2 = (x.contiguous(memory_format=self.layout) for x in (image1, image2))
         with torch.autocast(image1.device.type, enabled=False), self.accumulate():
             return {"flow": self.net(image1, image2, self.ctx.params.iters)}
 
@@ -125,8 +163,32 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2, iters))
 
 
+def _kernel_pair(_net: nn.Module, image1: torch.Tensor, image2: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    b, c, h, w = image1.shape
+    out = torch.empty((b, 2 * c, h, w), dtype=dtype, device=image1.device, memory_format=torch.channels_last)
+    return torch.cat((image1, image2), 1, out=out)
+
+
+def _tile(self: nn.Module, _h: int, _w: int) -> torch.Tensor:
+    return cast("torch.Tensor", self.correlation_tile)
+
+
+def _motion(self: Any, flow: torch.Tensor, tile: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - prepared motion encoder
+    flo = F.relu(self.convf2(F.relu(self.convf1(flow))))
+    motion = F.conv2d(flo, self.flow_weight, padding=1)
+    return recover_motion.pack(motion, tile, flow)
+
+
+_GRAPH_PIXELS = 1_100_000  # fixed: pairs x padded H x W; the pass's few hundred launches bound smaller calls
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """Portable's fp16 network with fp16-accumulate GEMMs and cuDNN fp16-accumulate convolutions."""
+    """Portable's fp16 network with fp16-accumulate GEMMs and cuDNN fp16-accumulate convolutions.
+
+    A repeated call shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager pass
+    is launch-bound there.
+    """
 
     gacc = True
 
@@ -137,9 +199,50 @@ class Kernels(Portable):
             msg = "ReCoVEr kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
 
+        encoder = self.net.update_block.encoder
+        with torch.inference_mode(), self.accumulate():
+            tile = encoder.corr_term(5, 5).contiguous(memory_format=torch.channels_last)
+            encoder.register_buffer("correlation_tile", tile, persistent=False)
+            channels = encoder.convf2.out_channels
+            weight = encoder.conv.weight[:, -channels:].contiguous(memory_format=torch.channels_last)
+            encoder.register_buffer("flow_weight", weight, persistent=False)
+        override(encoder, _tile, "corr_term")
+        override(encoder, _motion)
+        override(self.net, _kernel_pair, "pair")
+        self.net.upsample = flow_upsample.convex
+        self._graphs = SmallShapeGraphs(
+            self._eager,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
+
+    def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        with torch.autocast(image1.device.type, enabled=False), self.accumulate():
+            return self.net(image1, image2, self.ctx.params.iters)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
     def module(self) -> torch.nn.Module:
         """No exportable module: kernel launches."""
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair),
+}

@@ -11,6 +11,7 @@ from .gravity import Gravity
 from .misc import TensorWrapper, autocast
 from .utils import deg2rad, focal2fov, fov2focal, rad2rotmat
 from fastforks._core.sampling import grid_sample
+from ..small_einsum import einsum  # fastforks: broadcast products, not per-pixel bmm
 
 # flake8: noqa: E741
 # mypy: ignore-errors
@@ -323,14 +324,20 @@ class BaseCamera(TensorWrapper):
         else:
             raise NotImplementedError(f"Jacobian not implemented for wrt={wrt}")
 
-    def pixel_coordinates(self) -> torch.Tensor:
+    def pixel_coordinates(self, size: Tuple[int, int] | None = None) -> torch.Tensor:
         """Pixel coordinates in self frame.
+
+        Args:
+            size: Optional precomputed height and width of the camera image.
 
         Returns:
             torch.Tensor: Pixel coordinates as a tensor of shape (B, h * w, 2).
         """
-        w, h = self.size[0].unbind(-1)
-        h, w = h.round().to(int), w.round().to(int)
+        if size is None:
+            w, h = self.size[0].unbind(-1)
+            h, w = h.round().to(int), w.round().to(int)
+        else:
+            h, w = size
 
         # create grid
         x = torch.arange(0, w, dtype=self.dtype, device=self.device)
@@ -367,7 +374,7 @@ class BaseCamera(TensorWrapper):
         J_dist = self.J_distort(p2d_proj)
         J_proj = self.J_project(p3d)
 
-        J = torch.einsum("...ij,...jk,...kl->...il", J_dnorm, J_dist, J_proj)
+        J = einsum("...ij,...jk,...kl->...il", J_dnorm, J_dist, J_proj)
         return J, valid
 
     @autocast
@@ -390,7 +397,7 @@ class BaseCamera(TensorWrapper):
             p2d_norm = self.normalize(p2d)
             J_dist2norm = self.J_undistort(p2d_norm, "pts")
 
-            return torch.einsum("...ij,...jk->...ik", J_dist2norm, J_norm2f)
+            return einsum("...ij,...jk->...ik", J_dist2norm, J_norm2f)
         else:
             raise ValueError(f"Unknown wrt: {wrt}")
 
@@ -646,7 +653,7 @@ class SimpleRadial(BaseCamera):
         elif wrt == "pts":
             radial = 1 + b1 * r2
             radial_diag = torch.diag_embed(radial.expand(radial.shape[:-1] + (2,)))
-            ppT = torch.einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
+            ppT = einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
             return (2 * b1[..., None] * ppT) + radial_diag
         else:
             return super().J_undistort(p2d, wrt)
@@ -761,7 +768,7 @@ class Radial(BaseCamera):
         elif wrt == "pts":  # (..., 2, K)
             b1, b2 = -k1, 3 * k1**2 - k2
 
-            uv_uvT = torch.einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
+            uv_uvT = einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
             J = (4 * r2 * b2 + 2 * b1)[..., None] * uv_uvT
 
             I = torch.eye(2, device=p2d.device, dtype=p2d.dtype).expand(p2d.shape[:-1] + (2, 2))
@@ -778,7 +785,7 @@ class Radial(BaseCamera):
         k1, k2 = self.k1[..., None, None], self.k2[..., None, None]
 
         if wrt == "uv":
-            uv_uvT = torch.einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
+            uv_uvT = einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
             I = torch.eye(2, device=p2d.device, dtype=p2d.dtype).expand(p2d.shape[:-1] + (2, 2))
             return 8 * k2[..., None] * uv_uvT + (2 * k1 + 4 * k2 * r2)[..., None] * I
         elif wrt == "dist":
@@ -879,7 +886,7 @@ class SimpleDivisional(BaseCamera):
         elif wrt == "pts":
             t0 = 1 + k1 * r2
             t0 = t0.masked_fill(t0 == 0, 1e6)
-            ppT = torch.einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
+            ppT = einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
             J = torch.diag_embed((1 / t0).expand(p2d.shape[:-1] + (2,)))
             return J - 2 * k1[..., None] * ppT / t0[..., None] ** 2  # (..., N, 2, 2)
 
@@ -912,7 +919,7 @@ class SimpleDivisional(BaseCamera):
             return (J * p2d)[..., None]  # (..., 2, K)
         elif wrt == "uv":
             # ! unstable (gradient checker might fail), rewrite to use single division (by denom)
-            ppT = torch.einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
+            ppT = einsum("...i,...j->...ij", p2d, p2d)  # (..., 2, 2)
 
             denom = 2 * r2 * t1
             denom = denom.masked_fill(denom == 0, 1e6)

@@ -9,6 +9,8 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.tracing import exporting_for_mlx
 import numpy as np
 
 from ..foundation_stereo.convolution_helper import (Conv, Conv3dNormActReduced)
@@ -430,26 +432,35 @@ class HourGlass(nn.Module):
         conv3 = self.feature_att_32(conv3, features[3])
 
         conv3_up = self.conv3_up(conv3)
+        del conv3
         conv2 = torch.cat((conv3_up, conv2), dim=1)
+        del conv3_up
         conv2 = self.agg_0(conv2)
         conv2 = self.feature_att_up_16(conv2, features[2])
 
         conv2_up = self.conv2_up(conv2)
+        del conv2
         conv1 = torch.cat((conv2_up, conv1), dim=1)
+        del conv2_up
         conv1 = self.agg_1(conv1)
         conv1 = self.feature_att_up_8(conv1, features[1])
 
         conv = self.conv1_up(conv1)
+        del conv1
         x = self.conv_patch(x)
         if atts_before_upsample:
             x = self.atts["cost_vol_disp"](x)
-            x = F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
+            conv = conv + F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
         else:
-            x = F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
-            x = self.atts["cost_vol_disp"](x)
-        conv = conv + x
+            conv = self.merge_attention(conv, x)
+        del x  # FastForks: the attention volume is no longer needed by the final 3D convolutions.
         conv = self.conv_out(conv)
         return conv
+
+    def merge_attention(self, conv: torch.Tensor, patches: torch.Tensor) -> torch.Tensor:
+        """Upsample patches and add their disparity attention to the decoder output."""
+        x = F.interpolate(patches, scale_factor=4, mode="trilinear", align_corners=False)
+        return conv + self.atts["cost_vol_disp"](x)
 
 
 class PositionalEmbedding(nn.Module):
@@ -491,8 +502,9 @@ class PositionalEmbedding(nn.Module):
         Returns:
             Input tensor with added positional embeddings.
         """
-        self.pe = self.pe.to(x.device).to(x.dtype)
-        pe = self.pe
+        pe = to_run_dtype(self.pe.to(x.device), x.dtype)
+        if not torch.compiler.is_exporting():
+            self.pe = pe
         if pe.shape[1] < x.shape[1]:
             if resize_embed:
                 pe = F.interpolate(
@@ -573,12 +585,16 @@ class DualAttentionMlp(nn.Module):
             src_iea, _ = self.iea(
                 src.float(), src.float(), value=src.float(), attn_mask=mask_self
             )
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
+            src_iea = to_run_dtype(src_iea, src.dtype)
         out = self.norm1(src + self.linear1(src_iea))
 
         with torch.cuda.amp.autocast(enabled=False):  # ty: ignore[deprecated] - upstream code
             ref_iea, _ = self.iea_r(
                 ref.float(), ref.float(), value=ref.float(), attn_mask=mask_self
             )
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
+            ref_iea = to_run_dtype(ref_iea, ref.dtype)
         out_ref = self.norm1r(ref + self.linear1r(ref_iea))
 
         # Cross-attention
@@ -586,6 +602,8 @@ class DualAttentionMlp(nn.Module):
             src_cea, _ = self.cea(
                 out.float(), out_ref.float(), value=out_ref.float(), attn_mask=mask_cross
             )
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
+            src_cea = to_run_dtype(src_cea, out.dtype)
         out = self.norm2(out + self.linear2(src_cea))
 
         return out, out_ref

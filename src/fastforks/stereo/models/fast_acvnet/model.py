@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.sampling import grid_sample
-from fastforks.kernels import cudnn_hacc
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks._core.volume_ops import gwc_volume
+from fastforks.kernels import acv_volume, cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
@@ -47,7 +51,7 @@ def _net(ctx: Context) -> Net:
 
 def _normalized(x: torch.Tensor, groups: int) -> torch.Tensor:
     b, c, h, w = x.shape
-    x = x.float().view(b, groups, c // groups, h, w)
+    x = to_float32(x).view(b, groups, c // groups, h, w)
     return x / (torch.norm(x, 2, 2, keepdim=True) + EPS)
 
 
@@ -59,6 +63,8 @@ def norm_correlation_volume(fl: torch.Tensor, fr: torch.Tensor, d: int, groups: 
     """
     xl, xr = _normalized(fl, groups), _normalized(fr, groups)
     b, g, _, h, w = xl.shape
+    if exporting_for_mlx():
+        return gwc_volume(xl.flatten(1, 2), xr.flatten(1, 2), d, g)
     volume = xl.new_zeros((b, g, d, h, w))
     for i in range(min(d, w)):  # disparities >= width: no overlap, stays zero
         volume[:, :, i, :, i:] = (xl[..., i:] * xr[..., : w - i]).mean(dim=2)
@@ -81,8 +87,17 @@ def _grid(samples: torch.Tensor) -> torch.Tensor:
 def warp(y: torch.Tensor, samples: torch.Tensor) -> torch.Tensor:
     """Right features `y` `[B, C, H, W]` at the left pixels' disparity samples: float32 `[B, C, N, H, W]`."""
     b, c, h, w = y.shape
-    out = grid_sample(y.float(), _grid(samples), mode="bilinear", padding_mode="zeros", align_corners=True)
+    out = grid_sample(to_float32(y), _grid(samples), mode="bilinear", padding_mode="zeros", align_corners=True)
     return out.view(b, c, samples.shape[1], h, w)
+
+
+def _pre(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - the module's own arguments and result
+    """`module(*args)` of a stage before the top-k: a float32 island (`float32_call`) of an MLX float16 replay.
+
+    The top-k selection sits on decision boundaries: with the features or the attention hourglass in float16 one
+    quarter-resolution cell of fast-acvnet-plus-sceneflow's golden picks other disparities (4.9 -> 57 px there).
+    """
+    return float32_call(module, *args) if exporting_for_mlx() else module(*args)
 
 
 def _features(net: Net, left: torch.Tensor, right: torch.Tensor) -> tuple[list[torch.Tensor], torch.Tensor]:
@@ -93,16 +108,16 @@ def _features(net: Net, left: torch.Tensor, right: torch.Tensor) -> tuple[list[t
     """
     b = left.shape[0]
     both = torch.cat((left, right), 0)
-    x4, x8, x16, x32 = net.feature(both)
+    x4, x8, x16, x32 = _pre(net.feature, both)
     up = net.feature_up
-    x16 = up.deconv32_16(x32, x16)
-    x8 = up.deconv16_8(x16, x8)
-    x4 = up.conv4(up.deconv8_4(x8, x4))
-    stem_2 = net.stem_2(both)
-    stem_4 = net.stem_4(stem_2)
+    x16 = _pre(up.deconv32_16, x32, x16)
+    x8 = _pre(up.deconv16_8, x16, x8)
+    x4 = _pre(up.conv4, _pre(up.deconv8_4, x8, x4))
+    stem_2 = _pre(net.stem_2, both)
+    stem_4 = _pre(net.stem_4, stem_2)
     feats = [torch.cat((x4, stem_4), 1), x8, x16, x32]
     if isinstance(net, Fast_ACVNet):
-        feats[1] = torch.cat((x8, net.stem_8(stem_4)), 1)
+        feats[1] = torch.cat((x8, _pre(net.stem_8, stem_4)), 1)
     return feats, stem_2[:b]
 
 
@@ -118,10 +133,10 @@ def _attention(
     d4 = net.maxdisp // 4
     p = next(net.parameters())
     corr = norm_correlation_volume(fl[1], fr8, net.maxdisp // 8, 12).to(p.dtype).contiguous(memory_format=fmt3)
-    cost = net.hourglass_att(net.corr_feature_att_8(net.patch(corr), fl[1]), fl)
+    cost = _pre(net.hourglass_att, _pre(net.corr_feature_att_8, _pre(net.patch, corr), fl[1]), fl)
     del corr
     h4, w4 = fl[0].shape[2:]
-    att = F.interpolate(cost.float(), [d4, h4, w4], mode="trilinear")
+    att = F.interpolate(to_float32(cost), [d4, h4, w4], mode="trilinear")
     prob = F.softmax(att.squeeze(1), dim=1)
     pred = disparity_regression(prob, d4).unsqueeze(1)
     gamma, beta = net._gb32  # noqa: SLF001  # ty: ignore[not-iterable]  # set by _net
@@ -129,7 +144,7 @@ def _attention(
     del prob
     variance = net.propagation(variance)
     samples = net.propagation(pred)
-    left4 = s4[:b].float()
+    left4 = to_float32(s4[:b])
     strength = torch.stack([(left4 * warp(s4[b:], samples[:, i : i + 1])[:, :, 0]).mean(dim=1) for i in range(5)], 1)
     strength = torch.softmax(strength * variance, dim=1)
     return torch.sum(net.propagation_prob(att) * strength.unsqueeze(2), dim=1, keepdim=True)
@@ -153,12 +168,12 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     if isinstance(net, Fast_ACVNet):
         att = _attention(net, fl, feats[1][b:], s4, fmt3)
     else:
-        match = net.desc(net.conv(feats[0]))
+        match = _pre(net.desc, _pre(net.conv, feats[0]))
         corr = norm_correlation_volume(match[:b], match[b:], net.maxdisp // 4, 1)
         del match
-        cost = net.corr_feature_att_4(net.corr_stem(corr.to(p.dtype).contiguous(memory_format=fmt3)), fl[0])
+        cost = _pre(net.corr_feature_att_4, _pre(net.corr_stem, corr.to(p.dtype).contiguous(memory_format=fmt3)), fl[0])
         del corr
-        att = net.hourglass_att(cost, fl).float()
+        att = to_float32(_pre(net.hourglass_att, cost, fl))
         del cost
     att_prob = F.softmax(att, dim=2)
     del att
@@ -166,20 +181,24 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     att_topk = torch.gather(att_prob, 2, ind)
     del att_prob
     samples = ind.squeeze(1).float()
+    if exporting_for_mlx():  # the float32 features enter the stages after the top-k in the run dtype
+        feats, fl = ([to_run_dtype(t, p.dtype) for t in ts] for ts in (feats, fl))
+        stem_2x = to_run_dtype(stem_2x, p.dtype)
     concat = net.concat_feature(feats[0])
     del feats
-    c = concat.shape[1]
-    volume = torch.empty(
-        (b, 2 * c, TOP_K, *concat.shape[2:]), dtype=p.dtype, device=p.device, memory_format=fmt3
-    )  # upstream: att_topk * cat(left repeated over the samples, warped right)
-    volume[:, :c] = att_topk * concat[:b].float().unsqueeze(2)
-    volume[:, c:] = att_topk * warp(concat[b:], samples)
+    if fmt3 == torch.channels_last_3d:
+        volume = acv_volume.weighted(concat, ind, att_topk)
+    else:
+        c = concat.shape[1]
+        volume = torch.empty((b, 2 * c, TOP_K, *concat.shape[2:]), dtype=p.dtype, device=p.device)
+        volume[:, :c] = att_topk * to_float32(concat[:b]).unsqueeze(2)
+        volume[:, c:] = att_topk * warp(concat[b:], samples)
     del concat, att_topk
     volume = net.concat_feature_att_4(net.concat_stem(volume), fl[0])
     cost = net.hourglass(volume, fl)
     del volume
-    spx = F.softmax(net.spx(net.spx_2(net.spx_4(fl[0]), stem_2x)).float(), 1)
-    pred = regression_topk(cost.squeeze(1).float(), samples, 2)
+    spx = F.softmax(to_float32(net.spx(net.spx_2(net.spx_4(fl[0]), stem_2x))), 1)
+    pred = regression_topk(to_float32(cost.squeeze(1)), samples, 2)
     return context_upsample(pred, spx) * 4
 
 
@@ -189,6 +208,11 @@ class _FastACVRunner(Runner):
 
 class Portable(_FastACVRunner):
     """Plain PyTorch: float32 (CPU) or pure fp16 weights (CUDA, NHWC 2D convs); float32 volumes and regression."""
+
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 20.8 -> 11.0 ms per pair)
+    batch_pixels = 1_300_000
 
     dtypes = ("float32", "float16")
 
@@ -210,7 +234,8 @@ class Portable(_FastACVRunner):
         return Forward(self.net, forward)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: launch-bound up to KITTI 375x1242 (batch x padded H x W), measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 18.7 -> 11.4 ms, 720x1280 24.0 -> 21.6 ms (reserved 626 -> 448 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
@@ -227,6 +252,7 @@ class Kernels(_FastACVRunner):
         from fastforks.shared import cnn_kernels  # noqa: PLC0415 - needs the kernel libraries
 
         self.net = _net(ctx)
+        acv_volume.load(ctx.device)
         cnn_kernels.load(ctx.device)
         for m in self.net.modules():  # BasicConv is conv -> BN -> LeakyReLU(0.01): one fused kernel
             if isinstance(m, BasicConv) and m.use_bn:
@@ -254,4 +280,14 @@ class Kernels(_FastACVRunner):
         return {"disparity": self._graphs(left, right)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity", fp32_inputs=("left", "right")),
+}

@@ -28,7 +28,9 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, empty_bytes, latin1_encode
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
-from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.kernels import pose_warp
+from fastforks.pose._runner import BUCKETS, Forward, Runner, TopDown, in_buckets
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes, fixed
@@ -54,7 +56,7 @@ def decode(sx: torch.Tensor, sy: torch.Tensor) -> tuple[torch.Tensor, torch.Tens
     return torch.stack([ix, iy], -1).float() / SPLIT, torch.minimum(vx, vy)
 
 
-class Portable(Runner):
+class Portable(TopDown):
     """Plain PyTorch: crops on the device, float16 network on CUDA, float32 decode."""
 
     dtypes = ("float32", "float16")
@@ -67,6 +69,11 @@ class Portable(Runner):
         net = RTMPose(a)
         net.load_state_dict(fold_bn(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
+        # RTMW's SimCC peaks move beyond its golden bounds when the initial weights are channels-last.
+        if ctx.device.type == "cuda" and ctx.dtype == "float16" and not a.neck:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (dwpose-l, 15 people at 1080p 14.9 -> 13.8 ms, 374 -> 215 MB, RTX 5060 Ti, Windows); fp32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)
@@ -88,12 +95,17 @@ class Portable(Runner):
         fy = sy[p:].index_select(1, self.flip)
         return (sx[:p] + fx) * 0.5, (sy[:p] + fy) * 0.5
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        coords, score = decode(*self.logits(crop(image, centre, size, a.height, a.width)))
+    def regions(self, boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Crop centres and sizes of the person boxes."""
+        return crop_boxes(boxes, self.ctx.params.height, self.ctx.params.width)
+
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size."""
+        return crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """SimCC decoding, mapped back to the input."""
+        coords, score = decode(*self.logits(crops))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
@@ -103,7 +115,7 @@ class Portable(Runner):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             return self.logits(crops * 255)
 
-        return Forward(self.net, fn)
+        return Forward(self.net, fn, output_names=("simcc_x", "simcc_y"))
 
 
 class Kernels(Portable):
@@ -135,7 +147,7 @@ class Kernels(Portable):
         if self.ctx.params.flip_test:
             x = torch.cat([x, x.flip(-1)])
         with fp16_accumulate():
-            sx, sy = (t.float() for t in self.head(_half(self.backbone(x))))
+            sx, sy = (t.float() for t in self.head(self.backbone.forward_native(x)))
         if self.ctx.params.flip_test:
             p = crops.shape[0]
             sx = (sx[:p] + sx[p:].index_select(1, self.flip).flip(-1)) * 0.5
@@ -147,12 +159,12 @@ class Kernels(Portable):
         """Free the CUDA graphs and their memory pool on the device."""
         self.graphs.release()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        crops = crop(image, centre, size, a.height, a.width)
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size (one CUDA kernel)."""
+        return pose_warp.crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The graphed network and decoding per person bucket, mapped back to the input."""
         out = in_buckets(self.graphs, crops)
         kp = out[..., :2] * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         score = out[..., 2]
@@ -164,7 +176,7 @@ class Kernels(Portable):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             x = (crops * 255 - self.mean) / self.std
             with fp16_accumulate():
-                sx, sy = self.head(_half(self.backbone(x)))
+                sx, sy = self.head(self.backbone.forward_native(x))
             return sx.float(), sy.float()
 
         return Forward(self.net, fn)
@@ -186,19 +198,15 @@ class MetalKernels(Portable):
 
         self.lib = pose_metal.load(ctx.device)
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size (one Metal kernel)."""
         from fastforks.kernels import pose_metal  # noqa: PLC0415 - loaded in __init__
 
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
         s = size[:, 0] / a.width  # as `crop`
         x = fixed(centre[:, 0] - s * (a.width / 2), s, a.width)
         y = fixed(centre[:, 1] - s * (a.height / 2), s, a.height)
-        coords, score = decode(*self.logits(pose_metal.warp_crop(self.lib, image, x, y)))
-        kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
-        return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
+        return pose_metal.warp_crop(self.lib, image, x, y)
 
 
 def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature
@@ -213,13 +221,17 @@ def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature
     *,
     channels: int,
 ) -> torch.Tensor:
-    """Wide half-input convolutions with cuDNN accumulation and float32 residual/activation."""
+    """Wide half-input convolutions with cuDNN (float32) accumulation, then the half residual add and activation.
+
+    The half activations equal float32 ones rounded to half for every half input; the earlier float32 round trip
+    cost 24 ms of 86 per 30-crop backbone pass (Windows, RTX 5060 Ti) for the same golden error.
+    """
     if w.shape[1] < channels:
         return conv_ops.conv_fused(x, w, b, residual, padding, stride, act, cfg)
-    y = F.conv2d(x, w, b, stride, padding).float()
+    y = F.conv2d(x, w, b, stride, padding)
     if residual is not None:
-        y = y + residual.float()
-    return conv_ops._ACTS[act](y).half().contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
+        y = y.add_(residual)
+    return conv_ops._ACTS[act](y).contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
 
 
 def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
@@ -239,11 +251,6 @@ def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
             module.recompile()
 
 
-def _half(y: torch.Tensor | tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - what the head takes
-    """The optimized backbone's map (RTMW: the neck's two maps) as float16."""
-    return y.half() if isinstance(y, torch.Tensor) else tuple(t.half() for t in y)
-
-
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
     """`Attention.forward` with the spatial mean over one flattened axis (MPS: `mean((2, 3))` is ~30x slower)."""
     return x * F.hardsigmoid(self.fc(x.flatten(2).mean(-1)[..., None, None]))
@@ -254,4 +261,19 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+# The SimCC head runs as a float32 graph: its 1D-bin argmax flips half-pixel bins on float16 logits (face6-s
+# keypoints mean 0.065 px vs tol 0.061 with a float16 head).
+_Mlx = mlx_wrap.port(
+    Portable,
+    attrs=(),
+    methods=("net.features", "net.head.forward"),
+    fp32_methods=("net.head.forward",),
+    prune=True,
+)
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": _Mlx,
+}

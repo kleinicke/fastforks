@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 CAP = (3000, 4000)
 """Largest size of the size-table queue: a model that ran there has no limit below it."""
 
-ENCODER_SIDE = {"sam3": 1008}
+ENCODER_SIDE = {"sam3": 1008, "clipseg": 352}
 """Encoder input side of the promptable-segmentation families that fix it in code, not in `[params] image_size`."""
 
 PATCH = {
@@ -114,7 +114,7 @@ class SizeRange:
 @cache
 def _data() -> dict[str, dict[str, Any]]:
     """`{"min": {ref: smallest square side that runs}, "max": {ref: [H, W, MiB allocated, MiB reserved]}}`."""
-    return json.loads(Path(__file__).with_name("sizes.json").read_text())
+    return json.loads(Path(__file__).with_name("sizes.json").read_text(encoding="utf-8"))
 
 
 VOLUME_INPUT = "any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)"
@@ -146,6 +146,8 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
     export = spec(card.task).export_size if card else None
     if encoder or (side and card and card.task == "classification"):
         export = (encoder or side, encoder or side)
+    if card and card.family == "nninteractive":
+        export = (192, 192)  # the interactive model exports its prepared 192-cubed network patch
     return SizeRange(
         min_size=max(hard, multiple),
         reject_below=hard,

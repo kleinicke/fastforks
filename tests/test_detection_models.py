@@ -216,3 +216,16 @@ def test_dfine_bins_and_distances():
         assert (w.diff() > 0).all()
         ref = torch.tensor([[0.5, 0.5, 0.2, 0.4]])
         assert torch.allclose(distance2bbox(ref, torch.zeros(1, 4), scale), ref)  # no distance: the reference box
+
+
+def test_split_kept_takes_each_images_rows_in_query_order() -> None:
+    from fastforks.detection._runner import split_kept  # noqa: PLC0415
+
+    keep = torch.tensor([[True, False, True, True], [False, False, False, False], [False, True, False, True]])
+    scores = torch.arange(12.0).view(3, 4)
+    boxes = torch.arange(48.0).view(3, 4, 4)
+    out = split_kept(keep, 2, scores=scores, boxes=boxes)
+    assert [o["scores"].tolist() for o in out] == [[0.0, 2.0], [], [9.0, 11.0]]
+    assert torch.equal(out[2]["boxes"], boxes[2, [1, 3]])
+    one = split_kept(keep[:1], 5, scores=scores[:1])  # one image: the same rows
+    assert one[0]["scores"].tolist() == [0.0, 2.0, 3.0]

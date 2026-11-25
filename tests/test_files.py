@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 import tarfile
+import tempfile
 import threading
 import urllib.error
 import warnings
@@ -37,12 +38,31 @@ def stamps():
     return sorted((files.cache_root() / "stamps").rglob("*.json"))
 
 
+def _can_symlink() -> bool:
+    """Whether this process may create symlinks (Windows: only with Developer Mode or as administrator)."""
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            (Path(d) / "link").symlink_to("target")
+        except OSError:
+            return False
+    return True
+
+
+SYMLINKS = _can_symlink()
+needs_symlinks = pytest.mark.skipif(not SYMLINKS, reason="no symlink permission (Windows without Developer Mode)")
+
+
+def view_links(*links: Path) -> list[Path]:
+    """The browsable view links `locate` makes, or none where symlinks cannot be created (`link_view` skips them)."""
+    return list(links) if SYMLINKS else []
+
+
 def test_search_path_both_layouts(tmp_path, monkeypatch):
     flat, grouped = tmp_path / "a", tmp_path / "b"
     (grouped / "fam").mkdir(parents=True)
     flat.mkdir()
     (grouped / "fam" / "w.bin").write_bytes(b"x")
-    monkeypatch.setenv(ENV, f"{flat}:{grouped}")
+    monkeypatch.setenv(ENV, f"{flat}{os.pathsep}{grouped}")
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == grouped / "fam" / "w.bin"
 
 
@@ -81,6 +101,46 @@ def test_download_then_cached(tmp_path, monkeypatch):
     assert p.read_bytes() == b"payload"
     src.unlink()  # second lookup must not download
     assert locate(spec, group="fam", env_var=ENV) == p
+
+
+def test_download_progress_reports_to_the_callback_and_the_log(tmp_path, monkeypatch, caplog):
+    """`download_progress` gets (url, bytes so far, recorded size), the last call with all bytes; the log line names
+    the share; outside the block nothing is called."""
+    payload = bytes(range(256)) * 40  # 10 KiB in 1 KiB chunks
+    src = tmp_path / "remote.bin"
+    src.write_bytes(payload)
+    monkeypatch.setattr(files, "_CHUNK", 1024)
+    monkeypatch.setattr(files, "_PROGRESS_REPORT_S", 0.0)
+    monkeypatch.setattr(files, "_PROGRESS_LOG_S", 0.0)
+    calls = []
+    with caplog.at_level(logging.INFO, logger=files.log.name), files.download_progress(lambda *a: calls.append(a)):
+        locate(spec_for(payload, src.as_uri()), group="fam", env_var=ENV)
+    assert [n for _, n, _ in calls] == [*range(1024, 10241, 1024), 10240]  # every chunk, then the end once more
+    assert {(u, t) for u, _, t in calls} == {(src.as_uri(), 10240)}
+    assert "of 10 KB (50 %)" in caplog.text
+    src2 = tmp_path / "other.bin"
+    src2.write_bytes(b"other")
+    calls.clear()
+    locate(spec_for(b"other", src2.as_uri()), group="fam", env_var=ENV)
+    assert not calls
+
+
+def test_download_progress_callback_can_cancel(tmp_path, monkeypatch):
+    """An exception from the callback (ComfyUI's cancel) ends the download: it propagates and nothing is cached."""
+    src = tmp_path / "remote.bin"
+    src.write_bytes(b"x" * 4096)
+    monkeypatch.setattr(files, "_CHUNK", 1024)
+    monkeypatch.setattr(files, "_PROGRESS_REPORT_S", 0.0)
+
+    class CancelledError(Exception):
+        pass
+
+    def cancel(*_a):
+        raise CancelledError
+
+    with pytest.raises(CancelledError), files.download_progress(cancel):
+        locate(spec_for(b"x" * 4096, src.as_uri()), group="fam", env_var=ENV)
+    assert not cache_files()
 
 
 def test_corrupt_cache_is_redownloaded(tmp_path, caplog):
@@ -137,9 +197,9 @@ def test_zip_member_download(tmp_path):
     assert p.read_bytes() == b"bbbb"
     assert cache_files() == [
         p,
-        files.cache_root() / "fam" / "b.pth",
+        *view_links(files.cache_root() / "fam" / "b.pth"),
         *stamps(),
-    ]  # + view link
+    ]
 
 
 def test_tar_gz_member_download(tmp_path):
@@ -152,7 +212,7 @@ def test_tar_gz_member_download(tmp_path):
     spec = FileSpec("b.pb", hashlib.sha256(b"bbbb").hexdigest(), 4, path.as_uri(), member="dir/b.pb")
     p = locate(spec, group="fam", env_var=ENV)
     assert p.read_bytes() == b"bbbb"
-    assert cache_files() == [p, files.cache_root() / "fam" / "b.pb", *stamps()]
+    assert cache_files() == [p, *view_links(files.cache_root() / "fam" / "b.pb"), *stamps()]
     gone = FileSpec("c.pb", "0" * 64, None, path.as_uri(), member="c.pb")
     with pytest.raises(WeightsDownloadError, match=r"no member 'c\.pb'"):
         locate(gone, group="fam", env_var=ENV)
@@ -183,7 +243,7 @@ def test_search_path_skips_mismatch(tmp_path, monkeypatch):
     b.mkdir()
     (a / "w.bin").write_bytes(b"other model's file of the same name")
     (b / "w.bin").write_bytes(b"x")
-    monkeypatch.setenv(ENV, f"{a}:{b}")
+    monkeypatch.setenv(ENV, f"{a}{os.pathsep}{b}")
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == b / "w.bin"
     (a / "fam" / "w.bin").write_bytes(b"x")  # the family directory wins over a flat directory
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == a / "fam" / "w.bin"
@@ -196,7 +256,7 @@ def test_zip_siblings_share_one_fetch(tmp_path, monkeypatch):
     bad = FileSpec("d.pth", "1" * 64, None, url, member="c.pth")  # wrong hash: skipped, not fatal
     fetches = []
     fetch = files._fetch
-    monkeypatch.setattr(files, "_fetch", lambda u, out, limit: fetches.append(u) or fetch(u, out, limit))
+    monkeypatch.setattr(files, "_fetch", lambda u, out, limit, total: fetches.append(u) or fetch(u, out, limit, total))
     first = locate(specs[0], group="fam", env_var=ENV, siblings=[*specs, bad])
     assert first.read_bytes() == b"aaa"
     for s, (_, data) in zip(specs, members.items(), strict=True):
@@ -221,7 +281,8 @@ def test_stamp_detects_changes(tmp_path, monkeypatch):
     locate(spec_for(b"z"), group="fam", env_var=ENV)
     st = f.stat()
     f.write_bytes(b"q")  # same size, new mtime: hashed again
-    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns + 1))  # coarse fs clocks may not tick between the writes
+    # coarse fs clocks may not tick between the writes; NTFS keeps 100 ns, so a 1 ns step would round away
+    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))
     with pytest.raises(WeightsHashError, match="SHA-256"):
         locate(spec_for(b"z"), group="fam", env_var=ENV)
 
@@ -383,7 +444,7 @@ def _plain(monkeypatch, *, code=None, content=b"w"):
     """Stub the plain download: refused with HTTP `code`, else serving `content`. Returns the requested URLs."""
     urls = []
 
-    def fetch(u, out, _limit):
+    def fetch(u, out, _limit, _total):
         urls.append(u)
         if code is not None:
             raise _http_error(u, code, "refused")
@@ -438,6 +499,20 @@ def test_huggingface_hub_not_called_offline(tmp_path, monkeypatch, var):
         locate(spec_for(b"w", GATED), group="fam", env_var=ENV)
     assert calls == []
     assert urls == []
+
+
+def test_offline_with_only_another_models_file_says_how_to_fetch(tmp_path, monkeypatch):
+    """A same-named file of another model (model.safetensors) does not hide the offline hint."""
+    other = tmp_path / "w.bin"
+    other.write_bytes(b"another model")
+    monkeypatch.setenv(ENV, str(tmp_path))
+    monkeypatch.setenv("FASTFORKS_OFFLINE", "1")
+    with pytest.raises(WeightsHashError) as e:
+        locate(spec_for(b"w", "https://example.com/w.bin"), group="fam", env_var=ENV, hint="fastforks download m")
+    text = str(e.value)
+    assert str(other) in text
+    assert "offline mode" in text
+    assert "`fastforks download m`" in text
 
 
 def test_huggingface_hub_copy_is_hash_checked(tmp_path, monkeypatch):
@@ -503,7 +578,7 @@ def test_gated_hf_repo_says_what_to_do(tmp_path, monkeypatch, hub):
 
 def test_fastforks_never_reads_a_token_file(tmp_path, monkeypatch):
     (tmp_path / "hf_home").mkdir()
-    (tmp_path / "hf_home" / "token").write_text("hf_file_token")
+    (tmp_path / "hf_home" / "token").write_text("hf_file_token", encoding="utf-8")
     monkeypatch.setenv("HF_TOKEN", "hf_env_token")
     for url in (GATED, "https://example.com/x"):
         assert not files._request(url).has_header("Authorization")
@@ -589,7 +664,7 @@ def test_hf_hub_cache_branch_revision_and_hf_home(tmp_path, monkeypatch):
     _hf_snapshot(hub, "old", b"stale!!")
     path = _hf_snapshot(hub, "c0ffee", b"payload")
     (hub / "models--org--name" / "refs").mkdir()
-    (hub / "models--org--name" / "refs" / "main").write_text("c0ffee")
+    (hub / "models--org--name" / "refs" / "main").write_text("c0ffee", encoding="utf-8")
     spec = spec_for(b"payload", "https://huggingface.co/org/name/resolve/main/sub/w.bin?download=true")
     assert locate(spec, group="fam", env_var=ENV, allow_download=False) == path
 
@@ -676,7 +751,7 @@ def test_unreadable_hub_caches_are_skipped(tmp_path, monkeypatch):
 def test_http_status_decides_whether_to_retry(monkeypatch, code, text):
     """Auth / missing-file errors do not say "Retry later"; transient ones do; all name the by-hand route."""
 
-    def fail(u, _out, _limit):
+    def fail(u, _out, _limit, _total):
         raise _http_error(u, code, "x")
 
     monkeypatch.setattr(files, "_fetch", fail)
@@ -697,6 +772,7 @@ def _view_cache(tmp_path, monkeypatch):
     return spec, blob, tmp_path / "cache"
 
 
+@needs_symlinks
 def test_view_link_on_locate_idempotent_and_shared(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     assert locate(spec, group="fam", env_var="FF_NONE") == blob
@@ -709,6 +785,7 @@ def test_view_link_on_locate_idempotent_and_shared(tmp_path, monkeypatch):
     assert (root / "other" / "sub" / "model.bin").resolve() == blob.resolve() == link.resolve()
 
 
+@needs_symlinks
 def test_view_never_overwrites_real_file_and_lookup_ignores_view(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     real = root / "fam" / "sub" / "model.bin"
@@ -723,6 +800,7 @@ def test_view_never_overwrites_real_file_and_lookup_ignores_view(tmp_path, monke
     assert locate(spec, group="fam", env_var="FF_NONE") == blob
 
 
+@needs_symlinks
 def test_view_replaces_stale_link_and_skips_unwritable(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     link = root / "fam" / "sub" / "model.bin"

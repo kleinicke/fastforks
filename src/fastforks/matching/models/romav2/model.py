@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -28,6 +28,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.upload import device_tensor
 from fastforks.matching._runner import Forward, Runner
 
 from .net.refiner import Block, ConvRefiner
@@ -103,7 +104,7 @@ def forward(
     if warp.shape[-2:] != (h1, w1):
         warp = F.interpolate(warp, (h1, w1), mode="bilinear", align_corners=False)
         overlap = F.interpolate(overlap[:, None], (h1, w1), mode="bilinear", align_corners=False)[:, 0]
-    size = torch.tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
+    size = device_tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
     return {"warp": (warp + 1) * (size / 2) - 0.5, "certainty": overlap}
 
 
@@ -135,6 +136,24 @@ def cast_autocast_weights(net: RoMaV2, dtype: torch.dtype) -> None:
                 m.to(dtype)
 
 
+def _validate_sizes(ctx: Context) -> None:
+    p = ctx.params
+    if p.coarse_size % MULTIPLE or p.fine_size % MULTIPLE:
+        sizes = f"{p.coarse_size}, {p.fine_size}"
+        msg = f"{ctx.variant.ref}: coarse_size and fine_size must be multiples of {MULTIPLE}, not {sizes}"
+        raise ValueError(msg)
+
+
+def _checkpoint(net: RoMaV2, ctx: Context) -> dict[str, torch.Tensor]:
+    sd = {
+        k: v
+        for k, v in ctx.state_dict().items()
+        if not (k.startswith("f.blocks.") and int(k.split(".")[2]) >= DESCRIPTOR_BLOCKS)
+    }
+    check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+    return sd
+
+
 class Portable(Runner):
     """Plain PyTorch; see the module docstring for the bf16 regions on CUDA."""
 
@@ -144,18 +163,9 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        p = ctx.params
-        if p.coarse_size % MULTIPLE or p.fine_size % MULTIPLE:
-            sizes = f"{p.coarse_size}, {p.fine_size}"
-            msg = f"{ctx.variant.ref}: coarse_size and fine_size must be multiples of {MULTIPLE}, not {sizes}"
-            raise ValueError(msg)
+        _validate_sizes(ctx)
         net = RoMaV2()
-        sd = {
-            k: v
-            for k, v in ctx.state_dict().items()
-            if not (k.startswith("f.blocks.") and int(k.split(".")[2]) >= DESCRIPTOR_BLOCKS)
-        }
-        check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+        sd = _checkpoint(net, ctx)
         net.load_state_dict(sd)
         net.eval().requires_grad_(requires_grad=False).to(ctx.device)
         if ctx.dtype == "bfloat16":
@@ -175,7 +185,7 @@ class Portable(Runner):
             if ctx.dtype == "bfloat16":
                 cast_autocast_weights(net, torch.bfloat16)
         self.net = net
-        self.kept = Descriptors(net, p.keep_descriptors) if p.keep_descriptors else None
+        self.kept = Descriptors(net, ctx.params.keep_descriptors) if ctx.params.keep_descriptors else None
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Warp and certainty of a batch."""
@@ -206,10 +216,18 @@ def _kernel_correlate(
     from fastforks.kernels import romav2 as lib  # noqa: PLC0415 - needs the kernel library
 
     b, h, w, c = f_a.shape
+    name = lib.LOCAL_CORR.get((c, radius))
+    if name is None:
+        msg = f"RoMa v2 CUDA correlation does not support {c} channels with radius {radius}"
+        raise ValueError(msg)
+    if f_b.shape != f_a.shape or warp.shape != (b, h, w, 2) or f_b.device != f_a.device or warp.device != f_a.device:
+        msg = "RoMa v2 CUDA correlation needs matching feature and warp dimensions on one device"
+        raise ValueError(msg)
     f_a, f_b, warp = (x.float().contiguous() for x in (f_a, f_b, warp))
     out = torch.empty(b, h, w, (2 * radius + 1) ** 2, dtype=torch.float32, device=f_a.device)
-    grid = (-(-b * h * w // lib.PIXELS_PER_BLOCK), 1, 1)
-    k.launch(lib.LOCAL_CORR[c, radius], grid, (256, 1, 1), f_a, f_b, warp, out, b, h, w, 1 / c**0.5)
+    if out.numel():
+        grid = (-(-b * h * w // lib.PIXELS_PER_BLOCK), 1, 1)
+        k.launch(name, grid, (256, 1, 1), f_a, f_b, warp, out, b, h, w, 1 / c**0.5)
     return out.permute(0, 3, 1, 2)
 
 
@@ -222,7 +240,7 @@ def _kernel_depthwise(k: CubinModule, weight: torch.Tensor, bias: torch.Tensor, 
     from fastforks.kernels import romav2 as lib  # noqa: PLC0415 - needs the kernel library
 
     b, c, h, w = x.shape
-    x = x.contiguous(memory_format=torch.channels_last)  # the first block's input is NCHW
+    x = x.contiguous(memory_format=torch.channels_last)
     out = torch.empty_like(x)
     n = b * h * -(-w // lib.DEPTHWISE_TX) * (c // 8)
     k.launch(lib.DEPTHWISE, (-(-n // 256), 1, 1), (256, 1, 1), x, weight, bias, out, b, h, w, c)
@@ -247,6 +265,8 @@ class Kernels(Portable):
                 m.correlate = functools.partial(_kernel_correlate, k)
         if ctx.device.type == "cuda" and ctx.dtype == "bfloat16":
             for m in self.net.modules():
+                if isinstance(m, ConvRefiner):
+                    m.cfg = replace(m.cfg, channels_last=True)
                 if isinstance(m, Block):  # BatchNorm folded (CUDA), bf16 weights, C a multiple of 8
                     conv = m.conv_depthwise
                     c = conv.weight.shape[0]
@@ -261,4 +281,55 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MetalKernels(Portable):
+    """PyTorch MPS with fused float32 local correlation in both refinement passes."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Bind the Metal library to the refiners that use a correlation window."""
+        super().__init__(ctx)
+        from fastforks._core import mps  # noqa: PLC0415 - device-specific adaptation
+        from fastforks.kernels import roma_metal  # noqa: PLC0415 - device-specific library
+
+        mps.adapt(self.net)
+        corr = functools.partial(roma_metal.correlate, roma_metal.load(ctx.device))
+        for layer in self.net.modules():
+            if isinstance(layer, ConvRefiner) and layer.cfg.local_corr_radius is not None:
+                layer.correlate = corr
+
+    def module(self) -> torch.nn.Module:
+        """The Metal correlation launch cannot be exported as a PyTorch module."""
+        return Runner.module(self)
+
+
+class Mlx(Runner):
+    """The dense matching pipeline on Apple MLX, including its optional fine pass."""
+
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Verify the checkpoint and convert the descriptor, matcher, DPT and refinement weights."""
+        super().__init__(ctx)
+        from .mlx_net import Engine  # noqa: PLC0415 - optional MLX dependency
+
+        _validate_sizes(ctx)
+        with torch.device("meta"):
+            net = RoMaV2()
+        net.load_state_dict(_checkpoint(net, ctx), assign=True)
+        net.eval().requires_grad_(requires_grad=False)
+        net.refiner_features.float()
+        cast("torch.nn.ModuleDict", net.refiners).float()
+        fold_batch_norms(net)
+        self.engine = Engine(net, ctx.params, kernels=ctx.mode == "kernels", float16=ctx.dtype == "float16")
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Return pixel coordinates and overlap for the first image."""
+        return self.engine(image1, image2)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": Mlx,
+    "kernels_mlx": Mlx,
+}

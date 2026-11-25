@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -28,6 +28,7 @@ from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_at
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
+    from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
 
 
@@ -86,6 +87,15 @@ def _check_head(sd: dict[str, torch.Tensor], what: str) -> dict[str, torch.Tenso
     return sd
 
 
+def _head(ctx: Context) -> tuple[torch.Tensor, torch.Tensor]:
+    sd = _check_head(ctx.state_dict(1, key="state_dict", strip=""), f"{ctx.variant.ref} head checkpoint")
+    bn = {k: sd[f"decode_head.bn.{k}"].double() for k in ("weight", "bias", "running_mean", "running_var")}
+    w = sd["decode_head.conv_seg.weight"].double().flatten(1)
+    s = bn["weight"] / torch.sqrt(bn["running_var"] + 1e-5)  # SyncBN default eps
+    b = sd["decode_head.conv_seg.bias"].double() + w @ (bn["bias"] - bn["running_mean"] * s)
+    return (w * s).float(), b.float()
+
+
 class _Net(torch.nn.Module):
     """ViT + folded linear head: a normalised crop `[B, 3, h, w]` -> logits `[B, 150, h, w]`."""
 
@@ -97,13 +107,10 @@ class _Net(torch.nn.Module):
         vit = DINOv2(ctx.params.arch)
         vit.load_state_dict(ctx.state_dict(0))
         vit.eval().requires_grad_(requires_grad=False)
-        sd = _check_head(ctx.state_dict(1, key="state_dict", strip=""), f"{ctx.variant.ref} head checkpoint")
-        bn = {k: sd[f"decode_head.bn.{k}"].double() for k in ("weight", "bias", "running_mean", "running_var")}
-        w = sd["decode_head.conv_seg.weight"].double().flatten(1)
-        s = bn["weight"] / torch.sqrt(bn["running_var"] + 1e-5)  # SyncBN default eps
-        self.register_buffer("cls_w", (w * s).float(), persistent=False)
-        b = sd["decode_head.conv_seg.bias"].double() + w @ (bn["bias"] - bn["running_mean"] * s)
-        self.register_buffer("cls_b", b.float(), persistent=False)
+        weight, bias = _head(ctx)
+        self.register_buffer("cls_w", weight, persistent=False)
+        self.register_buffer("cls_b", bias, persistent=False)
+        self.patch_size = vit.patch_size
         self.vit = vit
         self.dtype = ctx.torch_dtype
         self.kernels = kernels
@@ -115,14 +122,17 @@ class _Net(torch.nn.Module):
             vit.to(self.dtype)
         self.cls_w, self.cls_b = self.cls_w.to(self.dtype), self.cls_b.to(self.dtype)
 
+    def _patch_logits(self, y: torch.Tensor) -> torch.Tensor:
+        (t,) = self.vit.get_intermediate_layers(y, n=1)
+        return F.linear(t.to(self.dtype), self.cls_w, self.cls_b)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Normalised crop -> logits at the crop size (in the network dtype)."""
         h, w = x.shape[-2:]
-        p = self.vit.patch_size
+        p = self.patch_size
         ph, pw = math.ceil(h / p) * p - h, math.ceil(w / p) * p - w
         y = F.pad(x, (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)).to(self.dtype)
-        (t,) = self.vit.get_intermediate_layers(y, n=1)  # last block, normalised, [B, N, C]
-        s = F.linear(t.to(self.dtype), self.cls_w, self.cls_b)
+        s = self._patch_logits(y)
         # NCHW before the resize: a channels-last result makes `slide`'s accumulation into NCHW scores ~6x slower
         s = s.unflatten(1, ((h + ph) // p, (w + pw) // p)).permute(0, 3, 1, 2).contiguous()
         return F.interpolate(s, (h, w), mode="bilinear", align_corners=False)
@@ -177,4 +187,71 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _MlxNet(_Net):
+    def __init__(self, ctx: Context) -> None:
+        torch.nn.Module.__init__(self)
+        from fastforks.shared.mlx_vit import DinoLinearProbe  # noqa: PLC0415 - optional MLX dependency
+
+        vit = DINOv2(ctx.params.arch)
+        vit.load_state_dict(ctx.state_dict(0), assign=True)
+        weight, bias = _head(ctx)
+        self.probe = DinoLinearProbe(vit, weight, bias, ctx.dtype, image_logits=False)
+        self.patch_size, self.dtype = vit.patch_size, ctx.torch_dtype
+
+    def _patch_logits(self, y: torch.Tensor) -> torch.Tensor:
+        return self.probe(y).to(self.dtype)
+
+    def low(self, x: torch.Tensor) -> mx.array:
+        """Normalised crops `[B, 3, h, w]` -> patch logits `[B, gh, gw, 150]` on MLX (`forward` before its resize)."""
+        h, w = x.shape[-2:]
+        p = self.patch_size
+        ph, pw = math.ceil(h / p) * p - h, math.ceil(w / p) * p - w
+        y = F.pad(x, (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2))
+        return self.probe.logits(y).reshape(x.shape[0], (h + ph) // p, (w + pw) // p, -1)
+
+
+class Mlx(Portable):
+    """MLX patch logits; the windows' resize and average and the image-size argmax are Metal kernels (`mlx_seg`).
+
+    In PyTorch on the CPU that post-processing took 4/5 of a call (dinov2-s, 1024x2048: 660 ms, the ViT 90 ms).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert the verified DINOv2 backbone and ADE20K head."""
+        Runner.__init__(self, ctx)
+        self.net = _MlxNet(ctx)
+
+    def _slide(self, image: torch.Tensor) -> mx.array | None:
+        """Scores `[B, h, w, 150]` (float32, MLX) at the network input size; None for an image below the crop."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - optional MLX dependency
+
+        p = self.ctx.params
+        h, w = image.shape[-2:]
+        x = scale(resize(image, target_size(h, w, p.resize)), self.ctx.io)
+        return mlx_seg.slide_scores(cast("_MlxNet", self.net).low, x, (p.crop, p.crop), (p.stride, p.stride))
+
+    def _scores(self, image: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - optional MLX dependency
+
+        scores = self._slide(image)
+        if scores is None:
+            return super()._scores(image)
+        return to_torch(scores.transpose(0, 3, 1, 2)).to(self.net.dtype)
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the scores stay on MLX up to the argmax."""
+        from fastforks.shared import mlx_seg, mlx_wrap  # noqa: PLC0415 - optional MLX dependency
+
+        scores = self._slide(image)
+        if scores is not None:
+            return mlx_seg.resize_argmax(scores, image.shape[-2:])
+        token = mlx_wrap.POST_ON_MLX.set(True)
+        try:
+            return super().labels(image)
+        finally:
+            mlx_wrap.POST_ON_MLX.reset(token)
+
+    module = Runner.module
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx}

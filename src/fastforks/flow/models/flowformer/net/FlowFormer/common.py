@@ -1,5 +1,6 @@
 # modified: explicit ij indexing preserves upstream's historical meshgrid behavior.
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import einsum
@@ -15,7 +16,7 @@ def nerf_encoding(x, L=6, NORMALIZE_FACOR=1/300):
     """
         x is of shape [*, 2]. The last dimension are two coordinates (x and y).
     """
-    freq_bands = 2.** torch.linspace(0, L, L-1).to(x.device)
+    freq_bands = 2.** to_device(torch.linspace(0, L, L-1), x.device)  # fastforks: to_device (a pageable upload syncs the host)
     return torch.cat([x*NORMALIZE_FACOR, torch.sin(3.14*x[..., -2:-1]*freq_bands*NORMALIZE_FACOR), torch.cos(3.14*x[..., -2:-1]*freq_bands*NORMALIZE_FACOR), torch.sin(3.14*x[..., -1:]*freq_bands*NORMALIZE_FACOR), torch.cos(3.14*x[..., -1:]*freq_bands*NORMALIZE_FACOR)], dim=-1)
 
 def sampler_gaussian(latent, mean, std, image_size, point_num=25):

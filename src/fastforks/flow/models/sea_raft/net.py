@@ -30,6 +30,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.sampling import grid_sample
 
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
@@ -264,17 +265,22 @@ class SEARAFT(nn.Module):
         b, _, h, w = image1.shape
         with self._amp(image1.device):
             net, context = self.init_conv(self.cnet(torch.cat([image1, image2], dim=1))).split(cfg.dim, dim=1)
-            flow = self.flow_head(net)[:, :2].float()
+            flow = to_float32(self.flow_head(net)[:, :2])
             fmaps = self.fnet(torch.cat([image1, image2], dim=0))  # batch norm in eval mode: per-image as upstream
+        # `.float()` keeps the correlation in float16 on MLX: float32 there costs ~4 GB and ~25% of the time at 1080p
+        # for a golden gain of 0.00169 -> 0.00164 (spring, tol 0.002)
         fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.levels)
+        del fmaps, fmap1, fmap2
         grid = _coords(b, h // FACTOR, w // FACTOR, image1.device)
         for _ in range(iters):
             corr = _lookup(pyramid, grid + flow, cfg.radius)
             with self._amp(image1.device):
                 net = self.update_block(net, context, corr, flow)
                 delta = self.flow_head(net)[:, :2]
-            flow = flow + delta.float()
+            flow = flow + to_float32(delta)
+            del corr
+        del pyramid
         with self._amp(image1.device):
             mask = 0.25 * self.upsample_weight(net)
-        return _upsample(flow, mask.float())
+        return _upsample(flow, to_float32(mask))

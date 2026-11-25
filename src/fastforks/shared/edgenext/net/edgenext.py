@@ -15,6 +15,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_run_dtype
+
 
 class LayerNorm2d(nn.LayerNorm):
     """LayerNorm over the channels of an NCHW tensor (timm's `LayerNorm2d`).
@@ -75,7 +77,7 @@ class PositionalEncodingFourier(nn.Module):
         pos_x = torch.stack((pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
-        return self.token_projection(pos.to(dtype))
+        return self.token_projection(to_run_dtype(pos, dtype))  # fastforks: the MLX replay's dtype on MLX
 
 
 class ConvBlock(nn.Module):

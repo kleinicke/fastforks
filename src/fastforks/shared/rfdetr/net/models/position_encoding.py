@@ -119,6 +119,8 @@ class PositionEmbeddingSine(nn.Module):
             cached = self._pos_cache.get(key)
             if cached is None:
                 cached = self._compute(tensor_list, align_dim_orders)
+                if type(cached) is not torch.Tensor:  # a traced one (an MLX export's fake tensor): not kept
+                    return cached
                 if len(self._pos_cache) >= _POS_CACHE_MAX_ENTRIES:
                     # Bound retained device memory for variable-resolution inference.
                     del self._pos_cache[next(iter(self._pos_cache))]

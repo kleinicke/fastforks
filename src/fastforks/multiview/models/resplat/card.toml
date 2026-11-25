@@ -2,13 +2,15 @@ schema = 2
 name = "ReSplat"
 summary = "ReSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting from posed, calibrated images with recurrent refinement. DepthSplat's multi-view depth network (cost volume + DINOv2) and a kNN point transformer predict latent Gaussians (SH degree 3); refinement steps render the input views, compare them with the images (ResNet-18 features + colour) and update every Gaussian with a second point transformer. Returns every view's depth and the Gaussians in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`)."
 tier = "experimental"
-uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2, its attention block)
+uses = ["depth_anything_v2", "mlx_graph", "mlx_wrap"]  # shared modules imported directly by this family (DINOv2, its attention block)
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 limitations = [
-  "No accuracy measurement: a metric model at RealEstate10K / DL3DV scale; the only multi-view eval set here (DTU, millimetre scale) is out of its range, and the original could not run here (its gsplat rasteriser module is not installable), so no tier has a published-protocol score.",
+  "The held-out RGB scores use the authors’ two released RealEstate10K example scenes. They measure novel-view rendering on those scenes. DTU uses a different scene scale, and its depth scores are specific to the DTU setup.",
   "Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.",
+  "Apple MLX: encoder as the exported graph, refinement in MLX with Metal kernels (rasteriser, kNN, kNN attention). Base 256x256 x8 on an M1 Pro: fp16 14.6 s / 5.6 GB, fp32 19.4 s / 9.6 GB; the point transformer's matrix multiplies dominate.",
   "The portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (`torch.compile` runs with breaks, no `torch.export`).",
+  "Compiling only the Base model's depth predictor changed synthetic 8-view 480×640 latency from 7,090 to 7,071 ms and produced a maximum depth change of 1.187 on that input. The complete graph exceeded the compile benchmark’s time limit.",
 ]
 licence_notes = [
   "Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).",
@@ -39,14 +41,15 @@ size_multiple = 32
 
 [options]
 long_side = { default = 0, min = 0 }  # network long side; 0: the checkpoint's training size (256 x 256 / 256 x 448)
-refine = { default = 2, min = 0 }  # recurrent refinement steps (upstream evaluation: 2)
+iters = { default = 2, min = 0, renamed = ["refine"] }  # recurrent refinement steps (upstream evaluation: 2); `refine` until 0.2.0
 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc", "gsraster"]
+kernels = ["fastbb", "cudnn_hacc", "gsraster", "depthsplat_corr", "knn_attention"]
 
 [[papers]]
 title = "ReSplat: Learning Recurrent Gaussian Splats"
@@ -56,7 +59,7 @@ venue = "arXiv"
 
 [[variants]]
 id = "resplat-small-dl3dv"
-planned = { onnx = "the export wrapper does not pass depth_range (TypeError)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export cannot capture data-dependent Gaussian renderer shapes" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { vit = "vits", channels = 256, latent = 4, fixed_latent = true, gaussians_per_point = 1, same_points = false, lowest = 8, train_size = [256, 448], far = 200.0 }
 weights = [{ name = "resplat-small-dl3dv-256x448-view8-548993fe.pth", size = 306905193, sha256 = "548993fede0d9536d2d914cbe51e0ebea0ad6f88c898c909e02127d59bb2be9a", url = "https://huggingface.co/haofeixu/resplat/resolve/c69ad72a49b8358ac46599cf74468090425ed9c7/resplat-small-dl3dv-256x448-view8-548993fe.pth" }]

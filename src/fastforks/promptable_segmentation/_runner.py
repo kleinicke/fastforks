@@ -30,6 +30,8 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import torch
+
 from fastforks._core import runner as core
 from fastforks._core.preprocess import scale
 from fastforks._core.runner import Context, Forward, NoParams
@@ -37,9 +39,27 @@ from fastforks._core.runner import Context, Forward, NoParams
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import torch
+__all__ = ["Context", "Forward", "NoParams", "Runner", "bounded_binary_masks", "scale"]
 
-__all__ = ["Context", "Forward", "NoParams", "Runner", "scale"]
+_MASK_RESIZE_PIXELS = 64 << 20  # target at most 256 MiB of live FP32 resize output per prompt group
+
+
+def bounded_binary_masks(
+    logits: torch.Tensor,
+    size: tuple[int, int],
+    upsample: Callable[[torch.Tensor, tuple[int, int]], torch.Tensor],
+    max_pixels: int,
+) -> torch.Tensor:
+    """Resize groups of CUDA masks and threshold directly into the boolean output."""
+    pixels = max(1, logits.shape[1] * size[0] * size[1])
+    group = max(1, max_pixels // pixels)
+    if not logits.is_cuda or logits.shape[0] <= group or torch.compiler.is_compiling():
+        return upsample(logits, size) > 0
+    masks = torch.empty((*logits.shape[:2], *size), dtype=torch.bool, device=logits.device)
+    for start in range(0, len(masks), group):
+        stop = start + group
+        torch.gt(upsample(logits[start:stop], size), 0, out=masks[start:stop])
+    return masks
 
 
 class Runner(core.Runner):
@@ -138,6 +158,30 @@ class Runner(core.Runner):
         msg = f"{type(self).__name__} takes no text prompts"
         raise NotImplementedError(msg)
 
+    def selected_concepts(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
+        """Return the queries meeting the public score threshold, in descending score order."""
+        return self.select_concepts(self.segment_concept(features, text, boxes, labels), threshold)
+
+    def select_concepts(self, out: dict[str, torch.Tensor], threshold: float) -> dict[str, torch.Tensor]:
+        """Validate the raw runner output and gather fresh tensors for the matching queries."""
+        q = out["scores"].shape[0]
+        shapes = {"scores": (q,), "boxes": (q, 4), "pred_masks": (q, *self.mask_size)}
+        if (got := {k: tuple(v.shape) for k, v in out.items()}) != shapes:
+            msg = f"{self.ctx.variant.ref}: runner returned {got}, expected {shapes}"
+            raise RuntimeError(msg)
+        scores = out["scores"].float()
+        idx = torch.nonzero(scores > threshold)[:, 0]
+        idx = idx[torch.argsort(scores[idx], descending=True)]
+        return {k: v[idx].float() for k, v in out.items()}
+
     def segment_reference(
         self, target: torch.Tensor, references: torch.Tensor, masks: list[torch.Tensor]
     ) -> dict[str, torch.Tensor]:
@@ -194,3 +238,7 @@ class Runner(core.Runner):
     @abc.abstractmethod
     def upsample(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Low-resolution mask logits `[P, M, h, w]` -> logits `[P, M, H, W]` at the input size `size`."""
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Upsample in the family's coordinate system and apply its zero foreground threshold."""
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)

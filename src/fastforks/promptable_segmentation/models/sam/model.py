@@ -14,8 +14,12 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.sam_prompt import decode
 
 from .fast import encode, prepare, preprocess_shape, rel_tables
 from .fused import FusedEncoder
@@ -30,6 +34,8 @@ if TYPE_CHECKING:
 
 PATCH = 16  # fixed: SAM's ViT patch size (all released checkpoints)
 PROMPT_DIM = 256  # fixed: SAM's prompt / mask-decoder embedding width (all released checkpoints)
+GRAPH_PROMPTS = 4  # fixed: as Mobile-SAM (same prompt side: a graph pays off up to 4 prompts)
+GRAPHS = 4  # fixed: prompt layouts with a graph at a time (points, a box, both, with a mask)
 
 
 @dataclass(frozen=True)
@@ -42,6 +48,7 @@ class Params:
     embed_dim: int
     depth: int
     num_heads: int
+    cuda_graphs: bool  # kernels: replay CUDA graphs of the prompt decode (option)
 
 
 def build(p: Params) -> Sam:
@@ -110,19 +117,29 @@ class _Sam(Runner):
         nh, nw = preprocess_shape(h, w, s)
         dev = self.ctx.device
         f64 = torch.device("cpu") if dev.type == "mps" else dev  # MPS has no float64
-        xy = torch.tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
+        xy = device_tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
         pts = None if points is None or labels is None else ((points.to(f64).double() * xy).float().to(dev), labels)
         box = None if boxes is None else (boxes.view(-1, 2, 2).to(f64).double() * xy).float().view(-1, 4).to(dev)
+        low, iou = self._decode(features["image_embeddings"], pts, box, masks)
+        keep = slice(1, None) if multimask else slice(0, 1)  # upstream `MaskDecoder.forward`
+        return {"pred_masks": low[:, keep], "iou_scores": iou[:, keep]}
+
+    def _decode(
+        self,
+        embedding: torch.Tensor,
+        points: tuple[torch.Tensor, torch.Tensor] | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Upstream `PromptEncoder.forward` + `MaskDecoder.predict_masks`: all four masks and scores (1024 frame)."""
         pe = self.sam.prompt_encoder
-        sparse, dense = pe(points=pts, boxes=box, masks=masks)
-        low, iou = self.sam.mask_decoder(
-            image_embeddings=features["image_embeddings"],
+        sparse, dense = pe(points=points, boxes=boxes, masks=masks)
+        return self.sam.mask_decoder.predict_masks(
+            image_embeddings=embedding,
             image_pe=pe.get_dense_pe(),
             sparse_prompt_embeddings=sparse,
             dense_prompt_embeddings=dense,
-            multimask_output=multimask,
         )
-        return {"pred_masks": low, "iou_scores": iou}
 
     def upsample(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Upstream `Sam.postprocess_masks`."""
@@ -149,9 +166,13 @@ class Portable(_Sam):
         x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=exact)
         return encode(self.sam.image_encoder, x, self.rel)
 
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        return encode(self.sam.image_encoder, x, self.rel)
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
-        return {"image_embeddings": self._encode(image, exact=image.device.type == "cpu")}
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=image.device.type == "cpu")
+        return {"image_embeddings": self._enc(x)}
 
     def module(self) -> torch.nn.Module:
         """The image encoder only (no prompt side): `[1, 3, H, W]` in `[0, 1]` -> `image_embeddings` `[1, 256, 64, 64]`.
@@ -170,7 +191,13 @@ class Portable(_Sam):
 
 
 class Kernels(_Sam):
-    """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation) and the neck conv; SDPA flash attention."""
+    """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation) and the neck conv; SDPA flash attention.
+
+    The prompt encoder and mask decoder are launch-bound (~200 small kernels: 6 ms per call for 1.3 ms of GPU work on
+    an RTX 5060 Ti under Windows), so up to `GRAPH_PROMPTS` prompts of a repeated prompt layout replay a CUDA graph
+    (`fastforks.shared.cuda_graphs`; `release_graphs()` frees its pool). The graph runs `sam_prompt.decode`: the same
+    values as upstream's forward without its host read-backs.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build on the CPU, convert the encoder, move the float32 prompt side to the device."""
@@ -179,11 +206,45 @@ class Kernels(_Sam):
         self.encoder = FusedEncoder(sam.image_encoder, ctx.device, load_dpt_fused(ctx.device))
         del sam.image_encoder
         self.sam = sam.to(ctx.device)
+        self.cache = (
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+        )
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
         x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=False)
         return {"image_embeddings": self.encoder(x)}
 
+    def _decode(
+        self,
+        embedding: torch.Tensor,
+        points: tuple[torch.Tensor, torch.Tensor] | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """As `_Sam._decode`, from a CUDA graph per prompt layout (prompts, points per prompt, box, mask)."""
+        given = [t for t in (*(points or ()), boxes, masks) if t is not None]
+        if self.cache is None or not given or len(given[0]) > GRAPH_PROMPTS:
+            return super()._decode(embedding, points, boxes, masks)
+        key = (len(given[0]), points[0].shape[1] if points else 0, boxes is not None, masks is not None)
+        out = self.cache.run(key, embedding, *given)
+        return super()._decode(embedding, points, boxes, masks) if out is None else out
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+    def _graph_forward(self, embedding: torch.Tensor, *given: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """`sam_prompt.decode` on the cache's static inputs; a prompt kind is told by its rank (labels: integers)."""
+        by = {(t.ndim, t.is_floating_point()): t for t in given}
+        points, labels, boxes, masks = (by.get(k) for k in ((3, True), (2, False), (2, True), (4, True)))
+        pe, dec = self.sam.prompt_encoder, self.sam.mask_decoder
+        return decode(pe, dec, embedding, points=points, labels=labels, boxes=boxes, masks=masks)  # ty: ignore[invalid-argument-type] - upstream's modules, as sam_prompt's
+
+    def release_graphs(self) -> None:
+        """Free the prompt-decode CUDA graphs and their memory pool (captured again when needed)."""
+        if self.cache is not None:
+            self.cache.release()
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="sam"),
+}

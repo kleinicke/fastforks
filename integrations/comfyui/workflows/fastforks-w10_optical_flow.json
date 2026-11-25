@@ -1,0 +1,825 @@
+{
+ "last_node_id": 18,
+ "last_link_id": 17,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "Note",
+   "pos": [
+    0,
+    -260
+   ],
+   "size": [
+    520,
+    200
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {},
+   "widgets_values": [
+    "Optical flow between neighbouring frames (colour-coded) and, bottom, a warp: frame 1 is pushed along the flow of the chosen model, so a good flow gives a copy of frame 2. Compare RAFT, SEA-RAFT, GMFlow and WAFT."
+   ]
+  },
+  {
+   "id": 2,
+   "type": "LoadImage",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    300,
+    340
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "widgets_values": [
+    "clip0.png",
+    "image"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "LoadImage",
+   "pos": [
+    0,
+    360
+   ],
+   "size": [
+    300,
+    340
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "widgets_values": [
+    "clip1.png",
+    "image"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "LoadImage",
+   "pos": [
+    0,
+    720
+   ],
+   "size": [
+    300,
+    340
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "widgets_values": [
+    "clip2.png",
+    "image"
+   ]
+  },
+  {
+   "id": 5,
+   "type": "ImageBatch",
+   "pos": [
+    330,
+    0
+   ],
+   "size": [
+    200,
+    50
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image1",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "image2",
+     "type": "IMAGE",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 6,
+   "type": "ImageBatch",
+   "pos": [
+    330,
+    120
+   ],
+   "size": [
+    200,
+    50
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image1",
+     "type": "IMAGE",
+     "link": 3
+    },
+    {
+     "name": "image2",
+     "type": "IMAGE",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      5,
+      7,
+      10,
+      12,
+      14,
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 7,
+   "type": "FastforksFlow",
+   "pos": [
+    600,
+    0
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow_image",
+     "type": "IMAGE",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "flow",
+     "type": "FASTFORKS_FLOW",
+     "links": [
+      8
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "raft-small",
+   "widgets_values": [
+    "raft-small",
+    "auto",
+    "auto",
+    8
+   ]
+  },
+  {
+   "id": 8,
+   "type": "PreviewImage",
+   "pos": [
+    960,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 9,
+   "type": "FastforksWarp",
+   "pos": [
+    1300,
+    0
+   ],
+   "size": [
+    200,
+    50
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "name": "flow",
+     "type": "FASTFORKS_FLOW",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 10,
+   "type": "PreviewImage",
+   "pos": [
+    1540,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 9
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 11,
+   "type": "FastforksFlow",
+   "pos": [
+    600,
+    360
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow_image",
+     "type": "IMAGE",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "flow",
+     "type": "FASTFORKS_FLOW",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "sea-raft-s",
+   "widgets_values": [
+    "sea-raft-s",
+    "auto",
+    "auto",
+    8
+   ]
+  },
+  {
+   "id": 12,
+   "type": "PreviewImage",
+   "pos": [
+    960,
+    360
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 13,
+   "type": "FastforksFlow",
+   "pos": [
+    600,
+    720
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow_image",
+     "type": "IMAGE",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "flow",
+     "type": "FASTFORKS_FLOW",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "gmflow-scale1-mixdata",
+   "widgets_values": [
+    "gmflow-scale1-mixdata",
+    "auto",
+    "auto",
+    8
+   ]
+  },
+  {
+   "id": 14,
+   "type": "PreviewImage",
+   "pos": [
+    960,
+    720
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 15,
+   "type": "FastforksFlow",
+   "pos": [
+    600,
+    1080
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow_image",
+     "type": "IMAGE",
+     "links": [
+      15
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "flow",
+     "type": "FASTFORKS_FLOW",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "waft-a1",
+   "widgets_values": [
+    "waft-a1",
+    "auto",
+    "auto",
+    8
+   ]
+  },
+  {
+   "id": 16,
+   "type": "PreviewImage",
+   "pos": [
+    960,
+    1080
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 17,
+   "type": "Unimatch_OptFlowPreprocessor",
+   "pos": [
+    1330,
+    720
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "OPTICAL_FLOW",
+     "type": "OPTICAL_FLOW",
+     "links": [],
+     "slot_index": 0
+    },
+    {
+     "name": "PREVIEW_IMAGE",
+     "type": "IMAGE",
+     "links": [
+      17
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "controlnet_aux: GMFlow",
+   "widgets_values": [
+    "gmflow-scale1-mixdata.pth",
+    false,
+    false
+   ]
+  },
+  {
+   "id": 18,
+   "type": "PreviewImage",
+   "pos": [
+    1690,
+    720
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 17
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   0,
+   5,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   3,
+   0,
+   5,
+   1,
+   "IMAGE"
+  ],
+  [
+   3,
+   5,
+   0,
+   6,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   4,
+   0,
+   6,
+   1,
+   "IMAGE"
+  ],
+  [
+   5,
+   6,
+   0,
+   7,
+   0,
+   "IMAGE"
+  ],
+  [
+   6,
+   7,
+   0,
+   8,
+   0,
+   "IMAGE"
+  ],
+  [
+   7,
+   6,
+   0,
+   9,
+   0,
+   "IMAGE"
+  ],
+  [
+   8,
+   7,
+   1,
+   9,
+   1,
+   "FASTFORKS_FLOW"
+  ],
+  [
+   9,
+   9,
+   0,
+   10,
+   0,
+   "IMAGE"
+  ],
+  [
+   10,
+   6,
+   0,
+   11,
+   0,
+   "IMAGE"
+  ],
+  [
+   11,
+   11,
+   0,
+   12,
+   0,
+   "IMAGE"
+  ],
+  [
+   12,
+   6,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   13,
+   0,
+   14,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   6,
+   0,
+   15,
+   0,
+   "IMAGE"
+  ],
+  [
+   15,
+   15,
+   0,
+   16,
+   0,
+   "IMAGE"
+  ],
+  [
+   16,
+   6,
+   0,
+   17,
+   0,
+   "IMAGE"
+  ],
+  [
+   17,
+   17,
+   1,
+   18,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

@@ -13,6 +13,12 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
+
+# Kept as calls by the BatchNorm-folding trace: they decide at run time, so an MLX export records its float32 island
+torch.fx.wrap("to_float32")
+torch.fx.wrap("to_run_dtype")
+
 if TYPE_CHECKING:
     from .net.tiny_vit_sam import Attention, BasicLayer, PatchMerging, TinyViT, TinyViTBlock
 
@@ -27,7 +33,7 @@ class Norm2d(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`[B, C, H, W]` normalised over the channels."""
-        return self.norm(x.float()).to(x.dtype)
+        return to_run_dtype(self.norm(to_float32(x)), x.dtype)
 
 
 def attention(attn: Attention, x: torch.Tensor) -> torch.Tensor:
@@ -64,9 +70,10 @@ class Trunk(torch.nn.Module):
     Without the final `LayerNorm2d`, which the runners apply in float32.
     """
 
-    def __init__(self, enc: TinyViT) -> None:
-        """Take `enc`'s modules."""
+    def __init__(self, enc: TinyViT, *, float32_neck: bool = False) -> None:
+        """Take `enc`'s modules; `float32_neck`: the neck's two convolutions and norm in float32 (the MLX port)."""
         super().__init__()
+        self.float32_neck = float32_neck
         self.patch_embed = enc.patch_embed
         self.layers = enc.layers
         self.conv1, norm, self.conv2 = enc.neck[0], enc.neck[1], enc.neck[2]
@@ -84,4 +91,14 @@ class Trunk(torch.nn.Module):
                 x = block(cast("TinyViTBlock", blk), x)
             if layer.downsample is not None:
                 x = merge(layer.downsample, x.permute(0, 3, 1, 2))
-        return self.conv2(self.norm(self.conv1(x.permute(0, 3, 1, 2))))
+        x = x.permute(0, 3, 1, 2)
+        if self.float32_neck:  # the embedding's last 2304-term sums: MLX float16 pred_masks mean 0.0081 -> 0.0057
+            conv1, conv2 = cast("torch.nn.Conv2d", self.conv1), cast("torch.nn.Conv2d", self.conv2)
+            return _conv32(conv2, self.norm(_conv32(conv1, x)))
+        return self.conv2(self.norm(self.conv1(x)))
+
+
+def _conv32(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """`conv(x)` in float32 (a float32 island of an MLX float16 replay)."""
+    b = None if conv.bias is None else to_float32(conv.bias)
+    return F.conv2d(to_float32(x), to_float32(conv.weight), b, conv.stride, conv.padding)

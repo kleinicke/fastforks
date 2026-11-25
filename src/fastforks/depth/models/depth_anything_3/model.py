@@ -31,9 +31,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared.cv2_resize import cv2_resize
+from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.rope2d import rope_forward
 
@@ -42,7 +45,7 @@ from .net.dinov2.dinov2 import DinoV2
 from .net.dinov2.layers import Mlp
 from .net.dpt import DPT
 from .net.dualdpt import DualDPT
-from .net.utils.head_utils import create_uv_grid, position_grid_to_embed
+from .net.utils.head_utils import create_uv_grid, make_sincos_pos_embed
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -89,6 +92,7 @@ class Params:
 
     arch: Arch
     long_side: int  # longer side of the network input before rounding to multiples of 14
+    stream: bool = False
 
 
 class _Branch(nn.Module):
@@ -184,7 +188,7 @@ def _prepare(ctx: Context, image: torch.Tensor) -> torch.Tensor:
 def _quantile(v: torch.Tensor, valid: torch.Tensor, q: float) -> torch.Tensor:
     """Per row of `v` `[B, N]`: `torch.quantile` (linear) of the `valid` entries, without a host sync; `[B]`."""
     n = valid.sum(1)
-    rank = torch.tensor(q, dtype=v.dtype, device=v.device) * (n - 1).clamp(min=0).to(v.dtype)
+    rank = device_tensor(q, dtype=v.dtype, device=v.device) * (n - 1).clamp(min=0).to(v.dtype)
     lo = rank.floor().long()
     hi = rank.ceil().long()
     if torch.compiler.is_exporting():  # TensorRT's TopK (sort) takes at most 3840 elements: bisect, same values
@@ -278,26 +282,68 @@ def _activate(arch_dual: bool, logits: torch.Tensor, sky_logits: torch.Tensor | 
 
 
 # ------------------------------------------------------------------------------------------------ portable
+def _position_axes(
+    channels: int,
+    hw: tuple[int, int],
+    aspect_ratio: float,
+    *,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """The independent horizontal and vertical sine/cosine features, in FP32."""
+    h, w = hw
+    uv = create_uv_grid(w, h, aspect_ratio=aspect_ratio, dtype=dtype, device=device)
+    horizontal = make_sincos_pos_embed(channels // 2, uv[0, :, 0]) * _POS_RATIO
+    vertical = make_sincos_pos_embed(channels // 2, uv[:, 0, 1]) * _POS_RATIO
+    return horizontal, vertical
+
+
+def _add_position(
+    head: DPT | DualDPT,
+    x: torch.Tensor,
+    w: int,
+    h: int,
+) -> torch.Tensor:
+    """Add the same FP32 embeddings to each axis without allocating a spatial channel grid on CUDA."""
+    if not x.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper
+    ph, pw = x.shape[-2:]
+    channels = x.shape[1] // 2
+    horizontal, vertical = _position_axes(x.shape[1], (ph, pw), w / h, dtype=x.dtype, device=x.device)
+    # Both callers supply a fresh convolution or resize output. The add promotes to float32 and stores in x.dtype.
+    x[:, :channels].add_(horizontal.t()[None, :, None, :])
+    x[:, channels:].add_(vertical.t()[None, :, :, None])
+    return x
+
+
 def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) -> torch.Tensor:
     """Upstream DPT / DualDPT main branch up to the output convs: tokens `[B, N, C]` -> `[B, 128, 14 ph, 14 pw]`."""
     b = feats[0].shape[0]
     h, w = ph * PATCH, pw * PATCH
+    s: Any = head.scratch
+    # Project one feature map at a time, then release each lateral after its fusion stage.
+    blocks = (s.layer1_rn, s.layer2_rn, s.layer3_rn, s.layer4_rn)
     rs = []
-    for i, f in enumerate(feats):
+    for i, (f, project) in enumerate(zip(feats, blocks, strict=True)):
         x = head.norm(f).transpose(1, 2).reshape(b, -1, ph, pw)
         x = head.projects[i](x)
         if head.pos_embed:
-            x = head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
-        rs.append(head.resize_layers[i](x))
-    s: Any = head.scratch
-    l1, l2, l3, l4 = s.layer1_rn(rs[0]), s.layer2_rn(rs[1]), s.layer3_rn(rs[2]), s.layer4_rn(rs[3])
+            x = _add_position(head, x, w, h)
+        rs.append(project(head.resize_layers[i](x)))
+        del x
+    l1, l2, l3, l4 = rs
+    del rs
     p = s.refinenet4(l4, size=l3.shape[2:])
+    del l4
     p = s.refinenet3(p, l3, size=l2.shape[2:])
+    del l3
     p = s.refinenet2(p, l2, size=l1.shape[2:])
+    del l2
     p = s.refinenet1(p, l1)
+    del l1
     p = F.interpolate(s.output_conv1(p), (h, w), mode="bilinear", align_corners=True)
     if head.pos_embed:
-        p = head._add_pos_embed(p, w, h).to(p.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
+        p = _add_position(head, p, w, h)
     return p
 
 
@@ -328,7 +374,10 @@ class Portable(Runner):
         self.arch: Arch = ctx.params.arch
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
         self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
-        self.net = _net(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for host-to-device block transfers"
+            raise OptionsError(msg)
+        self.net = _net(ctx, "cpu" if ctx.params.stream else ctx.device)
         for br in self._branches():
             rope: Any = br.backbone.pretrained.rope
             if rope is not None:
@@ -342,6 +391,12 @@ class Portable(Runner):
                 for name in ("output_conv2", "sky_output_conv2"):
                     if hasattr(s, name):
                         getattr(s, name)[-1].float()
+
+        if ctx.params.stream:
+            for br in self._branches():
+                vit: Any = br.backbone.pretrained
+                vit.blocks = StreamedModuleList(vit.blocks, ctx.device)
+            self.net.to(ctx.device)
 
     def _branches(self) -> list[_Branch]:
         return [self.net.main] + ([self.net.metric] if self.net.metric is not None else [])
@@ -373,6 +428,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> depth `[B, H, W]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, image: self._run(image, None)["depth"])
 
 
@@ -389,7 +447,7 @@ class _FastBackbone:
     PyTorch.
     """
 
-    def __init__(self, br: _Branch, k: DptFused, device: torch.device) -> None:
+    def __init__(self, br: _Branch, k: DptFused, device: torch.device, *, stream: bool = False) -> None:
         vit: Any = br.backbone.pretrained
         if vit.embed_dim // vit.num_heads != HEAD_DIM:
             msg = f"fast DA3 ViT needs head_dim {HEAD_DIM}"
@@ -397,7 +455,12 @@ class _FastBackbone:
         self.k, self.flash = k, Flash64("hh")
         self.pos32 = vit.pos_embed.detach().float().to(device)  # upstream interpolates the table in fp32
         self.gammas = [tuple(g.detach().float().to(device) for g in (b.ls1.gamma, b.ls2.gamma)) for b in vit.blocks]
-        self.vit = vit.half().to(device)
+        vit.half()
+        for blk in vit.blocks:
+            override(blk, _kernel_block)
+        if stream:
+            vit.blocks = StreamedModuleList(vit.blocks, device)
+        self.vit = vit.to(device)
         self.layers, self.alt = br.cfg.layers, br.cfg.alt
         self.cat = br.cfg.dual
         self._pos: dict[tuple[int, int], torch.Tensor] = {}
@@ -459,9 +522,8 @@ class _FastBackbone:
         sw = t.unflatten(-1, (2, 2, 16)).flip(-2).flatten(-3)
         return torch.addcmul(t * cos, sw, sin)
 
-    def block(self, i: int, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
+    def block(self, blk: Any, i: int, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:  # noqa: ANN401 - upstream transformer block
         """Upstream `Block` `i` (eval); returns a new tensor (`x` is kept: the dual head reads earlier tokens)."""
-        blk: Any = self.vit.blocks[i]
         g1, g2 = self.gammas[i]
         a, m, k = blk.attn, blk.mlp, self.k
         b, n, c = x.shape
@@ -490,12 +552,12 @@ class _FastBackbone:
             t = vit.patch_embed(x.half())
             t = torch.cat([vit.cls_token.expand(t.shape[0], -1, -1), t], 1) + self.pos_embed(h0, w0)
             local = t
-            for i in range(self.layers[-1] + 1):
+            for i, blk in enumerate(vit.blocks):
                 if i == self.alt:
                     t[:, 0] = vit.camera_token[0, 0]
                 glob = self.alt >= 0 and i >= self.alt and i % 2 == 1
                 rope = None if self.alt < 0 or i < self.alt else ((rg_cos, rg_sin) if glob else (rl_cos, rl_sin))
-                t = self.block(i, t, rope)  # ty: ignore[invalid-argument-type]
+                t = blk(t, self, i, rope)
                 if not glob:
                     local = t
                 if i in self.layers:
@@ -505,6 +567,11 @@ class _FastBackbone:
                     else:
                         outs.append(vit.norm(t[:, 1:]))
         return outs, cam
+
+
+def _kernel_block(blk: nn.Module, x: torch.Tensor, backbone: _FastBackbone, i: int, rope: tuple | None) -> torch.Tensor:
+    """Invoke the fused forward with the block weights currently bound to this module."""
+    return backbone.block(blk, i, x, rope)
 
 
 class _FusedHead:
@@ -545,9 +612,11 @@ class _FusedHead:
         if key not in self._pe:
             if len(self._pe) >= _PE_SIZES:
                 del self._pe[next(iter(self._pe))]
-            uv = create_uv_grid(w, h, aspect_ratio=hw[1] / hw[0], dtype=torch.float32, device=self.device)
-            pe = position_grid_to_embed(uv, c) * _POS_RATIO
-            self._pe[key] = pe[None].half().expand(b, -1, -1, -1).contiguous()
+            horizontal, vertical = _position_axes(c, (h, w), hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            pe = torch.empty((b, h, w, c), dtype=torch.float16, device=self.device)
+            pe[..., : c // 2].copy_(horizontal.half()[None, None])
+            pe[..., c // 2 :].copy_(vertical.half()[None, :, None])
+            self._pe[key] = pe
         return self._pe[key]
 
     def _conv(self, x: torch.Tensor, c: tuple, **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
@@ -586,14 +655,25 @@ class _FusedHead:
             r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
             ls.append(self._conv(x, rn, y2=r))
             rs.append(r)
+            del x, r, pos
         l1, l2, l3, l4 = ls
-        p = self._fuse(3, l4, None, rs[3], l3.shape[1:3])
-        p = self._fuse(2, p, l3, rs[2], l2.shape[1:3])
-        p = self._fuse(1, p, l2, rs[1], l1.shape[1:3])
-        p = self._fuse(0, p, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]))
+        r1, r2, r3, r4 = rs
+        del ls, rs
+        p = self._fuse(3, l4, None, r4, l3.shape[1:3])
+        del l4, r4
+        p = self._fuse(2, p, l3, r3, l2.shape[1:3])
+        del l3, r3
+        p = self._fuse(1, p, l2, r2, l1.shape[1:3])
+        del l2, r2
+        p = self._fuse(0, p, l1, r1, (2 * l1.shape[1], 2 * l1.shape[2]))
+        del l1, r1
         p = k.bilinear(self._conv(p, self.oc1), hw, align_corners=True)
         if self.pos_embed:
-            p += self._pos(p.shape[-1], *hw, hw, b)
+            # The final resize only needs the two half-precision axes, with no dense position cache.
+            channels = p.shape[-1]
+            horizontal, vertical = _position_axes(channels, hw, hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            p[..., : channels // 2].add_(horizontal.half()[None, None])
+            p[..., channels // 2 :].add_(vertical.half()[None, :, None])
         maps = []
         for c3, w, bias in self.out:
             o = self._conv(p, c3, act=ACT_RELU)
@@ -634,7 +714,7 @@ class Kernels(Runner):
         for br in [net.main] + ([net.metric] if net.metric is not None else []):
             head = _FusedHead(br, k, ctx.device)
             cam = br.cam_dec.float().to(ctx.device) if br.cam_dec is not None else None
-            self.parts.append((cam, _FastBackbone(br, k, ctx.device), head))
+            self.parts.append((cam, _FastBackbone(br, k, ctx.device, stream=ctx.params.stream), head))
 
     @torch.inference_mode()
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
@@ -653,10 +733,78 @@ class Kernels(Runner):
 
 
 # after the portable part: kernels-only dependencies
-from fastforks.depth.models.depth_anything_v2.fused import _conv, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared DPT conversions
+    _conv,
+    _linear_1x1,
+    _resize,
+)
 from fastforks.kernels.dpt_fused import ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.kernels.fastbb import Flash64  # noqa: E402
 from fastforks.shared.depth_anything_v2 import flash_attention, fp16_accumulate  # noqa: E402
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): encoder, head and camera decoder in MLX array operations (`mlx_net`).
+
+    float32, or float16 with the 1x1 output convolutions, the activations and the camera decoder in float32.
+    """
+
+    batch = None
+    Params = Params
+    intrinsics = "optional"  # Metric; set per variant in __init__
+
+    @classmethod
+    def input_use(cls, params: Params) -> dict[str, Any]:
+        """Intrinsics: `"optional"` for the metric variants, else `"unused"`.
+
+        Args:
+            params: The variant's `Params`.
+        """
+        return _input_use(params)
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX branches."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        self.arch: Arch = ctx.params.arch
+        self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
+        self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
+        if ctx.params.stream:
+            msg = "stream=True requires CUDA for host-to-device block transfers"
+            raise OptionsError(msg)
+        cfgs = dict(zip(("main", "metric"), _CONFIGS[self.arch], strict=False))
+
+        def build() -> dict:
+            state = ctx.state_dict(strip="model.")
+            sd = {}
+            for k in list(state):
+                name = _rename(k, self.arch == "nested")
+                v = state.pop(k)
+                if name is not None:
+                    sd[name] = v
+            return mlx_net.prepare(sd, cfgs)
+
+        p32 = converted(ctx, mlx_net.LAYOUT, build)
+        self.branches = []
+        for name, cfg in cfgs.items():
+            part = {k.removeprefix(name + "."): p32.pop(k) for k in list(p32) if k.startswith(name + ".")}
+            self.branches.append(mlx_net.Branch(part, cfg, ctx.dtype))
+        self._outputs = mlx_net.outputs
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Depth (and mask / confidence / intrinsics) of a batch."""
+        x = _prepare(self.ctx, image)
+        outs = [self._outputs(br, x) for br in self.branches]
+        return _finish(self.arch, outs, intrinsics, image.shape[-2:], x.shape[-2:])
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxPortable,
+}

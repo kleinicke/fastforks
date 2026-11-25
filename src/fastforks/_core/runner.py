@@ -151,10 +151,15 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     Class attributes:
         dtypes: Compute dtypes the portable code implements on CUDA (the card's `cuda_dtype` must be one of them).
         batch: Inputs per call (`None`: any number); the core splits larger batches.
+        batch_pixels: With `batch = None`, as many inputs per call as fit in this many pixels (inputs x H x W of the
+            task API's input; at least one); `None`: no limit. For families whose eager call is launch bound at small
+            sizes but gains nothing from a large batch.
         Params: Frozen dataclass of the family's parameters.
         deterministic_cudnn: Run each CUDA call with `torch.backends.cudnn.deterministic = True` (restored after).
             Set on the portable runners where cuDNN's default algorithms (atomics in transposed convs) made repeated
             calls differ and the deterministic ones cost nothing (measured on IGEV++, LAS2 and the other GRU families).
+        sdpa_auto: This family's SDPA backend priority (`efficient,cudnn,math`) in place of cuDNN first under
+            `FASTFORKS_SDPA=auto` where PyTorch has no flash (`fastforks.shared.sdpa`); `None`: the shared policy.
         uint8_input: The task API passes uint8 images on as uint8 `[B, 3, H, W]` (levels 0..255) instead of float32 in
             `[0, 1]` (other inputs stay float32): for families that resize the 8-bit levels themselves, so no full-size
             float32 copy is made (detection).
@@ -166,8 +171,10 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
 
     dtypes: ClassVar[tuple[Dtype, ...]] = ("float32",)
     batch: ClassVar[int | None] = 1
+    batch_pixels: ClassVar[int | None] = None
     Params: ClassVar[type[Any]] = NoParams
     deterministic_cudnn: ClassVar[bool] = False
+    sdpa_auto: ClassVar[str | None] = None
     uint8_input: ClassVar[bool] = False
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
 

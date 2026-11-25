@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from fastforks.classification._runner import Context
 
 
-def _network(_self: libnet.Portable | libnet.Kernels, ctx: Context) -> torch.nn.Module:
+def _network(_self: libnet.Portable | libnet.Kernels | libnet.Mlx, ctx: Context) -> torch.nn.Module:
     """As `torchvision.models.inception_v3(weights=...)`: `transform_input`, auxiliary head dropped after loading.
 
     The weights expect `transform_input` and hold the auxiliary head; eval returns the main logits only.
@@ -35,4 +35,10 @@ class Kernels(libnet.Kernels):
     network = _network
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class Mlx(libnet.Mlx):
+    """Apple MLX: the same adapted network through the generic MLX translation."""
+
+    network = _network
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx, "kernels_mlx": Mlx}

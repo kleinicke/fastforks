@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import dataclasses
 import difflib
 import fnmatch
@@ -32,12 +34,17 @@ from fastforks._core.files import env_flag, locate, present
 from fastforks._core.tasks import TASK_SPECS
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Generator, Mapping, Sequence
+    from importlib.resources.abc import Traversable
     from types import ModuleType
 
 
 TASKS = tuple(TASK_SPECS)
 """Every task (subpackage of `fastforks`) that has model cards, in listing order (from `fastforks._core.tasks`)."""
+
+
+_parsed: set[str] = set()
+"""Tasks whose cards `cards` has parsed : `known` asks them instead of reading the card texts."""
 
 
 @functools.cache
@@ -47,7 +54,7 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
     Raises:
         CardError: Two cards declare the same model id.
     """
-    root = importlib.resources.files(f"fastforks.{task}.models")
+    root = _models_dir(task)
     found: dict[str, tuple[ModelCard, Variant]] = {}
     for entry in sorted(root.iterdir(), key=lambda e: e.name):
         card_file = entry / "card.toml"
@@ -59,7 +66,17 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
                 msg = f"model id {v.id!r} declared by {found[v.id][0].family} and {card.family}"
                 raise CardError(msg)
             found[v.id] = (card, v)
+    _parsed.add(task)
     return MappingProxyType(dict(sorted(found.items())))  # cached: read-only for callers
+
+
+def _models_dir(task: str) -> Traversable:
+    """`fastforks/<task>/models`, as files when the package is installed as files.
+
+    `importlib.resources` would import the task package, and with it torch (~1.5 s for a listing that reads only cards).
+    """
+    root = Path(__file__).resolve().parents[1] / task / "models"
+    return root if root.is_dir() else importlib.resources.files(f"fastforks.{task}.models")
 
 
 @functools.cache
@@ -175,11 +192,30 @@ def require(card: ModelCard, model: str) -> None:
 
 
 NONCOMMERCIAL_ENV = "FASTFORKS_NONCOMMERCIAL"
+_NC_ALLOWED: contextvars.ContextVar[bool] = contextvars.ContextVar("fastforks_noncommercial", default=False)
 
 
 def noncommercial_enabled() -> bool:
-    """Whether non-commercial weights may be downloaded: only with `FASTFORKS_NONCOMMERCIAL=1` (installing does not)."""
-    return env_flag(NONCOMMERCIAL_ENV)
+    """Whether non-commercial weights may be downloaded: only on request (installing does not).
+
+    Requested with `FASTFORKS_NONCOMMERCIAL=1` (the whole process) or inside `allow_noncommercial()` (that block).
+    """
+    return _NC_ALLOWED.get() or env_flag(NONCOMMERCIAL_ENV)
+
+
+@contextlib.contextmanager
+def allow_noncommercial() -> Generator[None]:
+    """Let non-commercial weights download inside the block (this thread / task only).
+
+    As `FASTFORKS_NONCOMMERCIAL=1` does for the whole process. For a front end whose user opted in explicitly (the
+    ComfyUI pack `fastforks`, whose install is that opt-in, runs its nodes in it); the environment and other callers are
+    unchanged.
+    """
+    token = _NC_ALLOWED.set(True)
+    try:
+        yield
+    finally:
+        _NC_ALLOWED.reset(token)
 
 
 COMMERCIAL_ONLY_ENV = "FASTFORKS_COMMERCIAL_ONLY"
@@ -264,6 +300,25 @@ def resolve(task: str, model: str) -> tuple[ModelCard, Variant]:
     return entry
 
 
+def known(task: str, model: object) -> bool:
+    """Whether `task` has the id of `model` (`"id"` or `"id@revision"`), without building `resolve`'s error."""
+    if not isinstance(model, str):
+        return False
+    model_id = model.partition("@")[0]
+    # a card declares its ids as literal strings: a task none of whose card texts holds the id cannot know it, and
+    # is answered without parsing its cards or importing its models package (top-level load asks every task)
+    text = None if task in _parsed else _card_text(task)  # parsed cards (e.g. a UI's model list) answer at once
+    return (text is None or model_id.lower() in text) and _lookup(task, model_id) is not None
+
+
+@functools.cache
+def _card_text(task: str) -> str | None:
+    root = Path(__file__).resolve().parents[1] / task / "models"
+    if not root.is_dir():  # not installed as files (e.g. zipped): no shortcut
+        return None
+    return "\0".join(f.read_text(encoding="utf-8").lower() for f in sorted(root.glob("*/card.toml")))
+
+
 def _split(model: object) -> tuple[str, str, str]:
     """`(id, "@", revision)` of an id string (`model.partition("@")`); a non-string is a `ModelNotFoundError`."""
     if not isinstance(model, str):
@@ -287,9 +342,23 @@ def resolve_any(model: str) -> tuple[ModelCard, Variant]:
 
 def variant_card(card: ModelCard, variant: Variant) -> ModelCard:
     """`card` with the variant's own `io`, `outputs` and `output_info`, and `variant_ref` set (`model_card(id)`)."""
+    reason = variant.planned.get("kernels", "")
+    modes = tuple(mode for mode in card.modes if mode != "kernels" or not reason)
     return dataclasses.replace(
-        card, io=variant.io, outputs=variant.outputs, output_info=variant.output_info, variant_ref=variant.ref
+        card,
+        io=variant.io,
+        outputs=variant.outputs,
+        output_info=variant.output_info,
+        variant_ref=variant.ref,
+        modes=modes,
+        kernel_libs=() if reason else card.kernel_libs,
+        mps_kernel_libs=() if reason else card.mps_kernel_libs,
+        no_kernels_reason=reason or card.no_kernels_reason,
     )
+
+
+_TASK_HINT: dict[str, str] = {}
+"""Model id -> the task `task_of` found it in, asked first next time (ids are unique across tasks; still checked)."""
 
 
 def task_of(model: str) -> str | None:
@@ -297,7 +366,13 @@ def task_of(model: str) -> str | None:
     if not isinstance(model, str):
         return None
     model_id = model.partition("@")[0]
-    return next((t for t in TASKS if _lookup(t, model_id) is not None), None)
+    hint = _TASK_HINT.get(model_id)
+    if hint is not None and known(hint, model):  # one task's card text instead of every task's before it
+        return hint
+    task = next((t for t in TASKS if known(t, model)), None)
+    if task is not None:
+        _TASK_HINT[model_id] = task
+    return task
 
 
 def _lookup(task: str, model_id: str) -> tuple[ModelCard, Variant] | None:
@@ -387,7 +462,7 @@ def _not_found(model_id: str, task: str | None) -> ModelNotFoundError:
 def _known_models(task: str) -> dict[str, str]:
     """Every published model id of `task` -> its distribution (`<task>/known_models.toml`, from tools/gen_docs.py)."""
     path = Path(__file__).parents[1] / task / "known_models.toml"
-    return tomllib.loads(path.read_text()) if path.is_file() else {}
+    return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
 
 def import_model(card: ModelCard) -> ModuleType:

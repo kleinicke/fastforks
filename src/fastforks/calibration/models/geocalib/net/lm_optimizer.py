@@ -11,7 +11,7 @@ import torch.nn as nn
 from .camera import BaseCamera, camera_models
 from .gravity import Gravity
 from .misc import J_focal2fov
-from .perspective_fields import J_perspective_field, get_perspective_field
+from .perspective_fields import ImageGrid, J_perspective_field, get_perspective_field
 from .utils import focal2fov, rad2deg
 
 logger = logging.getLogger(__name__)
@@ -80,11 +80,19 @@ def huber_loss(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tenso
     """The classical robust Huber loss, with first and second derivatives."""
     mask = x <= 1
     sx = torch.sqrt(x + 1e-8)  # avoid nan in backward pass
-    isx = torch.max(sx.new_tensor(torch.finfo(torch.float).eps), 1 / sx)
+    # fastforks: clamp instead of max with a new device scalar (an upload, which syncs with the device; same values)
+    isx = torch.clamp(1 / sx, min=torch.finfo(torch.float).eps)
     loss = torch.where(mask, x, 2 * sx - 1)
     loss_d1 = torch.where(mask, torch.ones_like(x), isx)
     loss_d2 = torch.where(mask, torch.zeros_like(x), -isx / (2 * x))
     return loss, loss_d1, loss_d2
+
+
+def _take(x: torch.Tensor, dims: Tuple[int, ...]) -> torch.Tensor:
+    """fastforks: `x[..., dims]`, as a slice for consecutive dims (an index tuple uploads, which syncs; same values)."""
+    if dims and dims[0] >= 0 and dims == tuple(range(dims[0], dims[-1] + 1)):
+        return x[..., dims[0] : dims[-1] + 1]
+    return x[..., dims]
 
 
 def early_stop(new_cost: torch.Tensor, prev_cost: torch.Tensor, atol: float, rtol: float) -> bool:
@@ -331,7 +339,7 @@ class LMOptimizer(nn.Module):
         logger.debug(f"Shared intrinsics:  {self.shared_intrinsics}")
 
     def calculate_residuals(
-        self, camera: BaseCamera, gravity: Gravity, data: Dict[str, torch.Tensor]
+        self, camera: BaseCamera, gravity: Gravity, data: Dict[str, torch.Tensor], *, grid: ImageGrid | None = None
     ) -> Dict[str, torch.Tensor]:
         """Calculate the residuals for the optimization.
 
@@ -343,7 +351,7 @@ class LMOptimizer(nn.Module):
         Returns:
             Dict[str, torch.Tensor]: Residuals for the optimization.
         """
-        perspective_up, perspective_lat = get_perspective_field(camera, gravity)
+        perspective_up, perspective_lat = get_perspective_field(camera, gravity, grid=grid)
         perspective_lat = torch.sin(perspective_lat)
 
         residuals = {}
@@ -428,12 +436,13 @@ class LMOptimizer(nn.Module):
             dims += tuple(range(3, 3 + self.camera_model.num_dist_params()))
         assert dims, "No parameters to optimize"
 
-        J = J[..., dims]
+        J = _take(J, dims)  # fastforks: no index upload
 
-        # fastforks: one weighted GEMM per image instead of per-pixel outer products summed afterwards
-        Jw = (weights[..., None, None] * J).flatten(-3, -2)  # (B, N * j, k)
-        Grad = (Jw.transpose(-1, -2) @ residuals.flatten(-2, -1)[..., None])[..., 0]  # (B, N_params)
-        Hess = Jw.transpose(-1, -2) @ J.flatten(-3, -2)
+        # fastforks: the weighted products summed over pixels in one reduction each (a GEMM over every pixel is a
+        # split-K cuBLAS kernel, a few hundred microseconds for a 3 x 3 result)
+        Jw = weights[..., None, None] * J  # (B, N, j, k)
+        Grad = (Jw * residuals[..., None]).sum((-3, -2))  # (B, N_params)
+        Hess = (Jw[..., None] * J[..., None, :]).sum((-4, -3))  # (B, N_params, N_params)
 
         if camera_R_rig is not None:
             if shared_intrinsics:
@@ -456,6 +465,8 @@ class LMOptimizer(nn.Module):
         as_rpf: bool = False,
         shared_intrinsics: bool = False,
         camera_R_rig: torch.Tensor = None,
+        *,
+        grid: ImageGrid | None = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Calculate the gradient and Hessian for the optimization.
 
@@ -479,6 +490,7 @@ class LMOptimizer(nn.Module):
             spherical=self.conf.use_spherical_manifold and not as_rpf,
             log_focal=self.conf.use_log_focal and not as_rpf,
             camera_R_rig=camera_R_rig,
+            grid=grid,
         )
 
         J_up = J_up.reshape(J_up.shape[0], -1, J_up.shape[-2], J_up.shape[-1])  # (B, N, 2, 3)
@@ -545,6 +557,8 @@ class LMOptimizer(nn.Module):
         errors: Dict[str, torch.Tensor],
         weights: Dict[str, torch.Tensor],
         camera_R_rig: torch.Tensor = None,
+        *,
+        grid: ImageGrid | None = None,
     ) -> Dict[str, torch.Tensor]:
         """Estimate the uncertainty of the optimized camera and gravity at the final step.
 
@@ -566,6 +580,7 @@ class LMOptimizer(nn.Module):
             as_rpf=True,
             shared_intrinsics=self.shared_intrinsics,
             camera_R_rig=camera_R_rig,
+            grid=grid,
         )
         Cov = torch.inverse(Hess)
 
@@ -659,7 +674,7 @@ class LMOptimizer(nn.Module):
                 delta_gravity = delta[..., :2]
         else:
             delta_gravity = (
-                delta[..., self.gravity_delta_dims]
+                _take(delta, self.gravity_delta_dims)  # fastforks: no index upload
                 if self.estimate_gravity
                 else delta.new_zeros(delta.shape[:-1] + (2,))
             )
@@ -674,7 +689,7 @@ class LMOptimizer(nn.Module):
             new_gravity = gravity.update(delta_gravity, spherical=self.conf.use_spherical_manifold)
 
         delta_f = (
-            delta[..., self.focal_delta_dims]
+            _take(delta, self.focal_delta_dims)  # fastforks: no index upload
             if self.estimate_focal
             else delta.new_zeros(delta.shape[:-1] + (1,))
         )
@@ -712,13 +727,13 @@ class LMOptimizer(nn.Module):
         if self.shared_intrinsics or camera_R_rig is not None:
             lamb = data[key].new_ones(1) * self.conf.lambda_
 
+        grid = ImageGrid.from_camera(camera_opt)
+        errors = self.calculate_residuals(camera_opt, gravity_opt, data, grid=grid)
+        costs, weights = self.calculate_costs(errors, data)
         infos = {"stop_at": self.num_steps}
         for i in range(self.num_steps):
             if self.conf.verbose:
                 logger.info(f"Step {i+1}/{self.num_steps}")
-
-            errors = self.calculate_residuals(camera_opt, gravity_opt, data)
-            costs, weights = self.calculate_costs(errors, data)
 
             if i == 0:
                 prev_cost = sum(c.mean(-1) for c in costs.values())
@@ -734,6 +749,7 @@ class LMOptimizer(nn.Module):
                 weights,
                 shared_intrinsics=self.shared_intrinsics,
                 camera_R_rig=camera_R_rig,
+                grid=grid,
             )
             delta = optimizer_step(Grad, Hess, lamb)  # (B, N_params)
 
@@ -746,14 +762,13 @@ class LMOptimizer(nn.Module):
                 delta_dist = delta[..., -self.n_intrinsic_params + 1 :].expand(B, -1)
                 delta = torch.cat([delta_g, delta_f, delta_dist], dim=-1)
 
-            # calculate new cost
             camera_opt, gravity_opt = self.update_estimate(
                 camera_opt, gravity_opt, delta, camera_R_rig=camera_R_rig
             )
-            new_cost, _ = self.calculate_costs(
-                self.calculate_residuals(camera_opt, gravity_opt, data), data
-            )
-            new_cost = sum(c.mean(-1) for c in new_cost.values())
+            # These residuals and weights also start the next step or finish the fit.
+            errors = self.calculate_residuals(camera_opt, gravity_opt, data, grid=grid)
+            costs, weights = self.calculate_costs(errors, data)
+            new_cost = sum(c.mean(-1) for c in costs.values())
 
             if not self.conf.fix_lambda:
                 if self.shared_intrinsics or camera_R_rig is not None:
@@ -779,19 +794,16 @@ class LMOptimizer(nn.Module):
             if i == self.num_steps - 1 and self.conf.early_stop:
                 logger.warning("Reached maximum number of steps without convergence.")
 
-        final_errors = self.calculate_residuals(camera_opt, gravity_opt, data)  # (B, N, 3)
-        final_cost, weights = self.calculate_costs(final_errors, data)  # (B, N)
-
         if not self.training:
             infos |= self.estimate_uncertainty(
-                camera_opt, gravity_opt, final_errors, weights, camera_R_rig=camera_R_rig
+                camera_opt, gravity_opt, errors, weights, camera_R_rig=camera_R_rig, grid=grid
             )
 
         infos["stop_at"] = camera_opt.new_ones(camera_opt.shape[0]) * infos["stop_at"]
-        for k, c in final_cost.items():
+        for k, c in costs.items():
             infos[f"final_{k}"] = c.mean(-1)
 
-        infos["final_cost"] = sum(c.mean(-1) for c in final_cost.values())
+        infos["final_cost"] = sum(c.mean(-1) for c in costs.values())
 
         return camera_opt, gravity_opt, infos
 

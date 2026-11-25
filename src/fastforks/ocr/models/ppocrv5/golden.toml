@@ -20,3 +20,39 @@ settings = "CPU float32 (no oneDNN), pipeline without orientation / unwarping, t
 sha256 = "3bbcfbd9a94474567c6be396e936ae3cb51acacaef1bc6e69299ef65d25c2815"
 upstream = "https://github.com/PaddlePaddle/PaddleOCR@dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf"
 settings = "CPU float32 (no oneDNN), pipeline without orientation / unwarping, tests/test_files/table.jpg, paddlepaddle 3.3.1, paddleocr 3.3.3, paddlex 3.3.13"
+
+[validated."ppocrv5-mobile@1"]
+kernels = ["cudnn_hacc@cudnn91501", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "ocr_levels@3187ecc54497:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "ocr_levels" = {"bgr_bytes" = "0f29f6c0d2dbff5e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0625
+p99_px = 1.0
+
+[validated."ppocrv5-mobile@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "ocr_levels@3187ecc54497:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "ocr_levels" = {"bgr_bytes" = "0f29f6c0d2dbff5e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0625
+p99_px = 1.0
+
+[validated."ppocrv5-server@1"]
+kernels = ["cudnn_hacc@cudnn91501", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "ocr_levels@3187ecc54497:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "ocr_levels" = {"bgr_bytes" = "0f29f6c0d2dbff5e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0
+
+[validated."ppocrv5-server@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "ocr_levels@3187ecc54497:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "ocr_levels" = {"bgr_bytes" = "0f29f6c0d2dbff5e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0
+p99_px = 0.0

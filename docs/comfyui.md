@@ -1,0 +1,255 @@
+# ComfyUI nodes
+
+Two ComfyUI node packs over the public API (`fastforks.load(...)`, then a call per image). They add no models of their
+own: every dropdown lists fastforks ids of that task.
+
+- **fastforks** (`integrations/comfyui`, the default): every fastforks model, those not cleared for commercial use
+  tagged `[non-commercial]`. Some models are for non-commercial use only; using each within its licence is your
+  responsibility (see [Licences](#licences)). It installs the `fastforks` package (`fastforks-core` with every model
+  family).
+- **fastforks-commercial** (`integrations/comfyui-commercial`): the same nodes with only the models cleared for
+  commercial use (code and weights licence); it never downloads non-commercial weights. It installs
+  `fastforks-core[timm,transformers]`.
+
+Each pack's README (`integrations/comfyui/README.md`, `integrations/comfyui-commercial/README.md`) lists its nodes and
+models, generated from the registry (`tools/gen_comfyui_readme.py`).
+
+## Install
+
+With ComfyUI-Manager or the Comfy registry: `comfy node install fastforks` (or `fastforks-commercial`), then
+restart ComfyUI.
+
+From a clone: a pack is a folder of `integrations/`, not the repository. Clone the repository outside `custom_nodes`
+(ComfyUI imports every folder there and reports the repository root as IMPORT FAILED) and link the folder in.
+
+```bash
+git clone https://github.com/kleinicke/fastforks
+ln -s "$PWD/fastforks/integrations/comfyui" ComfyUI/custom_nodes/comfyui-fastforks   # Linux / macOS
+pip install -r ComfyUI/custom_nodes/comfyui-fastforks/requirements.txt              # with ComfyUI's Python
+```
+
+Windows (cmd): a directory junction needs no administrator rights or developer mode (a symlink, `mklink /D`, does);
+copying the folder also works but does not follow `git pull`.
+
+```bat
+mklink /J ComfyUI\custom_nodes\comfyui-fastforks C:\path\to\fastforks\integrations\comfyui
+python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastforks\requirements.txt
+```
+
+`requirements.txt` installs `fastforks>=0.3.0` from PyPI and keeps ComfyUI's torch (it needs torch >= 2.8); use
+`pip install -e "./fastforks[libs]"` instead to run the cloned source (it has every model family). For the commercial-only pack link
+`integrations/comfyui-commercial` instead (it finds the nodes in `integrations/comfyui` next to it); its
+`requirements.txt` installs `fastforks-core[timm,transformers]>=0.3.0`. Installing the repository URL with
+ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack.
+
+Apple silicon: both packs' requirements also install Apple's `mlx` there (an environment marker; nothing on other
+platforms). With it `auto` runs a model through its MLX port where that is faster than PyTorch MPS, and the `mlx`
+backend works. A source install has it with `pip install -e "./fastforks[libs,mlx]"`. Without `mlx` every model
+still runs on MPS with `auto` and `portable`, and `mlx` fails with the pip line.
+
+Windows: the `kernels` backend works like on Linux (the DLLs download once, like the weights, and need no C++ toolchain). A
+library without a Windows build makes `kernels` fail for that model and `auto` run portable, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
+to the ComfyUI folder (`models\fastforks\blobs\sha256\ab\<sha256>`, downloads in a `.download.*` folder next to it),
+so a ComfyUI folder below ~140 characters needs no long-path setting.
+
+## Nodes (category `fastforks`)
+
+| Node | Inputs | Outputs |
+|---|---|---|
+| Depth | IMAGE | IMAGE: inverse depth scaled to 0-1 per image (near = white); image models only |
+| Video depth | IMAGE batch (frames of one clip) | IMAGE batch: Video Depth Anything run as one clip, one 0-1 scale for all frames (no flicker) |
+| Normals | IMAGE | IMAGE: normal map (red = right, green = up, blue = towards the camera) |
+| Line art / edges | IMAGE | IMAGE: line or edge map, white lines on black (line art, anime line art, AnyLine, HED / PiDiNet soft edges, TEED, M-LSD line segments): the ControlNet hints |
+| Remove background | IMAGE, trimap MASK (ViTMatte only) | IMAGE (RGBA), MASK (alpha) |
+| Segment (SAM) | IMAGE, points `x,y; x,y`, box `x0,y0,x1,y1`, text (SAM 3) | MASK |
+| Segment like a reference (INSID3) | IMAGE, reference IMAGE batch, one reference MASK per reference (nonzero = the concept) | MASK: what the references mark, found in each image (references embedded once) |
+| Detect objects | IMAGE, score threshold, classes (open-vocabulary query or class filter) | MASK, STRING (JSON boxes) |
+| Pose | IMAGE, detections (JSON of a Detect node; top-down models) | IMAGE (skeletons on black), STRING (JSON keypoints) |
+| Interpolate frames | IMAGE batch, multiplier | IMAGE batch with `multiplier - 1` new frames per pair |
+| Classify | IMAGE, top k | STRING (`classes`) |
+| Tag (WD tagger) | IMAGE, general / character thresholds (0.35 / 0.75) | STRING: Danbooru tags, most likely first |
+| NSFW check | IMAGE | STRING (normal / nsfw per image), FLOAT (highest nsfw probability of the batch) |
+| Semantic segmentation | IMAGE, classes for the mask | IMAGE (class colours), MASK (listed classes), STRING (classes found), MASK (one per listed class) |
+| Parse clothes / face (not in fastforks-commercial) | as Semantic segmentation (SegFormer b2 clothes, b5 face parsing) | as Semantic segmentation |
+| Stereo disparity | left IMAGE, right IMAGE (rectified) | IMAGE: disparity scaled to 0-1 per image (near = white) |
+| Optical flow | IMAGE batch (frames) | IMAGE (colour wheel, one per pair), FASTFORKS_FLOW (pixels, for Warp) |
+| Warp by flow | IMAGE, FASTFORKS_FLOW | IMAGE: image i sampled along flow i (`frames[1:]` -> `frames[:-1]`) |
+| Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
+| Video matte (MatAnyone; not in fastforks-commercial) | IMAGE batch (frames), MASK of the object on frame 0 | IMAGE batch (RGBA), MASK batch (alpha) |
+| Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
+| Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
+| Inpaint / remove objects (LaMa) | IMAGE, MASK (every nonzero pixel is filled; one mask for all images, or one per image) | IMAGE: the masked region filled, the rest unchanged |
+| Restore faces (GFPGAN, CodeFormer) | IMAGE; optional `faces`: `detect and paste back` (each face RetinaFace finds is aligned to facexlib's 512 x 512 template, restored and blended back with facexlib's soft mask), `aligned crops` (512 x 512 FFHQ-aligned crops), `auto` (crops for 512 x 512 images, else detect); optional `fidelity` (CodeFormer's `w`, 0.5) | IMAGE |
+
+Every node has `model`, `backend` and `dtype`. `dtype` `auto` is what fastforks picks for the backend: float32 for
+`portable`, the kernels' own dtype for `kernels` (often float16), and on a Mac the fastest validated one measured for
+`auto` and `mlx` (often float16, on plain MPS too); pick `float32` for full precision. `backend` has the same four
+entries on every platform, so a workflow saved on one machine validates on another:
+
+| `backend` | Windows / Linux | Mac |
+|---|---|---|
+| `auto` | our CUDA kernels where they measured faster, else plain PyTorch | plain PyTorch MPS, our Metal kernels or the model's MLX port, as measured per model |
+| `portable` | plain PyTorch | plain PyTorch MPS |
+| `kernels` | our CUDA kernels; an error if the model has none | our Metal kernels; an error if the model has none (it never runs MLX) |
+| `mlx` | an error: it needs Apple silicon | the model's MLX port; an error with the pip line if the `mlx` package is missing, or if the model has no port |
+
+- `mlx` is the model's MLX port instead of PyTorch MPS, in its fastest measured configuration (with our Metal
+  kernels where the port has them and they are faster). It often needs less memory, but its first run of each image
+  size compiles and is slower.
+  Measured on an M1 Pro over 277 models: about a third less memory (median), similar warm speed, first run 4.1 s
+  against 0.7 s (median). On macOS the pack keeps that first-run work in `models/fastforks/mlx-plans`, so it is not
+  repeated after a ComfyUI restart (set `FASTFORKS_MLX_PLAN_CACHE` to an empty value to turn this off). An
+  out-of-memory error on MPS suggests `mlx`.
+
+Both packs name a node `Fastforks<Name>` (shown as
+"Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
+installed in `custom_nodes`, fastforks-commercial registers nothing and logs that the fastforks pack's nodes are used
+(two packs cannot register one class name; remove or disable one to choose). A pack has a node only if it lists a
+model there: fastforks-commercial has no Parse and no Video matte (their models are non-commercial); Warp takes no model.
+
+## Licences
+
+**fastforks** lists every installed model; those not cleared for commercial use are tagged (`[non-commercial]`:
+non-commercial / research use only, GPL code: its copyleft terms; `[licence unclear]`: not cleared). Installing the
+pack is the explicit opt-in to their weights: its nodes download them for their own runs (each run is inside the
+library's `allow_noncommercial()`); nothing is set in the environment. Each node's description and `model` tooltip say
+which models are non-commercial and that using each within its licence is your responsibility; the startup log says
+how many there are.
+
+**fastforks-commercial** lists only ids whose code and weights licence are cleared for commercial use, and runs no
+other: a saved or shared workflow naming another model fails validation (or, linked from another node, the run) with
+one sentence, that the model is only in the fastforks pack and how to install it, never a download.
+
+Installing a pack does not license anything: you are responsible for using each model within its code and weights
+licences (`fastforks info MODEL` shows them, with the evidence). `FASTFORKS_COMMERCIAL_ONLY=1` makes the library refuse
+every model not cleared for commercial use, in both packs.
+
+A node lists only the ids it can run: those whose required inputs it passes (`model_card(id).contract().inputs`).
+Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full) need a depth
+input no node has yet, so no node lists them. The models that need a mask or references have their own nodes:
+Inpaint (LaMa), Video matte (MatAnyone) and Segment like a reference (INSID3).
+
+Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks reads, detected
+from the weights (`fastforks.restoration.load(path)`): ESRGAN / Real-ESRGAN (old or new key names), Compact (SRVGG),
+SPAN, SwinIR, Swin2SR, HAT, DAT, DRCT, RealPLKSR, NAFNet, Restormer. Other files are not listed; `load(path)` names
+the reason.
+
+Weights and kernels already in the fastforks cache, the Hugging Face or torch hub cache are used in place; missing
+ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
+`extra_model_paths.yaml`). The pack also keeps there (`comfyui-inputs.json`) which models each node can run, so a
+ComfyUI start does not import every model's code (0.6 s instead of 1.5-3 s on Windows); it is worked out again after a
+fastforks update. Models run on ComfyUI's device and
+stay loaded between runs (the two most recently used); ComfyUI's "Unload models" frees them, and ComfyUI unloads its
+own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
+own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. By default batches run one image at a time, so a cancel stops after the
+current image. Depth, Normals, Line art / edges, Remove background (without a trimap), Detect, Pose, Classify, Tag, NSFW check, Semantic
+segment, Parse, Face restore and Stereo have an optional `batch_size` input: several images (pairs) per model call,
+which is several times faster for small models at 224-512 px (convnext-tiny 8.6x, depth-anything-v2-s 1.8x, rf-detr-s
+5.9x; 480 x 640: rtmo-s pose 2.3x, yunet-n faces 2.7x, stereo coex 1.8x, aanet 2.1x, on an RTX 5060 Ti under
+Windows) and uses more memory; models that cannot
+batch raise an error, stereo models that gain nothing from it run one pair at a time. Interpolate and Flow take `batch_size`
+consecutive pairs per call, 8 by default (384 x 384: rife-4.26 5.6x; 480 x 640: rife-4.26 2.6x, raft-small 3.2x,
+neuflow-v2 2.7x); models that gain nothing from it (sea-raft, gmflow, film, larger frames) still run them one pair at a
+time. A cancel stops after the current `batch_size` pairs.
+
+## Mistakes and their messages
+
+A node that cannot do what you set says what to change, in the node's words (`backend=` for the library's `mode=`):
+
+- **Prompts.** A malformed `positive_points`, `negative_points`, `points` (Track points), `box` or Pose `detections`
+  names the input and shows the form to write (`positive_points: write points as 'x,y; x,y' in pixels ...`). Points
+  or a box sent to a text-only model (CLIPSeg), and text sent to a points / box model, are refused the same way.
+- **Classes.** Detect with a closed model (RF-DETR, ...) and Semantic segmentation raise for a class the model does
+  not have, with the close matches (names are case-insensitive) or its first classes, not a silent empty mask. Detect
+  with an open-vocabulary model (Grounding DINO) and an empty `classes` uses the card's label set.
+- **A model of another node** (a saved workflow, a linked `model` input) fails validation naming the node that lists
+  it; an unknown id suggests this node's ids only.
+- **Sizes.** Stereo needs left and right of one size and one batch length (the message gives both). Optical flow and
+  its video nodes need at least 2 frames where a pair is needed; Interpolate, Video depth, Video segment and Track
+  points run a single frame without error (Interpolate returns it unchanged).
+- **Memory.** An allocation failure on MPS or MLX (`Invalid buffer size`, `[metal::malloc]`, `Insufficient Memory`) is
+  reported as ComfyUI's out-of-memory error with the advice to use a smaller image or `batch_size` / `tile`, and on
+  MPS (also torch's own `MPS backend out of memory`) to try the `mlx` backend, which often needs less memory; ComfyUI
+  then unloads its models, so the run can be repeated. Upscale / restore also says which
+  `tile` fits.
+- **Weights.** The first run downloads missing weights and kernel files, with a progress bar on the node for each
+  file (and a console line every 10 s); Cancel stops a download, and nothing partial is kept. A few upstreams
+  publish a model only inside a larger archive, which is downloaded once and not kept: SPAN's 18 MB file comes from a
+  1.3 GB archive (about a minute on a fast line), so the console names the file with the archive's size. Offline mode
+  (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the
+  download. A file put there by hand, under its original name (`models/fastforks/<file>` or
+  `models/fastforks/<family>/<file>`), is found and hash-checked; one that does not verify is skipped. Checkpoints
+  other nodes already keep in `models/upscale_models`, `models/facerestore_models` or `models/facedetection` under
+  their upstream names (`RealESRGAN_x4plus.pth`, `GFPGANv1.4.pth`, `codeformer.pth`, `detection_Resnet50_Final.pth`, ...) are used in place the same way, not downloaded
+  again. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
+  login in ComfyUI's Python (`hf auth login`, or `HF_TOKEN` set before starting ComfyUI); the error says so.
+
+## Speed
+
+A node's time is the model's time plus what ComfyUI does around every node, which any pack pays. On ComfyUI 0.46
+(RTX 5060 Ti, Windows):
+
+- IMAGE outputs live on the CPU, so each node copies its result off the GPU: ~6 ms for a 2048 x 2048 output.
+- Dynamic VRAM (the default) synchronises after each node: 1-5 ms per node. `--disable-dynamic-vram` removes it
+  (SPAN x4 on 512 x 512: 28.2 -> 24.4 ms per run, GFPGAN: 31.7 -> 26.8 ms).
+- The executor adds ~8 ms per run.
+- When the GPU is mostly idle between short node calls (small images, a few frames, a run every few hundred ms), the
+  NVIDIA driver drops the memory clock to its lowest state (P5, 810 MHz) after a few seconds, even mid-run, and GPU work
+  then takes about three times as long (rife-4.26 x2 on 4 frames of 384 x 384: 12 -> 35 ms per node). Calls back to back
+  (the library's benchmarks) stay at full clock. The driver setting that keeps the clock up is NVIDIA Control Panel >
+  Manage 3D settings > Power management mode > Prefer maximum performance (not measured here).
+
+Models that take a few milliseconds (SPAN, Compact, the WD tagger, SegFormer) therefore take about twice their library
+time in a workflow (SPAN x4: 13 ms model, 28 ms node); for slow ones (HAT, DAT, SwinIR) the overhead does not matter. The portable ComfyUI build and a
+ComfyUI from git run the nodes at the same speed.
+
+## Example workflows
+
+`integrations/comfyui/workflows/` holds fourteen workflows. The first ten put competing models (and, in the second
+one, backends) side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and
+compare: depth, backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame
+interpolation, stereo and optical flow. The last four show line art / edges, inpainting (object removal from a click,
+and a fixed square), segmenting like a reference, and video matting from a first-frame click; they use only fastforks
+and ComfyUI's own nodes. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
+the UI; ComfyUI also lists them under the pack's templates). They load these images from ComfyUI's `input` folder;
+only `example.png` ships with ComfyUI, put your own files there under the other names: `scene.png` (a photo with
+people and objects: detection, pose), `small.png` (a small image to upscale), `clip0.png` .. `clip3.png` (consecutive
+frames of a video: interpolation, optical flow, segmenting like a reference, video matting) and `stereo_left.png` /
+`stereo_right.png` (a rectified stereo pair). Start with w02 Backend Compare to try either pack with `example.png`
+and ComfyUI's built-in nodes. Six of the fourteen also carry branches with another
+pack's nodes for comparison (comfyui_controlnet_aux, ComfyUI-RMBG, ComfyUI-segment-anything-2,
+ComfyUI-Frame-Interpolation); without that pack ComfyUI marks those nodes as missing: delete them or install the
+pack. The upscaling one compares with ComfyUI's own upscale-model node, which needs a file in
+`models/upscale_models`. The backend comparison uses the three backends every platform lists and a model both packs
+have, so it loads everywhere. `make_workflows.py` regenerates them from a running server's `/object_info`.
+
+The fourth entry of the `backend` dropdown, `mlx`, is Apple's MLX instead of MPS (Apple silicon only; with our Metal kernels where the family's port has them and they are faster). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins. With `dtype` on `auto`, `mlx` runs in the fastest mode and dtype measured on the Mac (often float16, goldens checked).
+
+### Comparison branches from other ComfyUI packs
+
+Most example workflows also carry a branch from a popular third-party pack, so you can compare against what ComfyUI
+users already have: `comfyui_controlnet_aux` (depth, DWPose/OpenPose), `ComfyUI-RMBG` (INSPYRENET, BEN2),
+`ComfyUI-segment-anything-2` (SAM 2), `ComfyUI-Frame-Interpolation` (RIFE 4.9, FILM), `ComfyUI-Unimatch` flow
+preprocessor, and ComfyUI's built-in upscaler (`RealESRGAN_x4plus.pth` in `models/upscale_models`). Those branches
+need the pack installed (they show as red nodes otherwise) and download their weights on first run; the fastforks
+branches work without them. The stereo example uses a Middlebury left/right pair, the other examples a crop of a
+single photo (the video examples use synthetic pan crops).
+
+## Memory
+
+ComfyUI runs PyTorch on the `cudaMallocAsync` allocator (unless started with `--disable-cuda-malloc`). The 70 kernels
+models that fit the test machine's local weights, run that way at the [benchmarks](benchmarks.md)' inputs (RTX 5060
+Ti, Windows), gave the same outputs at the same speed as under PyTorch's default allocator, with less memory reserved
+in total (131 against 138 GiB summed over the models); the benchmarks' memory columns use the default allocator.
+PyTorch's `torch.cuda.max_memory_allocated` reports about twice the peak under `cudaMallocAsync` for models that
+capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not higher: ema-vfi at 1080 x 1920 peaks at
+2350 MiB against 3376 MiB under the default allocator, aliked-lightglue at 768 x 1024 at 1456 against 1520 MiB.
+Models that replay CUDA graphs make PyTorch print `Attempting uncaptured free of a captured allocation` under
+this allocator when the next graph is captured or the model is unloaded. PyTorch calls it "technically allowed", and
+the outputs are unchanged: the GPU goldens of these models pass under `cudaMallocAsync`.
+
+`--lowvram` and `--novram` change how ComfyUI splits its own (diffusion) models between GPU and CPU. The fastforks
+models are small, so they load whole on ComfyUI's device either way. Before each load the pack asks ComfyUI to free
+room, and ComfyUI unloads our models like its own when it needs memory. Under `--novram` every node ran its default
+model (Windows, RTX 5060 Ti; four whose weights were not local skipped), INSID3 at the top with 1.6 GiB of PyTorch
+memory. `--cpu` runs every node on the CPU, in float32 and the portable backend.

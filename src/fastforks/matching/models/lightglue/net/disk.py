@@ -181,7 +181,8 @@ def heatmap_to_keypoints(
     keypoints = []
     for b in range(heatmap.shape[0]):
         yx = nmsed[b].nonzero(as_tuple=False)
-        detection_logp = heatmap[b][nmsed[b]]
+        y, x = yx.unbind(1)
+        detection_logp = heatmap[b, y, x]
         xy = yx.flip((1,))
 
         if n is not None:
@@ -221,6 +222,9 @@ class DISK(nn.Module):
 
     def heatmap_and_dense_descriptors(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         unet_output = self.unet(images)
+        if not isinstance(unet_output, torch.Tensor):  # fastforks: (heatmaps, descriptors) of a split head (MLX)
+            heatmaps, descriptors = unet_output
+            return heatmaps, descriptors
 
         if unet_output.shape[1] != self.desc_dim + 1:
             raise ValueError(
@@ -250,7 +254,7 @@ class DISK(nn.Module):
         # fastforks: the U-Net in float16 when `half`; NMS, top-k and the descriptor lookup stay float32
         with torch.autocast(images.device.type, dtype=torch.float16, enabled=self.fp16):
             heatmaps, descriptors = self.heatmap_and_dense_descriptors(images)
-        heatmaps, descriptors = heatmaps.float(), descriptors.float()
+        heatmaps = heatmaps.float()
         if pad_if_not_divisible:
             heatmaps = heatmaps[..., :h, :w]
             descriptors = descriptors[..., :h, :w]
@@ -261,9 +265,9 @@ class DISK(nn.Module):
         features = []
         for i in range(B):
             xys, logp = keypoints[i]
-            dtype = descriptors.dtype
             x, y = xys.T
-            desc = F.normalize(descriptors[i][:, y, x].T, dim=-1)
-            features.append((xys.to(dtype), logp.to(dtype), desc))
+            # fastforks: promote the selected descriptors, avoiding a float32 copy of the dense feature map.
+            desc = F.normalize(descriptors[i][:, y, x].T.float(), dim=-1)
+            features.append((xys.float(), logp.float(), desc))
 
         return features

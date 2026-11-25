@@ -12,17 +12,21 @@ Returns both keypoint sets, the index pairs of the matches and their scores. Flo
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 from torch import nn
-from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import keypoint_nms
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.lightglue import LightGlue, resize_long
 
-from .net.model import BasicLayer
 from .net.xfeat import XFeat
 
 if TYPE_CHECKING:
@@ -80,7 +84,7 @@ class Matcher(nn.Module):
         h, w = image.shape[-2:]
         if (int(size[0]), int(size[1])) == (w, h):
             return kpts
-        scale = torch.tensor([float(size[0]) / w, float(size[1]) / h], device=kpts.device, dtype=kpts.dtype)
+        scale = device_tensor([float(size[0]) / w, float(size[1]) / h], device=kpts.device, dtype=kpts.dtype)
         return (kpts + 0.5) / scale - 0.5
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -118,12 +122,8 @@ def load_matcher(ctx: Context) -> Matcher:
             {k.replace("matcher.", ""): v for k, v in sd.items() if not k.startswith("extractor.")},
             f"{ctx.variant.ref} checkpoint",
         )
-    net.eval().requires_grad_(requires_grad=False)
-    for m in net.xfeat.net.modules():  # BatchNorm (eval statistics) folded into the conv before it
-        if isinstance(m, BasicLayer):
-            conv, bn, relu = cast("tuple[nn.Conv2d, nn.BatchNorm2d, nn.Module]", tuple(m.layer))
-            m.layer = nn.Sequential(fuse_conv_bn_eval(conv, bn), relu)
-    return net.to(ctx.device)
+    # Folded BatchNorm changes the CUDA keypoint threshold decisions and the measured pose accuracy.
+    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
 
 
 class Portable(Runner):
@@ -145,4 +145,113 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+def _precise_conv(layer: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    # XFeat's score threshold changes keypoint membership at TF32 convolution precision.
+    return torch.ops.aten._convolution.default(  # noqa: SLF001 - per-call precision control
+        x,
+        layer.weight,
+        layer.bias,
+        layer.stride,
+        layer.padding,
+        layer.dilation,
+        transposed=False,
+        output_padding=[0, 0],
+        groups=layer.groups,
+        benchmark=False,
+        deterministic=False,
+        cudnn_enabled=True,
+        allow_tf32=False,
+    )
+
+
+def _maxima(_extractor: XFeat, x: torch.Tensor, threshold: float = 0.05, kernel_size: int = 5) -> torch.Tensor:
+    peaks = keypoint_nms.maxima(x, threshold, kernel_size // 2)
+    positions = [plane[0].nonzero().flip(-1) for plane in peaks]
+    return nn.utils.rnn.pad_sequence(positions, batch_first=True)
+
+
+class Kernels(Portable):
+    """Capture the fixed-shape dense extractor and fuse thresholding with local maxima."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Keep descriptors and scores in the original float32 precision."""
+        super().__init__(ctx)
+        extractor = self.net.xfeat
+        for layer in extractor.net.modules():
+            if isinstance(layer, nn.Conv2d):
+                override(layer, _precise_conv)
+        # The FP32 convolutions are device-bound at 768 x 1024, where a graph largely adds a private memory pool.
+        dense = CapturedModule(extractor.net, pixels=2**19)
+        extractor.set_submodule("net", dense)
+        self.graphs = dense.graphs
+        override(extractor, _maxima, name="NMS")
+
+    def release_graphs(self) -> None:
+        """Release captured extractor graphs."""
+        self.graphs.release()
+
+
+class _MlxPortable(Portable):
+    """`Portable` for MLX: the dense network, keypoints, descriptors and matching in MLX operations.
+
+    `mlx_net` (the network and score map), `mlx_post` (selection, sampling, nearest neighbours) and the shared
+    `MlxLightGlue`. Only each image's score map and the matcher's index decisions are read on the host. The results
+    equal `Portable`'s up to float32 rounding; keypoints of equal score may be ranked differently (upstream's sort is
+    not stable either).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch networks and copy their weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.lightglue.mlx import MlxLightGlue  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self._dense = mlx_net.MlxDense(self.net.xfeat.net, self.net.params.detection_threshold)
+        self._glue = None if self.net.matcher is None else MlxLightGlue(self.net.matcher)
+
+    def _dense_maps(self, image: torch.Tensor) -> tuple[Any, Any, torch.Tensor]:
+        """Queue an image's descriptors and score map on MLX; with the detection image's `(width, height)`."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+
+        p = self.net.params
+        x = resize_long(image, p.long_side) if p.long_side > 0 else image
+        feats, score = self._dense(to_mx(x.float()))
+        mx.async_eval(feats, score)
+        return feats, score, torch.tensor([x.shape[-1], x.shape[-2]])
+
+    def _keypoints(self, feats: Any, score: Any, size: torch.Tensor) -> tuple[Any, Any]:  # noqa: ANN401 - MLX arrays
+        """Keypoints (float32 `(x, y)` in the detection image) and their MLX descriptors."""
+        from . import mlx_post  # noqa: PLC0415 - imports mlx
+
+        kpts, desc = mlx_post.detect(feats, score, self.net.params.max_keypoints)
+        w, h = size.tolist()
+        scale = np.array([w / (w // 32 * 32), h / (h // 32 * 32)], np.float32)  # upstream `rw1`, `rh1`
+        return kpts.astype(np.float32) * scale, desc
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Keypoints of both images, the index pairs of their matches and the match scores (CPU tensors)."""
+        from . import mlx_post  # noqa: PLC0415 - imports mlx
+
+        # both networks are queued first: the second runs while the host ranks the first image's keypoints
+        (f1, m1, s1), (f2, m2, s2) = self._dense_maps(image1), self._dense_maps(image2)
+        (k1, d1), (k2, d2) = self._keypoints(f1, m1, s1), self._keypoints(f2, m2, s2)
+        if self._glue is None:
+            pairs, scores = mlx_post.mutual_nearest(d1, d2)
+        else:
+            pairs, scores = self._glue((k1, d1, s1.numpy()), (k2, d2, s2.numpy()))
+        return {
+            "keypoints1": self.net.to_input(torch.from_numpy(k1), s1, image1),
+            "keypoints2": self.net.to_input(torch.from_numpy(k2), s2, image2),
+            "pairs": torch.from_numpy(pairs),
+            "scores": torch.from_numpy(scores),
+        }
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
+}

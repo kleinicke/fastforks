@@ -34,10 +34,13 @@ std = [0.5, 0.5, 0.5]
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 # Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows and at least
 # 2^29 multiply-adds (SigLIP-so400m 378: attention projection and MLP down-projection, 729 rows) runs cuBLAS + add,

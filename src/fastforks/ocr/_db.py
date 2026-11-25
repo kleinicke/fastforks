@@ -271,18 +271,14 @@ def _line(mask: np.ndarray, p: tuple[int, int], q: tuple[int, int]) -> None:
     vert = dy > dx
     if vert:
         dx, dy = dy, dx
-    err = dx - 2 * dy
-    x, y = x0, y0
-    for _ in range(dx + 1):
-        mask[y, x] = 1
-        diag = err < 0
-        err += -2 * dy + (2 * dx if diag else 0)
-        if vert:
-            y += sy
-            x += 1 if diag else 0
-        else:
-            x += 1
-            y += sy if diag else 0
+    # OpenCV steps `err = dx - 2 dy`, `err -= 2 dy` and `err += 2 dx` on a diagonal step (`err < 0`); the diagonal
+    # steps before step i are then (2 dy i + dx - 1) // (2 dx) in closed form (one array write, not a loop per pixel)
+    i = np.arange(dx + 1)
+    k = (2 * dy * i + dx - 1) // (2 * dx) if dx else i
+    if vert:
+        mask[y0 + sy * i, x0 + k] = 1
+    else:
+        mask[y0 + sy * k, x0 + i] = 1
 
 
 def _cdiv(a: int, b: int) -> int:

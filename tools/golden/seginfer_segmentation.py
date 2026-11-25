@@ -64,7 +64,7 @@ def _check_labels(ref: str, names: list[str], labels: str) -> None:
     if names == want:
         return
     assert labels == "ade20k-150", f"{ref}: id2label differs from {labels}"  # noqa: S101
-    rows = Path(ADE_INFO).read_text().splitlines()[1:]
+    rows = Path(ADE_INFO).read_text(encoding="utf-8").splitlines()[1:]
     syn = [{n.strip() for n in r.split("\t")[-1].split(",")} for r in rows]
     bad = [
         (i, n, w)

@@ -1,4 +1,6 @@
 import torch
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 import torch.nn as nn
 
 from .attention import (single_head_full_attention, single_head_split_window_attention,
@@ -7,6 +9,7 @@ from .utils import generate_shift_window_attn_mask, generate_shift_window_attn_m
 
 
 class TransformerLayer(nn.Module):
+    window_options: dict  # fastforks: optional per-runner attention implementation
     def __init__(self,
                  d_model=128,
                  nhead=1,
@@ -39,6 +42,20 @@ class TransformerLayer(nn.Module):
 
             self.norm2 = nn.LayerNorm(d_model)
 
+    def _add_feed_forward(self, source, message):
+        # Bound the token-independent MLP activations used at full flow resolution.
+        step = max(128, (2**25 // (source.shape[0] * self.mlp[0].out_features)) // 128 * 128)
+        if source.shape[1] <= step:
+            return source + self.norm2(self.mlp(torch.cat((source, message), dim=-1)))
+        result = torch.empty_like(source)
+        for start in range(0, source.shape[1], step):
+            stop = min(start + step, source.shape[1])
+            residual = source[:, start:stop]
+            update = self.mlp(torch.cat((residual, message[:, start:stop]), dim=-1))
+            result[:, start:stop].copy_(residual + self.norm2(update))
+            del update
+        return result
+
     def forward(self, source, target,
                 height=None,
                 width=None,
@@ -49,10 +66,14 @@ class TransformerLayer(nn.Module):
                 attn_num_splits=None,
                 ):
         # source, target: [B, L, C]
+        residual = source
+        if exporting_for_mlx():  # fastforks: MLX twin: float32 residual, run-dtype branches (as autocast)
+            residual = to_float32(source)
+            source, target = to_run_dtype(source, source.dtype), to_run_dtype(target, target.dtype)
         query, key, value = source, target, target
 
         # for stereo: 2d attn in self-attn, 1d attn in cross-attn
-        is_self_attn = (query - key).abs().max() < 1e-6
+        is_self_attn = attn_type != 'swin' and (query - key).abs().max() < 1e-6  # fastforks: swin never reads it (a pass over both inputs)
 
         # single-head attention
         query = self.q_proj(query)  # [B, L, C]
@@ -66,6 +87,7 @@ class TransformerLayer(nn.Module):
                 raise NotImplementedError
             else:
                 message = single_head_split_window_attention(query, key, value,
+                                                             **getattr(self, "window_options", {}),  # fastforks: per-runner attention
                                                              num_splits=attn_num_splits,
                                                              with_shift=with_shift,
                                                              h=height,
@@ -134,14 +156,21 @@ class TransformerLayer(nn.Module):
         else:
             message = single_head_full_attention(query, key, value)  # [B, L, C]
 
+        del query, key, value
         message = self.merge(message)  # [B, L, C]
         message = self.norm1(message)
 
         if not self.no_ffn:
+            if (
+                source.is_cuda
+                and source.dtype == torch.float32
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            ):
+                return self._add_feed_forward(source, message)
             message = self.mlp(torch.cat([source, message], dim=-1))
             message = self.norm2(message)
 
-        return source + message
+        return residual + message  # fastforks: `residual` is `source` off the MLX twin
 
 
 class TransformerBlock(nn.Module):
@@ -249,7 +278,12 @@ class FeatureTransformer(nn.Module):
                 shift_size_h=window_size_h // 2,
                 shift_size_w=window_size_w // 2,
                 device=feature0.device,
+                # fastforks: in the attention's dtype, not float32 cast again in every shifted layer (1080p: two
+                # 1 GB float32 masks, each cast to float16 six times)
+                dtype=(torch.get_autocast_dtype(feature0.device.type)
+                       if torch.is_autocast_enabled(feature0.device.type) else feature0.dtype),
             )  # [K*K, H/K*W/K, H/K*W/K]
+            shifted_window_attn_mask = to_run_dtype(shifted_window_attn_mask, feature0.dtype)  # fastforks: MLX twin's f32
         else:
             shifted_window_attn_mask = None
 

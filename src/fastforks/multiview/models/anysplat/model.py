@@ -29,9 +29,12 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.qk_affine import cached_qk_affine
 from fastforks.shared.rope2d import rope_forward
 
 from .net.heads.camera_head import CameraHead
@@ -228,7 +231,7 @@ def gaussians(raw: torch.Tensor, pts: torch.Tensor, voxel_size: float) -> dict[s
     return {
         "gaussians/means": pts,
         "gaussians/scales": (0.001 * F.softplus(scales)).clamp_max(0.3),
-        "gaussians/rotations": rot[:, [3, 0, 1, 2]],
+        "gaussians/rotations": rot.roll(1, -1),
         "gaussians/harmonics": sh.reshape(-1, 3, SH) * _sh_mask(sh.device),
         "gaussians/opacities": feats[:, 0].sigmoid(),
     }
@@ -290,6 +293,16 @@ class _FP32Out(nn.Module):
         self.m = m.float()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if (
+            x.is_cuda
+            and torch.is_inference_mode_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+        ):
+            # The pointwise head processes each frame independently. Limit the live fp32 activation.
+            bytes_per_frame = 4 * math.prod(x.shape[1:])
+            frames = max(1, 128 * 1024**2 // max(1, bytes_per_frame))
+            if frames < x.shape[0]:
+                return torch.cat([self.m(group.float()) for group in x.split(frames)], dim=0)
         return self.m(x.float())
 
 
@@ -342,13 +355,7 @@ class _Fast(_Base):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""
@@ -356,7 +363,7 @@ class _Fast(_Base):
         cc, sc = rope._compute_frequency_components(32, p + 1, pos.device, self.dt)  # noqa: SLF001 - pos <= p
         q = pos.view(b, s * p, 2)
         cos = torch.cat([F.embedding(q[..., 0], cc), F.embedding(q[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
@@ -407,22 +414,29 @@ class _Fast(_Base):
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Fast aggregator, fp32 camera head, fp16 depth and Gaussian heads."""
         net = self.net
-        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc):
+        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self._use_fp16_gemm()):
             toks, psi = self.aggregate(x)
         last = toks[-1]
         if last is None:
             msg = "AnySplat: the last aggregator block is not cached"
             raise RuntimeError(msg)
-        ct = [None] * (len(toks) - 1) + [last.float()]
-        pose = net.camera_head(ct)[-1]
+        # The camera head reads only the final layer's camera tokens.
+        pose = net.camera_head([last[:, :, :1].float()])[-1]
         xh = x.to(self.dt)
-        depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
+        # MPS: the heads one view at a time. All 8 views at once make 1 GB fp32 maps at 1/1 (256 channels), each on a
+        # heap of its own: fp32 336x518 x 8 views 11.2 -> 8.7 GB peak, 6.7 -> 5.6 s (fp16 8.8 -> 8.6 GB, same speed).
+        chunk = 1 if x.device.type == "mps" else 8
+        depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi, frames_chunk_size=chunk)
         return {
             "pose_enc": pose,
             "depth": depth,
             "depth_conf": depth_conf,
-            "gs": net.gaussian_param_head(toks, xh, psi),
+            "gs": net.gaussian_param_head(toks, xh, psi, chunk),
         }
+
+    def _use_fp16_gemm(self) -> bool:
+        """Whether to use the optional half-accumulating GEMMs in the aggregator."""
+        return self.gacc
 
 
 class Portable(_Fast):
@@ -531,6 +545,10 @@ class Kernels(_Fast):
         """The shared fast DINOv2 (`FastViT`) on the aggregator's patch embed weights."""
         return self.patch_embed.get_intermediate_layers(x, 1)[0]
 
+    def _use_fp16_gemm(self) -> bool:
+        """Use wider matrix accumulation for retries once either attention launcher reaches its widest variant."""
+        return self.flash.variant != "ff" and self.patch_embed.attn.variant != "ff"
+
     def attention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float) -> torch.Tensor:
         """`fastbb` flash64 (fp16 in / out, fp16 P.V accumulation) on strided `[B, N, heads, 64]` views."""
         b, n, h, d = q.shape
@@ -538,4 +556,12 @@ class Kernels(_Fast):
         return self.flash(q, k, v, scale).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Upstream(Portable):
+    """The upstream network in any dtype (the MLX graph replaces `net` whole)."""
+
+    def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Upstream forward."""
+        return self.net(x)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(_Upstream)}

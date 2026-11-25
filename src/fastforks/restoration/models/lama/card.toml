@@ -3,9 +3,9 @@ name = "LaMa (big-lama inpainting)"
 summary = "LaMa (Suvorov et al., WACV 2022): resolution-robust large-mask inpainting with fast Fourier convolutions: an encoder of three strided convs, 18 FFC residual blocks whose global branch convolves in the frequency domain (an image-wide receptive field from the first block) and a transposed-conv decoder. big-lama (51 M parameters) is the authors' best model, trained on Places365 at 256 x 256 and works at higher resolutions. Pass `mask=` (nonzero = the region to fill); the rest of the image is kept unchanged."
 tier = "experimental"
 outputs = ["image"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
-  "No accuracy measurement: inpainting is scored on Places / CelebA-HQ with the authors' random masks, which are not part of the evaluation data here; tiers are compared by output parity and speed only.",
+  "The labeled comparison scores masked regions of 50 inpainting cases from 25 DIV2K validation images cropped to 512 x 512.",
   "Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.",
   "Any nonzero mask pixel is a hole (upstream binarises with `mask > 0`): anti-aliased or JPEG masks grow; threshold them first.",
 ]
@@ -36,6 +36,7 @@ scale = 1
 [modes.portable]
 cuda_dtype = "float16"  # convolutions; the Fourier units float32 (upstream: float32 throughout)
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last, CUDA graphs
@@ -48,6 +49,5 @@ venue = "WACV 2022"
 
 [[variants]]
 id = "big-lama"
-planned = { tensorrt = "the TensorRT ONNX parser has no DFT (FFT convolution)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "big-lama.ckpt", size = 410046389, sha256 = "fccb7adffd53ec0974ee5503c3731c2c2f1e7e07856fd9228cdcc0b46fd5d423", url = "https://huggingface.co/smartywu/big-lama/resolve/05cb2be7f8dbe6ca7c6e78f4fc827a4b2baaa4a9/big-lama.zip", member = "big-lama/models/best.ckpt", archive = { size = 381428720, sha256 = "f1b358ca24093b93a106183b98a3dea6e8ed09f3b43ea7251eb2c81e7b4575f6" } }]

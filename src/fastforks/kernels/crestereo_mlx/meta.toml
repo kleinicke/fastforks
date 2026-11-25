@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "fastforks (written for CREStereo on Apple MLX): adaptive group correlation (warp + window, learned offsets), ConvGRU epilogues, 1-D Winograd F(4, 5) transforms for the GRU's 1x5 / 5x1 convolutions, instance norm, convex upsampling"

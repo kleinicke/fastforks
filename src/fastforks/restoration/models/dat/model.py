@@ -23,7 +23,7 @@ import re
 import types
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -32,25 +32,26 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, fp32_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import attention, checkpoint_upsampler
+from fastforks.shared import mlx_wrap
+from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll
 
 from .net import DAT
 from .net.dat_arch import (
+    SGFN,
     Adaptive_Channel_Attention,
     Adaptive_Spatial_Attention,
     ResidualGroup,
     Spatial_Attention,
     SpatialGate,
     _Tokens,
-    windows2img,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from fastforks.restoration._runner import Context
 
@@ -88,14 +89,48 @@ def _mask(m: Adaptive_Spatial_Attention, h: int, w: int) -> tuple[torch.Tensor, 
 
 
 def _windows(m: Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    """`Spatial_Attention.im2win` straight from the tokens, one copy (upstream: through a transposed image, three)."""
+    """`Spatial_Attention.im2win` straight from the tokens, one copy (upstream: through a transposed image, three).
+
+    On CUDA the head size is zero-padded to a multiple of 8 in the same copy (`attention` would copy q, k and v again
+    to pad them); the attention output's extra columns are sliced off by the callers.
+    """
     hs, ws, heads = m.H_sp, m.W_sp, m.num_heads
     x = x.unflatten(1, (h // hs, hs, w // ws, ws)).unflatten(-1, (heads, -1))  # b, h/hs, hs, w/ws, ws, heads, d
-    return x.permute(0, 1, 3, 5, 2, 4, 6).reshape(-1, heads, hs * ws, x.shape[-1])
+    win = x.permute(0, 1, 3, 5, 2, 4, 6)
+    d = x.shape[-1]
+    pad = -d % 8 if x.is_cuda else 0
+    if not pad:
+        return win.reshape(-1, heads, hs * ws, d)
+    out = x.new_empty((*win.shape[:-1], d + pad))
+    out[..., d:].zero_()
+    out[..., :d] = win
+    return out.view(-1, heads, hs * ws, d + pad)
 
 
-def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torch.Tensor | None = None) -> torch.Tensor:
-    """`Spatial_Attention.forward` with the position bias made at load and one SDPA call."""
+def _to_image(win: torch.Tensor, hs: int, ws: int, into: torch.Tensor) -> torch.Tensor:
+    """`windows2img` of an attention output `[b * rows * cols, heads, hs * ws, >= d]` in one copy.
+
+    `into` is the image `[b, rows * hs, cols * ws, heads * d]`, any view (a region, a channel half); upstream copies
+    twice (heads to channels, windows to rows).
+    """
+    b, h, w, c = into.shape
+    heads = win.shape[1]
+    d = c // heads
+    src = win[..., :d].view(b, h // hs, w // ws, heads, hs, ws, d).permute(0, 1, 4, 2, 5, 3, 6)
+    into.view(b, h // hs, hs, w // ws, ws, heads, d).copy_(src)
+    return into
+
+
+def _spatial(  # noqa: PLR0913 - upstream's arguments and the output
+    m: Spatial_Attention,
+    qkv: torch.Tensor,
+    h: int,
+    w: int,
+    mask: torch.Tensor | None = None,
+    *,
+    into: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """`Spatial_Attention.forward` with the position bias made at load and one SDPA call, written into `into`."""
     q, k, v = (_windows(m, t, h, w) for t in qkv.unbind(0))
     bw = q.shape[0]
     add = m.get_buffer("bias").to(q.dtype)[None]
@@ -105,7 +140,100 @@ def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torc
         if bw != nw:
             add = add.repeat(bw // nw, 1, 1, 1)
     out = attention(q, k, v, add.expand(bw, -1, -1, -1), m.scale)
-    return windows2img(out.transpose(1, 2).reshape(bw, m.H_sp * m.W_sp, -1), m.H_sp, m.W_sp, h, w)
+    if into is None:
+        into = qkv.new_empty((qkv.shape[1], h, w, qkv.shape[-1]))
+    return _to_image(out, m.H_sp, m.W_sp, into)
+
+
+def _attend(attn: nn.Module, qkv: torch.Tensor, h: int, w: int, into: torch.Tensor) -> None:
+    """`attn(qkv, h, w)` written into `into` (`_spatial` itself writes there; an upstream module is copied)."""
+    if dict(getattr(type(attn), "_fastforks_methods", ())).get("forward") is _spatial:
+        attn(qkv, h, w, into=into)
+    else:
+        into.copy_(attn(qkv, h, w))
+
+
+def _pieces(n: int, s: int, sh: int, lo: int, hi: int) -> list[tuple[int, int, int, int, int]]:
+    """Windows `lo .. hi` of a grid of `n` windows of size `s` along a dim rolled by `-sh` (0 <= sh < s), as blocks.
+
+    Window `r` offset `i` holds image index `(r * s + i + sh) % (n * s)`. A block `(r0, nr, i0, ni, y0)`: windows
+    `r0 .. r0 + nr`, offsets `i0 .. i0 + ni`, image `y0 .. y0 + nr * ni` (`ni == s` when `nr > 1`).
+    """
+    if not sh:
+        return [(lo, hi - lo, 0, s, lo * s)]
+    out = [(lo, min(hi, n - 1) - lo, 0, s, lo * s + sh)] if lo < n - 1 else []
+    if hi == n:
+        out += [(n - 1, 1, 0, s - sh, (n - 1) * s + sh), (n - 1, 1, s - sh, sh, 0)]
+    return out
+
+
+def _rolled_blocks(  # noqa: PLR0913 - the window grid and its shift
+    win: torch.Tensor,
+    img: torch.Tensor,
+    *,
+    grid: tuple[int, int],
+    rows: tuple[int, int],
+    cols: tuple[int, int],
+    shift: tuple[int, int],
+    to_image: bool,
+) -> None:
+    """Copy between windows and the image whose `roll(-shift)` they partition (`to_image`: windows into the image).
+
+    `win` `[b, nr, nc, heads, hs, ws, d]`: the windows of grid rows `rows` and cols `cols`; `img` `[b, h, w, heads * d]`
+    (any view).
+    """
+    hs, ws, heads, d = win.shape[4], win.shape[5], win.shape[3], win.shape[6]
+    for r0, nr, i0, ni, y0 in _pieces(grid[0], hs, shift[0], *rows):
+        for c0, nc, j0, nj, x0 in _pieces(grid[1], ws, shift[1], *cols):
+            a = img[:, y0 : y0 + nr * ni, x0 : x0 + nc * nj].unflatten(1, (nr, ni)).unflatten(3, (nc, nj))
+            a = a.unflatten(-1, (heads, d)).permute(0, 1, 3, 5, 2, 4, 6)
+            r, c = r0 - rows[0], c0 - cols[0]
+            b = win[:, r : r + nr, c : c + nc, :, i0 : i0 + ni, j0 : j0 + nj]
+            (a if to_image else b).copy_(b if to_image else a)
+
+
+def _shifted_window(  # noqa: PLR0913 - upstream's arguments and the output
+    m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shift: tuple[int, int], *, into: torch.Tensor
+) -> torch.Tensor:
+    """The attention of `roll(qkv, -shift)` rolled back by `shift` into `into`, without either roll's copy.
+
+    `qkv` `[3, b, h, w, c]` (any view), `into` `[b, h, w, c]` (any view). The windows are copied straight from the
+    unrolled image and the outputs straight into `into` (`_rolled_blocks`), and the attention mask is shared within the
+    interior, final row, final column and corner of the shifted grid.
+    """
+    hs, ws = m.H_sp, m.W_sp
+    grid = (h // hs, w // ws)
+    heads, b = m.num_heads, qkv.shape[1]
+    d = qkv.shape[-1] // heads
+    pad = -d % 8 if qkv.is_cuda else 0
+    bias = m.get_buffer("bias").to(qkv.dtype)
+    token = torch.arange(hs * ws, device=qkv.device)
+    row_zone = (token // ws >= hs - shift[0]).int() * 2
+    col_zone = (token % ws >= ws - shift[1]).int()
+    for r in (False, True):
+        rows = (grid[0] - 1, grid[0]) if r else (0, grid[0] - 1)
+        for c in (False, True):
+            cols = (grid[1] - 1, grid[1]) if c else (0, grid[1] - 1)
+            nr, nc = rows[1] - rows[0], cols[1] - cols[0]
+            if not nr or not nc:
+                continue
+            pos = bias
+            if r or c:
+                # Tokens straddling either wrapped edge receive the upstream additive bias.
+                zones = row_zone + col_zone if r and c else row_zone if r else col_zone
+                pos = bias + (zones[:, None] != zones[None, :]).to(qkv.dtype) * -100.0
+            win = qkv.new_empty((3, b, nr, nc, heads, hs, ws, d + pad))  # this section's q, k, v windows
+            if pad:
+                win[..., d:].zero_()
+            for t, wt in zip(qkv.unbind(0), win.unbind(0), strict=True):
+                _rolled_blocks(wt[..., :d], t, grid=grid, rows=rows, cols=cols, shift=shift, to_image=False)
+            q, k, v = win.view(3, b * nr * nc, heads, hs * ws, d + pad).unbind(0)
+            y = attention(q, k, v, pos.expand(q.shape[0], -1, -1, -1), m.scale)
+            del win, q, k, v
+            y7 = y[..., :d].unflatten(2, (hs, ws)).unflatten(0, (b, nr, nc))
+            _rolled_blocks(y7, into, grid=grid, rows=rows, cols=cols, shift=shift, to_image=True)
+            del y, y7
+    return into
 
 
 def _image(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -128,7 +256,36 @@ def _gate(m: SpatialGate, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return x1 * _tokens(m.conv(_image(m.norm(x2), h, w)))
 
 
-def _spatial_block(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+def _ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """`SGFN.forward` with `fc1` as two GEMMs, one per gate half: the gate's LayerNorm reads a contiguous half.
+
+    Upstream's `x.chunk(2, -1)` of the fc1 output made the norm copy its strided half first (DAT x4 512 x 512: 36 copies
+    of 189 MB).
+    """
+    half, fc1, sg = m.fc2.in_features, m.fc1, m.sg
+    x1 = m.act(F.linear(x, fc1.weight[:half], None if fc1.bias is None else fc1.bias[:half]))
+    x2 = m.act(F.linear(x, fc1.weight[half:], None if fc1.bias is None else fc1.bias[half:]))
+    return m.fc2(x1 * _tokens(sg.conv(_image(sg.norm(x2), h, w))))
+
+
+def _interact(
+    channel: torch.Tensor, spatial: torch.Tensor, channel_map: torch.Tensor, spatial_map: torch.Tensor
+) -> torch.Tensor:
+    return channel * channel_map.sigmoid() + spatial * spatial_map.sigmoid()
+
+
+_COMPACT_MASK_PIXELS = 256**2
+
+
+def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask specializations
+    m: Adaptive_Spatial_Attention,
+    x: torch.Tensor,
+    h: int,
+    w: int,
+    *,
+    mix: Callable = _interact,
+    compact_mask: bool = False,
+) -> torch.Tensor:
     """`Adaptive_Spatial_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, -1, 3, c).permute(2, 0, 1, 3)  # 3, b, hw, c
@@ -139,34 +296,96 @@ def _spatial_block(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: in
         qkv = F.pad(qkv.reshape(3 * b, h, w, c), (0, 0, 0, pad_r, 0, pad_b)).reshape(3, b, -1, c)
     hp, wp = h + pad_b, w + pad_r
     half = c // 2
+    heads = qkv.new_empty((b, hp, wp, c))  # both branches' outputs, written in place (upstream: a cat)
     if (m.rg_idx % 2 == 0 and m.b_idx > 0 and (m.b_idx - 2) % 4 == 0) or (m.rg_idx % 2 != 0 and m.b_idx % 4 == 0):
-        (s0, s1), grid = m.shift_size, qkv.view(3, b, hp, wp, c)
-        q0 = torch.roll(grid[..., :half], shifts=(-s0, -s1), dims=(2, 3)).view(3, b, -1, half)
-        q1 = torch.roll(grid[..., half:], shifts=(-s1, -s0), dims=(2, 3)).view(3, b, -1, half)
-        masks = m.calculate_mask(hp, wp)
-        x1 = torch.roll(m.attns[0](q0, hp, wp, mask=masks[0]), shifts=(s0, s1), dims=(1, 2))
-        x2 = torch.roll(m.attns[1](q1, hp, wp, mask=masks[1]), shifts=(s1, s0), dims=(1, 2))
+        s0, s1 = m.shift_size
+        use_compact = compact_mask or (
+            x.is_cuda
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            and hp * wp >= _COMPACT_MASK_PIXELS
+        )
+        masks = None if use_compact else m.calculate_mask(hp, wp)
+        for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
+            attn = m.attns[i]
+            part = qkv[..., channels].view(3, b, hp, wp, -1)
+            if masks is None:
+                _shifted_window(cast("Spatial_Attention", attn), part, hp, wp, (sh, sw), into=heads[..., channels])
+                continue
+            rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
+            out = attn(rolled, hp, wp, mask=masks[i])
+            del part, rolled
+            roll(out, (sh, sw), (1, 2), out=heads[..., channels])
+            del out
     else:
-        x1 = m.attns[0](qkv[..., :half], hp, wp)
-        x2 = m.attns[1](qkv[..., half:], hp, wp)
-    att = torch.cat([x1[:, :h, :w], x2[:, :h, :w]], dim=3).reshape(b, n, c)
+        _attend(m.attns[0], qkv[..., :half], hp, wp, heads[..., :half])
+        _attend(m.attns[1], qkv[..., half:], hp, wp, heads[..., half:])
+    att = heads[:, :h, :w].reshape(b, n, c)  # a copy only for a padded size
+    del heads, qkv
     conv = m.dwconv(v)
+    del v
     channel_map = m.channel_interaction(conv).view(b, 1, c)
     spatial_map = m.spatial_interaction(_image(att, h, w))
-    return m.proj(att * torch.sigmoid(channel_map) + _tokens(torch.sigmoid(spatial_map) * conv))
+    return m.proj(mix(att, conv.flatten(2).transpose(1, 2), channel_map, spatial_map.flatten(2).transpose(1, 2)))
 
 
-def _channel_block(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
+_SPLIT_K = 4096  # fixed: measured (RTX 5060 Ti), 2048-16384 tokens per partial product within 10 %
+
+
+def _split_k_scores(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+    """Per-head `q @ k^T` of `[B, heads, d, N]` over all `N` tokens as split-K float32-output GEMMs.
+
+    cuBLAS runs the `d x d` products with K = N (262144 at 512 x 512) on one slow kernel (1.6 ms for d = 10, 6 heads);
+    here the all-heads `[heads d, N]` rows (a unit-stride view of the token layout) multiply in `N / 4096` chunks with
+    float32 outputs, are summed in float32 and the per-head diagonal blocks are kept (0.2 ms). The scores stay
+    float32-accumulated, as `fp32_accumulate` gave, and round to the input dtype once.
+    """
+    b, heads, d, n = q.shape
+    c = heads * d
+    qm, km = q.reshape(b, c, n), k.reshape(b, c, n)
+    full = n // _SPLIT_K * _SPLIT_K
+    out = []
+    for i in range(b):
+        qa, ka = qm[i], km[i]
+        s = None
+        with fp32_accumulate():  # float32 GEMM outputs need it under `fp16_accumulate`
+            if full:
+                qs = qa[:, :full].unflatten(1, (-1, _SPLIT_K)).transpose(0, 1)  # [chunks, heads d, 4096]
+                ks = ka[:, :full].unflatten(1, (-1, _SPLIT_K)).permute(1, 2, 0)  # [chunks, 4096, heads d]
+                s = torch.bmm(qs, ks, out_dtype=torch.float32).sum(0)
+            if n > full:
+                r = torch.mm(qa[:, full:], ka[:, full:].T, out_dtype=torch.float32)
+                s = r if s is None else s + r
+        out.append(cast("torch.Tensor", s).view(heads, d, heads, d).diagonal(dim1=0, dim2=2).permute(2, 0, 1))
+    return torch.stack(out).to(q.dtype)
+
+
+def _channel_block(  # noqa: PLR0913 - a CUDA gate and the fp32 scores, like `_spatial_block`
+    m: Adaptive_Channel_Attention,
+    x: torch.Tensor,
+    h: int,
+    w: int,
+    *,
+    mix: Callable = _interact,
+    fp32_scores: bool = False,
+) -> torch.Tensor:
+    """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies).
+
+    `fp32_scores`: q k^T (a sum over all h * w tokens) accumulates in fp32 also under `fp16_accumulate`
+    (`_split_k_scores`). An fp16 accumulator cannot add the many small products of the normalized q and k (a 512 x 512
+    tile: 262144 terms, sum at most 1): DAT x4 kernels then differed from portable by up to 112 / 255 on a photo.
+    """
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 4, 1)  # 3, b, heads, d, n
     q, k, v = F.normalize(qkv[0], dim=-1), F.normalize(qkv[1], dim=-1), qkv[2]
-    attn = ((q @ k.transpose(-2, -1)) * m.temperature).softmax(dim=-1)
+    scores = _split_k_scores(q, k) if fp32_scores else q @ k.transpose(-2, -1)
+    attn = (scores * m.temperature).softmax(dim=-1)
+    del q, k
     att = (attn @ v).permute(0, 3, 1, 2).reshape(b, n, c)
     conv = m.dwconv(_image(qkv[2].permute(0, 3, 1, 2).reshape(b, n, c), h, w))
+    del v, qkv, attn
     channel_map = m.channel_interaction(_image(att, h, w))
     spatial_map = _tokens(m.spatial_interaction(conv))
-    return m.proj(att * torch.sigmoid(spatial_map) + _tokens(conv * torch.sigmoid(channel_map)))
+    return m.proj(mix(conv.flatten(2).transpose(1, 2), att, channel_map.flatten(1)[:, None], spatial_map))
 
 
 def _group(m: ResidualGroup, x: torch.Tensor, x_size: tuple[int, int], skip: float = 1.0) -> torch.Tensor:
@@ -196,6 +415,8 @@ def _prepare(net: DAT) -> None:
                 override(m, _mask, "calculate_mask")
         elif isinstance(m, SpatialGate):
             override(m, _gate)
+        elif isinstance(m, SGFN):
+            override(m, _ffn)
         elif isinstance(m, ResidualGroup):
             override(m, _group)
         elif isinstance(m, _Tokens):
@@ -244,9 +465,13 @@ class Portable(Runner):
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
-        if ctx.dtype == "float16":
+        if mlx_wrap.run_dtype(ctx) == "float16":
             _scale_last_group(self.net)
         self.net.to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 dat-light peak 251 -> 195 MB, same speed; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """No padding: the network pads its window attention itself (`dat_model.py` test: `net_g(img)`)."""
@@ -269,11 +494,36 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 _HACC_MIN_CHANNELS = 64  # fixed: measured, narrower convolutions run slower through cudnn_hacc
 
 
+def _cuda_spatial(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    return _spatial_block(m, x, h, w, mix=dat_interaction.interaction, compact_mask=True)
+
+
+def _cuda_channel(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    return _channel_block(m, x, h, w, mix=dat_interaction.interaction, fp32_scores=True)
+
+
+_GN_MAX_C = 96  # fixed: measured (RTX 5060 Ti), group_norm beats F.layer_norm up to 96 channels, not at 144 / 180
+_GN_MIN_ROWS = 65536  # fixed: measured, below this F.layer_norm is faster (4096 rows: 0.02 vs 0.06 ms)
+
+
+def _narrow_layer_norm(m: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
+    """`LayerNorm` over a narrow last dim as a one-group `group_norm` of `[rows, C, 1]` (the same statistics + affine).
+
+    PyTorch's CUDA LayerNorm runs about 6x below the memory bound on short rows: DAT-light's 60 channels at 512 x 512
+    (262 144 rows) take 1.02 ms against 0.62 ms here.
+    """
+    c = m.normalized_shape[0]
+    if x.numel() // c < _GN_MIN_ROWS:
+        return F.layer_norm(x, m.normalized_shape, m.weight, m.bias, m.eps)
+    return F.group_norm(x.reshape(-1, c, 1), 1, m.weight, m.bias, m.eps).view(x.shape)
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and dense convolutions of at least 64 channels in and out (`cudnn_hacc`).
 
     The narrower ones (DAT-light's 60-channel convolutions, the 1 x 1 convolutions of the channel interactions) were
     slower through `cudnn_hacc` (DAT-light 512 x 512: 300 ms and 2.9 GB vs 268 ms and 1.5 GB; DAT unchanged).
+    LayerNorms of at most `_GN_MAX_C` channels run as group norms (`_narrow_layer_norm`).
     """
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
@@ -283,12 +533,18 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if (
+            if isinstance(m, Adaptive_Spatial_Attention):
+                override(m, _cuda_spatial)
+            elif isinstance(m, Adaptive_Channel_Attention):
+                override(m, _cuda_channel)
+            elif (
                 is_base(m, torch.nn.Conv2d)
                 and m.groups == 1
                 and min(m.in_channels, m.out_channels) >= _HACC_MIN_CHANNELS
             ):
                 override(m, _hacc_conv)
+            elif is_base(m, nn.LayerNorm) and len(m.normalized_shape) == 1 and m.normalized_shape[0] <= _GN_MAX_C:
+                override(m, _narrow_layer_norm)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
@@ -296,7 +552,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.blocks\.(\d+)\.")
 

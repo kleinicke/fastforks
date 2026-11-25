@@ -3,6 +3,7 @@ name = "NAFNet"
 summary = "NAFNet (Chen et al., ECCV 2022): a nonlinear-activation-free U-Net for image restoration: blocks of channel LayerNorm, 1 x 1 and depthwise 3 x 3 convs, a gate that multiplies two channel halves (SimpleGate) and simplified channel attention, four 2 x down / up levels. `nafnet-gopro` removes motion blur (GoPro, width 64, run with the test-time local converter as upstream's `NAFNetLocal`), `nafnet-sidd` removes smartphone sensor noise (SIDD, width 64)."
 tier = "experimental"
 outputs = ["image"]
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/megvii-research/NAFNet"
@@ -30,12 +31,18 @@ dec_blocks = [1, 1, 1, 1]
 tlc = 256  # NAFNetLocal train_size (1, 3, 256, 256): channel attention over 384 x 384 windows (at full resolution)
 key = "params"
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate dense convolutions
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
+kernels = ["cudnn_hacc", "nafnet_gate", "dpt_fused"]  # fp16-accumulate dense convolutions
 
 [[papers]]
 title = "Simple Baselines for Image Restoration"

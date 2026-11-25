@@ -1,6 +1,6 @@
 [project]
 name = "fastforks-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
 readme = "README.md"
 license = "Apache-2.0 AND BSD-3-Clause AND MIT"  # + shared/cnn_kernels (MIT) and the CUTLASS-linked kernels (BSD-3-Clause); tests/test_policy.py checks
@@ -61,7 +61,10 @@ nifti = ["nibabel>=5"]  # fastforks.volume.read_nifti / write_nifti
 transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
 # `matching.sfm.reconstruct` / `fastforks sfm --reconstruct`: COLMAP's mapper (3.12: also GLOMAP's global mapper).
 sfm = ["pycolmap>=3.11"]
-# Every optional library at once (not TensorRT: CUDA-version specific); the `fastforks` metapackage is this plus `nc`.
+# `device="mlx"`: Apple's MLX runs the families that have a port (card `mlx_dtypes`) on Apple-silicon GPUs.
+mlx = ["mlx>=0.30; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+# Every optional library at once (not TensorRT: CUDA-version specific; not MLX: Apple-silicon only); the `fastforks`
+# metapackage is this plus `nc`.
 libs = ["fastforks-core[timm,torchvision,transformers,onnx]"]
 
 [project.scripts]
@@ -182,6 +185,7 @@ runtime-evaluated-base-classes = []
   "S603",    # subprocess runs sys.executable with a literal script
 ]
 "src/fastforks/_core/cli.py" = ["T201"]  # the command line prints its output
+"integrations/comfyui/workflows/*.py" = ["T201", "INP001"]  # the example generator: a script that prints
 "tools/**" = [
   "T201",   # command-line tools print
   "INP001", # scripts, not a package
@@ -196,6 +200,23 @@ runtime-evaluated-base-classes = []
   "EM",     # `gr.Error` messages are shown to the visitor as written
   "TRY003",
 ]
+# MLX graph translator: op handlers mirror torch/aten signatures (positional flags, many positional operands, Any-typed
+# tensors/args), dispatch on literal ranks/dims, read torch FX private attributes, and import mlx lazily (optional
+# dependency, absent off Apple silicon). Splitting these would only obscure the op-by-op correspondence.
+"src/fastforks/shared/mlx_graph.py" = [
+  "ANN401", "FBT001", "FBT002", "SLF001", "PLC0415", "PLR0917", "PLR0913", "PLR2004",
+  "C901", "PLR0912", "PLR0915", "PLR0911",
+  "ARG001", "ARG005",  # handlers share the aten signature and ignore flags MLX has no equivalent for
+  "A002",  # parameter names follow the aten op (`ord`, `compile`)
+  "PLW0603",  # lazily built module-level kernel caches
+  "PLW0108",  # `lambda x, e: mx.power(x, e)` pins the aten arity (extra args must fail, not reach MLX kwargs)
+  "N818",  # `UnsupportedOp` is the public control-flow signal, named in callers and tests
+]
+# MLX kernel/conv wrappers and tools take the full tensor/shape parameter list positionally by design.
+"src/fastforks/kernels/{conv_mlx,graph_mlx}/ops.py" = ["PLR0917", "PLR2004"]
+"tests/test_conv_mlx.py" = ["PLR0917"]
+"tools/mlx_conv_*.py" = ["PLR0917", "SLF001"]
+"src/fastforks/shared/mlx_wrap.py" = ["PLR0913", "FBT003"]
 # One-off measurement scripts (not part of the package, not type-checked).
 "src/fastforks/matching/relative_pose.py" = ["N806"]  # tensor shape names (P, N, A, C)
 "runs/**" = ["ANN", "D", "E501", "FURB", "INP001", "PLC3002", "PLR2004", "PTH", "S607", "SLF001", "T201"]
@@ -286,7 +307,7 @@ python-version = "3.11"
 extra-paths = ["tests", "tools", "tools/golden"]  # tests/synth.py (shared with tools/golden), tools imported by tests, `_common`
 
 [tool.ty.src]
-include = ["src", "tests", "tools"]
+include = ["src", "tests", "tools", "integrations"]
 
 [tool.ty.analysis]
 # Optional extras the CI lint job does not install, and upstream reference trees put on sys.path at run time.
@@ -296,6 +317,8 @@ allowed-unresolved-imports = [
   "fvcore.**",  # SPAN's `__main__` FLOP count
   "matplotlib", "matplotlib.**",  # one-off chart tools (`uv run --with matplotlib`)
   "ffweights",  # the original-speed bench module, on sys.path at run time
+  "mlx", "mlx.**",
+  "comfy", "comfy.**", "folder_paths",  # ComfyUI (integrations/comfyui runs inside it)
 ]
 
 [tool.ty.rules]
@@ -340,6 +363,7 @@ markers = [
   "model: needs model weights (per-model parity tests)",
   "gpu: needs a CUDA GPU",
   "mps: needs an Apple GPU (MPS)",
+  "mlx: needs an Apple GPU and the mlx extra (device='mlx')",
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 

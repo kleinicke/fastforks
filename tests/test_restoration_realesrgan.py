@@ -94,3 +94,33 @@ def test_out_of_memory_in_one_pass_suggests_tile(
         anime(img)
     with pytest.raises(torch.OutOfMemoryError, match=r"^CUDA out of memory$"):
         anime(img, tile=64)
+
+
+@pytest.mark.gpu
+def test_packed_dense_block_matches_concatenation() -> None:
+    from fastforks._core.patch import override  # noqa: PLC0415
+    from fastforks.restoration.models.realesrgan.model import _dense, _hacc_conv  # noqa: PLC0415
+    from fastforks.restoration.models.realesrgan.net.rrdbnet_arch import ResidualDenseBlock  # noqa: PLC0415
+
+    torch.manual_seed(41)
+    m = ResidualDenseBlock(32, 16).cuda().half().to(memory_format=torch.channels_last)
+    for conv in (m.conv1, m.conv2, m.conv3, m.conv4, m.conv5):
+        override(conv, _hacc_conv)
+    x = torch.randn(2, 32, 11, 13, device="cuda", dtype=torch.float16).to(memory_format=torch.channels_last)
+    with torch.inference_mode():
+        want = m(x)
+        got = _dense(m, x)
+    torch.testing.assert_close(got, want, rtol=0.002, atol=0.0005)
+
+
+def test_bounded_upsample_blends_exactly_at_stripe_edges(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.restoration.models.realesrgan import model  # noqa: PLC0415
+
+    torch.manual_seed(12)
+    m = RRDBNet(3, 3, scale=4, num_feat=8, num_block=1, num_grow_ch=4)
+    feature = torch.randn(2, 8, 13, 11)
+    monkeypatch.setattr(model, "_TAIL_TILE_BYTES", 3 * 2 * 8 * 16 * 11 * feature.element_size())
+    with torch.inference_mode():
+        want = model._upsample(m, feature)
+        got = model._upsample_stripes(m, feature)
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-6)

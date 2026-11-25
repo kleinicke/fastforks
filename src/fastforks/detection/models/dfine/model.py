@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from fastforks.detection import _rtdetr_runner as base
 from fastforks.detection._convs import DepthwiseConvs
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import Arch, DFine, convert
@@ -74,4 +75,8 @@ class Kernels(base.Kernels, Portable):
     convs = DepthwiseConvs
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

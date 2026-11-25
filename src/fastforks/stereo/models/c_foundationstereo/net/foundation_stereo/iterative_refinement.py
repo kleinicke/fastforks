@@ -9,6 +9,8 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.tracing import exporting_for_mlx
 
 from ..foundation_stereo.extractor import EdgeNextConvEncoder
 
@@ -225,6 +227,8 @@ class BasicMotionEncoder(nn.Module):
         """
         # Process the correlation volume through its dedicated convolutional layers
         # and apply ReLU activation functions.
+        if exporting_for_mlx():  # the float32 disparity enters the GRU in the run dtype on MLX (as under CUDA AMP)
+            disp = to_run_dtype(disp, corr.dtype)
         cor = F.relu(self.convc1(corr))
         cor = F.relu(self.convc2(cor))
 

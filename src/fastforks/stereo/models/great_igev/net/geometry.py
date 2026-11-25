@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.volume_ops import linear_sample  # fastforks: the lookup, one Metal kernel on MLX
 from fastforks._core.sampling import grid_sample
 
 
@@ -86,7 +88,7 @@ def _pool2_last(x):
     """== F.avg_pool1d(x, 2, 2) over the last axis as the mean of even / odd slices (TensorRT 11's Myelin finds no
     tactic for a 1-D average pool over millions of rows)."""
     n = x.shape[-1] // 2
-    return 0.5 * (x[..., 0:2 * n:2] + x[..., 1:2 * n:2])
+    return (x[..., 0:2 * n:2] + x[..., 1:2 * n:2]).mul_(0.5)
 
 
 class FastGeoEncodingVolume:
@@ -106,7 +108,7 @@ class FastGeoEncodingVolume:
         f1 = fmap1.permute(0, 2, 3, 1).reshape(b * h, w, -1)
         f2 = fmap2.permute(0, 2, 1, 3).reshape(b * h, -1, w)
         ct = torch.float32 if out_dtype == torch.float32 else torch.float16
-        corr = torch.bmm(f1.to(ct), f2.to(ct)).view(b * h * w, w)
+        corr = torch.bmm(to_run_dtype(f1, ct), to_run_dtype(f2, ct)).view(b * h * w, w)
         self.geo, self.corr = [g], [corr]
         for _ in range(num_levels - 1):
             g = _pool2_last(g)
@@ -116,25 +118,7 @@ class FastGeoEncodingVolume:
         self.dx = torch.arange(-radius, radius + 1, device=geo_volume.device, dtype=torch.float32).view(1, -1)
         self.coords = torch.arange(w, device=geo_volume.device, dtype=torch.float32).repeat(b * h).view(-1, 1)
 
-    @staticmethod
-    def _sample(vol, x):
-        """vol [P, C, D] or [P, D]; x [P, K] fp32 positions -> [P, C*K] or [P, K] (fp32 math)."""
-        D = vol.shape[-1]
-        x0 = torch.floor(x)
-        w1 = x - x0
-        i0 = x0.long()
-        i1 = i0 + 1
-        v0 = ((i0 >= 0) & (i0 < D)).float() * (1 - w1)
-        v1 = ((i1 >= 0) & (i1 < D)).float() * w1
-        idx = torch.cat([i0, i1], 1).clamp_(0, D - 1)
-        wgt = torch.cat([v0, v1], 1)
-        K = x.shape[1]
-        if vol.dim() == 3:
-            P, C, _ = vol.shape
-            s = vol.gather(2, idx.unsqueeze(1).expand(P, C, 2 * K)).float() * wgt.unsqueeze(1)
-            return (s[..., :K] + s[..., K:]).reshape(P, C * K)
-        s = vol.gather(1, idx).float() * wgt
-        return s[:, :K] + s[:, K:]
+    _sample = staticmethod(linear_sample)  # vol [P, C, D] or [P, D]; x [P, K] fp32 positions -> [P, C*K] fp32
 
     def __call__(self, disp):
         b, h, w = self.shape
@@ -144,5 +128,5 @@ class FastGeoEncodingVolume:
             sc = 1.0 / 2 ** i
             out.append(self._sample(self.geo[i], dsp * sc + self.dx))
             out.append(self._sample(self.corr[i], self.coords * sc - dsp * sc + self.dx))
-        out = torch.cat(out, 1).to(self.out_dtype)
+        out = to_run_dtype(torch.cat(out, 1), self.out_dtype)
         return out.view(b, h, w, -1).permute(0, 3, 1, 2)

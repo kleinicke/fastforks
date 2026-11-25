@@ -9,6 +9,8 @@ from torch import nn
 
 from .layers import ConvBN, LegacyBatchNorm, up
 
+_LOCAL_STRIP_ROWS = 128
+
 
 class _DBBranch(nn.Module):
     """`Head`: conv 3x3 + BN + ReLU, 2x deconv + BN + ReLU (-> `f`), 2x deconv to one channel, sigmoid."""
@@ -43,8 +45,34 @@ class DBHead(nn.Module):
         shrink, f = self.binarize(x)
         if not self.local:
             return shrink
-        cbn = torch.sigmoid(self.last_1(self.last_3(torch.cat([shrink, up(f, 2)], 1))))
+        if (
+            x.is_cuda
+            and x.dtype == torch.float16
+            and not self.training
+            and torch.is_inference_mode_enabled()
+            and not torch.compiler.is_compiling()
+            and shrink.shape[-2] > 2 * _LOCAL_STRIP_ROWS
+        ):
+            cbn = self._local_strips(shrink, f)
+        else:
+            cbn = torch.sigmoid(self.last_1(self.last_3(torch.cat([shrink, up(f, 2)], 1))))
         return 0.5 * (shrink + cbn)
+
+    def _local_strips(self, shrink: torch.Tensor, half_res: torch.Tensor) -> torch.Tensor:
+        """Run the 3 x 3 local refinement with its one-row halo and aligned nearest upsampling."""
+        h = shrink.shape[-2]
+        cbn = torch.empty_like(shrink)
+        for start in range(0, h, _LOCAL_STRIP_ROWS):
+            end = min(start + _LOCAL_STRIP_ROWS, h)
+            top, bottom = max(0, start - 1), min(end + 1, h)
+            expanded_top = top // 2 * 2
+            expanded = up(half_res[..., top // 2 : (bottom + 1) // 2, :], 2)
+            local = torch.cat(
+                [shrink[..., top:bottom, :], expanded[..., top - expanded_top : bottom - expanded_top, :]], 1
+            )
+            prob = torch.sigmoid(self.last_1(self.last_3(local)))
+            cbn[..., start:end, :] = prob[..., start - top : end - top, :]
+        return cbn
 
 
 class _Attention(nn.Module):

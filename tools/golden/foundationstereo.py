@@ -34,7 +34,7 @@ ITERS = 32
 
 def _shim_utils(root: Path) -> None:
     """Upstream's top-level `Utils.py` imports open3d / cv2 / pandas for the demo: keep only the two functions used."""
-    tree = ast.parse((root / "Utils.py").read_text())
+    tree = ast.parse((root / "Utils.py").read_text(encoding="utf-8"))
     keep = [
         n
         for n in tree.body

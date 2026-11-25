@@ -22,12 +22,15 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
-from fastforks._core.errors import WeightsError
+from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
-from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet
-from fastforks.volume._nnunet_runner import fused_norm_act
+from fastforks._core.tracing import in_onnx_export
+from fastforks.shared import mlx_wrap
+from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet, _ConvNormAct
+from fastforks.volume._nnunet_runner import _biased_conv_norm, _biased_conv_norm_, fused_norm_act
 from fastforks.volume._runner import EncoderRunner
 
 if TYPE_CHECKING:
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
 __all__ = ["RUNNERS", "Params", "Primus", "normalise", "res_enc_l"]
 
 _PAD_HEAD = 8  # fixed: SDPA's flash / efficient kernels take head sizes in multiples of 8
+_NORM_ELEMENTS = 8 << 20  # fixed: bound one FP32 normalization workspace to 32 MiB
 
 
 @dataclass(frozen=True)
@@ -44,9 +48,11 @@ class Params:
 
     Attributes:
         arch: `"cnn"` (ResEnc-L) or `"vit"` (Primus).
+        stream: Stage CNN levels or ViT blocks from host memory on CUDA.
     """
 
     arch: str = "cnn"
+    stream: bool = False
 
 
 def normalise(x: torch.Tensor) -> torch.Tensor:
@@ -95,10 +101,38 @@ def _rotate(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tens
     return x * cos + rot * sin
 
 
+def _eager_cuda(x: torch.Tensor) -> bool:
+    return x.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+    )
+
+
+def _rotate_padded(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor, pad: int) -> torch.Tensor:
+    """Write interleaved rotary pairs to the padded attention buffer."""
+    d = x.shape[-1]
+    out = torch.empty((*x.shape[:-1], d + pad), dtype=x.dtype, device=x.device)
+    out[..., :d:2].copy_(x[..., ::2] * cos[..., ::2] + (-x[..., 1::2]) * sin[..., ::2])
+    out[..., 1:d:2].copy_(x[..., 1::2] * cos[..., 1::2] + x[..., ::2] * sin[..., 1::2])
+    if pad:
+        out[..., d:].zero_()
+    return out
+
+
 def _ln(norm: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
     """LayerNorm in float32 (as under the original's autocast), returned in the weights' dtype."""
     w, b = norm.weight, norm.bias
-    return F.layer_norm(x.float(), norm.normalized_shape, w.float(), b.float(), norm.eps).to(w.dtype)
+    wf, bf = w.float(), b.float()
+    if w.dtype != torch.float16 or x.numel() <= _NORM_ELEMENTS or not _eager_cuda(x):
+        return F.layer_norm(x.float(), norm.normalized_shape, wf, bf, norm.eps).to(w.dtype)
+    width = x.shape[-1]
+    group = max(1, _NORM_ELEMENTS // width)
+    rows = x.reshape(-1, width)
+    # Match layer_norm's contiguous output even for the non-contiguous first token stream.
+    out = torch.empty(rows.shape, dtype=w.dtype, device=x.device)
+    for start in range(0, len(rows), group):
+        stop = start + group
+        out[start:stop].copy_(F.layer_norm(rows[start:stop].float(), norm.normalized_shape, wf, bf, norm.eps))
+    return out.view(x.shape)
 
 
 class _Attention(nn.Module):
@@ -117,12 +151,19 @@ class _Attention(nn.Module):
         b, n, c = x.shape
         h = self.heads
         d = c // h
-        q = _rotate(self.q_proj(x).view(b, n, h, d).transpose(1, 2), sin, cos).to(x.dtype)
-        k = _rotate(self.k_proj(x).view(b, n, h, d).transpose(1, 2), sin, cos).to(x.dtype)
-        v = self.v_proj(x).view(b, n, h, d).transpose(1, 2)
         pad = -d % _PAD_HEAD
-        if pad:
+        bounded = bool(pad) and x.dtype == torch.float16 and _eager_cuda(x)
+
+        def project(layer: nn.Linear) -> torch.Tensor:
+            t = layer(x).view(b, n, h, d).transpose(1, 2)
+            return _rotate_padded(t, sin, cos, pad) if bounded else _rotate(t, sin, cos).to(x.dtype)
+
+        q, k = project(self.q_proj), project(self.k_proj)
+        v = self.v_proj(x).view(b, n, h, d).transpose(1, 2)
+        if pad and not bounded:
             q, k, v = (F.pad(t, (0, pad)) for t in (q, k, v))
+        elif pad:
+            v = F.pad(v, (0, pad))
         o = F.scaled_dot_product_attention(q, k, v, scale=d**-0.5)[..., :d]
         return self.proj(_ln(self.norm, o.transpose(1, 2).reshape(b, n, c)))
 
@@ -138,7 +179,12 @@ class _Mlp(nn.Module):
         self.fc2 = nn.Linear(hidden, dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.fc2(_ln(self.norm, F.silu(self.fc1_g(x)) * self.fc1_x(x)))
+        if x.dtype == torch.float16 and _eager_cuda(x):
+            gate = F.silu(self.fc1_g(x), inplace=True)
+            gate.mul_(self.fc1_x(x))
+        else:
+            gate = F.silu(self.fc1_g(x)) * self.fc1_x(x)
+        return self.fc2(_ln(self.norm, gate))
 
 
 class _Block(nn.Module):
@@ -225,6 +271,9 @@ class Portable(EncoderRunner):
         """Build the encoder and load the encoder weights of the checkpoint."""
         super().__init__(ctx)
         arch = ctx.params.arch
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for nnFoundation layer transfers"
+            raise OptionsError(msg)
         weights = ctx.state_dict(0, key="network_weights", strip="")
         self.half = ctx.dtype == "float16"
         if arch == "cnn":
@@ -248,7 +297,24 @@ class Portable(EncoderRunner):
                 net.rope_sin, net.rope_cos = _rope(cast("int", net.grid), cast("int", net.rope_dim))
         if arch == "cnn" and ctx.device.type == "cuda":
             net = net.to(memory_format=torch.channels_last_3d)
-        self.net = net.to(ctx.device)
+        self.net = self._prepare(net)
+
+    def _prepare(self, net: nn.Module) -> nn.Module:
+        """Install inference methods before the host packer moves stage shells to meta."""
+        if self.fused and isinstance(net, Encoder):
+            for module in net.modules():
+                if isinstance(module, _ConvNormAct):
+                    override(module, fused_norm_act, "norm_act")
+                    if module.conv.bias is not None:
+                        override(module, _biased_conv_norm)
+                        override(module, _biased_conv_norm_, "forward_")
+        if self.ctx.params.stream:
+            if isinstance(net, Encoder):
+                net.stages = StreamedModuleList(net.stages, self.ctx.device)  # ty: ignore[invalid-assignment]
+            else:
+                eva = cast("Primus", net).eva
+                eva.blocks = StreamedModuleList(eva.blocks, self.ctx.device)  # ty: ignore[invalid-assignment]
+        return net.to(self.ctx.device)
 
     def _pad(self, x: torch.Tensor) -> torch.Tensor:
         """`[1, C, *padded]` of a normalised `[C, D, H, W]`: zeros at the far end (ViT: to the fixed input size)."""
@@ -270,20 +336,36 @@ class Portable(EncoderRunner):
         """Feature maps of one `[C, D, H, W]` volume, cropped to the input."""
         x = self._pad(normalise(volume))
         maps = self._encode(x)
+        del x
+        if len(maps) != len(self.strides):
+            msg = f"expected {len(self.strides)} nnFoundation feature maps, got {len(maps)}"
+            raise ValueError(msg)
+        maps.reverse()
         shape = volume.shape[1:]
         out = []
-        for t, s in zip(maps, self.strides, strict=True):
+        for s in self.strides:
+            t = maps.pop()
             crop = tuple(slice(0, -(-n // s)) for n in shape)
-            out.append(t.float()[(0, slice(None), *crop)])  # CUDA: channels-last strides (a permuting copy: +30 ms)
+            cropped = t[(slice(None), slice(None), *crop)]
+            fmt = torch.preserve_format
+            if t.dtype != torch.float32 and t.is_contiguous(memory_format=torch.channels_last_3d):
+                fmt = torch.channels_last_3d
+            out.append(cropped.to(dtype=torch.float32, memory_format=fmt)[0])
+            del cropped, t
         return {"features": tuple(out)}
 
     def module(self) -> nn.Module:
         """The encoder: a normalised, padded `[1, C, D, H, W]` volume -> the feature maps (CNN: a tuple of six)."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, x: tuple(self._encode(x)))
 
 
 class Kernels(Portable):
     """Portable + CNN: InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`); ViT: fp16-accumulate GEMMs."""
+
+    fused = True
 
     def __init__(self, ctx: Context) -> None:
         """Load the kernels first, then the encoder."""
@@ -292,10 +374,6 @@ class Kernels(Portable):
 
             vol_norm.load(ctx.device)
         super().__init__(ctx)
-        if self.arch == "cnn":
-            for m in self.net.modules():
-                if hasattr(m, "norm_act"):
-                    override(m, fused_norm_act, "norm_act")
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:
         if self.arch == "vit":
@@ -304,4 +382,4 @@ class Kernels(Portable):
         return super()._encode(x)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

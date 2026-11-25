@@ -2,8 +2,11 @@ schema = 2
 name = "DepthSplat"
 summary = "DepthSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting and depth from posed, calibrated images. A multi-view cost volume (UniMatch transformer, 2D U-Net) fused with a monocular DINOv2 ViT-S predicts every view's depth; a DPT feature upsampler and a Gaussian head predict one Gaussian per pixel (opacity, scale, rotation, degree-2 SH) in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
 tier = "experimental"
-uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2)
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_wrap"]  # shared modules imported directly by this family (DINOv2)
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
+limitations = [
+  "Kernels keep a CUDA graph per input size: its private pool and static outputs stay reserved, ~120 MiB at the 336 x 518 survey input (968 vs 846 MiB peak reserved, peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
 
 licence_notes = [
   "Only the Small RealEstate10K checkpoint is shipped: MIT code and weights, its monocular branch initialised from Depth Anything V2 Small (Apache-2.0). The Base / Large checkpoints build on Depth Anything V2 Base / Large (CC-BY-NC-4.0) and are not offered.",
@@ -30,13 +33,15 @@ pad = "none"
 
 [options]
 long_side = { default = 256, min = 16 }  # network long side (the checkpoint was trained at 256 x 256)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the whole forward from a CUDA graph per input shape (false: eager, no graph pool)
 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc"]
+kernels = ["fastbb", "cudnn_hacc", "depthsplat_corr"]
 
 [[papers]]
 title = "DepthSplat: Connecting Gaussian Splatting and Depth"

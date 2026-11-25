@@ -88,12 +88,12 @@ class Backend:
 
 def coco_names() -> list[str]:
     """COCO's 80 category names in sorted category-id order."""
-    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text())["categories"]
+    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text(encoding="utf-8"))["categories"]
     return [c["name"] for c in sorted(cats, key=lambda c: c["id"])]
 
 
 def coco_ids() -> list[int]:
-    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text())["categories"]
+    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text(encoding="utf-8"))["categories"]
     return sorted(c["id"] for c in cats)
 
 
@@ -414,7 +414,7 @@ def _owlv2(ref: str, tier: str) -> _Detector:
 
     card, variant = registry.resolve("detection", ref)
     config_json, weights, vocab, merges = registry.weights(card, variant, allow_download=False)
-    config = Owlv2Config(**json.loads(Path(config_json).read_text()))
+    config = Owlv2Config(**json.loads(Path(config_json).read_text(encoding="utf-8")))
     net = Owlv2ForObjectDetection(config).eval()
     net.load_state_dict(load_file(str(weights)))
     net = net.to("cuda")
@@ -613,7 +613,7 @@ class _Concept:
             vis = self.model.get_vision_features(pixel_values=inp["pixel_values"])
         return vis, img.shape[:2]
 
-    def __call__(self, emb: Any, *, text: str, threshold: float) -> Result:  # noqa: ANN401
+    def __call__(self, emb: Any, *, text: str, score_threshold: float) -> Result:  # noqa: ANN401
         vis, size = emb
         tx = self.a.proc(text=text, return_tensors="pt").to("cuda")
         with self.t.ctx():
@@ -623,7 +623,7 @@ class _Concept:
                 v = getattr(o, k, None)
                 if v is not None:
                     setattr(o, k, v.float())
-            r = self.a.proc.post_process_instance_segmentation(o, threshold=threshold, mask_threshold=0.5,
+            r = self.a.proc.post_process_instance_segmentation(o, threshold=score_threshold, mask_threshold=0.5,
                                                                target_sizes=[tuple(size)])[0]  # fmt: skip
         order = self.torch.argsort(r["scores"], descending=True, stable=True)
         return Result(

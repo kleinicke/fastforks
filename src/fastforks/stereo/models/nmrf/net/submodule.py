@@ -1,4 +1,5 @@
 # fastforks: only the cost volume helpers of upstream nmrf/models/submodule.py (`BasicBlock` is unused at inference)
+from fastforks._core.mlx_cast import to_run_dtype
 
 
 def groupwise_correlation(fea1, fea2, num_groups):
@@ -12,7 +13,7 @@ def groupwise_correlation(fea1, fea2, num_groups):
 
 def build_correlation_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
     B, C, H, W = refimg_fea.shape
-    volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
+    volume = to_run_dtype(refimg_fea.new_zeros([B, num_groups, maxdisp, H, W]), refimg_fea.dtype)  # fastforks: MLX twin's f32
     for i in range(maxdisp):
         if i > 0:
             volume[:, :, i, :, i:] = groupwise_correlation(refimg_fea[:, :, :, i:], targetimg_fea[:, :, :, :-i],

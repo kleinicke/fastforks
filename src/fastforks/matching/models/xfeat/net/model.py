@@ -138,14 +138,22 @@ class XFeatModel(nn.Module):
 		#main backbone
 		x1 = self.block1(x)
 		x2 = self.block2(x1 + self.skip1(x))
+		# fastforks: release each backbone feature after its last use.
+		del x1
 		x3 = self.block3(x2)
+		del x2
 		x4 = self.block4(x3)
 		x5 = self.block5(x4)
 
 		#pyramid fusion
 		x4 = F.interpolate(x4, (x3.shape[-2], x3.shape[-1]), mode='bilinear')
 		x5 = F.interpolate(x5, (x3.shape[-2], x3.shape[-1]), mode='bilinear')
-		feats = self.block_fusion( x3 + x4 + x5 )
+		fused = x3 + x4
+		del x3, x4
+		fused = fused + x5
+		del x5
+		feats = self.block_fusion(fused)
+		del fused
 
 		#heads
 		heatmap = self.heatmap_head(feats) # Reliability map

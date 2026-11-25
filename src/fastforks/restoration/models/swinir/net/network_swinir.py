@@ -804,6 +804,12 @@ class SwinIR(nn.Module):
 
         return x
 
+    def upsample_nearest(self, x):
+        x = self.lrelu(self.conv_up1(F.interpolate(x, scale_factor=2, mode='nearest')))
+        if self.upscale == 4:
+            x = self.lrelu(self.conv_up2(F.interpolate(x, scale_factor=2, mode='nearest')))
+        return self.conv_last(self.lrelu(self.conv_hr(x)))
+
     def forward(self, x):
         H, W = x.shape[2:]
         x = self.check_image_size(x)
@@ -826,11 +832,7 @@ class SwinIR(nn.Module):
             # for real-world SR
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
-            x = self.conv_before_upsample(x)
-            x = self.lrelu(self.conv_up1(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
-            if self.upscale == 4:
-                x = self.lrelu(self.conv_up2(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
-            x = self.conv_last(self.lrelu(self.conv_hr(x)))
+            x = self.upsample_nearest(self.conv_before_upsample(x))
         else:
             # for image denoising and JPEG compression artifact reduction
             x_first = self.conv_first(x)

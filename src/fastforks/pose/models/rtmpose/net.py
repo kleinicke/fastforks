@@ -25,6 +25,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks.shared.cspnext import STAGES, ConvAct, CSPLayer, CSPNeXt
 
 # Shared CSPNeXt preserves the upstream module names and returns its three pyramid levels.
@@ -104,7 +105,10 @@ class ScaleNorm(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Normalised over the last axis."""
-        norm = torch.linalg.vector_norm(x, dim=-1, keepdim=True) * self.scale
+        # TensorRT's FP16 ReduceL2 can overflow while squaring values before taking the root.
+        # PyTorch accumulates the norm in FP32 and rounds its result before applying the scale.
+        promote = x.dtype == torch.float16 and (torch.compiler.is_exporting() or in_onnx_export())
+        norm = torch.linalg.vector_norm(x.float() if promote else x, dim=-1, keepdim=True).to(x.dtype) * self.scale
         return x / norm.clamp(min=NORM_EPS) * self.g
 
 
@@ -212,6 +216,10 @@ class RTMPose(nn.Module):
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """SimCC logits."""
+        return self.head(self.features(x))
+
+    def features(self, x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        """What the head reads: the last backbone stage (RTMW: the neck's outputs)."""
         if self.neck is None:
-            return self.head(self.backbone(x)[-1])
-        return self.head(self.neck(*self.backbone(x)))
+            return self.backbone(x)[-1]
+        return self.neck(*self.backbone(x))

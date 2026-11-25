@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.stereo._runner import Forward, Runner
 
@@ -45,6 +46,11 @@ def _net(ctx: Context) -> Monster:
 
 class Portable(Runner):
     """Plain PyTorch: fp16 weights + fp16 autocast (CUDA) or fp32, NHWC on CUDA, SDPA ViT attention."""
+
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 45.1 -> 23.3 ms per pair)
+    batch_pixels = 1_300_000
 
     deterministic_cudnn = True
 
@@ -121,4 +127,15 @@ class Kernels(Runner):
         return {"disparity": self._forward(self.net, left, right)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+    "kernels_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+}

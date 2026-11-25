@@ -49,13 +49,14 @@ class PositionGetter:
             Tensor of shape (batch_size, height*width, 2) containing y,x coordinates
             for each position in the grid, repeated for each batch item.
         """
-        if (height, width) not in self.position_cache:
+        cached_positions = self.position_cache.get((height, width))
+        if cached_positions is None:
             y_coords = torch.arange(height, device=device)
             x_coords = torch.arange(width, device=device)
-            positions = torch.cartesian_prod(y_coords, x_coords)
-            self.position_cache[height, width] = positions
+            cached_positions = torch.cartesian_prod(y_coords, x_coords)
+            if type(cached_positions) is torch.Tensor:  # fastforks: not a traced one (an export's fake tensor)
+                self.position_cache[height, width] = cached_positions
 
-        cached_positions = self.position_cache[height, width]
         return cached_positions.view(1, height * width, 2).expand(batch_size, -1, -1).clone()
 
 
@@ -98,7 +99,8 @@ class RotaryPositionEmbedding2D(nn.Module):
             Tuple of (cosine, sine) tensors for frequency components.
         """
         cache_key = (dim, seq_len, device, dtype)
-        if cache_key not in self.frequency_cache:
+        components = self.frequency_cache.get(cache_key)
+        if components is None:
             # Compute frequency bands
             exponents = torch.arange(0, dim, 2, device=device).float() / dim
             inv_freq = 1.0 / (self.base_frequency**exponents)
@@ -112,9 +114,11 @@ class RotaryPositionEmbedding2D(nn.Module):
             angles = torch.cat((angles, angles), dim=-1)
             cos_components = angles.cos().to(dtype)
             sin_components = angles.sin().to(dtype)
-            self.frequency_cache[cache_key] = (cos_components, sin_components)
+            components = (cos_components, sin_components)
+            if type(cos_components) is torch.Tensor:  # fastforks: not a traced one (an export's fake tensor)
+                self.frequency_cache[cache_key] = components
 
-        return self.frequency_cache[cache_key]
+        return components
 
     @staticmethod
     def _rotate_features(x: torch.Tensor) -> torch.Tensor:

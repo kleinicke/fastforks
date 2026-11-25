@@ -3,8 +3,9 @@ name = "RoMa v2"
 summary = "RoMa v2 (Edstedt, Nordström, Wadenbäck, Felsberg et al. 2025): dense feature matching between two images of any viewpoint. A frozen DINOv3 ViT-L/16 describes both images at a coarse square size, a multi-view ViT with alternating attention and a DPT head turn the global cosine matches into a coarse warp and an overlap logit, and convolutional refiners on VGG19-BN features (local correlation at strides 4, 2, 1) sharpen it, at the coarse size and again at a fine size. Returns, for every pixel of the first image, its position in the second (pixels) and the probability that it is visible there."
 tier = "experimental"
 outputs = ["warp", "certainty"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_graph", "mlx_vit"]  # fastforks.shared modules this family imports
 limitations = [
+  "On Apple MPS, use float32. On the RoMa reference pair, FP16 autocast in the upstream mixed-precision regions produced non-finite warp and certainty. BF16 there exceeded the warp-error tolerance on the M1 Pro.",
   "The precision matrices of the warp (upstream `precision_AB`) and upstream's sampling / keypoint helpers are not returned; tools/eval_matching.py has the MegaDepth-1500 sampling.",
   "Both images are resized to squares (upstream's behaviour), whatever their aspect ratio.",
 ]
@@ -34,10 +35,15 @@ fine_size = { default = 1280, min = 0 }  # square side of the second refinement 
 keep_descriptors = { default = 0, min = 0, effect = "speed" }  # N > 0: keep the DINOv3 descriptors of the last N images (least recently used dropped), so an image that returns within the next pairs skips that pass: 2 for video / consecutive frames (A-B, B-C), 4 to 10 when each frame is matched against several recent keyframes; 27 MB held per image at coarse_size 800; same outputs. For a known pair list use `match_pairs`, which needs no setting
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "bfloat16"  # as upstream: the DINOv3 descriptor in bf16, the multi-view ViT, DPT head, VGG and refiner blocks under bf16 autocast; matching, local correlation and warps float32
 mps_dtypes = ["float32"]
 
 [modes.kernels]
+mps_kernels = ["roma_metal"]
+mps_dtype = "float32"
+mlx_kernels = ["roma_mlx", "dpt_mlx"]  # fused correlation and warp sampling, DPT resize, and selective FP16 projections/convolutions
+mlx_dtypes = ["float32", "float16"]
 dtype = "bfloat16"  # as portable (fp16 would overflow upstream's bf16 regions)
 kernels = ["romav2"]  # the refiners' local correlation in one pass (integer-window dot products, shared bilinear weights) instead of 49 / 9 grid_sample passes; the rest is the portable bf16 path
 

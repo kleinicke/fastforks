@@ -3,7 +3,7 @@ name = "D-FINE (HGNetV2, N / S / M / L / X)"
 summary = "D-FINE (Peng et al. 2025, USTC): real-time end-to-end detection like RT-DETR (HGNetV2 backbone, hybrid encoder, deformable-attention decoder over 300 selected queries, no NMS) whose decoder layers refine every box edge as a distribution over distances (fine-grained distribution refinement); boxes, scores and COCO classes at the input size. The portable `module()` is the whole network at 640x640 (class logits and normalised boxes)."
 tier = "stable"
 outputs = ["boxes", "scores", "labels"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port (DFineForObjectDetection, ustc-community weights) of the official D-FINE (Apache-2.0); the official repository code itself was not run.",
   "deim-* variants: DEIM (Huang et al. 2025), the D-FINE network with SiLU decoder MLPs, trained with dense one-to-one matching; weights and the original in the benchmarks are from the official DEIM repository (@09d35d53).",
@@ -52,6 +52,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the networ
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection, box refinement and heads stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU), our depthwise kernel, fp16-accumulate GEMMs, CUDA graph

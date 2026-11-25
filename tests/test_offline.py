@@ -30,6 +30,9 @@ GUARD = textwrap.dedent(
 
 
 def _run_guarded(code: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    # Windows: Python cannot start (random seed, sockets) without SYSTEMROOT, and `Path.home()` needs USERPROFILE
+    # (POSIX falls back to the password database without HOME)
+    env = {k: os.environ[k] for k in ("SYSTEMROOT", "USERPROFILE") if os.name == "nt" and k in os.environ} | env
     return subprocess.run(
         [sys.executable, "-c", GUARD + textwrap.dedent(code)], env=env, capture_output=True, text=True, check=False
     )
@@ -114,6 +117,8 @@ def test_guard_catches_network(prefilled):
 
 
 def test_offline_read_only_cache(prefilled):
+    if os.name != "posix":
+        pytest.skip("POSIX permissions: Windows ignores the read-only attribute of directories")
     if os.geteuid() == 0:
         pytest.skip("root ignores file permissions")
     spec, env = prefilled
@@ -195,6 +200,7 @@ def test_download_kernels_without_gpu_or_arch_names_both_options(capsys, monkeyp
 def test_download_check_fails_on_an_empty_cache(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("FASTFORKS_CACHE", str(tmp_path))
     monkeypatch.delenv("FASTFORKS_WEIGHTS_PATH", raising=False)
+    monkeypatch.delenv("FASTFORKS_READ_CACHES", raising=False)
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hub"))
     monkeypatch.setenv("TORCH_HOME", str(tmp_path / "torch"))
     assert cli.main(["download", "hitnet-eth3d", "--check"]) == 1

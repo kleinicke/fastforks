@@ -29,16 +29,21 @@ from __future__ import annotations
 
 import bisect
 import threading
+from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, OptionsError
+from fastforks._core.patch import override
 from fastforks._core.runner import host
-from fastforks.promptable_segmentation._runner import Context, Forward, NoParams, Runner, scale
+from fastforks._core.upload import device_tensor
+from fastforks.promptable_segmentation._runner import Context, Forward, Runner, bounded_binary_masks, scale
 from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.sam3 import (
     GRID,
@@ -71,6 +76,7 @@ GLOBAL_LAYERS = (7, 15, 23, 31)  # fixed: ViT layers with global attention
 VOCAB, CONTEXT = 49408, 32  # fixed: CLIP vocabulary and SAM 3's text context length
 QUERIES = 200  # fixed: DETR queries
 MASK = 288  # fixed: mask-logit side (the 4x neck level)
+_MASK_RESIZE_PIXELS = 8 << 20  # at most 32 MiB of fp32 resize output per group, except for one oversized mask
 BUCKETS = (8, 16, CONTEXT)  # fixed: kernels pads the tokens to one of these counts (one CUDA graph each)
 BOX_BUCKET = 16  # fixed: kernels pads 1-16 exemplar boxes to this count (more run without a CUDA graph)
 VISUAL = "visual"  # fixed: the text of a boxes-only prompt (upstream Sam3Processor)
@@ -141,22 +147,35 @@ def exemplars(boxes: torch.Tensor, labels: torch.Tensor | None, device: torch.de
 
 
 def prepare(image: torch.Tensor, ctx: Context, *, exact: bool) -> torch.Tensor:
-    """`[1, 3, H, W]` RGB in `[0, 1]` -> the normalised float32 `[1, 3, 1008, 1008]` input.
+    """`[1, 3, H, W]` uint8 RGB or floats in `[0, 1]` -> the normalised float32 `[1, 3, 1008, 1008]` input.
 
     `exact`: the uint8 resize of upstream (CPU only); else a float resize rounded to integers (within 1 / 255).
     """
-    u = (image * 255).round()
+    u = image if image.dtype == torch.uint8 else (image * 255).round_()
     if exact:
         x = F.interpolate(u.to(torch.uint8), (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False)
     else:
-        x = F.interpolate(u, (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False).round().clamp(0, 255)
-    return scale(x.float() / 255, ctx.io)
+        x = (
+            F.interpolate(u.float(), (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False)
+            .round_()
+            .clamp_(0, 255)
+        )
+    return scale(x.float().div_(255), ctx.io)
+
+
+@dataclass(frozen=True)
+class Params:
+    """Options shared by the image and video runner."""
+
+    cuda_graphs: bool  # replay the kernels detector heads after a prompt bucket repeats
+    stream: bool = False
 
 
 class _Sam3(Runner):
     """Text and / or exemplar-box prompt -> all instances; the detector heads in float32 (shared by both backends)."""
 
-    Params = NoParams
+    Params = Params
+    uint8_input = True
     prompts = frozenset({"text", "boxes"})
     mask_size = (MASK, MASK)
     compiled_methods = ("embed", "concept")  # `segment_concept` tokenizes on the host, then calls `concept`
@@ -168,6 +187,9 @@ class _Sam3(Runner):
     def __init__(self, ctx: Context) -> None:
         """Tokenizer (weight files 1, 2), the 72 x 72 position encoding."""
         super().__init__(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "SAM 3 stream=True requires CUDA for image encoder transfers"
+            raise OptionsError(msg)
         files = ctx.weights()
         self.tokenizer = ClipTokenizer(files[1], files[2], CONTEXT)
         self.pos = grid_position_encoding(GRID, GRID, ctx.device)
@@ -197,10 +219,22 @@ class _Sam3(Runner):
             `scores [200]` (sigmoid(logit) * sigmoid(presence)), `boxes [200, 4]` (normalised `x0, y0, x1, y1`),
             `pred_masks [200, 288, 288]` mask logits, all float32.
         """
+        return self._segment_concept(features, text, boxes, labels)
+
+    def _segment_concept(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        skip_masks_below: float | None = None,
+    ) -> dict[str, torch.Tensor]:
         dev = self.ctx.device
-        ids = torch.tensor([self.tokenizer(VISUAL if text is None else text)], device=dev)
+        ids = device_tensor([self.tokenizer(VISUAL if text is None else text)], device=dev)
         ex = None if boxes is None or not len(boxes) else exemplars(boxes, labels, dev)
-        return self.concept(ids, [features["fpn0"], features["fpn1"], features["fpn2"]], ex=ex)
+        fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
+        return self.concept(ids, fpn, ex=ex, skip_masks_below=skip_masks_below)
 
     def concept(
         self,
@@ -208,9 +242,15 @@ class _Sam3(Runner):
         fpn: list[torch.Tensor],
         valid: torch.Tensor | None = None,
         ex: Exemplars | None = None,
+        *,
+        skip_masks_below: float | None = None,
     ) -> dict[str, torch.Tensor]:
         """`segment_concept` on token ids `[1, T]` and the neck levels; `valid [1, T]` float marks padding with 0."""
-        logits, presence, boxes, masks = self.net.detect(fpn, self.pos, self.text(ids), valid, ex)
+        if torch.compiler.is_compiling():
+            skip_masks_below = None
+        logits, presence, boxes, masks = self.net.detect(
+            fpn, self.pos, self.text(ids), valid, ex, skip_masks_below=skip_masks_below
+        )
         return {"scores": (logits.sigmoid() * presence.sigmoid())[0], "boxes": boxes[0], "pred_masks": masks[0]}
 
     def predict(  # noqa: PLR0913 - the interface's signature
@@ -282,11 +322,11 @@ class _Sam3(Runner):
             p = mask.shape[0]
         else:
             (h, w) = size
-            wh = torch.tensor([w, h], device=dev, dtype=torch.float32)
+            wh = device_tensor([w, h], device=dev, dtype=torch.float32)
             cs, ls = [], []
             if boxes is not None:
                 cs.append(boxes.float().view(-1, 2, 2) / wh * SIZE)
-                ls.append(torch.tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
+                ls.append(device_tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
             if points is not None and labels is not None:
                 cs.append(points.float() / wh * SIZE)
                 ls.append(labels)
@@ -301,11 +341,12 @@ class _Sam3(Runner):
         md = tracker.m.mask_decoder
 
         def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:
-            host.put(t, masks=self.upsample(low, size)[:, 0] > 0, pred_masks=low[:, 0], object_score_logits=obj[:, 0])
+            host.put(t, masks=self.binary_masks(low, size)[:, 0], pred_masks=low[:, 0], object_score_logits=obj[:, 0])
 
         def feats(x: torch.Tensor) -> dict[str, torch.Tensor]:
-            l0, l1, l2 = (f.float() for f in self._track_embed(x, neck))
-            return {"raw": l2, "feat_s0": md.conv_s0(l0), "feat_s1": md.conv_s1(l1)}
+            l0, l1, l2 = self._track_embed(x, neck)
+            # Cast each feature just before projection so the two full-resolution fp32 maps never overlap.
+            return {"feat_s0": md.conv_s0(l0.float()), "feat_s1": md.conv_s1(l1.float()), "raw": l2.float()}
 
         tracker.run(
             (feats(x) for x in prefetch(frames, n_frames)), n_frames, coords=coords, labels=labs, mask=mask, emit=emit
@@ -326,6 +367,9 @@ class Portable(_Sam3):
         net.vision_encoder.backbone.pack()
         for mod in (net.vision_encoder, net.text_encoder, *half_parts(net)):
             mod.to(ctx.torch_dtype)
+        if ctx.params.stream:
+            trunk = net.vision_encoder.backbone
+            trunk.layers = StreamedModuleList(trunk.layers, ctx.device)  # ty: ignore[invalid-assignment]
         self.net = net.to(ctx.device)
         dt = ctx.torch_dtype
         win = rope_pairs(*rope_tables(WINDOW, 1.0, ctx.device), dt)
@@ -342,8 +386,31 @@ class Portable(_Sam3):
         fpn = self._encode(image, exact=image.device.type == "cpu")
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
 
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Resize CUDA logits in groups and threshold directly into the output masks."""
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)
+
+    @host
+    def selected_concepts(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
+        """Skip the mask decoder on eager CUDA calls whose scores all fail the filter."""
+        if self.ctx.device.type != "cuda" or threshold == 0:
+            return super().selected_concepts(features, text, boxes, labels, threshold=threshold)
+        out = self._segment_concept(features, text, boxes, labels, skip_masks_below=threshold)
+        return self.select_concepts(out, threshold) if out["scores"].numel() else out
+
     def module(self) -> torch.nn.Module:
         """The image encoder: `[1, 3, H, W]` in `[0, 1]` -> the neck levels `fpn0`, `fpn1`, `fpn2` (as `embed`)."""
+        if self.ctx.params.stream:
+            msg = "Image encoder export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(
             self.net.vision_encoder,
             lambda _net, image: tuple(f.float() for f in self._encode(image, exact=False)),
@@ -376,16 +443,19 @@ class Kernels(_Sam3):
         """Check the kernel libraries, build on the CPU, convert the trunk and neck, move the rest to the device."""
         super().__init__(ctx)
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - optional kernel libraries
+        from fastforks.kernels.sam3_resize import normalized_rgb  # noqa: PLC0415
 
-        from .fast import FastEncoder, fp16_accumulate  # noqa: PLC0415 - needs the kernel libraries
+        from .fast import FastEncoder, fp16_accumulate, pixel_decode  # noqa: PLC0415 - needs the kernel libraries
 
         fastbb.load(ctx.device)  # BackendUnavailableError before the 3.4 GB checkpoint is read
         cudnn_hacc.load(ctx.device)
         net = load_net(ctx)
-        self.encoder = FastEncoder(net.vision_encoder, ctx.device)
+        self.encoder = FastEncoder(net.vision_encoder, ctx.device, stream=ctx.params.stream)
+        override(net.mask_decoder.pixel_decoder, pixel_decode)
+        self.prepare = normalized_rgb
         self.fp16_accumulate = fp16_accumulate
         # one graph per token bucket, with / without boxes
-        self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS))
+        self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS), share_inputs=(2, 3, 4))
         self.lock = threading.Lock()
         del net.vision_encoder
         for mod in (net.text_encoder, *half_parts(net)):
@@ -394,8 +464,26 @@ class Kernels(_Sam3):
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """As `Portable.embed` (float16, channels-last)."""
-        fpn = self.encoder(prepare(image, self.ctx, exact=False))
+        fpn = self.encoder(self.prepare(image, SIZE))
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Threshold bilinearly resized logits directly in the output mask without a full-size float image."""
+        from fastforks.kernels.sam3_fpn import bilinear_mask  # noqa: PLC0415 - kernels backend only
+
+        return bilinear_mask(pred_masks, size)
+
+    def _tracker(self) -> tuple[Tracker, object]:
+        first_call = self._video is None
+        tracker, neck = super()._tracker()
+        if first_call:
+            from .fast import tracker_attention  # noqa: PLC0415 - kernels backend only
+            from .net.tracker import RoPEAttention  # noqa: PLC0415
+
+            for mod in tracker.m.memory_attention.modules():
+                if isinstance(mod, RoPEAttention):
+                    override(mod, tracker_attention)
+        return tracker, neck
 
     def _track_neck(self, neck: Neck) -> object:
         layers = cast("list[FpnLayer]", list(neck.fpn_layers))
@@ -405,8 +493,20 @@ class Kernels(_Sam3):
         """The fp16-accumulate trunk (shared with `embed`) and the tracker neck as the encoder's neck kernels."""
         ops = cast("list[list[tuple[str, torch.Tensor, torch.Tensor]]]", neck)
         with self.fp16_accumulate():
-            t = self.encoder.trunk(prepare(image, self.ctx, exact=False)).permute(0, 3, 1, 2)
+            t = self.encoder.trunk(self.prepare(image, SIZE)).permute(0, 3, 1, 2)
             return [self.encoder._level(o, t) for o in ops]  # noqa: SLF001 - the encoder's neck kernels
+
+    def selected_concepts(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
+        """Gather only surviving masks before the graph buffers are reused."""
+        return self.segment_concept(features, text, boxes, labels, threshold=threshold)
 
     def segment_concept(
         self,
@@ -414,6 +514,8 @@ class Kernels(_Sam3):
         text: str | None,
         boxes: torch.Tensor | None = None,
         labels: torch.Tensor | None = None,
+        *,
+        threshold: float | None = None,
     ) -> dict[str, torch.Tensor]:
         """As `_Sam3.segment_concept`, as one CUDA graph per token and box bucket, GEMMs with fp16 accumulation.
 
@@ -421,9 +523,16 @@ class Kernels(_Sam3):
         """
         fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
         n = 0 if boxes is None else len(boxes)
-        if n > BOX_BUCKET:  # rare: eager, no graph (locked: the fp16-accumulate switch is process-wide)
-            with self.lock, self.fp16_accumulate():
-                return super().segment_concept(features, text, boxes, labels)
+        post = None if threshold is None else partial(self.select_concepts, threshold=threshold)
+
+        def eager() -> dict[str, torch.Tensor]:
+            with self.fp16_accumulate():
+                raw = super(Kernels, self).segment_concept(features, text, boxes, labels)
+            return raw if post is None else post(raw)
+
+        if not self.ctx.params.cuda_graphs or n > BOX_BUCKET:  # eager (locked: fp16 accumulation is process-wide)
+            with self.lock:
+                return eager()
         ids = self.tokenizer(VISUAL if text is None else text)
         bucket = BUCKETS[bisect.bisect_left(BUCKETS, len(ids))]
         padded = torch.tensor([[*ids, *[self.tokenizer.eot] * (bucket - len(ids))]])
@@ -437,11 +546,13 @@ class Kernels(_Sam3):
                 valid.to(self.ctx.device),
                 *fpn,
                 *(f for f in ex or () if f is not None),
+                post=post,
             )
-            if out is None:  # first call of the key / capture failed: eager
-                with self.fp16_accumulate():
-                    return super().segment_concept(features, text, boxes, labels)
-            return out
+            return eager() if out is None else out
+
+    def release_graphs(self) -> None:
+        """Release the detector's prompt-bucket graphs and their device memory."""
+        self.cache.release()
 
     def _graph_forward(self, ids: torch.Tensor, valid: torch.Tensor, *rest: torch.Tensor) -> dict[str, torch.Tensor]:
         """`concept` on the cache's static inputs: token ids, padding mask, the three neck levels, exemplar fields."""
@@ -449,4 +560,72 @@ class Kernels(_Sam3):
             return self.concept(ids, list(rest[:3]), valid, Exemplars(*rest[3:]) if rest[3:] else None)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(_Sam3):
+    """Apple MLX (`device="mlx"`): the trunk, neck, text encoder and detector heads in `mx` operations (`net.mlx_net`).
+
+    The weights are read from the checkpoint straight into MLX (no PyTorch twin), with the precision split of
+    `Portable`; the uint8 resize, the tokenizer and the exemplar ROI weights stay PyTorch on the CPU. The features are
+    the neck levels in the run dtype (NCHW views of NHWC memory). `video` runs the tracker heads in PyTorch float32 on
+    the CPU, the frames through the MLX trunk and the tracker's neck.
+    """
+
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Read the detector's weights into MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415 - needs the mlx extra
+
+        from .net import mlx_net  # noqa: PLC0415
+
+        self.mlx = mlx_net
+        self.mnet = mlx_net.Net(ctx.weights()[0], DTYPES[ctx.dtype])
+
+    def _pixels(self, image: torch.Tensor) -> object:
+        return self.mlx.to_mx(prepare(image.cpu(), self.ctx, exact=True))
+
+    def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Neck levels `fpn0 [1, 256, 288, 288]`, `fpn1 [.., 144, 144]`, `fpn2 [.., 72, 72]` (run dtype)."""
+        fpn = self.mnet.encode(self._pixels(image))
+        return {f"fpn{i}": self.mlx.nhwc_to_torch(f) for i, f in enumerate(fpn)}
+
+    def concept(
+        self,
+        ids: torch.Tensor,
+        fpn: list[torch.Tensor],
+        valid: torch.Tensor | None = None,
+        ex: Exemplars | None = None,
+        *,
+        skip_masks_below: float | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """`_Sam3.concept` on MLX (one prompt, no padding: `valid` and `ex.valid` are `None`)."""
+        del valid, skip_masks_below
+        m = self.mlx
+        levels = [m.to_mx(f.permute(0, 2, 3, 1)) for f in fpn]
+        fields = None if ex is None else [m.to_mx(t) for t in (ex.boxes, ex.labels, ex.pool_y, ex.pool_x)]
+        scores, boxes, masks = self.mnet.detect(levels, ids[0].tolist(), fields)
+        return {"scores": m.to_torch(scores), "boxes": m.to_torch(boxes), "pred_masks": m.to_torch(masks)}
+
+    def module(self) -> torch.nn.Module:
+        """Not available: the network is MLX, not PyTorch.
+
+        Raises:
+            NotImplementedError: Always.
+        """
+        msg = "SAM 3 on MLX has no PyTorch module; export from device='cpu'"
+        raise NotImplementedError(msg)
+
+    def _tracker(self) -> tuple[Tracker, object]:
+        """The tracker heads and memory modules in PyTorch float32 on the CPU (its neck runs on MLX)."""
+        if self._video is None:
+            m, _ = load_tracker(self.ctx)
+            self._video = (Tracker(m, torch.float32), None)
+        return self._video
+
+    def _track_embed(self, image: torch.Tensor, neck: object) -> list[torch.Tensor]:
+        del neck
+        levels = self.mnet.tracker_neck(self.mnet.trunk(self._pixels(image)))
+        return [self.mlx.nhwc_to_torch(f) for f in levels]
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

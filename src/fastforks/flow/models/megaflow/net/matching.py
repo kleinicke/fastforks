@@ -112,6 +112,18 @@ def local_correlation_with_flow(feature0, feature1,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w).to(feature1.dtype).contiguous()  # [-1, 1]
+    # fastforks: on MPS sample a block of pixels' windows at a time. The whole [B, C, H*W, (2R+1)^2] tensor is
+    # 5.1 GiB at 1080 x 1920 float32 and does not fit a 16 GB Mac; the blocks are the same numbers.
+    if feature1.device.type == "mps" and not (torch.jit.is_tracing() or torch.compiler.is_compiling()):
+        feature0_view = feature0.permute(0, 2, 3, 1).reshape(b, h * w, 1, c)
+        step = max(1, (256 << 20) // (b * c * local_h * local_w * feature1.element_size()))
+        corr = torch.cat([
+            torch.matmul(feature0_view[:, s:s + step],
+                         grid_sample(feature1, sample_coords_norm[:, s:s + step],
+                                     padding_mode=padding_mode, align_corners=True).permute(0, 2, 1, 3)
+                         ).view(b, -1, local_h * local_w)
+            for s in range(0, h * w, step)], 1) / (c ** 0.5)
+        return corr.view(b, h, w, -1).permute(0, 3, 1, 2).contiguous()
     window_feature = grid_sample(feature1, sample_coords_norm,
                                    padding_mode=padding_mode, align_corners=True
                                    ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)^2]

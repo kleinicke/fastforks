@@ -3,7 +3,7 @@ name = "NeuFlow v2"
 summary = "NeuFlow v2 (Zhang, Gupta, Singh & Jiang 2024): a light optical-flow network for robots and edge devices. A plain convolutional backbone on the image averaged down by 2, 4 and 8, cross-attention and global matching at 1/16 resolution for the initial flow (large motions), then one refinement at 1/16 and 8 at 1/8 with a 9 x 9 correlation lookup and plain 3 x 3 convs (no GRU), convex upsampling. The authors' released weights; the network is ported from neufieldrobotics/NeuFlow_v2. `neuflow-v2` is the authors' mixed-dataset checkpoint (their default), `-things` the FlyingThings3D one (zero-shot elsewhere), `-sintel` the Sintel fine-tune stage."
 tier = "experimental"
 outputs = ["flow"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Portable at 375 x 1242 runs 15.1 ms vs 12.2 ms for the authors' fp16 lookup (24 % slower, launch-bound; at 1080 x 1920 it is faster, 71.4 vs 75.8 ms): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE); fp16 lookup or channels_last did not help.",
@@ -29,13 +29,19 @@ pad = { multiple = 16, mode = "centre", fill = "replicate" }  # upstream InputPa
 
 [options]
 iters = { default = 8, min = 1 }  # refinements at 1/8 resolution (upstream iters_s8; one refinement at 1/16 before them)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [modes.portable]
 cuda_dtype = "float16"  # autocast for the convolutions and the cross-attention, the correlation volume stored in fp16; matching, lookup weights and upsampling in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft_flow"]  # the correlation window on the fly (one level, 128 channels, radius 4) instead of the all-pairs volume; the convolutions stay the portable fp16 ones
+# CUDA graphs (kernels): the ~900-kernel pass is launch-bound on small inputs; batch x padded H x W <= 1M replays a
+# CUDA graph, captured on a shape's 2nd call, at most 2 shapes per model (Windows RTX 5060 Ti, ms: 375x1242 22.4 -> 12.9,
+# 544x960 27.4 -> 14.1, 720x1280 28.5 -> 26.7). The graph pool stays reserved (375x1242 224 vs 182 MiB eager) until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly.
 
 [[papers]]
 title = "NeuFlow v2: Push High-Efficiency Optical Flow To the Limit"

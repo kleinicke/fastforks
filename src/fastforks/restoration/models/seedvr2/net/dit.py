@@ -208,9 +208,12 @@ def make_plan(size: tuple[int, int, int], *, shifted: bool, txt_len: int | None,
 
 
 def rms(x: torch.Tensor) -> torch.Tensor:
-    """apex `FusedRMSNorm` without affine on bf16: float32 statistics, one rounding."""
-    xf = x.float()
-    return (xf * torch.rsqrt(xf.square().mean(-1, keepdim=True) + EPS)).to(BF)
+    """apex `FusedRMSNorm` without affine on bf16: float32 statistics, one rounding.
+
+    fastforks: PyTorch's fused `rms_norm` computes the same in float32 (another reduction order: rare one-ulp
+    differences), 3.5-8x faster than the float32 expression's seven kernels (SeedVR2-7B: ~4 ms per block).
+    """
+    return F.rms_norm(x, (x.shape[-1],), eps=EPS)
 
 
 def rms_affine(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:

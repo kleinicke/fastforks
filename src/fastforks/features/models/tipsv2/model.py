@@ -15,6 +15,8 @@ from __future__ import annotations
 import contextlib
 import math
 from dataclasses import dataclass
+from functools import partial
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -22,12 +24,15 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import OptionsError
+from fastforks._core.patch import override
 from fastforks.features._runner import Forward, Runner
 from fastforks.kernels import dpt_fused
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import FastViT, vit_base, vit_large
 from fastforks.shared.depth_anything_v2.fast_vit import _fp16_accumulate
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
+from fastforks.shared.host_blocks import StreamedModuleList
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -43,6 +48,7 @@ class Params:
 
     arch: str  # "vitb" or "vitl"
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
+    stream: bool = False
 
 
 def _vit(p: Params) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
@@ -87,6 +93,9 @@ class _Vit(DinoVisionTransformer):
 
 
 def _network(ctx: Context) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
+    if ctx.params.stream and ctx.device.type != "cuda":
+        msg = "TIPSv2 block streaming requires CUDA"
+        raise OptionsError(msg)
     # every tensor is assigned: built on the meta device (no allocation), without upstream's initialisation
     with torch.device("meta"), mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):
         vit = _vit(ctx.params)
@@ -143,24 +152,31 @@ class Portable(Runner):
         if self.half:  # fp16 weights (no per-call autocast casts); the position table stays fp32, as upstream uses it
             pos = net.pos_embed.detach().clone()
             net.half().pos_embed = torch.nn.Parameter(pos, requires_grad=False)
+        _init(self, net)
+        if ctx.params.stream:
+            for block in net.blocks:
+                override(block, _block)
+            net.blocks = StreamedModuleList(net.blocks, ctx.device)
         self.net = net.to(ctx.device)
-        _init(self, self.net)
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         net = self.net
-        hs = []
         with _fp16_accumulate() if self.acc else contextlib.nullcontext():
             t = net.prepare_tokens_with_masks(x.half() if self.half else x)
-            if 0 in layers:
-                hs.append(t.float())
+            hs = t.new_empty((t.shape[0], len(layers), *t.shape[1:]), dtype=torch.float32) if layers else None
+            index = 0
+            if hs is not None and 0 in layers:
+                hs[:, index].copy_(t)
+                index += 1
             for i, blk in enumerate(net.blocks, 1):
-                t = _block(blk, t)
-                if i in layers:
-                    hs.append(t.float())
+                t = blk(t) if self.ctx.params.stream else _block(blk, t)
+                if hs is not None and i in layers:
+                    hs[:, index].copy_(t)
+                    index += 1
             last = net.norm(t).float()
         out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
-        if layers:
-            out["hidden_states"] = torch.stack(hs, 1)
+        if hs is not None:
+            out["hidden_states"] = hs
         return out
 
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
@@ -169,6 +185,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network: `[B, 3, h, w]` in [0, 1] (sides multiples of 14) -> `last_hidden_state` `[B, N, C]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident TIPSv2 weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, x: self._run(x, ())["last_hidden_state"])
 
 
@@ -209,23 +228,27 @@ class Kernels(Runner):
         _init(self, vit)
         # fp16 in place on the CPU first: an fp32 copy on the device stays reserved by the caching allocator
         self.fast = _FastTips(vit, _KERNELS_ATTN[ctx.params.arch], None, fused=dpt_fused.load(ctx.device))
+        self.staged = self.fast.stage_blocks(ctx.device) if ctx.params.stream else None
         self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
-        self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS)
+        self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS, enabled=self.staged is None)
 
-    def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
-        """`[last_hidden_state (fp16), *hidden states at layers (float32)]`."""
+    def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Return the FP16 final state and the requested hidden states in their final FP32 layout."""
         fast = self.fast
-        hs = []
         with torch.autocast("cuda", enabled=False), _fp16_accumulate():
             t = fast.tokens(image)
-            if 0 in layers:
-                hs.append(t.float())
-            for i, blk in enumerate(fast.blocks, 1):
-                t = fast.block(blk, t)
-                if i in layers:
-                    hs.append(t.float())
-            return [fast.vit.norm(t), *hs]
+            hs = t.new_empty((t.shape[0], len(layers), *t.shape[1:]), dtype=torch.float32) if layers else None
+            index = 0
+            if hs is not None and 0 in layers:
+                hs[:, index].copy_(t)
+                index += 1
+            for i, blk in enumerate(self.staged if self.staged is not None else fast.blocks, 1):
+                t = blk(t, fast) if self.staged is not None else fast.block(blk, t)
+                if hs is not None and i in layers:
+                    hs[:, index].copy_(t)
+                    index += 1
+            return fast.vit.norm(t), hs
 
     def _last(self, image: torch.Tensor) -> torch.Tensor:
         return self._run(image, ())[0].float()
@@ -237,14 +260,45 @@ class Kernels(Runner):
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         """Features of a resized batch in [0, 1]."""
         if layers:
-            last, *hs = self._run(image, layers)
+            last, hs = self._run(image, layers)
             last = last.float()
         else:
-            last, hs = self.graphs(image), []
+            last, hs = self.graphs(image), None
+        out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
+        if hs is not None:
+            out["hidden_states"] = hs
+        return out
+
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the DINOv2 transformer with the TIPSv2 register token and bilinear position table."""
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        if ctx.params.stream:
+            msg = "TIPSv2 block streaming requires CUDA"
+            raise OptionsError(msg)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - optional MLX
+        from fastforks.shared.mlx_vit import DinoFeatureEngine, dinov2_params  # noqa: PLC0415
+
+        params = converted(ctx, "v1", lambda: dinov2_params(_network(ctx).state_dict(), 14))
+        interp = partial(_pos_embed, SimpleNamespace(interpolate_antialias=True))
+        self.engine = DinoFeatureEngine(params, ctx.dtype, {"vitb": 12, "vitl": 16}[ctx.params.arch], interp)
+        self.hidden_size, self.num_layers = self.engine.hidden_size, self.engine.depth
+        self.num_register_tokens = self.engine.registers
+        self.num_prefix_tokens = 1 + self.engine.registers
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Features of a resized, normalised batch."""
+        last, hs = self.engine(image, layers)
         out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
         if layers:
             out["hidden_states"] = torch.stack(hs, 1)
         return out
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

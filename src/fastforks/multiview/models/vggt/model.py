@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import itertools
 import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -25,11 +26,18 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import vggt_rotary
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.qk_affine import cached_qk_affine
 from fastforks.shared.rope2d import rope_forward
 
 from .net.heads.camera_head import CameraHead
@@ -38,6 +46,8 @@ from .net.models.aggregator import Aggregator, slice_expand_and_flatten
 from .net.utils.pose_enc import pose_encoding_to_extri_intri
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from fastforks.multiview._runner import Context
 
 PATCH = 14  # fixed: the ViT patch size
@@ -49,6 +59,7 @@ class Params:
     """Load options."""
 
     long_side: int  # network long side (both sides rounded to multiples of 14)
+    stream: bool = False
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -85,8 +96,9 @@ class Net(nn.Module):
 def _net(ctx: Context) -> Net:
     sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith("track_head.")}
     net = Net()
-    net.load_state_dict(sd, strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    # MPS: the mmapped checkpoint moves to the GPU as it is (no 4.8 GB float32 CPU copy first: about -4 s of load)
+    net.load_state_dict(sd, strict=True, assign=ctx.device.type == "mps")
+    return net.eval().requires_grad_(requires_grad=False).to("cpu" if ctx.params.stream else ctx.device)
 
 
 def outputs(pred: dict[str, torch.Tensor], hn: int, wn: int, h0: int, w0: int) -> dict[str, torch.Tensor]:
@@ -124,6 +136,9 @@ class _Base(Runner):
 
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for VGGT block transfers"
+            raise OptionsError(msg)
         self.net = _net(ctx)
 
     def resize(self, images: torch.Tensor) -> tuple[torch.Tensor, int, int]:
@@ -181,7 +196,8 @@ def _swap(t: torch.Tensor) -> torch.Tensor:
 
     An `index_select`, not `flip`: MPS's flip of the `[..., 2, 2, 16]` view is ~70x slower (torch 2.14).
     """
-    return t.index_select(-1, _swap_index(t.device))
+    index = _swap_index.__wrapped__(t.device) if torch.compiler.is_compiling() else _swap_index(t.device)
+    return t.index_select(-1, index)
 
 
 def _fp16_accumulate(*, on: bool) -> contextlib.AbstractContextManager[None]:
@@ -203,14 +219,22 @@ class _Fast(_Base):
         if b.head_dim != 64 or b.rope is None or list(agg.aa_order) != ["frame", "global"] or agg.aa_block_size != 1:  # noqa: PLR2004 - fused qk path
             msg = "VGGT fast path: unexpected aggregator structure"
             raise ValueError(msg)
-        if ctx.dtype == "float32":
-            return
-        agg.half()
-        heads: tuple[Any, ...] = (self.net.depth_head, self.net.point_head)
-        for h in heads:
-            h.half().to(memory_format=torch.channels_last)
-            oc = h.scratch.output_conv2  # [3x3 conv, ReLU, 1x1 conv]: only the last 1x1 conv in fp32
-            h.scratch.output_conv2 = nn.Sequential(oc[0], oc[1], _FP32Out(oc[2])).eval()
+        if ctx.dtype != "float32":
+            agg.half()
+            heads: tuple[Any, ...] = (self.net.depth_head, self.net.point_head)
+            for h in heads:
+                h.half().to(memory_format=torch.channels_last)
+                oc = h.scratch.output_conv2  # only the final conv in fp32
+                h.scratch.output_conv2 = nn.Sequential(oc[0], oc[1], _FP32Out(oc[2])).eval()
+        self.staged = None
+        if ctx.params.stream:
+            blocks = list(itertools.chain.from_iterable(zip(agg.frame_blocks, agg.global_blocks, strict=True)))
+            if self.dt == torch.float16:
+                for blk in blocks:
+                    override(blk, _staged_forward)
+            self.staged = StreamedModuleList(blocks, ctx.device)
+            agg.frame_blocks, agg.global_blocks = nn.ModuleList(), nn.ModuleList()
+            self.net.to(ctx.device)
 
     def patch_tokens(self, x: torch.Tensor) -> torch.Tensor:
         """DINOv2 patch tokens `[B*S, P, C]` (fp16) of normalised fp16 images."""
@@ -223,23 +247,25 @@ class _Fast(_Base):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""
-        rope: Any = self.net.aggregator.frame_blocks[0].attn.rope  # ty: ignore[unresolved-attribute]
+        rope: Any = self.net.aggregator.rope
         cc, sc = rope._compute_frequency_components(32, p + 1, pos.device, self.dt)  # noqa: SLF001 - pos <= p
         q = pos.view(b, s * p, 2)
         cos = torch.cat([F.embedding(q[..., 0], cc), F.embedding(q[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
-        return cos[:, :, None, None], sin[:, :, None, None]
+        # in the run dtype: the MLX twin's float32 tables would lift a float16 replay to float32
+        return to_run_dtype(cos, self.dt)[:, :, None, None], to_run_dtype(sin, self.dt)[:, :, None, None]
+
+    @staticmethod
+    def rotate(
+        nrm: torch.Tensor, w: torch.Tensor, bb: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor, /
+    ) -> torch.Tensor:
+        """Apply the query/key LayerNorm parameters and 2D rotary embeddings."""
+        return torch.addcmul(torch.addcmul(bb * cos, _swap(bb), sin), nrm, w * cos).addcmul_(_swap(nrm), _swap(w) * sin)
 
     def block(self, blk: Any, x: torch.Tensor, tab: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:  # noqa: ANN401 - vendored Block
         """One aggregator block: q/k LayerNorm + RoPE as `n*(w*cos) + swap(n)*(swap(w)*sin) + (b*cos + swap(b)*sin)`."""
@@ -252,12 +278,31 @@ class _Fast(_Base):
         v = F.linear(xn, a.qkv.weight[2 * c :], a.qkv.bias[2 * c :]).view(bsz, n, nh, d)
         nrm = F.group_norm(qk.view(bsz * n, 2 * nh, d), 2 * nh, None, None, a.q_norm.eps).view(bsz, n, 2, nh, d)
         w, bb = self.qk_affine(a)
-        qk = torch.addcmul(torch.addcmul(bb * cos, _swap(bb), sin), nrm, w * cos).addcmul_(_swap(nrm), _swap(w) * sin)
+        qk = self.rotate(nrm, w, bb, cos, sin)
         o = F.linear(self.attention(qk[:, :, 0], qk[:, :, 1], v, a.scale), a.proj.weight, a.proj.bias)
         x = torch.addcmul(x, o, blk.ls1.gamma)
         m = blk.mlp
         o = F.linear(F.gelu(F.linear(blk.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
         return torch.addcmul(x, o, blk.ls2.gamma) if torch.is_grad_enabled() else x.addcmul_(o, blk.ls2.gamma)
+
+    def _blocks(self, pos: torch.Tensor, b: int, s: int, p: int) -> Iterator[Callable[[torch.Tensor], torch.Tensor]]:
+        """Yield each frame/global operation in execution order so its upload buffer stays live until use."""
+        agg: Any = self.net.aggregator
+        if self.staged is not None and self.dt == torch.float32:
+            coords = itertools.cycle((pos, pos.view(b, s * p, 2)))
+            for blk in self.staged:
+                yield functools.partial(blk, pos=next(coords))
+            return
+        glob = self.rope_tables(pos, b, s, p)
+        frame = (glob[0].view(b * s, p, 1, 1, -1), glob[1].view(b * s, p, 1, 1, -1))
+        if self.staged is not None:
+            tables = itertools.cycle((frame, glob))
+            for blk in self.staged:
+                yield functools.partial(blk, runner=self, tables=next(tables))
+        else:
+            for f, g in zip(agg.frame_blocks, agg.global_blocks, strict=True):
+                yield functools.partial(self.block, f, tab=frame)
+                yield functools.partial(self.block, g, tab=glob)
 
     def aggregate(self, images: torch.Tensor) -> tuple[list[torch.Tensor | None], int]:
         """Upstream `Aggregator.forward` in fp16 -> (cached token lists, patch start index)."""
@@ -273,15 +318,12 @@ class _Fast(_Base):
         pos = agg.position_getter(b * s, h // PATCH, w // PATCH, device=images.device) + 1
         pos = torch.cat([torch.zeros(b * s, agg.patch_start_idx, 2, device=images.device, dtype=pos.dtype), pos], 1)
         p = tokens.shape[1]
-        tg = self.rope_tables(pos, b, s, p)  # global view
-        tf = (tg[0].view(b * s, p, 1, 1, -1), tg[1].view(b * s, p, 1, 1, -1))  # frame view
+        blocks = self._blocks(pos, b, s, p)
         out: list[torch.Tensor | None] = []
         for i in range(agg.aa_block_num):
-            tokens = self.block(agg.frame_blocks[i], tokens.view(b * s, p, c), tf)
+            tokens = next(blocks)(tokens.view(b * s, p, c))
             fr = tokens.view(b, s, p, c)
-            if i in agg.cached_layer_indices:
-                fr = fr.clone()
-            tokens = self.block(agg.global_blocks[i], tokens.view(b, s * p, c), tg)
+            tokens = next(blocks)(tokens.view(b, s * p, c))
             out.append(torch.cat([fr, tokens.view(b, s, p, c)], -1) if i in agg.cached_layer_indices else None)
         return out, agg.patch_start_idx
 
@@ -296,6 +338,7 @@ class _Fast(_Base):
             raise RuntimeError(msg)
         ct = [None] * (len(toks) - 1) + [last.float()]
         pose = net.camera_head(ct)[-1]
+        del ct
         xh = x.to(self.dt)
         depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
         pts, pts_conf = net.point_head(toks, images=xh, patch_start_idx=psi)
@@ -306,6 +349,11 @@ class _Fast(_Base):
             "world_points": pts,
             "world_points_conf": pts_conf,
         }
+
+
+def _staged_forward(blk: nn.Module, x: torch.Tensor, runner: _Fast, tables: tuple) -> torch.Tensor:
+    """Run the same fp16 block using its currently staged parameters."""
+    return runner.block(blk, x, tables)
 
 
 class Portable(_Fast):
@@ -322,10 +370,13 @@ class Portable(_Fast):
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Upstream modules in fp32 (the fused path in fp32 on MPS: ~12% faster there), or the fp16 path."""
         upstream = self.ctx.dtype == "float32" and self.ctx.device.type != "mps"
-        return self.net(x) if upstream else super().predict(x)
+        return self.net(x) if upstream and self.staged is None else super().predict(x)
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.staged is not None:
+            msg = "Export requires resident VGGT weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
@@ -421,6 +472,7 @@ class Kernels(_Fast):
     """`fastbb` flash attention (fp16 accumulation), fp16-accumulate GEMMs, cuDNN half-acc DPT convs."""
 
     gacc = True
+    rotate = staticmethod(vggt_rotary.apply)
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107
         super().__init__(ctx)
@@ -447,4 +499,17 @@ class Kernels(_Fast):
         return self.flash(q, k, v, scale).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+class _Upstream(Portable):
+    """The upstream network in any dtype (the MLX graph replaces `net` whole)."""
+
+    def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Upstream forward."""
+        return self.net(x)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(_Upstream),
+}

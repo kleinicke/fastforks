@@ -29,7 +29,12 @@ _WEIGHTED = (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.ConvTranspose2d)
 
 
 _ACC_LOCK = threading.Lock()
-_acc = [0, False]  # threads inside `fp16_accumulate`, the flag before the first one entered
+_acc = [0, False, 0]  # threads inside `fp16_accumulate`, the flag before the first one entered, `fp32_accumulate`s
+
+
+def _set_flag() -> None:
+    """The flag while any thread is inside `fp16_accumulate`: on unless one is inside `fp32_accumulate`."""
+    torch.backends.cuda.matmul.allow_fp16_accumulation = _acc[2] == 0
 
 
 @contextlib.contextmanager
@@ -42,7 +47,7 @@ def fp16_accumulate() -> Generator[None]:
     with _ACC_LOCK:
         if _acc[0] == 0:
             _acc[1] = torch.backends.cuda.matmul.allow_fp16_accumulation
-            torch.backends.cuda.matmul.allow_fp16_accumulation = True
+            _set_flag()
         _acc[0] += 1
     try:
         yield
@@ -51,6 +56,26 @@ def fp16_accumulate() -> Generator[None]:
             _acc[0] -= 1
             if _acc[0] == 0:
                 torch.backends.cuda.matmul.allow_fp16_accumulation = _acc[1]
+
+
+@contextlib.contextmanager
+def fp32_accumulate() -> Generator[None]:
+    """fp32-accumulate cuBLAS GEMMs inside the block, also within `fp16_accumulate` (for the GEMMs fp16 cannot sum).
+
+    Process-wide like `fp16_accumulate`: while a thread is inside, other threads' GEMMs also accumulate in fp32
+    (slower, never less precise). Outside `fp16_accumulate` the block changes nothing.
+    """
+    with _ACC_LOCK:
+        _acc[2] += 1
+        if _acc[0]:
+            _set_flag()
+    try:
+        yield
+    finally:
+        with _ACC_LOCK:
+            _acc[2] -= 1
+            if _acc[0]:
+                _set_flag()
 
 
 _CUBLAS = contextvars.ContextVar("cublas_gemms", default=False)

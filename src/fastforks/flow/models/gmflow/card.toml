@@ -3,8 +3,8 @@ name = "GMFlow"
 summary = "GMFlow (Xu, Zhang, Cai, Rezatofighi & Tao 2022) in its UniMatch release (Xu et al. 2023): optical flow as global matching. A CNN gives features at 1/8 resolution, a Transformer with self- and cross-attention (shifted windows) makes the two images' features aware of each other, the flow is the expected position of the best match over the whole image, and a self-attention layer spreads it into occluded areas. `scale2` variants repeat this at 1/4 resolution with local matching; `regrefine6` variants add 6 RAFT-like local refinements."
 tier = "experimental"
 outputs = ["flow"]
-limitations = ["No custom kernels backend is implemented.", "TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
-uses = []  # fastforks.shared modules this family imports
+limitations = ["TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/autonomousvision/unimatch"
@@ -34,6 +34,9 @@ std = [0.229, 0.224, 0.225]
 min_size = 64  # the shifted windows at 1/4 resolution (8 splits per axis) need at least 2 cells each
 pad = { multiple = 32, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode), padding_factor 32 of the scale2 commands in scripts/gmflow_evaluate.sh
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [params]
 scales = 1  # upstream num_scales: 1 = global matching at 1/8; 2 = then local matching at 1/4 (attn_splits 2 8, corr_radius -1 4, prop_radius -1 1)
 refine = 0  # upstream num_reg_refine with reg_refine; 0 = no refinement block in the checkpoint
@@ -41,10 +44,14 @@ refine = 0  # upstream num_reg_refine with reg_refine; 0 = no refinement block i
 [modes.portable]
 cuda_dtype = "float16"  # autocast for the CNN, the Transformer, the upsampling head and the refinement block; matching, propagation, warping and the flow in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (measured 2026-11-15)"
+kernels = ["flow_upsample"]
+# CUDA graphs (kernels): the pass is launch-bound on small inputs; batch x padded H x W <= 262144 replays a CUDA
+# graph, captured on a shape's 2nd call, at most 2 shapes per model (Windows RTX 5060 Ti, scale2-regrefine6 ms per pair:
+# 384x384 65.1 -> 51.9, 384x512 81.5 -> 71.6; 544x960 gains under 2 %). The graph pool stays reserved until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs run eagerly.
 
 [[papers]]
 title = "GMFlow: Learning Optical Flow via Global Matching"

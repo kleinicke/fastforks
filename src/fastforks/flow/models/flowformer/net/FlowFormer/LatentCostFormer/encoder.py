@@ -54,7 +54,7 @@ class PatchEmbed(nn.Module):
         )
         self.norm = nn.LayerNorm(embed_dim*2)
 
-    def forward(self, x) -> Tuple[torch.Tensor, Size_]:
+    def forward(self, x, *, after_embed=None) -> Tuple[torch.Tensor, Size_]:
         # modified: the (B*H1*W1) cost maps run in chunks; same per-map maths, the 16..128-channel activations of the
         # whole batch (about 2 GB at 375x1242) are never alive at once
         B, C, H, W = x.shape    # C == 1
@@ -62,22 +62,43 @@ class PatchEmbed(nn.Module):
         pad_l = pad_t = 0
         pad_r = (self.patch_size - W % self.patch_size) % self.patch_size
         pad_b = (self.patch_size - H % self.patch_size) % self.patch_size
-        x = F.pad(x, (pad_l, pad_r, pad_t, pad_b))
+        padding = (pad_l, pad_r, pad_t, pad_b)
+        if x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()):
+            # The cost maps share one patch grid. Assemble the output directly from bounded, independently padded groups.
+            output = None
+            for start in range(0, B, self.chunk):
+                group = x[start : start + self.chunk]
+                if pad_r or pad_b:
+                    group = F.pad(group, padding)
+                embedded, size = self._embed(group, share_position=True)
+                if after_embed is not None:
+                    embedded = after_embed(embedded)
+                if output is None:
+                    output = embedded.new_empty((B, *embedded.shape[1:]))
+                output[start : start + embedded.shape[0]].copy_(embedded)
+                del group, embedded
+            assert output is not None
+            return output, size
+        x = F.pad(x, padding)
         outs = [self._embed(c) for c in x.split(self.chunk)]
-        return torch.cat([o[0] for o in outs]), outs[0][1]
+        embedded = torch.cat([o[0] for o in outs])
+        return (embedded if after_embed is None else after_embed(embedded)), outs[0][1]
 
-    def _embed(self, x) -> Tuple[torch.Tensor, Size_]:
+    def _embed(self, x, *, share_position=False) -> Tuple[torch.Tensor, Size_]:
         B = x.shape[0]
         x = self.proj(x)
         out_size = x.shape[2:] 
 
-        patch_coord = coords_grid(B, out_size[0], out_size[1]).to(x.device) * self.patch_size + self.patch_size/2 # in feature coordinate space
-        patch_coord = patch_coord.view(B, 2, -1).permute(0, 2, 1)
+        coord_batch = 1 if share_position else B
+        patch_coord = coords_grid(coord_batch, out_size[0], out_size[1], device=x.device) * self.patch_size + self.patch_size/2 # in feature coordinate space  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
+        patch_coord = patch_coord.view(coord_batch, 2, -1).permute(0, 2, 1)
         if self.pe == 'linear':
             patch_coord_enc = LinearPositionEmbeddingSine(patch_coord, dim=self.dim)
         elif self.pe == 'exp':
             patch_coord_enc = ExpPositionEmbeddingSine(patch_coord, dim=self.dim)
-        patch_coord_enc = patch_coord_enc.permute(0, 2, 1).view(B, -1, out_size[0], out_size[1])
+        patch_coord_enc = patch_coord_enc.permute(0, 2, 1).view(coord_batch, -1, out_size[0], out_size[1])
+        if share_position:
+            patch_coord_enc = patch_coord_enc.expand(B, -1, -1, -1)
 
         x_pe = torch.cat([x, patch_coord_enc], dim=1)
         x =  self.ffn_with_coord(x_pe)
@@ -288,11 +309,15 @@ class CostPerceiverEncoder(nn.Module):
             scale_factor = torch.FloatTensor(B*H1*W1, self.cfg.cost_heads_num, H2, W2).uniform_(self.cost_scale_aug[0], self.cost_scale_aug[1]).cuda()
             cost_maps = cost_maps * scale_factor
         
-        x, size = self.patch_embed(cost_maps)   # B*H1*W1, size[0]*size[1], C
+        if cost_maps.is_cuda and not (
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+        ):
+            # Patch maps are independent through the first latent projection. Keep only the small latent outputs.
+            x, size = self.patch_embed(cost_maps, after_embed=lambda group: self.input_layer(self.latent_tokens, group))
+        else:
+            x, size = self.patch_embed(cost_maps)
+            x = self.input_layer(self.latent_tokens, x)
         data['H3W3'] = size
-        H3, W3 = size
-
-        x = self.input_layer(self.latent_tokens, x)
 
         short_cut = x
 

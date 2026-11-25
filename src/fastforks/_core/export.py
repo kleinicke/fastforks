@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import importlib.util
 import inspect
+import math
 import sys
 import tempfile
 import threading
@@ -92,7 +93,7 @@ def check_exportable(
     """Raise unless `model` runs portable, its card does not mark `feature` as `[planned]` and the size is supported.
 
     Raises:
-        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (planned for 0.2.1).
+        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (card `[planned]`).
         InputError: The size is below the model's minimum, or `batch < 1`.
     """
     require_available(model.variant, feature)
@@ -271,6 +272,19 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
     return _export_onnx(model, path, height, width, batch=batch, size_range=size_range, run=True)
 
 
+def _input_names(model: Model, inputs: tuple[torch.Tensor, ...]) -> list[str]:
+    """Name the module inputs, including CLIPSeg's projected text condition."""
+    if model.card.family == "clipseg":
+        return ["image", "condition"]
+    return list(spec(model.card.task).inputs)[: len(inputs)]  # multiview: required cameras only
+
+
+def _check_clipseg_bounds(model: Model, size_range: SizeBounds | None) -> None:
+    if model.card.family == "clipseg" and size_range is not None:
+        msg = "CLIPSeg's exported network input has fixed size 352x352; omit size_range"
+        raise InputError(msg)
+
+
 def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check switch
     model: Model,
     path: str | Path,
@@ -284,6 +298,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
     """`export_onnx`; `run=False` skips the onnxruntime run of a dynamic file (TensorRT runs its own check)."""
     height, width = resolve_size(model, height, width)
     check_exportable(model, height, width, batch)
+    _check_clipseg_bounds(model, size_range)
     _bounds(model, height, width, size_range, batch)
     for lib in ("onnx", "onnxscript"):  # torch.onnx's dynamo exporter imports both
         if importlib.util.find_spec(lib) is None:
@@ -318,7 +333,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
                 inputs,
                 dynamic_shapes=dynamic,
                 dynamo=True,
-                input_names=list(spec(model.card.task).inputs)[: len(inputs)],  # multiview: required cameras only
+                input_names=_input_names(model, inputs),
                 output_names=output_names(model, module, out),
                 verbose=False,
             )
@@ -606,6 +621,7 @@ def build_tensorrt(
     """
     trt = _tensorrt()
     logger = _trt_logger()
+    trt.init_libnvinfer_plugins(logger, "")
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED))
     parser = trt.OnnxParser(network, logger)
@@ -627,9 +643,10 @@ def build_tensorrt(
     plan = builder.build_serialized_network(network, config)
     if plan is None:
         first = logger.errors[0] if logger.errors else "see the TensorRT log above"
+        fixed = ", a fixed input size (omit --size-range)," if profile is not None else ","
         msg = (
-            f"TensorRT engine build failed: {first.splitlines()[0][:200]}. Try float32 (no --fp16), or export the "
-            "ONNX file (--format onnx) and build it with another TensorRT version"
+            f"TensorRT engine build failed: {first.splitlines()[0][:200]}. Try float32 (no --fp16){fixed} "
+            "or export the ONNX file (--format onnx) and build it with another TensorRT version"
         )
         raise BackendUnavailableError(msg)
     engine_path = Path(engine_path)
@@ -746,6 +763,54 @@ def _torch_dtype(trt: Any, dtype: Any) -> torch.dtype:  # noqa: ANN401 - tensorr
     return table[dtype]
 
 
+def _output_allocator(device: torch.device, dtype: torch.dtype) -> Any:  # noqa: ANN401 - optional TensorRT type
+    """Own the PyTorch buffer TensorRT requests when an output depends on input values."""
+    trt = _tensorrt()
+
+    class Allocator(trt.IOutputAllocator):
+        def __init__(self) -> None:
+            super().__init__()
+            self.buffer: torch.Tensor | None = None
+            self.shape: tuple[int, ...] | None = None
+            self.error: Exception | None = None
+
+        def reallocate_output_async(
+            self,
+            _name: str,
+            _memory: int,
+            size: int,
+            alignment: int,
+            stream: int,
+        ) -> int | None:
+            try:
+                current = torch.cuda.current_stream(device)
+                target = current if current.cuda_stream == stream else torch.cuda.ExternalStream(stream, device=device)
+                with torch.cuda.stream(target):
+                    alignment = max(alignment, dtype.itemsize)
+                    storage = torch.empty(max(size, dtype.itemsize) + alignment - 1, device=device, dtype=torch.uint8)
+                    offset = -storage.data_ptr() % alignment
+                    self.buffer = storage[offset:]
+                if target != current:
+                    self.buffer.record_stream(current)
+                return self.buffer.data_ptr()
+            except (RuntimeError, ValueError) as e:
+                self.error = e
+                return None
+
+        def notify_shape(self, name: str, shape: Sequence[int]) -> None:  # noqa: ARG002 - TensorRT callback
+            self.shape = tuple(shape)
+
+        def result(self, name: str) -> torch.Tensor:
+            shape, buffer = self.shape, self.buffer
+            self.shape = self.buffer = None
+            if shape is None or buffer is None:
+                msg = f"TensorRT did not allocate or specify the shape of {name!r}"
+                raise RuntimeError(msg) from self.error
+            return buffer[: math.prod(shape) * dtype.itemsize].view(dtype).reshape(shape)
+
+    return Allocator()
+
+
 class TensorRTEngine:
     """A TensorRT engine from `export_tensorrt`: `engine(*inputs)` -> the model's main output.
 
@@ -756,7 +821,7 @@ class TensorRTEngine:
     Attributes:
         inputs: Input names, in call order.
         outputs: Output names.
-        shapes: Shape of every input and output; -1 marks a dynamic axis (engine built with `size_range`).
+        shapes: Shape of every input and output; -1 marks an axis determined from the input shape or values.
         shape: Shape of the first input.
     """
 
@@ -765,21 +830,30 @@ class TensorRTEngine:
 
         Raises:
             BackendUnavailableError: `tensorrt` is not installed.
-            RuntimeError: The engine does not deserialize here (built for another GPU or TensorRT version).
+            RuntimeError: The engine cannot be deserialized or its execution context cannot be created.
         """
         trt = _tensorrt()
         self.device = _cuda_device(device)
         with torch.cuda.device(self.device):
-            self._runtime = trt.Runtime(_trt_logger())
+            logger = _trt_logger()
+            trt.init_libnvinfer_plugins(logger, "")
+            self._runtime = trt.Runtime(logger)
             self._engine = self._runtime.deserialize_cuda_engine(Path(path).read_bytes())
             if self._engine is None:
                 msg = f"cannot deserialize {path}: {ENGINE_NOTE} (rebuild it with `fastforks export`)"
                 raise RuntimeError(msg)
+            error_count = len(logger.errors)
             self._context = self._engine.create_execution_context()
+            if self._context is None:
+                errors = logger.errors[error_count:]
+                detail = errors[0].splitlines()[0][:200] if errors else "see the TensorRT log"
+                msg = f"cannot create a TensorRT execution context for {path} on {self.device}: {detail}"
+                raise RuntimeError(msg)
         # one execution context: calls from several threads take turns, and a call on another stream waits for the
         # previous call's work (the context's activation memory is shared)
         self._lock = threading.Lock()
         self._stream: torch.cuda.Stream | None = None
+        self._allocators: dict[str, Any] = {}
         e = self._engine
         names = [e.get_tensor_name(i) for i in range(e.num_io_tensors)]
         self.inputs = tuple(n for n in names if e.get_tensor_mode(n) == trt.TensorIOMode.INPUT)
@@ -866,17 +940,42 @@ class TensorRTEngine:
                 cause: Exception | None = e
             else:
                 cause = None
-            if dynamic and any(d < 0 for shape in shapes.values() for d in shape):
+            unresolved = [n for n, shape in shapes.items() if any(d < 0 for d in shape)]
+            if dynamic and unresolved:
                 size = "x".join(map(str, next(iter(tensors.values())).shape[-2:]))
                 msg = (
                     f"the dynamic engine cannot run at {size}: height and width must be multiples of the model's "
                     "padding multiple (`model.size_range().multiple`, as in the export's --size-range)"
                 )
                 raise InputError(msg) from cause
-            tensors |= {n: torch.empty(shapes[n], device=self.device, dtype=self._dtypes[n]) for n in self.outputs}
+            tensors |= {
+                n: torch.empty(shape, device=self.device, dtype=self._dtypes[n])
+                for n, shape in shapes.items()
+                if n not in unresolved
+            }
             for name, t in tensors.items():
                 self._context.set_tensor_address(name, t.data_ptr())
-            if not self._context.execute_async_v3(stream.cuda_stream):
-                msg = "TensorRT execution failed"
-                raise RuntimeError(msg)
+            self._enqueue(unresolved, tensors, stream)
         return {n: tensors[n] for n in self.outputs}
+
+    def _enqueue(self, unresolved: list[str], tensors: dict[str, torch.Tensor], stream: torch.cuda.Stream) -> None:
+        """Bind allocation callbacks only for outputs whose shape is still unresolved after binding the inputs."""
+        try:
+            for name in unresolved:
+                if name not in self._allocators:
+                    allocator = _output_allocator(self.device, self._dtypes[name])
+                    if not self._context.set_output_allocator(name, allocator):
+                        msg = f"TensorRT could not register the allocator for {name!r}"
+                        raise RuntimeError(msg)
+                    self._allocators[name] = allocator
+                self._context.set_tensor_address(name, 0)
+            if not self._context.execute_async_v3(stream.cuda_stream):
+                cause = next((a.error for a in self._allocators.values() if a.error is not None), None)
+                msg = "TensorRT execution failed"
+                raise RuntimeError(msg) from cause
+            for name in unresolved:
+                tensors[name] = self._allocators[name].result(name)
+        finally:
+            for name in unresolved:
+                if (allocator := self._allocators.get(name)) is not None:
+                    allocator.buffer = allocator.shape = allocator.error = None

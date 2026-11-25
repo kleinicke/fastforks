@@ -1,7 +1,7 @@
 name: ci
 on:
   push:
-    branches: [main]
+    branches: [main, 'dev/v*']
   pull_request:
 
 concurrency:  # a newer push cancels the run it supersedes
@@ -48,3 +48,16 @@ jobs:
             ${{ github.event_name == 'pull_request' && '--smallest' || '' }} \
             --required "$RUNNER_TEMP/required.txt" "$RUNNER_TEMP/golden"
       - run: uv run --no-sync pytest -m "not gpu" ${{ matrix.goldens && '--slow' || '' }} # slow tests (> 1 s): newest leg only
+
+  windows:
+    # CPU only. Exercise manifest bytes, the Windows DLL loader, cache handling, and the node pack.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen --no-default-groups --group dev --group cpu
+      - run: >-
+          uv run --no-sync pytest -m "not gpu and not slow and not model"
+          tests/test_kernels.py tests/test_files.py tests/test_security.py tests/test_comfyui.py

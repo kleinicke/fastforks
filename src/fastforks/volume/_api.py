@@ -16,7 +16,7 @@ import torch
 from fastforks._core import model as core
 from fastforks._core import registry
 from fastforks._core.api import is_path, task_api
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import typo_checked_load, warn_renamed
 from fastforks._core.errors import CardError, InputError, ModelNotFoundError, OptionsError, WeightsError
 from fastforks._core.files import FileSpec
 from fastforks._core.io import atomic_write, check_suffix
@@ -150,7 +150,7 @@ def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch
 
 def _check_intensities(x: torch.Tensor, ref: str) -> None:
     """NaN / inf are an error; a value range that cannot be Hounsfield units (CT) is logged once per call."""
-    lo, hi = (float(v) for v in torch.aminmax(x))
+    lo, hi = (float(v) for v in torch.stack(torch.aminmax(x)).tolist())  # one host sync, not one per value
     if not (math.isfinite(lo) and math.isfinite(hi)):
         msg = f"the volume has NaN or infinite voxels ({int((~torch.isfinite(x)).sum())}): fill or mask them first"
         raise InputError(msg)
@@ -189,7 +189,7 @@ class VolumeModel(core.Model):
         return super().module()
 
     def networks(self) -> tuple[torch.nn.Module, ...]:
-        """The networks (every fold of every part), e.g. to inspect or export one patch-sized U-Net."""
+        """The fold networks of every part. With stream=True their weights reside on the CPU."""
         return self._runner.networks()
 
     def __call__(
@@ -229,7 +229,7 @@ class VolumeModel(core.Model):
             msg = f"spacing must be three positive voxel sizes in mm (D, H, W), got {spacing!r}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self.device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=x.device.type != "mps")  # off MPS: awaited
             _check_intensities(x, self.variant.ref)
             out = self._runner(x, sp)
             labels = self._check_outputs(out, {"labels": tuple(x.shape[1:])}, cast=False)["labels"]
@@ -258,6 +258,40 @@ class VolumeEncoder(core.Model):
         self.widths = tuple(runner.widths)
         self.max_size = runner.max_size
 
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Return a normalised, padded 3D example for the encoder's `module()`.
+
+        Args:
+            height: Volume depth; default: the task's export size.
+            width: Volume height and width.
+            batch: Number of volumes.
+
+        Returns:
+            One `[batch, channels, depth, height, width]` tensor on the model's device, padded as the encoder needs.
+
+        Raises:
+            InputError: A requested side exceeds the encoder's maximum size.
+        """
+        from fastforks._core.export import resolve_size  # noqa: PLC0415
+
+        height, width = resolve_size(self, height, width)
+        original_height, original_width = height, width
+        if self.max_size is not None and max(height, width) > self.max_size:
+            msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {height}x{width}x{width}"
+            raise InputError(msg)
+        if self.max_size is not None and getattr(self._runner, "arch", None) == "vit":
+            height = width = self.max_size
+        else:
+            multiple = getattr(self._runner, "multiple", 1)
+            height = -(-height // multiple) * multiple
+            width = -(-width // multiple) * multiple
+        generator = torch.Generator().manual_seed(0)
+        x = torch.randn(batch, self.channels, original_height, original_width, original_width, generator=generator)
+        padding = (0, width - original_width, 0, width - original_width, 0, height - original_height)
+        return (torch.nn.functional.pad(x, padding).to(self._device),)
+
     def __call__(self, volume: np.ndarray | torch.Tensor) -> VolumeFeatures:
         """Encode a volume (no resampling: pass it at the spacing the model card names).
 
@@ -276,7 +310,7 @@ class VolumeEncoder(core.Model):
             msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {tuple(x.shape[1:])}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self.device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=x.device.type != "mps")  # off MPS: awaited
             maps = self._runner(x)["features"]
             if len(maps) != len(self.strides):
                 msg = f"{self.variant.ref}: runner returned {len(maps)} feature maps for strides {self.strides}"
@@ -299,7 +333,7 @@ class VolumeSession:
         self._model = model
         self.shape = tuple(int(n) for n in volume.shape[1:])
         with model._session():  # noqa: SLF001 - the model's locks and device guard
-            self._state = model._runner.start(volume.to(model.device, torch.float32))  # noqa: SLF001
+            self._state = model._runner.start(volume.to(model._device, torch.float32))  # noqa: SLF001
 
     def _run(self, prompt: str, *args: Any) -> VolumeMask:  # noqa: ANN401
         m = self._model
@@ -310,7 +344,7 @@ class VolumeSession:
     def _mask(self) -> VolumeMask:
         m = self._model
         out = m._check_outputs({"mask": m._runner.mask(self._state)}, {"mask": self.shape}, cast=False)  # noqa: SLF001
-        return VolumeMask(out["mask"], m.variant.ref, m.backend, m.options)
+        return m._move_result(VolumeMask(out["mask"], m.variant.ref, m.backend, m.options))  # noqa: SLF001
 
     @property
     def mask(self) -> VolumeMask:
@@ -318,18 +352,32 @@ class VolumeSession:
         with self._model._session():  # noqa: SLF001
             return self._mask()
 
-    def add_point(self, zyx: Sequence[float], *, positive: bool = True) -> VolumeMask:
-        """Click a voxel `(z, y, x)` (fractions are rounded) inside the volume; returns the updated mask.
+    def add_point(
+        self, point: Sequence[float] | None = None, *, positive: bool = True, zyx: Sequence[float] | None = None
+    ) -> VolumeMask:
+        """Click a voxel `point` `(z, y, x)` (fractions are rounded) inside the volume; returns the updated mask.
+
+        `point` is the keyword of `VolumeInteractive(point=)` too; the 0.2.0 name `zyx=` still works with a
+        `FutureWarning`.
 
         Raises:
             InputError: Not three finite coordinates inside the volume.
         """
-        p = tuple(float(c) for c in zyx)
+        if zyx is not None:
+            if point is not None:
+                msg = "pass point=, not also its old name zyx="
+                raise InputError(msg)
+            warn_renamed("add_point(zyx=)", "add_point(point=)")
+            point = zyx
+        if point is None:
+            msg = "add_point needs point=(z, y, x)"
+            raise InputError(msg)
+        p = tuple(float(c) for c in point)
         n_ax = len(self.shape)
         if len(p) != n_ax or not all(
             math.isfinite(c) and 0 <= round(c) < n for c, n in zip(p, self.shape, strict=True)
         ):
-            msg = f"point must be (z, y, x) inside the volume {self.shape}, got {zyx!r}"
+            msg = f"point must be (z, y, x) inside the volume {self.shape}, got {point!r}"
             raise InputError(msg)
         return self._run("point", p, positive)
 
@@ -358,7 +406,7 @@ class VolumeSession:
         if tuple(s.shape) != self.shape or s.is_complex():
             msg = f"scribble must be a [D, H, W] mask of the volume's shape {self.shape}, got {tuple(s.shape)}"
             raise InputError(msg)
-        s = s.to(self._model.device) != 0
+        s = s.to(self._model._device) != 0  # noqa: SLF001
         if not s.any():
             msg = "scribble has no voxels set"
             raise InputError(msg)
@@ -387,6 +435,22 @@ class VolumeInteractive(core.Model):
         """Wrap a runner (built by `load`)."""
         super().__init__(runner, backend, options)
         self.channels = runner.channels
+
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """A prepared network patch: image, previous mask and six prompt channels."""
+        from fastforks._core.export import resolve_size  # noqa: PLC0415
+
+        height, width = resolve_size(self, height, width)
+        if (height, width) != (192, 192):
+            msg = "nnInteractive exports its fixed 192x192x192 network patch; use size 192x192"
+            raise InputError(msg)
+        runner = cast("Any", self._runner)
+        x = torch.zeros((batch, 8, 192, 192, 192), device=self._device, dtype=runner._dtype)  # noqa: SLF001
+        x[:, 0] = torch.linspace(-1, 1, 192, device=self._device, dtype=x.dtype).view(1, 1, 1, 192)
+        x[:, 4, 96, 96, 96] = 1
+        return (x,)
 
     def session(self, volume: np.ndarray | torch.Tensor) -> VolumeSession:
         """Start a session on a volume (raw intensities, any spacing; the model z-scores its nonzero region).
@@ -440,10 +504,10 @@ def bench_inputs(model: VolumeModel | VolumeEncoder | VolumeInteractive, size: B
     g = torch.Generator().manual_seed(0)
     vol = torch.randn((model.channels, size.height, size.width, size.width), generator=g) * 300.0
     if isinstance(model, VolumeEncoder):
-        return (vol.to(model.device),), {}
+        return (vol.to(model._device),), {}  # noqa: SLF001
     if isinstance(model, VolumeInteractive):
-        return (vol.to(model.device),), {"point": tuple(n // 2 for n in vol.shape[1:])}
-    return (vol.to(model.device),), {"spacing": (1.5, 1.5, 1.5)}
+        return (vol.to(model._device),), {"point": tuple(n // 2 for n in vol.shape[1:])}  # noqa: SLF001
+    return (vol.to(model._device),), {"spacing": (1.5, 1.5, 1.5)}  # noqa: SLF001
 
 
 def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net options
@@ -474,7 +538,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         mode: `"auto"`, `"portable"` or `"kernels"`, as every task's `load`.
         device: As every task's `load`.
         dtype: As every task's `load`.
-        **options: Load options of a model id (card `[options]`); not for a path.
+        **options: Load options of a model id. nnU-Net paths accept `stream=True` for CUDA part transfers.
         weights: Your own copy of a model id's weights; not for a path.
         folds: nnU-Net folder: folds to ensemble; `None`: every `fold_<k>` with the checkpoint.
         step: nnU-Net path: sliding-window step (fraction of the patch; `None`: nnU-Net's default 0.5).
@@ -497,8 +561,10 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
             msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids"
             raise OptionsError(msg)
         return cast("VolumeModel", _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options))
-    if options or weights is not None:
-        msg = f"{str(model)!r} is an nnU-Net path: options and weights= are for model ids"
+    if options.keys() - {"stream"} or weights is not None:
+        msg = (
+            f"{str(model)!r} is an nnU-Net path: pass folds, step, mirror, checkpoint or stream to configure this model"
+        )
         raise OptionsError(msg)
     return _load_nnunet(
         model,
@@ -509,6 +575,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         step=0.5 if step is None else step,
         mirror=True if mirror is None else mirror,
         checkpoint=checkpoint,
+        options=options,
     )
 
 
@@ -527,6 +594,7 @@ def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net optio
     step: float,
     mirror: bool,
     checkpoint: str | None,
+    options: Mapping[str, Any],
 ) -> VolumeModel:
     """`load` of an nnU-Net v2 model folder or checkpoint file."""
     from fastforks.volume._nnunet_runner import weight_names  # noqa: PLC0415 - the runner's layout
@@ -560,7 +628,9 @@ def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net optio
     names = weight_names(parts, tuple(folds), checkpoint, embedded=embedded)
     weights = tuple(FileSpec(n, "0" * 64) for n in names)
     variant = dataclasses.replace(variant, weights=weights, params=params)
-    return core.load_variant(TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root)
+    return core.load_variant(
+        TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root, options=options
+    )
 
 
 def _model_class(model: str) -> type[VolumeModel | VolumeEncoder | VolumeInteractive]:

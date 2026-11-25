@@ -21,8 +21,10 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.sd2 import LATENT_SCALE, Noise, SD2Net, load_net
 from fastforks.shared.sd2.net.fast import Fast
 
@@ -73,7 +75,7 @@ def finish(n: torch.Tensor, pad: tuple[int, int], size: tuple[int, ...]) -> torc
     n = _unit(n.float().clip(-1.0, 1.0))[:, :, : -ph or None, : -pw or None]
     if tuple(n.shape[-2:]) != tuple(size):
         n = F.interpolate(n, size, mode="bilinear")
-    n = _unit(n) * n.new_tensor(_CAMERA)[:, None, None]
+    n = _unit(n) * device_tensor(_CAMERA, device=n.device, dtype=n.dtype)[:, None, None]
     return n.permute(0, 2, 3, 1)
 
 
@@ -85,7 +87,7 @@ def infer(net: SD2Net, image: torch.Tensor, params: Params, noise: Noise, lcm: L
     z, *step_noise = noise(rgb.shape, rgb.device, dtype)
     ctx = net.empty_text.to(dtype).expand(rgb.shape[0], -1, -1)
     for i, t in enumerate(lcm.timesteps):
-        v = net.unet(torch.cat([rgb, z], dim=1), torch.tensor(t, device=rgb.device), ctx)
+        v = net.unet(torch.cat([rgb, z], dim=1), device_tensor(t, device=rgb.device), ctx)
         z = lcm.step(v, t, z, step_noise[i] if i < len(step_noise) else None)
     return finish(net.vae.decode(z / LATENT_SCALE), pad, image.shape[-2:])
 
@@ -150,4 +152,9 @@ class Kernels(Runner):
         return {"normals": finish(f.decode(self.net.vae, z / LATENT_SCALE), pad, image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+}

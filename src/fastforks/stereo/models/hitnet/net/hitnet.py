@@ -24,6 +24,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import EXPORTING_FOR_MLX, exporting_for_mlx
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -142,9 +144,13 @@ def init_cost(lt: torch.Tensor, rt: torch.Tensor, max_disp: int, budget: int = 2
 
     Replicate padding plus an `unfold` view instead of index gathers.
     """
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+        return init_cost_op(lt, rt, max_disp)
     n, c, h, w = lt.shape
     rp = F.pad(rt, (max_disp - 1, 0, 0, 0), mode="replicate")  # index 4x + 1 - d -> 4x + D - d in rp
     win = rp.unfold(3, max_disp + 1, TILE)[..., :w, :]  # [n, c, h, w, D + 1], [.., x, j] = rp[4x + j], j = D - d
+    if lt.device.type == "mps":  # fastforks: the float32 sum casts the chunk; smaller chunks fit the 1 GB heaps
+        budget //= 4
     rows = max(1, budget // max(1, n * c * w * max_disp * lt.element_size()))
     ds, cs = [], []
     for y0 in range(0, h, rows):
@@ -176,18 +182,82 @@ def x_positions(like: torch.Tensor) -> torch.Tensor:
 def tile_sad(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
     """64-channel tile cost of a hypothesis `[n, 16, h, w]` on the features at 4x its resolution: per pixel
     `[sum |fl|, SAD(+1), SAD(0), SAD(-1)]`, packed (by, bx, k)."""
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+        return tile_sad_op(hyp, fl, fr)
     n, _, h, w = hyp.shape
     base = x_positions(fl) - expand_tiles(hyp[:, 0:1], hyp[:, 1:2], hyp[:, 2:3])
-    sad = (fl.unsqueeze(1) - warp_rows(fr, torch.cat((base + 1, base, base - 1), 1))).abs().sum(2, dtype=torch.float32)
+    sad = sad_rows(fl, fr, torch.cat((base + 1, base, base - 1), 1))
     cost = torch.cat((fl.abs().sum(1, keepdim=True, dtype=torch.float32), sad), 1)
     return cost.view(n, 4, h, TILE, w, TILE).permute(0, 3, 5, 1, 2, 4).reshape(n, TILE * TILE * 4, h, w)
 
 
 def refine_sad(d: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
     """SAD of `fl` against `fr` warped by `d`, `d + 1` and `d - 1` (`d` already scaled): `[n, 3, H, W]`."""
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+        return refine_sad_op(d, fl, fr)
     xs = x_positions(fl)
     pos = torch.cat((xs - d, xs - (d + 1), xs - (d - 1)), 1)
-    return (fl.unsqueeze(1) - warp_rows(fr, pos)).abs().sum(2, dtype=torch.float32)
+    return sad_rows(fl, fr, pos)
+
+
+def sad_rows(fl: torch.Tensor, fr: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
+    """`sum_c |fl - warp_rows(fr, pos)|` `[n, k, H, W]` float32; one position at a time on MPS (no `[n, k, C, H, W]`
+    float32 warp: 100-300 MB temporaries fragment its 1 GB heaps, and the smaller samples are faster)."""
+    if fl.device.type != "mps":
+        return (fl.unsqueeze(1) - warp_rows(fr, pos)).abs().sum(2, dtype=torch.float32)
+    sads = [(fl.unsqueeze(1) - warp_rows(fr, pos[:, i : i + 1])).abs().sum(2, dtype=torch.float32) for i in range(pos.shape[1])]
+    return torch.cat(sads, 1)
+
+
+# The three costs as single ops of an MLX export (`fastforks.kernels.graph_mlx.ops.hitnet_*` lower them, registered by
+# `..mlx_costs`): no `[n, C, h, w, D]` difference volume and no `[n, k, C, H, W]` warp in the replayed graph. A custom
+# op's body only runs when the exported program itself is executed in PyTorch (the export records its fake).
+@torch.library.custom_op("fastforks::hitnet_init_cost", mutates_args=())
+def init_cost_op(lt: torch.Tensor, rt: torch.Tensor, max_disp: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """`init_cost` as one op: float32 `[n, 1, h, w]` best disparity and its cost."""
+    token = EXPORTING_FOR_MLX.set(False)
+    try:
+        return init_cost(lt, rt, max_disp)
+    finally:
+        EXPORTING_FOR_MLX.reset(token)
+
+
+@init_cost_op.register_fake
+def _(lt: torch.Tensor, rt: torch.Tensor, max_disp: int) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ARG001 - same schema
+    n, _, h, w = lt.shape
+    return lt.new_empty((n, 1, h, w), dtype=torch.float32), lt.new_empty((n, 1, h, w), dtype=torch.float32)
+
+
+@torch.library.custom_op("fastforks::hitnet_tile_sad", mutates_args=())
+def tile_sad_op(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
+    """`tile_sad` as one op: float32 `[n, 64, h, w]`."""
+    token = EXPORTING_FOR_MLX.set(False)
+    try:
+        return tile_sad(hyp, fl, fr)
+    finally:
+        EXPORTING_FOR_MLX.reset(token)
+
+
+@tile_sad_op.register_fake
+def _(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
+    n, _, h, w = hyp.shape
+    return fl.new_empty((n, TILE * TILE * 4, h, w), dtype=torch.float32)
+
+
+@torch.library.custom_op("fastforks::hitnet_refine_sad", mutates_args=())
+def refine_sad_op(d: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
+    """`refine_sad` as one op: float32 `[n, 3, H, W]`."""
+    token = EXPORTING_FOR_MLX.set(False)
+    try:
+        return refine_sad(d, fl, fr)
+    finally:
+        EXPORTING_FOR_MLX.reset(token)
+
+
+@refine_sad_op.register_fake
+def _(d: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
+    n, _, h, w = fl.shape
+    return fl.new_empty((n, 3, h, w), dtype=torch.float32)
 
 
 class LevelInit(nn.Module):

@@ -1,5 +1,8 @@
 from __future__ import print_function
 import torch
+from fastforks.stereo._volume import concat_fn, stacked_volume
+from fastforks._core.volume_ops import gwc_volume, normalized_groups
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
@@ -103,7 +106,7 @@ class Mish(nn.Module):
 
     def forward(self, x):
         #save 1 second per epoch with no x= x*() and then return x...just inline it.
-        return x *( torch.tanh(F.softplus(x)))
+        return FMish(x)  # fastforks: one fused kernel on CUDA (see FMish)
 
 
 def convbn(in_channels, out_channels, kernel_size, stride, pad, dilation):
@@ -139,6 +142,8 @@ def disparity_variance_confidence(x, disparity_samples, disparity):
     return torch.sum(x * disp_values, 1, keepdim=True)
 
 def build_concat_volume(refimg_fea, targetimg_fea, maxdisp):
+    if exporting_for_mlx():
+        return stacked_volume(refimg_fea, targetimg_fea, maxdisp, concat_fn)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, 2 * C, maxdisp, H, W])
     for i in range(maxdisp):
@@ -169,6 +174,8 @@ def groupwise_correlation_4D(fea1, fea2, num_groups):
 
 
 def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
+    if exporting_for_mlx():
+        return gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
     for i in range(maxdisp):
@@ -192,6 +199,10 @@ def FMish(x):
 
     '''
 
+    # fastforks: PyTorch's fused mish on CUDA, one kernel instead of three with the intermediates in the input dtype
+    # (cfnet-sceneflow 994 x 1482 kernels: 227 -> 186 ms); the composition elsewhere (MLX / ONNX exports, CPU)
+    if x.is_cuda and not in_onnx_export():
+        return F.mish(x)
     return x * torch.tanh(F.softplus(x))
 
 class BasicBlock(nn.Module):

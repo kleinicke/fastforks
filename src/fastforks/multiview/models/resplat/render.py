@@ -10,8 +10,11 @@ to back until the transmittance would fall to 1e-4. All tiles are composited at 
 
 from __future__ import annotations
 
+from bisect import bisect_right
+
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import invert
 
 TILE = 16  # fixed: gsplat's tile size
@@ -81,6 +84,32 @@ def _project(
     return ids, m2[ids], conic[ids], o[ids], torch.stack((rx, ry), -1)[ids]
 
 
+def _composite_into(
+    sigma: torch.Tensor,
+    opacity: torch.Tensor,
+    colour: torch.Tensor,
+    current: torch.Tensor,
+    done: torch.Tensor,
+    image: torch.Tensor,
+) -> None:
+    """Composite one tile chunk, reusing owned scratch tensors on CUDA inference."""
+    rejected = sigma < 0
+    alpha = sigma.neg_().exp_().mul_(opacity).clamp_max_(ALPHA_MAX)
+    alpha.masked_fill_(rejected.logical_or_(alpha < ALPHA_MIN), 0.0)
+    del rejected
+    one_minus = 1 - alpha
+    trans = torch.cumprod(one_minus, -1).mul_(current[..., None])
+    valid = (trans > T_MIN) & ~done[..., None]
+    before = torch.cat((current[..., None], trans[..., :-1]), -1)
+    done |= trans[..., -1] <= T_MIN
+    del trans
+    rejected = valid.logical_not_()
+    weights = before.mul_(alpha).masked_fill_(rejected, 0.0)
+    image += weights @ colour
+    one_minus.masked_fill_(rejected, 1.0)
+    current.copy_(one_minus.prod(-1) * current)
+
+
 def render(  # noqa: PLR0915 - one tile pass per view
     means: torch.Tensor, covariances: torch.Tensor, opacities: torch.Tensor, harmonics: torch.Tensor,
     c2w: torch.Tensor, k_norm: torch.Tensor, h: int, w: int, near: float, far: float,
@@ -97,13 +126,14 @@ def render(  # noqa: PLR0915 - one tile pass per view
     w2c = invert(c2w.float())
     tw, th = (w + TILE - 1) // TILE, (h + TILE - 1) // TILE
     dev = means.device
+    reuse = means.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
     py, px = torch.meshgrid(torch.arange(TILE, device=dev), torch.arange(TILE, device=dev), indexing="ij")
     local = torch.stack((px, py), -1).view(1, TILE * TILE, 2).float()
     origin = torch.stack(torch.meshgrid(torch.arange(th, device=dev), torch.arange(tw, device=dev), indexing="ij"), -1)
     pix = origin.view(-1, 1, 2).flip(-1).float() * TILE + local + 0.5  # [tiles, 256, 2] pixel centres (x, y)
     out = []
     for v in range(c2w.shape[0]):
-        k = k_norm[v].float() * torch.tensor((w, h, 1.0), device=dev)[:, None]
+        k = k_norm[v].float() * device_tensor((w, h, 1.0), device=dev)[:, None]
         ids, m2, conic, o, rad = _project(means, cov, opacities, w2c[v], k, h, w, near, far)
         d = means[ids] - c2w[v, :3, 3].float()
         col = (sh[ids] @ sh_basis(d / d.norm(dim=-1, keepdim=True))[..., None])[..., 0].add(0.5).clamp_min(0)
@@ -113,20 +143,28 @@ def render(  # noqa: PLR0915 - one tile pass per view
         lo, hi = lo.long(), torch.stack((hi[:, 0].clamp(max=tw), hi[:, 1].clamp(max=th)), -1).long()
         n = (hi - lo).clamp_min(0)
         cnt = n[:, 0] * n[:, 1]
-        g = torch.repeat_interleave(torch.arange(len(ids), device=dev), cnt)
-        j = torch.arange(len(g), device=dev) - torch.repeat_interleave(cnt.cumsum(0) - cnt, cnt)
+        # one host sync for the pair count; every repeat_interleave without output_size (and bincount) syncs again
+        total = int(cnt.sum())
+        g = torch.repeat_interleave(torch.arange(len(ids), device=dev), cnt, output_size=total)
+        j = torch.arange(total, device=dev) - torch.repeat_interleave(cnt.cumsum(0) - cnt, cnt, output_size=total)
         tile = (lo[g, 1] + j // n[g, 0]) * tw + lo[g, 0] + j % n[g, 0]
         tile, perm = tile.sort(stable=True)
         g = g[perm]
-        per = torch.bincount(tile, minlength=tw * th)
+        per = torch.zeros(tw * th, dtype=torch.long, device=dev).index_add_(0, tile, torch.ones_like(tile))  # bincount
         rank = per.argsort(descending=True, stable=True)
-        pos = torch.arange(len(g), device=dev) - torch.repeat_interleave(per.cumsum(0) - per, per)
-        length = int(per.max()) if len(g) else 0
+        pos = torch.arange(total, device=dev) - torch.repeat_interleave(per.cumsum(0) - per, per, output_size=total)
+        active = per[rank]
+        counts = active.tolist() if reuse else None
+        if counts is None:
+            length = int(per.max()) if len(g) else 0
+        else:
+            # One device transfer per view lets the chunk loop look up counts without synchronizing CUDA.
+            counts.reverse()
+            length = counts[-1] if counts else 0
         slot = torch.empty_like(rank)
         slot[rank] = torch.arange(len(rank), device=dev)
         table = torch.full((tw * th, max(length, 1)), len(ids), dtype=torch.long, device=dev)
         table[slot[tile], pos] = g
-        active = per[rank]  # Gaussians per tile, descending
         m2p, conp = torch.cat((m2, m2.new_zeros(1, 2))), torch.cat((conic, conic.new_zeros(1, 3)))
         op, colp = torch.cat((o, o.new_zeros(1))), torch.cat((col, col.new_zeros(1, 3)))  # padding: opacity 0
         p = pix[rank]
@@ -134,7 +172,7 @@ def render(  # noqa: PLR0915 - one tile pass per view
         done = torch.zeros_like(t_cur, dtype=torch.bool)
         img = p.new_zeros(*p.shape[:2], 3)
         for s in range(0, length, CHUNK):
-            nt = int((active > s).sum())
+            nt = int((active > s).sum()) if counts is None else len(counts) - bisect_right(counts, s)
             gi = table[:nt, s : s + CHUNK]
             dx = p[:nt, :, None] - m2p[gi][:, None]  # [nt, 256, chunk, 2]
             cn = conp[gi][:, None]
@@ -142,6 +180,11 @@ def render(  # noqa: PLR0915 - one tile pass per view
                 0.5 * (cn[..., 0] * dx[..., 0] ** 2 + cn[..., 2] * dx[..., 1] ** 2)
                 + cn[..., 1] * dx[..., 0] * dx[..., 1]
             )
+            if reuse:
+                del dx, cn
+                _composite_into(sigma, op[gi][:, None], colp[gi], t_cur[:nt], done[:nt], img[:nt])
+                del sigma
+                continue
             alpha = (op[gi][:, None] * torch.exp(-sigma)).clamp_max(ALPHA_MAX)
             alpha = torch.where((sigma < 0) | (alpha < ALPHA_MIN), 0.0, alpha)
             trans = t_cur[:nt, :, None] * torch.cumprod(1 - alpha, -1)

@@ -72,3 +72,19 @@ def test_reordered_forward_matches_upstream(scales: list[int], timestep: float) 
         got_t = _interpolate(net, x, torch.full((1, 1, 1, 1), timestep), scales)  # the time as a tensor (CUDA graphs)
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
     torch.testing.assert_close(got_t, got, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+def test_kernels_captures_its_graph(weights: Path) -> None:
+    """The kernels runner replays a CUDA graph (its warp once copied a CPU scalar: every capture failed, ran eager)."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    model = interpolation.load("rife-4.25", weights=weights, mode="kernels", device="cuda")
+    graphs = model._runner.graphs
+    a, b = synthetic_pair(128, 128, torch.device("cuda"), shift=3)
+    frames = [model(a, b).frame for _ in range(8)]  # eager until the capture, then replays
+    assert len(graphs.graphs) == 1
+    assert not graphs._failed
+    assert torch.isfinite(frames[-1]).all()
+    torch.testing.assert_close(frames[-1], frames[-2], rtol=0, atol=0)  # replays
+    model.release_graphs()

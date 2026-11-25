@@ -9,7 +9,7 @@ The network stays TAO's module tree; only the leaves change:
 - conv outputs whose channel count is not a multiple of 8 (the 28-channel volumes) keep the zero channels of the
   padded weights; the next conv reads the padded tensor directly (its weights get zero input channels too).
 - C-FS-S: DINOv2 through `fast_vit`; the disparity transformer (28 channels, 4 heads of 7) through the `cfs` kernels
-  around flash SDPA; the GRU lookups through `fs.geo_lookup_s` on the channels-last hourglass output (no transposed
+  around flash SDPA (in PyTorch builds without flash: the shared SDPA policy, `sdpa_backend`); the GRU lookups through `fs.geo_lookup_s` on the channels-last hourglass output (no transposed
   copy of the volume, level 2 pooled on the fly).
 - cost volumes built straight into channels-last 3-D buffers; softmax, regression and upsampling weights in fp32.
 
@@ -34,7 +34,7 @@ from fastforks.kernels import cfs as cfs_kernels
 from fastforks.kernels import fs as fs_kernels
 from fastforks.kernels import fs_cutlass
 from fastforks.kernels.fs_cutlass import FsEpiArgs
-from fastforks.shared import cnn_kernels
+from fastforks.shared import cnn_kernels, sdpa
 from fastforks.shared.depth_anything_v2.fast_vit import use_fast_vit
 
 from ..net.foundation_stereo import utils
@@ -60,13 +60,14 @@ STATS_CHUNK = 1 << 24  # elements per fp32 chunk of the instance-norm statistics
 STATS_C = 256  # channels `fs.chan_stats8` takes (8 per thread, 256 threads)
 STATS_BLOCKS = 288  # its blocks per sample (8 per SM of a 36-SM GPU; a few hundred rows per thread at Midd-H)
 ATT_CHUNK = 32768  # disparity sequences per transformer chunk: a whole strip (8192: +30 ms at Midd-H; same result)
-SDPA_CHUNK = 16384  # sequences per flash SDPA call (grid limit)
+SDPA_CHUNK = 16384  # sequences per SDPA call (grid limit)
 STRIP_SEQ = ATT_CHUNK  # disparity sequences per strip of the hourglass tail
 _DIM3D = 5
 C3_MIN_K = (
     32  # 3-D convs with this many (padded) output channels run on the 128 x 32 CUTLASS tile, wider ones on 128 x 64
 )
 C3_MAX_K = 192
+PATCH_PLANES = 8  # input disparities per channels-first slab of the patch conv (`_patch_conv`): 43 MB at Midd-H
 C3_MAX_T = 3  # longer filters along the leading volume dim (the 17-tap disparity convs) run in slice-major tile order
 _TC = 28  # the cfs kernels' d_model
 HID = 128  # C-FS-S GRU hidden size
@@ -259,7 +260,9 @@ class _Convs:
         y = self._conv3d(m, x, s, t, act, r)
         if y is not None:
             return y
-        y = cnn_kernels.conv_raw(m, x)
+        y = _patch_conv(m, x)
+        if y is None:
+            y = cnn_kernels.conv_raw(m, x)
         c = m.out_channels
         if y.shape[1] != c:
             if r is None and act in {0, 1, 2} and (s is not None or t is not None):  # all padded channels: vector path
@@ -423,6 +426,53 @@ class _Convs:
                 m._ff = self
 
 
+def _patch_conv(m: Patched, x: torch.Tensor) -> torch.Tensor | None:
+    """A depthwise 3-D conv with kernel = stride (TAO's `conv_patch`) of a channels-last fp16 volume, without bias,
+    as `conv_raw` gives it; None if the conv or the layout does not qualify.
+
+    cuDNN has no fast channels-last kernel for it (C-FS-S at 994 x 1482: 26.8 ms) and PyTorch's channels-last to
+    channels-first copy is as slow (22.6 ms). A matmul by the identity transposes `PATCH_PLANES` disparities at a time
+    exactly (2.9 ms for the volume; only an inf in it would differ, as a NaN in the voxel's other channels) and cuDNN's
+    channels-first conv of each slab takes 1.4 ms in all.
+    """
+    if x.dim() != _DIM3D or not isinstance(m, nn.Conv3d):
+        return None
+    n, c, d, h, w = x.shape
+    k = m.kernel_size[0]
+    if not (
+        tuple(m.kernel_size) == tuple(m.stride) == (k, k, k)
+        and tuple(m.dilation) == (1, 1, 1)
+        and m.groups == c == m.out_channels
+        and tuple(m.weight.shape) == (c, 1, k, k, k)
+        and x.dtype == m.weight.dtype == torch.float16
+        and x.stride(1) == 1  # channels innermost, every voxel at one stride (C-FS-S: 28 of a 32-channel buffer)
+        and x.stride(2) == h * x.stride(3)
+        and x.stride(3) == w * x.stride(4)
+    ):
+        return None
+    pd, ph, pw = m.padding
+    do = (d + 2 * pd - k) // k + 1
+    y = torch.empty(
+        (n, c, do, (h + 2 * ph - k) // k + 1, (w + 2 * pw - k) // k + 1),
+        device=x.device,
+        dtype=x.dtype,
+        memory_format=CL3,
+    )
+    eye = torch.eye(c, device=x.device, dtype=x.dtype)
+    rows = x.permute(0, 2, 3, 4, 1).view(n, d, h * w, c)
+    step = max(PATCH_PLANES // k, 1)
+    for i in range(n):
+        for o in range(0, do, step):
+            oe = min(o + step, do)
+            lo, hi = k * o - pd, k * oe - pd  # the input disparities of output slices [o, oe), padding included
+            a, b = max(lo, 0), min(hi, d)
+            slab = torch.mm(eye, rows[i, a:b].reshape(-1, c).t()).view(1, c, b - a, h, w)
+            if a > lo or b < hi:
+                slab = F.pad(slab, (0, 0, 0, 0, a - lo, hi - b))
+            y[i : i + 1, :, o:oe] = F.conv3d(slab, m.weight, None, k, (0, ph, pw), 1, c)
+    return y
+
+
 def _fuse_sequential(seq: nn.Sequential, consumed: set[int]) -> None:
     """`conv [-> norm] [-> act]` runs inside `seq`: the conv takes the plan, the other slots become Identity."""
     items: list[tuple[str, Patched]] = list(seq._modules.items())
@@ -477,11 +527,31 @@ def _residual_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
 
 
 # ------------------------------------------------------------------------------------------------ transformer
+def sdpa_backend() -> list[SDPBackend]:
+    """The SDPA backends of the disparity transformer, in priority order: flash, or the shared policy's choice.
+
+    `fastforks.shared.sdpa.backends()` decides (logged; `FASTFORKS_SDPA` overrides it). Where PyTorch has flash
+    (Linux wheels) and the policy leaves the choice to PyTorch, the transformer pins flash, as validated. Without
+    flash (Windows wheels) it is memory-efficient first, as the Windows record was made, under `auto` and `torch`.
+    """
+    chosen = sdpa.backends()
+    if chosen is not None:
+        return list(chosen)
+    if torch.backends.cuda.is_flash_attention_available():
+        return [SDPBackend.FLASH_ATTENTION]
+    return [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH, SDPBackend.CUDNN_ATTENTION]
+
+
 class _DisparityTransformer:
     """TAO's `CostVolumeDisparityAttention` of C-FS-S ('standard' layout, 28 channels, 4 heads, FFN 28)."""
 
     def __init__(self, att: Patched, device: torch.device) -> None:
-        """Pack the layer parameters (call while fp32)."""
+        """Pack the layer parameters (call while fp32).
+
+        The attention runs on PyTorch's flash SDPA, or in builds without flash on the backends of the shared policy
+        (`sdpa_backend`).
+        """
+        self.sdpa = sdpa_backend()
         self.k = cfs_kernels.load(device)
         self.fs = fs_kernels.load(device)
         self.layers = []
@@ -530,7 +600,7 @@ class _DisparityTransformer:
             grid = ((min((tok + 3) // 4, 65535 * 8), 1, 1), (128, 1, 1))
             for wqkv, bqkv, post in self.layers:
                 self.k.launch("tao_qkv", *grid, xs, tok, d, wqkv, bqkv, qkv[0], qkv[1], qkv[2])
-                with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
+                with sdpa_kernel(self.sdpa, set_priority=True):
                     for j in range(0, ns, SDPA_CHUNK):
                         q, k, v = (qkv[e, j : min(j + SDPA_CHUNK, ns)] for e in range(3))
                         o[j : j + q.shape[0]] = F.scaled_dot_product_attention(q, k, v, scale=7**-0.5)
@@ -592,12 +662,14 @@ def _gate(fa: Patched, cv: torch.Tensor, feat: torch.Tensor) -> torch.Tensor:
 
 
 def _cost_volume(
-    fl: torch.Tensor, fr: torch.Tensor, proj: Patched, d: int, groups: int, *, normalize: bool, gemm: bool = False
+    fl: torch.Tensor, fr: torch.Tensor, proj: Patched, d: int, groups: int, *, normalize: bool
 ) -> torch.Tensor:
     """TAO's `cat([build_gwc_volume, build_concat_volume(proj(fl), proj(fr))])`, channels-last 3-D fp16.
 
-    `gemm`: the group-wise correlation of all disparities as one batched matmul per row block (fp32, the diagonal of
-    the left-by-right product), instead of one multiply-and-sum per disparity.
+    The group-wise correlation of all disparities is one batched matmul per row block (fp32, the diagonal of the
+    left-by-right product), not TAO's multiply-and-sum per disparity: C-FS-S at 994 x 1482 1393 -> 1348 ms, the same
+    peak; the fp32 sums differ in order, which moves 2e-5 of the fp16 volume by one ulp (disparity: mean 0.0009 px,
+    p99 0.003 px against the loop).
     """
     b, c, h, w = fl.shape
     lp, rp = proj(fl), proj(fr)
@@ -610,14 +682,8 @@ def _cost_volume(
     lpn, rpn = lp.permute(0, 2, 3, 1), rp.permute(0, 2, 3, 1)
     vol[..., groups : groups + cc] = lpn[:, None]
     n = min(d, w)  # shifts >= W stay zero, as TAO's slices
-    if gemm:
-        _gwc_gemm(vol, a, z, n)
-        for i in range(n):
-            vol[:, i, :, i:, groups + cc :] = rpn[:, :, : w - i]
-        return vol.permute(0, 4, 1, 2, 3)
-    a, z = a.permute(0, 3, 4, 1, 2).contiguous(), z.permute(0, 3, 4, 1, 2).contiguous()  # [B, H, W, G, c/G]
+    _gwc_gemm(vol, a, z, n)
     for i in range(n):
-        vol[:, i, :, i:, :groups] = (a[:, :, i:] * z[:, :, : w - i]).sum(-1)
         vol[:, i, :, i:, groups + cc :] = rpn[:, :, : w - i]
     return vol.permute(0, 4, 1, 2, 3)
 
@@ -718,6 +784,10 @@ class _Scale:
         x = inp.half().permute(0, 2, 3, 1).reshape(p, HID).contiguous()
         e = FsEpiArgs(mode=2, b=self.b0.data_ptr(), o=self.inp0.data_ptr(), os=self.c0)
         _fs_conv(lib, self.cfg, (self.hw_h, self.hw_w), x, self.w0_inp, e)
+
+    def finish(self) -> None:
+        """Drop the buffers of the forward (`start` makes new ones)."""
+        self.xin = self.qin = self.hx = self.hx2 = self.z = self.g = self.h = self.inp0 = self.att = None
 
     def nchw(self) -> torch.Tensor:
         """The state as a channels-last `[1, 128, H, W]` view."""
@@ -841,6 +911,16 @@ class _UpdateBlock:
         self.corr_nchw = self.corr.view(1, s0.hw_h, s0.hw_w, self.c1_in).permute(0, 3, 1, 2)
         self.cd = new((p, self.cc2 + self.cd2))
         self.t0, self.t1, self.u = new((pp, HID)), new((pp, HID)), new((pp, HID))
+
+    def finish(self) -> None:
+        """Drop the buffers of the forward.
+
+        Held between calls they keep ~0.9 GB allocated at Midd-H and pin the caching allocator's segments they were
+        carved from among the forward's temporaries, so each later call reserves more (3.6 -> 4.9 GB in four calls).
+        """
+        for s in self.scales:
+            s.finish()
+        self.corr = self.corr_nchw = self.cd = self.t0 = self.t1 = self.u = None
 
     def _pool_into(self, src: _Scale, dst: _Scale, c0: int) -> None:
         hd, wd = dst.hw_h, dst.hw_w
@@ -994,7 +1074,6 @@ class KernelsForward:
             d4,
             net.cv_group,
             normalize=a.get("gwc_feature_normalize", True),
-            gemm=not self.fs,
         )
         if self.fs:
             box = [vol]
@@ -1018,9 +1097,12 @@ class KernelsForward:
         if self.update is not None and b == 1:
             upd = self.update
             upd.start(hidden, inp, att)
-            for _ in range(iters):
-                disp = disp + upd(geo, disp.contiguous()).float()
-            mask = upd.mask()
+            try:
+                for _ in range(iters):
+                    disp = disp + upd(geo, disp.contiguous()).float()
+                mask = upd.mask()
+            finally:
+                upd.finish()
         else:
             for _ in range(iters):
                 hidden, mask, delta = net.update_block(hidden, inp, geo(disp), disp.half(), att)

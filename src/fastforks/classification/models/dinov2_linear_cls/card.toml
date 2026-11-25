@@ -3,7 +3,7 @@ name = "DINOv2 linear"
 summary = "DINOv2 ViT-L/14 (Oquab et al. 2023) with its official linear ImageNet head on [class token; mean patch token]."
 tier = "stable"
 outputs = ["logits"]
-uses = ["libnet"]  # fastforks.shared modules this family imports
+uses = ["libnet", "mlx_vit"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
@@ -32,6 +32,7 @@ interpolation = "bicubic"
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

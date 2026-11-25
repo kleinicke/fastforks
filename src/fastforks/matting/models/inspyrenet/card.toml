@@ -3,7 +3,7 @@ name = "InSPyReNet"
 summary = "InSPyReNet (Kim et al., ACCV 2022): salient object detection with an inverse saliency pyramid: a Swin-B encoder, pyramid attention context modules and scale-invariant context attention that reconstruct the saliency map from a coarse map plus Laplacian residuals. The `transparent-background` models ComfyUI's InSPyReNet nodes run: `inspyrenet` (base, 1024 x 1024) and `inspyrenet-fast` (384 x 384), both trained on the authors' extra-data mix (Plus Ultra)."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["swin_v1"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap", "swin_v1"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/plemeri/transparent-background"
@@ -31,10 +31,10 @@ size = 1024  # network input side (base_size); the sigmoid map is min-max normal
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %"
+kernels = ["image_normalize"]
 
 [[papers]]
 title = "Revisiting Image Pyramid Structure for High Resolution Salient Object Detection"

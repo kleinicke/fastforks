@@ -16,20 +16,23 @@ Both follow upstream `DefaultPredictor` + `GeneralizedRCNN.inference` (model-zoo
 Portable runs the convolutions and FCs in float16 on CUDA (channels-last; FrozenBatchNorm folded); ROIAlign, box
 decoding, NMS and mask pasting stay float32 (box coordinates need float32). Kernels adds cuDNN fused conv + bias + ReLU
 (+ residual) for the ResNet, RPN and mask-head convs, fp16-accumulate cuDNN convs (`cudnn_hacc`) for the shortcut and
-FPN convs and fp16-accumulate GEMMs for the box head (kernels path).
+FPN convs and fp16-accumulate GEMMs for the box head (kernels path). On Apple MLX (`MlxPortable`) the network, ROIAlign
+(one Metal kernel over the levels) and the heads are `mlx_net`'s; the selection between them (`_Select`: top-k, box
+decoding, NMS, mask pasting) is the same PyTorch code on the CPU.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
@@ -90,7 +93,7 @@ def prepare(image: torch.Tensor, p: Params) -> tuple[torch.Tensor, tuple[int, in
 
 def normalise(x: torch.Tensor, p: Params) -> torch.Tensor:
     """RGB `0..255` `[B, 3, h, w]` -> BGR minus the pixel mean, zero-padded to a multiple of `size_divisibility`."""
-    x = x.flip(1) - torch.tensor(PIXEL_MEAN_BGR, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
+    x = x.flip(1) - device_tensor(PIXEL_MEAN_BGR, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
     d = p.size_divisibility
     return F.pad(x, (0, -x.shape[-1] % d, 0, -x.shape[-2] % d))
 
@@ -144,15 +147,22 @@ def grid_anchors(cell: torch.Tensor, hw: tuple[int, int], stride: int) -> torch.
     return (shifts.view(-1, 1, 4) + cell.view(1, -1, 4)).reshape(-1, 4)
 
 
+def box_levels(boxes: torch.Tensor, levels: int) -> torch.Tensor:
+    """detectron2 `assign_boxes_to_levels`: the pyramid level (0: P2) each of `[R, 4]` boxes is pooled from."""
+    area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    lvl = torch.floor(CANONICAL_LEVEL + torch.log2(torch.sqrt(area) / CANONICAL_SIZE + 1e-8))
+    return lvl.clamp(min=2, max=1 + levels).to(torch.int64) - 2
+
+
 def pool(feats: list[torch.Tensor], boxes: torch.Tensor, side: int, tv: ModuleType) -> torch.Tensor:
     """detectron2 `ROIPooler` (ROIAlignV2) over P2..P5 (float32 maps): `[R, 4]` boxes -> `[R, C, side, side]`."""
     rois = torch.cat([boxes.new_zeros(boxes.shape[0], 1), boxes], 1)
-    area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-    lvl = torch.floor(CANONICAL_LEVEL + torch.log2(torch.sqrt(area) / CANONICAL_SIZE + 1e-8))
-    lvl = lvl.clamp(min=2, max=1 + len(feats)).to(torch.int64) - 2
+    lvl = box_levels(boxes, len(feats))
     out = feats[0].new_zeros(boxes.shape[0], feats[0].shape[1], side, side)
-    for i, f in enumerate(feats):
-        inds = torch.nonzero(lvl == i, as_tuple=True)[0]
+    # the boxes of each level in increasing order, as nonzero(lvl == i) gives them, with one host sync for all levels
+    order = torch.argsort(lvl, stable=True)
+    counts = (lvl[None] == torch.arange(len(feats), device=lvl.device)[:, None]).sum(1).tolist()
+    for i, (f, inds) in enumerate(zip(feats, order.split(counts), strict=True)):
         r = rois[inds].to(f.dtype)
         out.index_put_((inds,), tv.roi_align(f, r, (side, side), 1.0 / 2 ** (i + 2), 0, aligned=True))
     return out
@@ -215,44 +225,31 @@ def features(net: Rcnn, x: torch.Tensor, cv: Convs) -> list[torch.Tensor]:
     return levels
 
 
-class _Rcnn(Runner):
-    """Inference shared by both backends; `cv` and the float16 parts differ."""
+class _Select(Runner):
+    """What every backend does with the network's outputs: proposal and detection selection, the output (PyTorch)."""
 
     dtypes = ("float32", "float16")
     Params = Params
-    cv: Convs
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network (FrozenBatchNorm folded), convert it to the compute dtype on the device."""
+        """Load torchvision's operators, build the anchors of one cell per level."""
         super().__init__(ctx)
         self.tv = ops()
-        p: Params = ctx.params
-        net = Rcnn(p)
-        net.load_state_dict(fold_frozen_bn(ctx.state_dict(key="model", strip="", extra=NUMPY_ARRAYS)))
-        net.eval()
-        dt = ctx.torch_dtype
-        mf = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
-        self.net = net.to(ctx.device, dt).to(memory_format=mf)
-        self.predictor = net.roi_heads.box_predictor.float()  # float32 (the fast path)
-        self.mf, self.dt = mf, dt
-        self.cells = [cell_anchors(s, p.aspect_ratios).to(ctx.device) for s in p.anchor_sizes]
+        self.cells = [cell_anchors(s, ctx.params.aspect_ratios).to(ctx.device) for s in ctx.params.anchor_sizes]
 
-    def _input(self, x: torch.Tensor) -> torch.Tensor:
-        return x.to(self.dt).contiguous(memory_format=self.mf)
+    def _top_proposals(
+        self, maps: list[tuple[torch.Tensor, torch.Tensor, tuple[int, int]]], size: tuple[int, int]
+    ) -> torch.Tensor:
+        """detectron2 `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes.
 
-    def _proposals(self, feats: list[torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
-        """detectron2 `RPN.forward` + `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes."""
-        p, head = self.ctx.params, self.net.proposal_generator.rpn_head
+        `maps`: per level the objectness logits `[h * w * A]`, the anchor deltas `[h * w * A, 4]` (float32, in
+        anchor order) and `(h, w)`.
+        """
+        p = self.ctx.params
         boxes, scores, lvls = [], [], []
-        for i, f in enumerate(feats):
-            t = self.cv.conv_relu(head.conv, f)
-            obj = Convs.conv(self.cv, head.objectness_logits, t).float()
-            dl = Convs.conv(self.cv, head.anchor_deltas, t).float()
-            h, w = obj.shape[-2:]
-            obj = obj.permute(0, 2, 3, 1).flatten(1)[0]
-            dl = dl.view(1, -1, 4, h, w).permute(0, 3, 4, 1, 2).flatten(1, -2)[0]
+        for i, (obj, dl, hw) in enumerate(maps):
             s, idx = obj.topk(min(p.pre_nms_topk, obj.numel()))
-            anchors = grid_anchors(self.cells[i], (h, w), 2 ** (i + 2))
+            anchors = grid_anchors(self.cells[i], hw, 2 ** (i + 2))
             boxes.append(apply_deltas(dl[idx], anchors[idx], RPN_WEIGHTS))
             scores.append(s)
             lvls.append(torch.full((s.numel(),), i, dtype=torch.int64, device=s.device))
@@ -267,6 +264,106 @@ class _Rcnn(Runner):
         keep = self.tv.batched_nms(b.float(), s, lv, p.rpn_nms)[: p.post_nms_topk]
         return b[keep]
 
+    def _select(
+        self,
+        logits: torch.Tensor,
+        deltas: torch.Tensor,
+        proposals: torch.Tensor,
+        size: tuple[int, int],
+        threshold: float,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """detectron2 `fast_rcnn_inference_single_image` on the box predictor's outputs: boxes, scores, classes."""
+        p = self.ctx.params
+        boxes = apply_deltas(deltas, proposals, BOX_WEIGHTS)
+        scores = F.softmax(logits, dim=-1)
+        valid = torch.isfinite(boxes).all(dim=1) & torch.isfinite(scores).all(dim=1)
+        if not bool(valid.all()):
+            boxes, scores = boxes[valid], scores[valid]
+        scores = scores[:, :-1]
+        boxes = clip(boxes.reshape(-1, 4), size).view(-1, boxes.shape[1] // 4, 4)
+        mask = scores > threshold
+        inds = mask.nonzero()
+        boxes, scores = boxes[inds[:, 0], inds[:, 1]], scores[inds[:, 0], inds[:, 1]]  # as [mask], without two syncs
+        keep = self.tv.batched_nms(boxes.float(), scores, inds[:, 1], p.box_nms)[: p.max_detections]
+        return boxes[keep], scores[keep], inds[keep, 1]
+
+    @staticmethod
+    def _output(  # noqa: PLR0913, PLR0917 - the detections and the two sizes
+        boxes: torch.Tensor,
+        scores: torch.Tensor,
+        classes: torch.Tensor,
+        probs: torch.Tensor | None,
+        size: tuple[int, int],
+        hw: tuple[int, int],
+    ) -> dict[str, torch.Tensor]:
+        """detectron2 `detector_postprocess`: to the input size `hw`, clip, drop empty boxes, paste the masks."""
+        h, w = hw
+        boxes = boxes.clone()
+        boxes[:, 0::2] *= w / size[1]
+        boxes[:, 1::2] *= h / size[0]
+        boxes = clip(boxes, (h, w))
+        keep = nonempty(boxes).nonzero()[:, 0]  # one host sync for all outputs
+        out = {"boxes": boxes[keep], "scores": scores[keep], "labels": classes[keep]}
+        if probs is not None:
+            out["masks"] = paste_masks(probs[keep], out["boxes"], (h, w))
+        return out
+
+
+class _Rcnn(_Select):
+    """Inference shared by both PyTorch backends; `cv` and the float16 parts differ."""
+
+    cv: Convs
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network (FrozenBatchNorm folded), convert it to the compute dtype on the device."""
+        super().__init__(ctx)
+        p: Params = ctx.params
+        net = Rcnn(p)
+        net.load_state_dict(fold_frozen_bn(ctx.state_dict(key="model", strip="", extra=NUMPY_ARRAYS)))
+        net.eval()
+        dt = ctx.torch_dtype
+        mf = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
+        self.net = net.to(ctx.device, dt).to(memory_format=mf)
+        self.predictor = net.roi_heads.box_predictor.float()  # float32 (the fast path)
+        self.mf, self.dt = mf, dt
+
+    def _input(self, x: torch.Tensor) -> torch.Tensor:
+        return x.to(self.dt).contiguous(memory_format=self.mf)
+
+    def _rpn_maps(self, feats: list[torch.Tensor]) -> list[tuple[torch.Tensor, torch.Tensor]]:
+        """The RPN head's objectness logits and anchor deltas (float32) of each level."""
+        head = self.net.proposal_generator.rpn_head
+        maps = []
+        for f in feats:
+            t = self.cv.conv_relu(head.conv, f)
+            maps.append(
+                (
+                    Convs.conv(self.cv, head.objectness_logits, t).float(),
+                    Convs.conv(self.cv, head.anchor_deltas, t).float(),
+                )
+            )
+        return maps
+
+    def _dense(self, x: torch.Tensor) -> tuple[list[torch.Tensor], list[tuple[torch.Tensor, torch.Tensor]]]:
+        """ResNet + FPN levels and the RPN head's maps of the network input (the part with a fixed shape)."""
+        feats = features(self.net, x, self.cv)
+        return feats, self._rpn_maps(feats)
+
+    def _proposals(
+        self,
+        feats: list[torch.Tensor],
+        size: tuple[int, int],
+        maps: list[tuple[torch.Tensor, torch.Tensor]] | None = None,
+    ) -> torch.Tensor:
+        """detectron2 `RPN.forward` + `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes."""
+        flat = []
+        for obj_map, dl_map in self._rpn_maps(feats) if maps is None else maps:
+            h, w = obj_map.shape[-2:]
+            obj = obj_map.permute(0, 2, 3, 1).flatten(1)[0]
+            dl = dl_map.view(1, -1, 4, h, w).permute(0, 3, 4, 1, 2).flatten(1, -2)[0]
+            flat.append((obj, dl, (h, w)))
+        return self._top_proposals(flat, size)
+
     def _box_head(self, x: torch.Tensor) -> torch.Tensor:
         bh = self.net.roi_heads.box_head
         x = F.relu_(F.linear(x.flatten(1).to(self.dt), bh.fc1.weight, bh.fc1.bias))
@@ -278,19 +375,7 @@ class _Rcnn(Runner):
         """detectron2 box head + `fast_rcnn_inference_single_image`: boxes, scores, classes (resized image)."""
         p = self.ctx.params
         x = self._box_head(pool(levels, proposals, p.box_pool, self.tv))
-        logits, deltas = self.predictor.cls_score(x), self.predictor.bbox_pred(x)
-        boxes = apply_deltas(deltas, proposals, BOX_WEIGHTS)
-        scores = F.softmax(logits, dim=-1)
-        valid = torch.isfinite(boxes).all(dim=1) & torch.isfinite(scores).all(dim=1)
-        if not bool(valid.all()):
-            boxes, scores = boxes[valid], scores[valid]
-        scores = scores[:, :-1]
-        boxes = clip(boxes.reshape(-1, 4), size).view(-1, boxes.shape[1] // 4, 4)
-        mask = scores > threshold
-        inds = mask.nonzero()
-        boxes, scores = boxes[mask], scores[mask]
-        keep = self.tv.batched_nms(boxes.float(), scores, inds[:, 1], p.box_nms)[: p.max_detections]
-        return boxes[keep], scores[keep], inds[keep, 1]
+        return self._select(self.predictor.cls_score(x), self.predictor.bbox_pred(x), proposals, size, threshold)
 
     def _masks(self, levels: list[torch.Tensor], boxes: torch.Tensor, classes: torch.Tensor) -> torch.Tensor:
         """detectron2 mask head + `mask_rcnn_inference`: `[N, 1, 28, 28]` probabilities of the predicted classes."""
@@ -312,21 +397,12 @@ class _Rcnn(Runner):
         """detectron2 `DefaultPredictor` on one image."""
         h, w = image.shape[-2:]
         x, size = prepare(image, self.ctx.params)
-        feats = features(self.net, self._input(x), self.cv)
+        feats, maps = self._dense(self._input(x))
         # float32 NCHW once for both poolers (torchvision ROIAlign would copy channels-last levels per call)
         levels = [f.to(torch.float32, memory_format=torch.contiguous_format) for f in feats[:4]]
-        boxes, scores, classes = self._detections(levels, self._proposals(feats, size), size, score_threshold)
+        boxes, scores, classes = self._detections(levels, self._proposals(feats, size, maps), size, score_threshold)
         probs = self._masks(levels, boxes, classes) if self.ctx.params.mask else None
-        # detector_postprocess: to the input size, clip, drop empty boxes, paste the masks
-        boxes = boxes.clone()
-        boxes[:, 0::2] *= w / size[1]
-        boxes[:, 1::2] *= h / size[0]
-        boxes = clip(boxes, (h, w))
-        keep = nonempty(boxes)
-        out = {"boxes": boxes[keep], "scores": scores[keep], "labels": classes[keep]}
-        if probs is not None:
-            out["masks"] = paste_masks(probs[keep], out["boxes"], (h, w))
-        return out
+        return self._output(boxes, scores, classes, probs, size, (h, w))
 
 
 class Portable(_Rcnn):
@@ -364,4 +440,38 @@ class Kernels(_Rcnn):
             return super().__call__(image, score_threshold)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(_Select):
+    """Apple MLX (`device="mlx"`): the network, ROIAlign and the heads on MLX (`mlx_net`), the selection in PyTorch.
+
+    Float16 runs the convolutions, the pooled features and the box head's FCs in half precision; the RPN maps, the
+    box predictor and the mask logits are float32, as are all boxes (CPU).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        p: Params = ctx.params
+
+        def build() -> dict[str, Any]:
+            return mlx_net.prepare(fold_frozen_bn(ctx.state_dict(key="model", strip="", extra=NUMPY_ARRAYS)), p)
+
+        self.net = mlx_net.Net(converted(ctx, mlx_net.LAYOUT, build), p, ctx.dtype)
+
+    def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
+        """detectron2 `DefaultPredictor` on one image."""
+        p: Params = self.ctx.params
+        h, w = image.shape[-2:]
+        x, size = prepare(image, p)
+        levels, maps = self.net.dense(x)
+        proposals = self._top_proposals(maps, size)
+        logits, deltas = self.net.box_head(levels, proposals, box_levels(proposals, len(levels)))
+        boxes, scores, classes = self._select(logits, deltas, proposals, size, score_threshold)
+        probs = self.net.mask_head(levels, boxes, box_levels(boxes, len(levels)), classes) if p.mask else None
+        return self._output(boxes, scores, classes, probs, size, (h, w))
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

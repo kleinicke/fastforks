@@ -4,6 +4,7 @@ import functools
 import http.server
 import struct
 import threading
+import warnings
 import zlib
 
 import numpy as np
@@ -15,6 +16,7 @@ import fastforks
 from fastforks import InputError
 from fastforks._core import image as image_mod
 from fastforks._core.image import to_rgb_batch
+from fastforks._core.upload import device_tensor
 from fastforks.stereo import pipeline
 
 CPU = torch.device("cpu")
@@ -278,3 +280,79 @@ def test_read_images_decodes_ahead_in_order(tmp_path) -> None:
     with pytest.raises(InputError, match="missing"):
         next(reader)
     assert fastforks.read_images is image_mod.read_images
+
+
+def test_deferred_ranges_checks_once_on_leaving():
+    """Inside `deferred_ranges` float range checks wait until the block ends; an error inside checks nothing."""
+    cpu = torch.device("cpu")
+    good, bad = torch.full((3, 8, 8), 0.5), torch.full((3, 8, 8), 1.5)
+    seen = []
+
+    def convert_all() -> None:
+        with image_mod.deferred_ranges():
+            to_rgb_batch(good, cpu)
+            to_rgb_batch(bad, cpu)
+            seen.append("after bad")  # not raised yet
+
+    def fail_inside() -> None:
+        with image_mod.deferred_ranges():
+            to_rgb_batch(bad, cpu)
+            msg = "inner"
+            raise RuntimeError(msg)
+
+    with pytest.raises(InputError, match="float images must be finite and in"):
+        convert_all()
+    assert seen == ["after bad"]
+    with pytest.raises(RuntimeError, match="inner"):  # the block's own error, not the range check
+        fail_inside()
+    with image_mod.deferred_ranges():
+        to_rgb_batch(good, cpu)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("value", [1.5, -0.25, float("nan"), float("inf")])
+def test_late_ranges_check_cuda_images_without_a_host_sync(value: float) -> None:
+    """Inside `late_ranges` (every model call) a CUDA image's range is read at the end, with no host sync before it."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    cuda = torch.device("cuda")
+    good, bad = torch.full((3, 8, 8), 0.5, device=cuda), torch.full((3, 8, 8), 0.5, device=cuda)
+    bad[0, 1, 2] = value
+    seen = []
+
+    def queue_all() -> None:
+        with image_mod.late_ranges():
+            with warnings.catch_warnings():  # "a prototype feature": it does see the syncs of these ops
+                warnings.simplefilter("ignore", UserWarning)
+                torch.cuda.set_sync_debug_mode("error")  # a host sync inside the block raises
+            try:
+                to_rgb_batch(good, cuda)
+                image_mod.to_rgb_pair(good, bad, cuda)
+            finally:
+                torch.cuda.set_sync_debug_mode("default")
+            seen.append("queued")
+
+    with pytest.raises(InputError, match=r"finite and in \[0, 1\], got \[") as e:
+        queue_all()
+    assert seen == ["queued"]
+    assert f"{value:.9g}" in str(e.value)
+    with image_mod.late_ranges():  # in range: nothing raised
+        to_rgb_batch(good, cuda)
+
+    def fail_inside() -> None:
+        with image_mod.late_ranges():
+            to_rgb_batch(bad, cuda)
+            msg = "inner"
+            raise ValueError(msg)
+
+    with pytest.raises(InputError) as e:  # the likelier cause is reported, chained to the call's own error
+        fail_inside()
+    assert isinstance(e.value.__cause__, ValueError)
+
+
+def test_device_tensor_matches_torch_tensor() -> None:
+    for data, dtype in (([1.5, 2.0], None), ([[1, 2]], torch.long), ([0.25], torch.float64)):
+        want = torch.tensor(data, dtype=dtype)
+        got = device_tensor(data, device="cpu", dtype=dtype)
+        assert got.dtype == want.dtype
+        assert torch.equal(got, want)

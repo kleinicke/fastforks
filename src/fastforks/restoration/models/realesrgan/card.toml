@@ -3,6 +3,7 @@ name = "Real-ESRGAN"
 summary = "Real-ESRGAN (Wang et al., ICCVW 2021): practical blind super-resolution. ESRGAN's RRDBNet (23 residual-in-residual dense blocks of 3 x 3 convs, then two nearest x2 upsamplings with convs) trained with a GAN on synthetic real-world degradations (blur, noise, JPEG, two-stage). `realesrgan-x4plus` is the general x4 model, `realesrgan-x2plus` the x2 one (the input pixel-unshuffled first), `realesrgan-x4plus-anime-6b` a 6-block x4 model for anime images."
 tier = "experimental"
 outputs = ["image"]
+uses = ["cuda_graphs", "mlx_wrap", "up_deconv"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/Real-ESRGAN"
@@ -26,12 +27,18 @@ num_block = 23
 num_feat = 64
 num_grow = 32
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # CUDA kernels, x2: reuse one graph for small repeated shapes
+
 [modes.portable]
 cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
+kernels = ["cudnn_hacc", "sr_ops"]  # fp16-accumulate convolutions, channels-last
 
 [[papers]]
 title = "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"

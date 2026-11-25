@@ -77,7 +77,7 @@ def _names(views: tuple[int, ...], images: bool, given: Sequence[str | os.PathLi
             raise InputError(msg)
         return [f"images/frame_{i + 1:05d}.png" for i in views]
     names = [PurePath(n).as_posix() for n in given]
-    if len(names) != len(views) or any(PurePath(n).is_absolute() for n in names):
+    if len(names) != len(views) or any(PurePath(n).anchor for n in names):  # anchor: Windows `\x` and `C:x` too
         msg = f"image_names must be {len(views)} paths relative to folder (one per view), got {names}"
         raise InputError(msg)
     return names
@@ -90,7 +90,7 @@ def _nerfstudio(folder: Path, names: list[str], k: np.ndarray, c2w: np.ndarray, 
         for i, name in enumerate(names)
     ]  # fmt: skip  # nerfstudio puts pixel centres at +0.5, as COLMAP
     scene = {"camera_model": "PINHOLE", "frames": frames, "ply_file_path": "sparse_pc.ply"}
-    (folder / "transforms.json").write_text(json.dumps(scene, indent=2) + "\n")
+    (folder / "transforms.json").write_text(json.dumps(scene, indent=2) + "\n", encoding="utf-8")
 
 
 def _colmap(  # noqa: PLR0913, PLR0917
@@ -120,7 +120,7 @@ def _num(values: Sequence[float] | np.ndarray) -> str:
 def _write(path: Path, columns: str, lines: list[str], after: str = "") -> None:
     """A COLMAP text file: the header comments, then each line (followed by `after`: an empty 2D-point line)."""
     head = f"# written by fastforks\n#   {columns}\n# Number of entries: {len(lines)}\n"
-    path.write_text(head + "".join(line + after for line in lines))
+    path.write_text(head + "".join(line + after for line in lines), encoding="utf-8")
 
 
 def _quaternion(r: np.ndarray) -> np.ndarray:

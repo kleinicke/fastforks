@@ -29,6 +29,8 @@ import statistics
 import subprocess
 import sys
 import time
+from contextlib import closing
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -37,13 +39,14 @@ import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
 
 ROOT = DATA / "davis2017/DAVIS"
 BOUND_TH = 0.008
 
 
 def sequences(every: int) -> list[str]:
-    names = sorted((ROOT / "ImageSets/2017/val.txt").read_text().split())
+    names = sorted((ROOT / "ImageSets/2017/val.txt").read_text(encoding="utf-8").split())
     return names[::every]
 
 
@@ -72,19 +75,31 @@ def j_score(gt: np.ndarray, pred: np.ndarray) -> float:
     return 1.0 if union == 0 else float(np.logical_and(gt, pred).sum() / union)
 
 
+@cache
+def _disk(radius: int) -> np.ndarray:
+    yy, xx = np.mgrid[-radius : radius + 1, -radius : radius + 1]
+    return (xx**2 + yy**2 <= radius**2).astype(np.uint8)
+
+
+def _dilate_boundary(mask: np.ndarray, disk: np.ndarray) -> np.ndarray:
+    try:
+        import cv2  # noqa: PLC0415
+    except ImportError:
+        from scipy import ndimage  # noqa: PLC0415
+
+        return ndimage.binary_dilation(mask, disk)
+    return cv2.dilate(mask.view(np.uint8), disk, borderType=cv2.BORDER_CONSTANT, borderValue=0).view(bool)
+
+
 def f_score(gt: np.ndarray, pred: np.ndarray) -> float:
     """Boundary F-measure (`davis2017-evaluation` `f_measure`, `bound_th` 0.008)."""
-    from scipy import ndimage  # noqa: PLC0415
-
-    r = int(np.ceil(BOUND_TH * np.linalg.norm(gt.shape)))
-    yy, xx = np.mgrid[-r : r + 1, -r : r + 1]
-    disk = xx**2 + yy**2 <= r**2
+    disk = _disk(int(np.ceil(BOUND_TH * np.linalg.norm(gt.shape))))
     fb, gb = seg2bmap(pred), seg2bmap(gt)
     n_f, n_g = int(fb.sum()), int(gb.sum())
     if n_f == 0 or n_g == 0:
         return 1.0 if n_f == n_g else 0.0
-    precision = (fb & ndimage.binary_dilation(gb, disk)).sum() / n_f
-    recall = (gb & ndimage.binary_dilation(fb, disk)).sum() / n_g
+    precision = (fb & _dilate_boundary(gb, disk)).sum() / n_f
+    recall = (gb & _dilate_boundary(fb, disk)).sum() / n_g
     return 0.0 if precision + recall == 0 else float(2 * precision * recall / (precision + recall))
 
 
@@ -112,7 +127,8 @@ class Ours:
     def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
         import fastforks.promptable_segmentation as seg  # noqa: PLC0415
 
-        self.model = seg.load(ref, mode=tier, device="cuda")
+        mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+        self.model = seg.load(ref, mode=mode, dtype=dtype, device="cuda")
         self.backend = self.model.backend
 
     def __call__(self, jpgs: list[Path], frames: list[np.ndarray], first: np.ndarray, ids: list[int]) -> np.ndarray:
@@ -172,7 +188,7 @@ def _f(out: Path, ref: str, tier: str) -> Path:
 
 
 def _records(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
 
 
 def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
@@ -210,33 +226,33 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
         ).stdout.strip(),
         "command": " ".join(["python", *sys.argv]),
     }
-    warm = load_sequence(todo[0])  # untimed warm-up: the first sequence
-    model(warm[0], warm[1], warm[2][0], [int(i) for i in np.unique(warm[2][0]) if i])
-    for name in todo:
-        if time.perf_counter() > deadline:
-            return False
-        jpgs, frames, gt = load_sequence(name)
-        ids = [int(i) for i in np.unique(gt[0]) if i]
-        torch.cuda.synchronize()
-        t = time.perf_counter()
-        masks = model(jpgs, frames, gt[0], ids)
-        torch.cuda.synchronize()
-        ms = (time.perf_counter() - t) * 1000 / len(frames)
-        js, fs = scores(gt, np.stack([label_map(m, ids) for m in masks]), ids)
-        rec = common | {
-            "seq": name,
-            "frames": len(frames),
-            "objects": len(ids),
-            "j": js,
-            "f": fs,
-            "ms_frame": round(ms, 3),
-            "alloc_mb": torch.cuda.max_memory_allocated() >> 20,
-            "res_mb": torch.cuda.max_memory_reserved() >> 20,
-            "date": time.strftime("%Y-%m-%d %H:%M"),
-        }
-        with path.open("a") as f:
-            f.write(json.dumps(rec) + "\n")
-        print(json.dumps({k: rec[k] for k in ("model", "tier", "seq", "frames", "ms_frame")}), flush=True)
+    with closing(prefetch(lambda name: (name, load_sequence(name)), todo)) as inputs:
+        for index, (name, (jpgs, frames, gt)) in enumerate(inputs):
+            ids = [int(i) for i in np.unique(gt[0]) if i]
+            if index == 0:
+                model(jpgs, frames, gt[0], ids)  # untimed warm-up on the first decoded sequence
+            if time.perf_counter() > deadline:
+                return False
+            torch.cuda.synchronize()
+            t = time.perf_counter()
+            masks = model(jpgs, frames, gt[0], ids)
+            torch.cuda.synchronize()
+            ms = (time.perf_counter() - t) * 1000 / len(frames)
+            js, fs = scores(gt, np.stack([label_map(m, ids) for m in masks]), ids)
+            rec = common | {
+                "seq": name,
+                "frames": len(frames),
+                "objects": len(ids),
+                "j": js,
+                "f": fs,
+                "ms_frame": round(ms, 3),
+                "alloc_mb": torch.cuda.max_memory_allocated() >> 20,
+                "res_mb": torch.cuda.max_memory_reserved() >> 20,
+                "date": time.strftime("%Y-%m-%d %H:%M"),
+            }
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+            print(json.dumps({k: rec[k] for k in ("model", "tier", "seq", "frames", "ms_frame")}), flush=True)
     return True
 
 
@@ -247,7 +263,8 @@ def _summarize(a: argparse.Namespace) -> None:
             continue
         last = recs[-1]
         every = last["every"]
-        if {r["seq"] for r in recs} != set(sequences(every)):
+        expected = sequences(every)
+        if len(recs) != len(expected) or {r["seq"] for r in recs} != set(expected):
             print(f"# incomplete: {path.name}")
             continue
         j = [x for r in recs for x in r["j"]]

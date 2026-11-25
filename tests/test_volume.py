@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks import volume
-from fastforks._core.errors import InputError, WeightsError
+from fastforks._core.errors import InputError, OptionsError, WeightsError
 from fastforks.volume import _nnunet, _resample
 from fastforks.volume._api import _volume
 from fastforks.volume.models.nninteractive import model as nni
@@ -22,6 +22,47 @@ if TYPE_CHECKING:
 
 _PATCH = (16, 16, 16)
 _DNA = "dynamic_network_architectures.architectures.unet"
+
+
+def test_encoder_example_inputs_are_3d_volumes() -> None:
+    """The export input has the encoder's channels and all three spatial dimensions."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    encoder = SimpleNamespace(
+        channels=2,
+        device=torch.device("cpu"),
+        _device=torch.device("cpu"),
+        max_size=None,
+        _runner=SimpleNamespace(multiple=8),
+    )
+    (x,) = volume.VolumeEncoder.example_inputs(encoder, 12, 20, batch=3)
+    assert x.shape == (3, 2, 16, 24, 24)
+    assert x.dtype == torch.float32
+    assert torch.count_nonzero(x[:, :, 12:]) == 0
+    assert torch.count_nonzero(x[:, :, :, 20:]) == 0
+    assert torch.count_nonzero(x[:, :, :, :, 20:]) == 0
+    encoder.max_size = 32
+    encoder._runner.arch = "vit"
+    (x,) = volume.VolumeEncoder.example_inputs(encoder, 12, 20)
+    assert x.shape == (1, 2, 32, 32, 32)
+    encoder.variant = SimpleNamespace(ref="test-encoder")
+    with pytest.raises(InputError, match="up to 32"):
+        volume.VolumeEncoder.example_inputs(encoder, 33, 20)
+
+
+def test_interactive_example_is_a_prepared_patch() -> None:
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    model = SimpleNamespace(
+        device=torch.device("cpu"), _device=torch.device("cpu"), _runner=SimpleNamespace(_dtype=torch.float16)
+    )
+    (x,) = volume.VolumeInteractive.example_inputs(model, 192, 192)
+    assert x.shape == (1, 8, 192, 192, 192)
+    assert x.dtype == torch.float16
+    assert x[0, 4, 96, 96, 96] == 1
+    assert x[0, 1].count_nonzero() == 0
+    with pytest.raises(InputError, match="192x192x192"):
+        volume.VolumeInteractive.example_inputs(model, 128, 128)
 
 
 def _plans(scheme: str = "CTNormalization") -> dict:
@@ -69,15 +110,43 @@ def folder(tmp_path_factory: pytest.TempPathFactory) -> Path:
         (d / f"fold_{k}").mkdir(parents=True)
         ckpt = {"network_weights": _net(k).state_dict(), "inference_allowed_mirroring_axes": (0, 1, 2)}
         torch.save(ckpt, d / f"fold_{k}" / "checkpoint_final.pth")
-    (d / "plans.json").write_text(json.dumps(_plans()))
-    (d / "dataset.json").write_text(json.dumps(_DATASET))
+    (d / "plans.json").write_text(json.dumps(_plans()), encoding="utf-8")
+    (d / "dataset.json").write_text(json.dumps(_DATASET), encoding="utf-8")
     return d
+
+
+def test_local_folder_compile_uses_patch_network(folder: Path) -> None:
+    """The normal volume API dispatches each fold through a compiled network with unchanged labels."""
+    from torch._dynamo.testing import CompileCounter  # noqa: PLC0415 - only compile tests need Dynamo
+
+    model = volume.load(folder, mode="portable", device="cpu", mirror=False)
+    ct = torch.arange(20 * 16 * 16, dtype=torch.float32).view(20, 16, 16)
+    spacing = (2.0, 1.5, 1.5)
+    expected = model(ct, spacing=spacing).labels
+    counter = CompileCounter()
+    model.compile(backend=counter, fullgraph=True)
+    assert torch.equal(model(ct, spacing=spacing).labels, expected)
+    assert counter.frame_count >= 1
 
 
 def test_sliding_steps() -> None:
     """nnU-Net's `compute_steps_for_sliding_window`: evenly spread starts, the last window flush with the end."""
     assert _nnunet.sliding_steps((200, 128, 129), (128, 128, 128), 0.5) == [[0, 36, 72], [0], [0, 1]]
     assert _nnunet.sliding_steps((300,), (128,), 0.8) == [[0, 86, 172]]
+
+
+@pytest.mark.parametrize("depth", [2, 3, 5])
+def test_conv_slabs_match_one_convolution(depth: int) -> None:
+    """`_conv_slabs_`: the same-width convolution written over its input, slab by slab (any last-slab size)."""
+    torch.manual_seed(0)
+    conv = torch.nn.Conv3d(4, 4, 3, padding=1)
+    y = torch.randn(2, 4, 11, 6, 7)
+    expected = F.conv3d(y, conv.weight, conv.bias, 1, 1)
+    with torch.no_grad():
+        out = _nnunet._conv_slabs_(conv, y, conv.bias, depth)
+    assert out is y
+    torch.testing.assert_close(out, expected, rtol=1e-5, atol=1e-5)
+    assert _nnunet.slab_depth(conv, y) == 0  # CPU: one call
 
 
 def test_norm_act_matches_instance_norm() -> None:
@@ -122,6 +191,23 @@ def test_zoom_matches_scipy() -> None:
         assert (got != want).mean() < 0.01
         lab = rng.integers(0, 5, img.shape).astype(np.uint8)
         assert np.array_equal(ts.zoom_nearest(torch.from_numpy(lab), shape).numpy(), ndimage.zoom(lab, zoom, order=0))
+
+
+def test_nnunet_stream_requires_cuda(folder: Path) -> None:
+    with pytest.raises(OptionsError, match="stream=True requires CUDA"):
+        volume.load(folder, mode="portable", device="cpu", stream=True)
+
+
+@pytest.mark.gpu
+def test_nnunet_streamed_folder_keeps_folds_on_host(folder: Path) -> None:
+    resident = volume.load(folder, mode="portable", device="cuda", mirror=False)
+    streamed = volume.load(folder, mode="portable", device="cuda", mirror=False, stream=True)
+    assert all(next(net.parameters()).device.type == "cpu" for net in streamed.networks())
+    ct = np.random.default_rng(2).normal(0, 400, (18, 18, 18)).astype(np.float32)
+    expected = resident(ct, spacing=(2.0, 1.5, 1.5)).labels
+    for _ in range(2):
+        assert torch.equal(streamed(ct, spacing=(2.0, 1.5, 1.5)).labels, expected)
+    assert all(next(net.parameters()).device.type == "cpu" for net in streamed.networks())
 
 
 def test_load_nnunet_folder_labels(folder: Path) -> None:
@@ -332,7 +418,7 @@ def test_read_dicom_matches_nifti_convention(tmp_path: Path) -> None:
     hu = rng.integers(-1000, 1000, (4, 5, 6)).astype(np.int16)  # [slice, row, col] in HU
     series = tmp_path / "series"
     series.mkdir()
-    (series / "README.txt").write_text("not dicom")
+    (series / "README.txt").write_text("not dicom", encoding="utf-8")
     order = [2, 0, 3, 1]  # file name order differs from position order
     for k in range(4):
         meta = FileMetaDataset()
@@ -434,3 +520,22 @@ def _write_nifti(tmp_path: Path, ct: np.ndarray) -> Path:
 
     nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), np.eye(4)), tmp_path / "w.nii.gz")
     return tmp_path / "w.nii.gz"
+
+
+def test_session_add_point_keyword_and_its_old_name(monkeypatch) -> None:
+    from fastforks.volume._api import VolumeSession  # noqa: PLC0415 - next to its test
+
+    s = object.__new__(VolumeSession)
+    s.shape = (4, 5, 6)
+    calls = []
+    monkeypatch.setattr(s, "_run", lambda *a: calls.append(a), raising=False)
+    s.add_point((1, 2, 3))
+    s.add_point(point=(1, 2, 3), positive=False)
+    with pytest.warns(FutureWarning, match=r"add_point\(zyx=\) is renamed to add_point\(point=\)"):
+        s.add_point(zyx=(1, 2, 3))
+    p = (1.0, 2.0, 3.0)
+    assert calls == [("point", p, True), ("point", p, False), ("point", p, True)]
+    with pytest.raises(InputError, match="not also its old name"):
+        s.add_point((1, 2, 3), zyx=(1, 2, 3))
+    with pytest.raises(InputError, match="needs point="):
+        s.add_point()

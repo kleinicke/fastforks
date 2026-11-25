@@ -8,7 +8,7 @@ Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.3, 9.6x | 950, 0.33x |
 | [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 15.0, 5.7x | 848, 0.35x |
 | [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.9, 5.7x | 868, 0.35x |
-| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 59.7, 5.2x | 3238, 0.42x |
+| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 59.5, 5.2x | 3198, 0.41x |
 | [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.5, 6.0x | 436, 0.46x |
 | [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.1, 4.5x | 1034, 0.44x |
 | [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.8, 5.6x | 396, 0.41x |
@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67, 7.7x | 208, 0.5x |
 | [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
 | [`depth-pro`](#depth_pro) | no | 0.0425 | 277, 2.1x | 3198, 0.74x |
-| [`depthfm-v1`](#depthfm) | yes | – | 3570 | 9314 |
+| [`depthfm-v1`](#depthfm) | yes | – | 3555 | 5942 |
 | [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8, 5.5x | 396, 0.41x |
 | [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8, 4.4x | 1034, 0.44x |
 | [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.63, 7.6x | 208, 0.5x |
@@ -40,23 +40,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3886 | 1780 |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 155, 2.8x | 1588, 0.51x |
+| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 146, 3.0x | 1486, 0.48x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
 | [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
-| [`omni-dc`](#omni_dc) | no | – | 510, 1.7x | 6030, 0.9x |
+| [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 69.3, 6.3x (756x1008) | 1348, 0.35x |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 11.4, 6.8x (756x1008) | 384, 0.35x |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1128 |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 322 |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
-| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 200, 53.9x (1080x1920) | 2226, 0.19x |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 200, 58.2x (1080x1920) | 2226, 0.19x |
+| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.8, 2.1x | 1066, 0.3x |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -80,7 +80,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/zhiyuandaily/Any2Full/blob/main/LICENSE and the Hugging Face model card zhiyuandaily/Any2Full (license: apache-2.0)
 - Training data: Training data and code not released yet (arXiv 2603.05711); the ViT and head start from Depth Anything V2
-- Options: `short_side` = 518 (>= 14)
+- Options: `short_side` = 518 (>= 14), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `any2full-s`, `any2full-b`, `any2full-l`
 - Outputs: depth; kind: `metric`
@@ -99,14 +99,18 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
-| `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  | 0.0038 / 1.0000 | 0.0038 / 1.0000 | 0.0038 / 1.0000 |  |
+| `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  | 0.0079 / 0.9960 | 0.0079 / 0.9960 | 0.0079 / 0.9960 |  |
+| `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
+| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  | 0.0069 / 0.9966 | 0.0069 / 0.9966 | 0.0069 / 0.9966 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -139,7 +143,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 | `da3metric-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.3<br>15.0<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>811 / 868<br>802 / 848<br>792 / 828<br>1465 / 1502 |
 | `da3-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>30.0<br>17.3<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>988 / 1088<br>891 / 950<br>841 / 868<br>1562 / 1622 |
 | `da3-giant-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>71.5<br>45.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2634 / 2728<br>2535 / 2590<br>2487 / 2528<br>4795 / 4842 |
-| `da3nested-giant-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>94.9<br>59.7<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3271 / 3374<br>3179 / 3238<br>3124 / 3194<br>6152 / 6226 |
+| `da3nested-giant-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>92.5<br>59.5<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3118 / 3194<br>3120 / 3198<br>3124 / 3194<br>6152 / 6226 |
 
 <details><summary>Details</summary>
 
@@ -152,7 +156,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Licence evidence: https://github.com/ByteDance-Seed/Depth-Anything-3/blob/main/README.md (Model Cards table) and the Hugging Face model cards (DA3-LARGE-1.1's card says Apache 2.0, the repository table CC BY-NC 4.0; the table is recorded)
 - Training data: Public academic datasets only (model cards); teacher-student training on synthetic and real multi-view data per the paper
 - Licence note: The Mono and Metric weights are Apache-2.0 but their training data terms are unchecked (a note only); the other variants' weights are CC-BY-NC-4.0 (`no`).
-- Options: `long_side` = 504 (>= 14; also `process_res`)
+- Options: `stream` = False (speed only), `long_side` = 504 (>= 14; also `process_res`)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `da3mono-large`, `da3metric-large`, `da3-large-1.1`, `da3-giant-1.1`, `da3nested-giant-large-1.1`
 - Outputs: depth, confidence, intrinsics, mask, sky (in `extras`); kind: `metric`
@@ -169,6 +173,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - `da3metric-large` original 994x1482: original default (api.py): torch.autocast(bfloat16)
 - `da3-large-1.1` original (fp32) 994x1482: float32 (the authors' autocast off)
 - `da3-large-1.1` original 994x1482: original default (api.py): torch.autocast(bfloat16)
+- `da3nested-giant-large-1.1` portable 994x1482, kernels 994x1482: FP16 native profile with shorter DPT workspace lifetimes. Synthetic, three iBims scenes, four changing shapes and an odd two-image batch match the previous outputs bitwise.
 - `da3mono-large` load / first call: original 2.96 s / 0.282 s, portable 2.4 s / 0.209 s (504x504), kernels 2.23 s / 0.17 s (504x504)
 - `da3metric-large` load / first call: original 2.7 s / 0.283 s, portable 4.84 s / 0.243 s (518x770), kernels 2.34 s / 0.215 s (518x770)
 - `da3-large-1.1` load / first call: original 3.46 s / 0.45 s, portable 1.59 s / 0.408 s (518x770), kernels 2.16 s / 0.26 s (518x770)
@@ -178,32 +183,32 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 | 0.0402 / 0.9821 |  |
-| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9873 |  |
-| `da3mono-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0631 / 0.9567 | 0.0629 / 0.9583 | 0.0630 / 0.9568 | 0.0631 / 0.9567 | possibly in the training data |
-| `da3mono-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0254 / 0.9954 | 0.0253 / 0.9954 | 0.0254 / 0.9954 | 0.0254 / 0.9954 | possibly in the training data |
-| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  |
-| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 | 0.0328 / 0.9864 |  |
-| `da3metric-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0716 / 0.9343 | 0.0716 / 0.9343 | 0.0716 / 0.9342 | 0.0717 / 0.9342 | possibly in the training data |
-| `da3metric-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0274 / 0.9949 | 0.0275 / 0.9949 | 0.0274 / 0.9949 | 0.0274 / 0.9949 | possibly in the training data |
-| `da3-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 |  |
-| `da3-large-1.1` | iBims-1, AbsRel / delta1 | 0.0413 / 0.9763 | 0.0413 / 0.9764 | 0.0413 / 0.9763 | 0.0413 / 0.9764 |  |
-| `da3-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0867 / 0.9177 | 0.0869 / 0.9176 | 0.0868 / 0.9177 | 0.0867 / 0.9177 | possibly in the training data |
-| `da3-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0418 / 0.9901 | 0.0419 / 0.9899 | 0.0418 / 0.9901 | 0.0419 / 0.9900 | possibly in the training data |
-| `da3-giant-1.1` | NYUv2 test, AbsRel / delta1 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 |  |
-| `da3-giant-1.1` | iBims-1, AbsRel / delta1 | 0.0318 / 0.9819 | 0.0317 / 0.9820 | 0.0318 / 0.9820 | 0.0318 / 0.9819 |  |
-| `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0704 / 0.9420 | possibly in the training data |
-| `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
-| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 | 0.0387 / 0.9809 |  |
-| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 | 0.0320 / 0.9825 |  |
-| `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 | 0.0760 / 0.9362 | possibly in the training data |
-| `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 | 0.0298 / 0.9925 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 | 0.0402 / 0.9821 | 0.0402 / 0.9821 |  |
+| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9873 |  |
+| `da3mono-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0631 / 0.9567 | 0.0629 / 0.9583 | 0.0630 / 0.9568 |  | 0.0631 / 0.9567 | possibly in the training data |
+| `da3mono-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0254 / 0.9954 | 0.0253 / 0.9954 | 0.0254 / 0.9954 |  | 0.0254 / 0.9954 | possibly in the training data |
+| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  |
+| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 | 0.0328 / 0.9864 | 0.0328 / 0.9864 |  |
+| `da3metric-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0716 / 0.9343 | 0.0716 / 0.9343 | 0.0716 / 0.9342 |  | 0.0717 / 0.9342 | possibly in the training data |
+| `da3metric-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0274 / 0.9949 | 0.0275 / 0.9949 | 0.0274 / 0.9949 |  | 0.0274 / 0.9949 | possibly in the training data |
+| `da3-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 |  |
+| `da3-large-1.1` | iBims-1, AbsRel / delta1 | 0.0413 / 0.9763 | 0.0413 / 0.9764 | 0.0413 / 0.9763 | 0.0413 / 0.9763 | 0.0413 / 0.9764 |  |
+| `da3-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0867 / 0.9177 | 0.0869 / 0.9176 | 0.0868 / 0.9177 | 0.0867 / 0.9177 | 0.0867 / 0.9177 | possibly in the training data |
+| `da3-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0418 / 0.9901 | 0.0419 / 0.9899 | 0.0418 / 0.9901 | 0.0418 / 0.9901 | 0.0419 / 0.9900 | possibly in the training data |
+| `da3-giant-1.1` | NYUv2 test, AbsRel / delta1 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 |  |
+| `da3-giant-1.1` | iBims-1, AbsRel / delta1 | 0.0318 / 0.9819 | 0.0317 / 0.9820 | 0.0318 / 0.9820 | 0.0318 / 0.9819 | 0.0318 / 0.9819 |  |
+| `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0705 / 0.9416 | 0.0704 / 0.9420 | possibly in the training data |
+| `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
+| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 | 0.0387 / 0.9809 | 0.0387 / 0.9809 |  |
+| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 | 0.0320 / 0.9825 | 0.0320 / 0.9825 |  |
+| `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 |  | 0.0760 / 0.9362 | possibly in the training data |
+| `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 |  | 0.0298 / 0.9925 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 6d3bab64, 2026-11-05 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
 
 ### Parity
 
@@ -216,6 +221,10 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 | `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- On CUDA, stream=True keeps transformer weights in pinned host RAM. Two GPU buffers per backbone hold successive blocks. The heads and activations stay resident. Export requires stream=False.
 
 </details>
 
@@ -263,7 +272,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 - Licence note: Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).
 - Licence note: The six metric checkpoints are Apache-2.0 on their Hugging Face cards, but the Base / Large ones are fine-tuned from the CC-BY-NC-4.0 relative Base / Large weights, and Virtual KITTI 2 (the outdoor fine-tune) is CC BY-NC-SA 3.0, Hypersim CC BY-SA 3.0.
 - Licence note: Distill-Any-Depth: Apache-2.0 on the Hugging Face card (the authors' transformers ports say MIT, the code is MIT). The paper initialises the Large model from the CC-BY-NC-4.0 Depth Anything V2 Large weights; its teachers include Depth Anything V2 and it trains on unlabeled SA-1B images (research licence).
-- Options: `short_side` = 518 (>= 14; also `input_size`)
+- Options: `short_side` = 518 (>= 14; also `input_size`), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `depth-anything-v2-s`, `depth-anything-v2-b`, `depth-anything-v2-l`, `depth-anything-v2-metric-hypersim-s`, `depth-anything-v2-metric-hypersim-b`, `depth-anything-v2-metric-hypersim-l`, `depth-anything-v2-metric-vkitti-s`, `depth-anything-v2-metric-vkitti-b`, `depth-anything-v2-metric-vkitti-l`, `distill-any-depth-s`, `distill-any-depth-b`, `distill-any-depth-l`
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
@@ -313,60 +322,60 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depth-anything-v2-s` | NYUv2 test, AbsRel / delta1 | 0.0509 / 0.9780 | 0.0509 / 0.9780 | 0.0509 / 0.9780 | 0.0509 / 0.9780 |  |
-| `depth-anything-v2-s` | iBims-1, AbsRel / delta1 | 0.0448 / 0.9744 | 0.0448 / 0.9744 | 0.0448 / 0.9744 | 0.0448 / 0.9744 |  |
-| `depth-anything-v2-s` | ETH3D two-view train left, AbsRel / delta1 | 0.0803 / 0.9256 | 0.0803 / 0.9256 | 0.0803 / 0.9256 | 0.0803 / 0.9256 | possibly in the training data |
-| `depth-anything-v2-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0346 / 0.9947 | 0.0346 / 0.9947 | 0.0346 / 0.9947 | 0.0346 / 0.9947 | possibly in the training data |
-| `depth-anything-v2-b` | NYUv2 test, AbsRel / delta1 | 0.0462 / 0.9806 | 0.0462 / 0.9806 | 0.0462 / 0.9806 | 0.0462 / 0.9806 |  |
-| `depth-anything-v2-b` | iBims-1, AbsRel / delta1 | 0.0378 / 0.9834 | 0.0378 / 0.9834 | 0.0378 / 0.9834 | 0.0378 / 0.9834 |  |
-| `depth-anything-v2-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0696 / 0.9369 | 0.0698 / 0.9361 | 0.0696 / 0.9369 | 0.0696 / 0.9372 | possibly in the training data |
-| `depth-anything-v2-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0318 / 0.9958 | 0.0319 / 0.9957 | 0.0318 / 0.9958 | 0.0318 / 0.9958 | possibly in the training data |
-| `depth-anything-v2-l` | NYUv2 test, AbsRel / delta1 | 0.0439 / 0.9814 | 0.0439 / 0.9814 | 0.0439 / 0.9814 | 0.0439 / 0.9814 |  |
-| `depth-anything-v2-l` | iBims-1, AbsRel / delta1 | 0.0347 / 0.9851 | 0.0347 / 0.9851 | 0.0347 / 0.9851 | 0.0347 / 0.9851 |  |
-| `depth-anything-v2-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0627 / 0.9513 | 0.0627 / 0.9513 | 0.0627 / 0.9512 | 0.0627 / 0.9513 | possibly in the training data |
-| `depth-anything-v2-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0296 / 0.9961 | 0.0296 / 0.9961 | 0.0296 / 0.9961 | 0.0296 / 0.9961 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-s` | NYUv2 test, AbsRel / delta1 | 0.0643 / 0.9638 | 0.0643 / 0.9639 | 0.0643 / 0.9639 | 0.0643 / 0.9639 |  |
-| `depth-anything-v2-metric-hypersim-s` | iBims-1, AbsRel / delta1 | 0.0559 / 0.9700 | 0.0559 / 0.9701 | 0.0559 / 0.9700 | 0.0559 / 0.9700 |  |
-| `depth-anything-v2-metric-hypersim-s` | ETH3D two-view train left, AbsRel / delta1 | 0.1203 / 0.8637 | 0.1203 / 0.8637 | 0.1204 / 0.8636 | 0.1203 / 0.8637 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0481 / 0.9861 | 0.0481 / 0.9861 | 0.0481 / 0.9861 | 0.0482 / 0.9860 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-b` | NYUv2 test, AbsRel / delta1 | 0.0549 / 0.9734 | 0.0549 / 0.9734 | 0.0549 / 0.9734 | 0.0549 / 0.9734 |  |
-| `depth-anything-v2-metric-hypersim-b` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9792 | 0.0476 / 0.9792 | 0.0476 / 0.9792 | 0.0476 / 0.9792 |  |
-| `depth-anything-v2-metric-hypersim-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0905 / 0.9235 | 0.0906 / 0.9238 | 0.0905 / 0.9235 | 0.0905 / 0.9235 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0397 / 0.9938 | 0.0397 / 0.9938 | 0.0397 / 0.9938 | 0.0396 / 0.9939 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-l` | NYUv2 test, AbsRel / delta1 | 0.0491 / 0.9771 | 0.0490 / 0.9771 | 0.0491 / 0.9771 | 0.0491 / 0.9771 |  |
-| `depth-anything-v2-metric-hypersim-l` | iBims-1, AbsRel / delta1 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 |  |
-| `depth-anything-v2-metric-hypersim-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0704 / 0.9586 | 0.0705 / 0.9586 | 0.0704 / 0.9585 | 0.0705 / 0.9586 | possibly in the training data |
-| `depth-anything-v2-metric-hypersim-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0325 / 0.9954 | 0.0325 / 0.9954 | 0.0324 / 0.9954 | 0.0325 / 0.9954 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-s` | NYUv2 test, AbsRel / delta1 | 0.1225 / 0.8529 | 0.1225 / 0.8530 | 0.1225 / 0.8529 | 0.1225 / 0.8530 |  |
-| `depth-anything-v2-metric-vkitti-s` | iBims-1, AbsRel / delta1 | 0.1145 / 0.8774 | 0.1145 / 0.8775 | 0.1145 / 0.8774 | 0.1145 / 0.8773 |  |
-| `depth-anything-v2-metric-vkitti-s` | ETH3D two-view train left, AbsRel / delta1 | 0.1370 / 0.8210 | 0.1369 / 0.8214 | 0.1370 / 0.8210 | 0.1369 / 0.8210 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0730 / 0.9566 | 0.0729 / 0.9566 | 0.0730 / 0.9566 | 0.0730 / 0.9565 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-b` | NYUv2 test, AbsRel / delta1 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 |  |
-| `depth-anything-v2-metric-vkitti-b` | iBims-1, AbsRel / delta1 | 0.0998 / 0.9086 | 0.0998 / 0.9085 | 0.0998 / 0.9085 | 0.0998 / 0.9085 |  |
-| `depth-anything-v2-metric-vkitti-b` | ETH3D two-view train left, AbsRel / delta1 | 0.1352 / 0.8311 | 0.1353 / 0.8310 | 0.1353 / 0.8311 | 0.1353 / 0.8311 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0651 / 0.9781 | 0.0651 / 0.9780 | 0.0651 / 0.9780 | 0.0651 / 0.9780 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-l` | NYUv2 test, AbsRel / delta1 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 |  |
-| `depth-anything-v2-metric-vkitti-l` | iBims-1, AbsRel / delta1 | 0.0783 / 0.9399 | 0.0783 / 0.9399 | 0.0784 / 0.9399 | 0.0783 / 0.9399 |  |
-| `depth-anything-v2-metric-vkitti-l` | ETH3D two-view train left, AbsRel / delta1 | 0.1081 / 0.8993 | 0.1081 / 0.8992 | 0.1081 / 0.8992 | 0.1082 / 0.8991 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0551 / 0.9836 | 0.0551 / 0.9836 | 0.0551 / 0.9837 | 0.0551 / 0.9837 | possibly in the training data |
-| `distill-any-depth-s` | NYUv2 test, AbsRel / delta1 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 |  |
-| `distill-any-depth-s` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 |  |
-| `distill-any-depth-s` | ETH3D two-view train left, AbsRel / delta1 | 0.0854 / 0.9094 | 0.0855 / 0.9092 | 0.0855 / 0.9093 | 0.0855 / 0.9093 | possibly in the training data |
-| `distill-any-depth-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0335 / 0.9947 | 0.0335 / 0.9947 | 0.0336 / 0.9947 | 0.0335 / 0.9947 | possibly in the training data |
-| `distill-any-depth-b` | NYUv2 test, AbsRel / delta1 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 |  |
-| `distill-any-depth-b` | iBims-1, AbsRel / delta1 | 0.0392 / 0.9817 | 0.0392 / 0.9816 | 0.0392 / 0.9817 | 0.0392 / 0.9817 |  |
-| `distill-any-depth-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0695 / 0.9386 | 0.0696 / 0.9382 | 0.0695 / 0.9386 | 0.0695 / 0.9386 | possibly in the training data |
-| `distill-any-depth-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0312 / 0.9963 | 0.0312 / 0.9963 | 0.0312 / 0.9963 | 0.0312 / 0.9963 | possibly in the training data |
-| `distill-any-depth-l` | NYUv2 test, AbsRel / delta1 | 0.0444 / 0.9818 | 0.0444 / 0.9817 | 0.0444 / 0.9817 | 0.0444 / 0.9817 |  |
-| `distill-any-depth-l` | iBims-1, AbsRel / delta1 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 |  |
-| `distill-any-depth-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0640 / 0.9537 | 0.0640 / 0.9537 | 0.0640 / 0.9537 | 0.0639 / 0.9537 | possibly in the training data |
-| `distill-any-depth-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `depth-anything-v2-s` | NYUv2 test, AbsRel / delta1 | 0.0509 / 0.9780 | 0.0509 / 0.9780 | 0.0509 / 0.9780 | 0.0509 / 0.9780 | 0.0509 / 0.9780 |  |
+| `depth-anything-v2-s` | iBims-1, AbsRel / delta1 | 0.0448 / 0.9744 | 0.0448 / 0.9744 | 0.0448 / 0.9744 | 0.0448 / 0.9744 | 0.0448 / 0.9744 |  |
+| `depth-anything-v2-s` | ETH3D two-view train left, AbsRel / delta1 | 0.0803 / 0.9256 | 0.0803 / 0.9256 | 0.0803 / 0.9256 |  | 0.0803 / 0.9256 | possibly in the training data |
+| `depth-anything-v2-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0346 / 0.9947 | 0.0346 / 0.9947 | 0.0346 / 0.9947 |  | 0.0346 / 0.9947 | possibly in the training data |
+| `depth-anything-v2-b` | NYUv2 test, AbsRel / delta1 | 0.0462 / 0.9806 | 0.0462 / 0.9806 | 0.0462 / 0.9806 | 0.0462 / 0.9806 | 0.0462 / 0.9806 |  |
+| `depth-anything-v2-b` | iBims-1, AbsRel / delta1 | 0.0378 / 0.9834 | 0.0378 / 0.9834 | 0.0378 / 0.9834 | 0.0378 / 0.9834 | 0.0378 / 0.9834 |  |
+| `depth-anything-v2-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0696 / 0.9369 | 0.0698 / 0.9361 | 0.0696 / 0.9369 |  | 0.0696 / 0.9372 | possibly in the training data |
+| `depth-anything-v2-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0318 / 0.9958 | 0.0319 / 0.9957 | 0.0318 / 0.9958 |  | 0.0318 / 0.9958 | possibly in the training data |
+| `depth-anything-v2-l` | NYUv2 test, AbsRel / delta1 | 0.0439 / 0.9814 | 0.0439 / 0.9814 | 0.0439 / 0.9814 | 0.0439 / 0.9814 | 0.0439 / 0.9814 |  |
+| `depth-anything-v2-l` | iBims-1, AbsRel / delta1 | 0.0347 / 0.9851 | 0.0347 / 0.9851 | 0.0347 / 0.9851 | 0.0347 / 0.9851 | 0.0347 / 0.9851 |  |
+| `depth-anything-v2-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0627 / 0.9513 | 0.0627 / 0.9513 | 0.0627 / 0.9512 |  | 0.0627 / 0.9513 | possibly in the training data |
+| `depth-anything-v2-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0296 / 0.9961 | 0.0296 / 0.9961 | 0.0296 / 0.9961 |  | 0.0296 / 0.9961 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-s` | NYUv2 test, AbsRel / delta1 | 0.0643 / 0.9638 | 0.0643 / 0.9639 | 0.0643 / 0.9639 | 0.0643 / 0.9638 | 0.0643 / 0.9639 |  |
+| `depth-anything-v2-metric-hypersim-s` | iBims-1, AbsRel / delta1 | 0.0559 / 0.9700 | 0.0559 / 0.9701 | 0.0559 / 0.9700 | 0.0559 / 0.9700 | 0.0559 / 0.9700 |  |
+| `depth-anything-v2-metric-hypersim-s` | ETH3D two-view train left, AbsRel / delta1 | 0.1203 / 0.8637 | 0.1203 / 0.8637 | 0.1204 / 0.8636 |  | 0.1203 / 0.8637 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0481 / 0.9861 | 0.0481 / 0.9861 | 0.0481 / 0.9861 |  | 0.0482 / 0.9860 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-b` | NYUv2 test, AbsRel / delta1 | 0.0549 / 0.9734 | 0.0549 / 0.9734 | 0.0549 / 0.9734 | 0.0549 / 0.9734 | 0.0549 / 0.9734 |  |
+| `depth-anything-v2-metric-hypersim-b` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9792 | 0.0476 / 0.9792 | 0.0476 / 0.9792 | 0.0476 / 0.9792 | 0.0476 / 0.9792 |  |
+| `depth-anything-v2-metric-hypersim-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0905 / 0.9235 | 0.0906 / 0.9238 | 0.0905 / 0.9235 |  | 0.0905 / 0.9235 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0397 / 0.9938 | 0.0397 / 0.9938 | 0.0397 / 0.9938 |  | 0.0396 / 0.9939 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-l` | NYUv2 test, AbsRel / delta1 | 0.0491 / 0.9771 | 0.0490 / 0.9771 | 0.0491 / 0.9771 | 0.0491 / 0.9771 | 0.0491 / 0.9771 |  |
+| `depth-anything-v2-metric-hypersim-l` | iBims-1, AbsRel / delta1 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 |  |
+| `depth-anything-v2-metric-hypersim-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0704 / 0.9586 | 0.0705 / 0.9586 | 0.0704 / 0.9585 |  | 0.0705 / 0.9586 | possibly in the training data |
+| `depth-anything-v2-metric-hypersim-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0325 / 0.9954 | 0.0325 / 0.9954 | 0.0324 / 0.9954 |  | 0.0325 / 0.9954 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-s` | NYUv2 test, AbsRel / delta1 | 0.1225 / 0.8529 | 0.1225 / 0.8530 | 0.1225 / 0.8529 | 0.1225 / 0.8529 | 0.1225 / 0.8530 |  |
+| `depth-anything-v2-metric-vkitti-s` | iBims-1, AbsRel / delta1 | 0.1145 / 0.8774 | 0.1145 / 0.8775 | 0.1145 / 0.8774 | 0.1145 / 0.8774 | 0.1145 / 0.8773 |  |
+| `depth-anything-v2-metric-vkitti-s` | ETH3D two-view train left, AbsRel / delta1 | 0.1370 / 0.8210 | 0.1369 / 0.8214 | 0.1370 / 0.8210 |  | 0.1369 / 0.8210 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0730 / 0.9566 | 0.0729 / 0.9566 | 0.0730 / 0.9566 |  | 0.0730 / 0.9565 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-b` | NYUv2 test, AbsRel / delta1 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 |  |
+| `depth-anything-v2-metric-vkitti-b` | iBims-1, AbsRel / delta1 | 0.0998 / 0.9086 | 0.0998 / 0.9085 | 0.0998 / 0.9085 | 0.0998 / 0.9086 | 0.0998 / 0.9085 |  |
+| `depth-anything-v2-metric-vkitti-b` | ETH3D two-view train left, AbsRel / delta1 | 0.1352 / 0.8311 | 0.1353 / 0.8310 | 0.1353 / 0.8311 |  | 0.1353 / 0.8311 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0651 / 0.9781 | 0.0651 / 0.9780 | 0.0651 / 0.9780 |  | 0.0651 / 0.9780 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-l` | NYUv2 test, AbsRel / delta1 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 |  |
+| `depth-anything-v2-metric-vkitti-l` | iBims-1, AbsRel / delta1 | 0.0783 / 0.9399 | 0.0783 / 0.9399 | 0.0784 / 0.9399 | 0.0783 / 0.9399 | 0.0783 / 0.9399 |  |
+| `depth-anything-v2-metric-vkitti-l` | ETH3D two-view train left, AbsRel / delta1 | 0.1081 / 0.8993 | 0.1081 / 0.8992 | 0.1081 / 0.8992 |  | 0.1082 / 0.8991 | possibly in the training data |
+| `depth-anything-v2-metric-vkitti-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0551 / 0.9836 | 0.0551 / 0.9836 | 0.0551 / 0.9837 |  | 0.0551 / 0.9837 | possibly in the training data |
+| `distill-any-depth-s` | NYUv2 test, AbsRel / delta1 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 |  |
+| `distill-any-depth-s` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 |  |
+| `distill-any-depth-s` | ETH3D two-view train left, AbsRel / delta1 | 0.0854 / 0.9094 | 0.0855 / 0.9092 | 0.0855 / 0.9093 |  | 0.0855 / 0.9093 | possibly in the training data |
+| `distill-any-depth-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0335 / 0.9947 | 0.0335 / 0.9947 | 0.0336 / 0.9947 |  | 0.0335 / 0.9947 | possibly in the training data |
+| `distill-any-depth-b` | NYUv2 test, AbsRel / delta1 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 |  |
+| `distill-any-depth-b` | iBims-1, AbsRel / delta1 | 0.0392 / 0.9817 | 0.0392 / 0.9816 | 0.0392 / 0.9817 | 0.0392 / 0.9817 | 0.0392 / 0.9817 |  |
+| `distill-any-depth-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0695 / 0.9386 | 0.0696 / 0.9382 | 0.0695 / 0.9386 |  | 0.0695 / 0.9386 | possibly in the training data |
+| `distill-any-depth-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0312 / 0.9963 | 0.0312 / 0.9963 | 0.0312 / 0.9963 |  | 0.0312 / 0.9963 | possibly in the training data |
+| `distill-any-depth-l` | NYUv2 test, AbsRel / delta1 | 0.0444 / 0.9818 | 0.0444 / 0.9817 | 0.0444 / 0.9817 | 0.0444 / 0.9818 | 0.0444 / 0.9817 |  |
+| `distill-any-depth-l` | iBims-1, AbsRel / delta1 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 |  |
+| `distill-any-depth-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0640 / 0.9537 | 0.0640 / 0.9537 | 0.0640 / 0.9537 |  | 0.0639 / 0.9537 | possibly in the training data |
+| `distill-any-depth-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | 0.0303 / 0.9962 |  | 0.0303 / 0.9962 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10.
 
 ### Parity
 
@@ -404,7 +413,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>522<br>277<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3297 / 3478<br>3050 / 3198<br>3053 / 3198<br>4816 / 4882 |
+| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>521<br>277<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3036 / 3298<br>3050 / 3198<br>3053 / 3198<br>4816 / 4882 |
 
 <details><summary>Details</summary>
 
@@ -421,21 +430,22 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-pro` 3000x4000 (3.4 GiB peak allocated, 4.0 reserved)
 - `depth-pro` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 163 s (ONNX + engine).
 - `depth-pro` original 994x1482: torch.autocast(fp16) around the forward; fp16 = original's own precision=float16 model
+- `depth-pro` portable 994x1482: Temporary activations released after last use. Paired depth and camera outputs matched bitwise.
 - `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 6.2 s / 0.522 s, kernels 4.11 s / 0.265 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depth-pro` | NYUv2 test, AbsRel / delta1 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 |  |
-| `depth-pro` | iBims-1, AbsRel / delta1 | 0.0353 / 0.9827 | 0.0353 / 0.9826 | 0.0353 / 0.9826 | 0.0353 / 0.9827 |  |
-| `depth-pro` | ETH3D two-view train left, AbsRel / delta1 | 0.0651 / 0.9642 | 0.0652 / 0.9642 | 0.0652 / 0.9642 | 0.0656 / 0.9638 | possibly in the training data |
-| `depth-pro` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `depth-pro` | NYUv2 test, AbsRel / delta1 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 |  |
+| `depth-pro` | iBims-1, AbsRel / delta1 | 0.0353 / 0.9827 | 0.0353 / 0.9826 | 0.0353 / 0.9826 | 0.0353 / 0.9827 | 0.0353 / 0.9827 |  |
+| `depth-pro` | ETH3D two-view train left, AbsRel / delta1 | 0.0651 / 0.9642 | 0.0652 / 0.9642 | 0.0652 / 0.9642 |  | 0.0656 / 0.9638 | possibly in the training data |
+| `depth-pro` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 |  | 0.0295 / 0.9966 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -457,7 +467,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5662<br>3570<br>3947<br>fails: ONNX export: conversion failed | –<br>13651 / 15150<br>9237 / 9314<br>9240 / 10292<br>– |
+| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4854<br>3555<br>3947<br>fails: ONNX export: conversion failed | –<br>5422 / 7404<br>3768 / 5942<br>9240 / 10292<br>– |
+| `depthfm-v1` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>907<br>–<br>353 (fixed-shape exported depth network) | –<br>4430 / 7296<br>–<br>3479 / 3494 |
 
 <details><summary>Details</summary>
 
@@ -474,19 +485,22 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthfm-v1` 1024x1024 (9.8 GiB peak allocated, 15.0 reserved)
 - `depthfm-v1` 994x1482, first call: portable + torch.compile 102 s (cold Inductor cache).
+- `depthfm-v1` portable 994x1482: Default four-member ensemble with bounded VAE decoding. Prior portable was 5814.353 ms and 13671 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
+- `depthfm-v1` kernels 994x1482: Default four-member ensemble with bounded VAE decoding. Prior kernels was 3578.895 ms and 9258 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
+- `depthfm-v1` portable 480x640: Portable timing measured separately at the TensorRT comparison's input shape, precision and fixed-shape exported depth network scope.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s, kernels 4.59 s / 3.734 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
-| `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 | 0.0732 / 0.9493 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
+| `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 |  | 0.0732 / 0.9493 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 49f9cc58 / 68b2f345, 2026-11-16 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30e30409, 2026-11-18.
 
 ### Parity
 
@@ -540,14 +554,15 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
-| `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 | 0.0089 / 0.9951 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
+| `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 |  | 0.0089 / 0.9951 |  |
+| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  | 0.0084 / 0.9998 | 0.0084 / 0.9998 | 0.0084 / 0.9998 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -600,13 +615,13 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
-| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.11 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
-| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
+| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.11 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
+| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11209576, 2026-11-12.
 
@@ -660,16 +675,16 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  |
-| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0499 / 0.9721 | 0.0499 / 0.9721 | 0.0499 / 0.9722 | 0.0499 / 0.9721 |  |
-| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8716 | possibly in the training data |
-| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  |
+| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0499 / 0.9721 | 0.0499 / 0.9721 | 0.0499 / 0.9722 | 0.0499 / 0.9721 | 0.0499 / 0.9721 |  |
+| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 |  | 0.1141 / 0.8716 | possibly in the training data |
+| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 |  | 0.0413 / 0.9899 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
@@ -719,12 +734,12 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `marigold-normals-lcm-v0-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 |  |
-| `marigold-normals-lcm-v0-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.21 / 7.33 / 66.82 / 82.84 | 17.20 / 7.33 / 66.81 / 82.85 | 17.21 / 7.33 / 66.82 / 82.84 | 17.21 / 7.33 / 66.81 / 82.84 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-normals-lcm-v0-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 |  |
+| `marigold-normals-lcm-v0-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.21 / 7.33 / 66.82 / 82.84 | 17.20 / 7.33 / 66.81 / 82.85 | 17.21 / 7.33 / 66.81 / 82.84 | 17.21 / 7.33 / 66.82 / 82.84 | 17.21 / 7.33 / 66.81 / 82.84 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
 
@@ -754,7 +769,20 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4763<br>3805<br>4599<br>public API unavailable | –<br>1408 / 1838<br>1408 / 1838<br>1959 / 2120<br>– |
+| `marigold-v2-depth` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>1179<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>717 / 964<br>–<br>2042 / 2198 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| marigold-v2-depth | kernels | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,070.59 ms / 9,482 MiB | 1,086.59 ms / 1,238 MiB |
+| marigold-v2-depth | kernels | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 3,868.11 ms / 10,548 MiB | 3,886.82 ms / 2,106 MiB |
+| marigold-v2-depth | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 1,038.32 ms / 9,416 MiB | 1,061.16 ms / 982 MiB |
+| marigold-v2-depth | portable | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,665.65 ms / 9,582 MiB | 1,683.41 ms / 1,190 MiB |
+| marigold-v2-depth | portable | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 5,070.85 ms / 10,250 MiB | 5,091.82 ms / 2,106 MiB |
 
 <details><summary>Details</summary>
 
@@ -767,23 +795,28 @@ Commercial use: yes.
 - Options: `seed` = 2026, `long_side` = 0 (>= 0), `exact_mask` = False, `stream` = True
 - Kernel libraries: `nf4`
 - Variants: `marigold-v2-depth`
-- Not in this release (planned for 0.2.1): `marigold-v2-depth` ONNX / TensorRT export: the NF4 transformer expands its weights per call; no ONNX path yet
+- Public ONNX / TensorRT export is unavailable for `marigold-v2-depth` (the NF4 transformer expands its weights per call; no ONNX path yet).
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
-- `marigold-v2-depth` load / first call: portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
+- `marigold-v2-depth` 994x1482, first call: portable + torch.compile 141 s (cold Inductor cache).
+- `marigold-v2-depth` 480x640, first call: TensorRT bf16 137 s (ONNX + engine).
+- `marigold-v2-depth` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
+- `marigold-v2-depth` load / first call: original 174.6514255180955 s / 1.761 s (518x770), portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
-| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
+| variant | dataset | original half | portable | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 |  | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |  |
+| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9878 |  |  |
+| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 | 0.0403 / 0.9702 | 0.0403 / 0.9701 |  | 0.0403 / 0.9703 | 0.0401 / 0.9704 |  |
+| `marigold-v2-depth` | NYUv2 test (first 10 images), AbsRel / delta1 | 0.0310 / 0.9897 | 0.0304 / 0.9960 | 0.0304 / 0.9960 |  |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78 / 6d3bab64, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 07617392, 2026-11-19.
 
 ### Parity
 
@@ -796,10 +829,15 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 ### Limitations
 
 - 20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).
-- Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.
+- Diffusion model: the portable VAE draws its posterior noise with a CPU generator seeded with `seed`. The authors' default path draws from the device generator.
+- The first-ten iBims-1 and NYUv2 comparisons use the same seeded posterior noise for both implementations. The original uses the authors' NF4 weights with BF16 autocast.
+- On the 16 GB reference GPU with expandable allocator segments, the original BF16 stack fits the 518 x 770 speed input and runs out of memory at 994 x 1482.
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
+- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the recorded pair took 4.80 s compiled and 5.09 s portable on the compile run's source revision. The first compiled call took 119.2 s.
+- Apple MLX (`device="mlx"`, bf16 only): the NF4 blocks are read lazily from the weight file one at a time, 51.3 s per 994 x 1482 call at a 2.3 GB peak footprint on a 16 GB M1 Pro (MPS cannot run this model).
+- At 480 x 640, the standalone BF16 TensorRT VAE plans took 1.16 s versus 1.18 s for paired portable inference. Estimated peak allocated device memory was 2042 versus 717 MiB. The streamed NF4 transformer ran in PyTorch for both measurements.
 
 </details>
 
@@ -813,7 +851,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>201<br>155<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1443 / 1576<br>1475 / 1588<br>1126 / 1148<br>1867 / 1952 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>181<br>146<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1188 / 1256<br>1412 / 1486<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -830,23 +868,24 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
 - `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
+- `metric3d-vit-large` portable 994x1482, kernels 994x1482: The finest feature projection runs before nearest replication and final convex upsampling processes one output field at a time. Five checked depth, normals and confidence outputs match bitwise within each CUDA mode.
 - `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 2.39 s / 0.423 s (518x770), kernels 0.71 s / 0.504 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0546 / 0.9673 |  |
-| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  |
-| `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0741 / 0.9410 | possibly in the training data |
-| `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | possibly in the training data |
-| `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
-| `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0546 / 0.9673 |  |
+| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  |
+| `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 |  | 0.0741 / 0.9410 | possibly in the training data |
+| `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 |  | 0.0247 / 0.9961 | possibly in the training data |
+| `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
+| `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 6d3bab64, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 
@@ -895,16 +934,16 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `midas-dpt-beit-large-512` | NYUv2 test, AbsRel / delta1 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 |  |
-| `midas-dpt-beit-large-512` | iBims-1, AbsRel / delta1 | 0.0477 / 0.9727 | 0.0478 / 0.9727 | 0.0477 / 0.9727 | 0.0478 / 0.9726 |  |
-| `midas-dpt-beit-large-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0904 / 0.8978 | 0.0906 / 0.8977 | 0.0903 / 0.8979 | 0.0906 / 0.8974 | possibly in the training data |
-| `midas-dpt-beit-large-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0425 / 0.9906 | 0.0424 / 0.9906 | 0.0425 / 0.9906 | 0.0426 / 0.9907 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `midas-dpt-beit-large-512` | NYUv2 test, AbsRel / delta1 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 |  |
+| `midas-dpt-beit-large-512` | iBims-1, AbsRel / delta1 | 0.0477 / 0.9727 | 0.0478 / 0.9727 | 0.0477 / 0.9727 | 0.0477 / 0.9727 | 0.0478 / 0.9726 |  |
+| `midas-dpt-beit-large-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0904 / 0.8978 | 0.0906 / 0.8977 | 0.0903 / 0.8979 |  | 0.0906 / 0.8974 | possibly in the training data |
+| `midas-dpt-beit-large-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0425 / 0.9906 | 0.0424 / 0.9906 | 0.0425 / 0.9906 |  | 0.0426 / 0.9907 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -926,10 +965,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
-| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
-| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>332<br>149<br>planned for 0.2.1<br>planned for 0.2.1 | 2812 / 2990<br>2505 / 2630<br>1678 / 1926<br>1626 / 1762<br>–<br>– |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>58.1<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>530 / 612<br>932 / 1048<br>836 / 992<br>768 / 852 |
+| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>79.1<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>681 / 772<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
+| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>140<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1130 / 1272<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1493 / 1684<br>1626 / 1762<br>1500 / 1724<br>– |
+| `moge-3-vitl` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1080<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>2859 / 3842<br>–<br>4568 / 5382 |
 
 <details><summary>Details</summary>
 
@@ -941,7 +981,7 @@ Commercial use: yes.
 - Options: `resolution_level` = 9 (0 to 9), `normals` = False
 - Kernel libraries: `fastbb`, `dpt_fused`, `sparse_conv`
 - Variants: `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-2-vitl-normal`, `moge-3-vitl`
-- Not in this release (planned for 0.2.1): `moge-3-vitl` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `moge-3-vitl` compile(): Inductor fails a value-range assertion (0 not in [2, inf])
+- Public ONNX / TensorRT export is unavailable for `moge-3-vitl` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
 - Outputs: depth, points, intrinsics, mask, normals; kind: `metric`
 - Input size:
   - `moge-2-vits-normal`, `moge-2-vitl-normal`, `moge-3-vitl`: any H x W >= 8, resized or padded inside the model (ViT patch 14)
@@ -950,9 +990,11 @@ Commercial use: yes.
 - `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
+- `moge-3-vitl` 994x1482, first call: portable + torch.compile 136 s (cold Inductor cache).
+- `moge-3-vitl` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
-- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
+- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 0.9 s / 0.329 s, kernels 0.63† s / 0.131 s
 - `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 2.31 s / 0.69 s (518x770), kernels 1.16 s / 0.742 s (518x770)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -960,34 +1002,34 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  |
-| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |
-| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 | 0.0701 / 0.9412 | possibly in the training data |
-| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | possibly in the training data |
-| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |
-| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |
-| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |
-| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9854 |  |
-| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0663 / 0.9496 | possibly in the training data |
-| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0261 / 0.9962 | possibly in the training data |
-| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |
-| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |
-| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |
-| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |
-| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 | 0.0518 / 0.9790 | possibly in the training data |
-| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | possibly in the training data |
-| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
-| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
-| `moge-3-vitl` | iBims-1, AbsRel / delta1 |  | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
-| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | possibly in the training data |
-| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  |  |  |
+| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |  |  |
+| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 |  | 0.0701 / 0.9412 |  |  | possibly in the training data |
+| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 |  | 0.0356 / 0.9947 |  |  | possibly in the training data |
+| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |  |  |
+| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |  |  |
+| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |  |  |
+| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9855 | 0.0337 / 0.9854 |  |  |  |
+| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 |  | 0.0663 / 0.9496 |  |  | possibly in the training data |
+| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 |  | 0.0261 / 0.9962 |  |  | possibly in the training data |
+| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |  |  |
+| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.97 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |  |  |
+| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |  |  |
+| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |  |  |
+| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 |  | 0.0518 / 0.9790 |  |  | possibly in the training data |
+| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 |  |  | possibly in the training data |
+| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |  |  |
+| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |  |  |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |  |  |
+| `moge-3-vitl` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 | 0.0261 / 0.9884 | 0.0261 / 0.9884 |  |
+| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 |  |  | possibly in the training data |
+| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 |  |  | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 4e890760 / 6d3bab64 / 7243b9b8, 2026-11-12 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ed52b189, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 
@@ -999,6 +1041,12 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 | `moge-2-vitb-normal` | 0.02172 / 0.02188 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
 | `moge-2-vitl-normal` | 0.00382 / 0.00394 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
 | `moge-3-vitl` | 0.00421 / 0.0049 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
+
+### Limitations
+
+- MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.
+- At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.
+- In paired portable FP16 runs at 994 x 1482, reusing the resize buffer reduced peak allocation by 421 MiB on each MoGe-2 checkpoint and by 121 MiB on MoGe-3 with normals enabled. The checked outputs were bitwise identical.
 
 </details>
 
@@ -1012,7 +1060,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>554<br>510<br>411<br>planned for 0.2.1 | 5966 / 6732<br>4958 / 6304<br>4981 / 6030<br>4201 / 5932<br>– |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>558<br>512<br>411<br>public API unavailable | 5966 / 6732<br>3849 / 5044<br>3873 / 4566<br>4201 / 5932<br>– |
+| `omni-dc` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>300<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>2453 / 3296<br>–<br>2930 / 3298 |
 
 <details><summary>Details</summary>
 
@@ -1021,27 +1070,32 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: https://github.com/princeton-vl/OMNI-DC/blob/main/LICENSE (BSD-3-Clause, also on the Hugging Face card zuoym15/OMNI-DC); the checkpoint's depth_module is the frozen Depth Anything V2 Large (upstream loads depth_anything_v2_vitl.pth, CC-BY-NC-4.0)
 - Training data: Synthetic RGB-D datasets with virtual sparse patterns per the paper (arXiv 2411.19278)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Options: `cuda_graphs` = True (speed only)
+- Kernel libraries: `fastbb`, `dpt_fused`, `omni_cg`
 - Variants: `omni-dc`
-- Not in this release (planned for 0.2.1): `omni-dc` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
+- Public ONNX / TensorRT export is unavailable for `omni-dc` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 16)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `omni-dc` 1024x2048 (6.4 GiB peak allocated, 9.2 reserved)
 - `omni-dc` 994x1482, first call: portable + torch.compile 137 s (cold Inductor cache).
+- `omni-dc` 480x640, first call: TensorRT fp32 52 s (ONNX + engine).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
+- `omni-dc` portable 994x1482, kernels 994x1482: Short decoder convolution bands preserve the full-image attention. Depth matched bitwise on the standard, odd-size and three iBims inputs.
+- `omni-dc` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Every fourth NYUv2 test image. Resize RGB to 480 x 640 and pass the same 192 x 256 depth prompt pooled from ground truth to both backends. Resize the output to the label grid for metric AbsRel and delta1 without a scale fit. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `omni-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0232 / 0.9966 |  |
-| `omni-dc` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0253 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `omni-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0232 / 0.9966 |  |  |
+| `omni-dc` | NYUv2 test (164 images at 480 x 640), metric AbsRel / delta1 |  |  | 0.0236 / 0.9964 |  | 0.0236 / 0.9964 |  |
+| `omni-dc` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0253 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7efc02b9 / cb0976da7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7efc02b9, 2026-11-18.
 
 ### Parity
 
@@ -1049,7 +1103,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@e6b9e4aa818d:sm_120` |
 
 ### Limitations
 
@@ -1080,8 +1134,8 @@ Commercial use: yes.
 - Licence evidence: https://github.com/google-research/pointdit/blob/11f53a30aeb4d34d49d2beda655ee6f19b2ad7f8/LICENSE (Apache-2.0); https://huggingface.co/haofeixu/pointdit (license: apache-2.0); encoder: https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m (DINOv3 License, gated)
 - Training data: Mixture of synthetic and real point-map datasets ("mixdata") per the PointDiT paper; the DINOv3 encoder: LVD-1689M (not released)
 - Licence note: The PointDiT code and weights are Apache-2.0; the frozen DINOv3 ViT-B/16 and ViT-L/16 encoders are under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.
-- Options: `tokens` = 1024 (>= 1), `steps` = 3 (>= 1)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Options: `stream` = False (speed only), `tokens` = 1024 (>= 1), `steps` = 3 (>= 1)
+- Kernel libraries: `fastbb`, `dpt_fused`, `pointdit_norm`
 - Variants: `pointdit-b-512`, `pointdit-l-512`
 - Outputs: points, depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -1098,20 +1152,20 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `pointdit-b-512` | NYUv2 test, AbsRel / delta1 | 0.0453 / 0.9773 | 0.0454 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 |  |
-| `pointdit-b-512` | iBims-1, AbsRel / delta1 | 0.0374 / 0.9821 | 0.0374 / 0.9820 | 0.0374 / 0.9821 | 0.0374 / 0.9821 |  |
-| `pointdit-b-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0896 / 0.9085 | 0.0896 / 0.9086 | 0.0896 / 0.9086 | 0.0896 / 0.9085 | possibly in the training data |
-| `pointdit-b-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | possibly in the training data |
-| `pointdit-l-512` | NYUv2 test, AbsRel / delta1 | 0.0410 / 0.9800 | 0.0411 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 |  |
-| `pointdit-l-512` | iBims-1, AbsRel / delta1 | 0.0313 / 0.9848 | 0.0313 / 0.9847 | 0.0313 / 0.9848 | 0.0313 / 0.9848 |  |
-| `pointdit-l-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0748 / 0.9264 | 0.0748 / 0.9278 | 0.0748 / 0.9265 | 0.0748 / 0.9261 | possibly in the training data |
-| `pointdit-l-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0230 / 0.9952 | 0.0230 / 0.9951 | 0.0230 / 0.9952 | 0.0230 / 0.9952 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `pointdit-b-512` | NYUv2 test, AbsRel / delta1 | 0.0453 / 0.9773 | 0.0454 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 |  |
+| `pointdit-b-512` | iBims-1, AbsRel / delta1 | 0.0374 / 0.9821 | 0.0374 / 0.9820 | 0.0374 / 0.9821 | 0.0374 / 0.9821 | 0.0374 / 0.9821 |  |
+| `pointdit-b-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0896 / 0.9085 | 0.0896 / 0.9086 | 0.0896 / 0.9086 |  | 0.0896 / 0.9085 | possibly in the training data |
+| `pointdit-b-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 |  | 0.0313 / 0.9948 | possibly in the training data |
+| `pointdit-l-512` | NYUv2 test, AbsRel / delta1 | 0.0410 / 0.9800 | 0.0411 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 |  |
+| `pointdit-l-512` | iBims-1, AbsRel / delta1 | 0.0313 / 0.9848 | 0.0313 / 0.9847 | 0.0313 / 0.9848 | 0.0313 / 0.9848 | 0.0313 / 0.9848 |  |
+| `pointdit-l-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0748 / 0.9264 | 0.0748 / 0.9278 | 0.0748 / 0.9265 |  | 0.0748 / 0.9261 | possibly in the training data |
+| `pointdit-l-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0230 / 0.9952 | 0.0230 / 0.9951 | 0.0230 / 0.9952 |  | 0.0230 / 0.9952 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6a5100ec, 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15.
 
 ### Parity
 
@@ -1119,14 +1173,15 @@ CPU, float32: max |diff| <= 1.5e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `pointdit-b-512` | 0.00015 / 0.00056 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `pointdit-l-512` | 0.00012 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `pointdit-b-512` | 0.00015 / 0.00056 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `pointdit_norm@d81de774aed8:sm_120` |
+| `pointdit-l-512` | 0.00012 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `pointdit_norm@d81de774aed8:sm_120` |
 
 ### Limitations
 
 - Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.
 - Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.
-- Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.
+- With `stream=true`, CUDA stages weights from pinned host RAM. On the RTX 5060 Ti, PointDiT-L portable at 1024 tokens and three steps used 224 MiB peak allocated (1285 MiB resident) and transferred 2.26 GiB per image. Each extra Euler step repeats the denoiser transfer.
+- Kernels mode keeps CUDA graph pools for the encoder and sampler. Call `release_graphs()` to free them. With `stream=true`, both stages run eagerly.
 
 </details>
 
@@ -1140,7 +1195,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>300 / 342<br>236 / 322 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1082 / 1148<br>1056 / 1128 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
@@ -1150,7 +1207,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/DepthAnything/PromptDA/blob/9161547ca7151e14fcc8f490ad3cc02fa9437483/README.md and the Hugging Face model cards (license: apache-2.0)
 - Training data: Synthetic and real RGB-D data (including pseudo-labelled real images) per the paper (arXiv 2412.14015)
-- Options: `max_size` = 1008 (>= 14)
+- Options: `cuda_graphs` = True (speed only), `max_size` = 1008 (>= 14)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `prompt-depth-anything-s`, `prompt-depth-anything-l`
 - Outputs: depth; kind: `metric`
@@ -1158,7 +1215,9 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
 - `prompt-depth-anything-s` 756x1008, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
 - `prompt-depth-anything-l` 756x1008, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
+- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
+- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
 - `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
 - `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
@@ -1166,14 +1225,16 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 | 0.0208 / 0.9883 |  |
-| `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 | 0.0147 / 0.9932 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  | 0.0158 / 0.9943 | 0.0158 / 0.9943 | 0.0158 / 0.9943 |  |
+| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  | 0.0162 / 0.9937 | 0.0163 / 0.9937 | 0.0163 / 0.9937 |  |
+| `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 | 0.0208 / 0.9883 | 0.0208 / 0.9883 |  |
+| `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 | 0.0146 / 0.9932 | 0.0147 / 0.9932 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 67dbea00e, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -1200,7 +1261,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>289<br>180<br>238<br>118 | 4156 / 4374<br>3463 / 3628<br>3037 / 3172<br>3019 / 3106<br>5587 / 5626 |
+| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>291<br>180<br>238<br>118 | 4156 / 4374<br>3316 / 3626<br>3037 / 3172<br>3019 / 3106<br>5587 / 5626 |
 
 <details><summary>Details</summary>
 
@@ -1217,16 +1278,17 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `stablenormal-turbo` 3000x4000 (3.6 GiB peak allocated, 4.8 reserved)
 - `stablenormal-turbo` 994x1482, first call: portable + torch.compile 76 s (cold Inductor cache), TensorRT fp16 198 s (ONNX + engine).
 - `stablenormal-turbo` original 994x1482: the authors' mixed-precision option (float16); upstream YOSONormalsPipeline (turbo, t_start 0), diffusers 0.41.0, latents seed 0
+- `stablenormal-turbo` portable 994x1482: The final VAE upsample uses a bounded workspace. Paired normal maps matched bitwise.
 - `stablenormal-turbo` load / first call: original 6.36 s / 1.128 s, portable 2.94 s / 0.544 s, kernels 3.25 s / 0.352 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `stablenormal-turbo` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.70 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `stablenormal-turbo` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.70 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
 
@@ -1244,6 +1306,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 - Diffusion model: the seeded noise comes from a CPU generator; upstream draws it from the unseeded global RNG, so its outputs vary from call to call (slightly).
 - Upstream's `Predictor` wrapper (pre-resize to a multiple of 64 near 1024 px, uint8 round trip, LANCZOS back) is not applied: the runners follow its pipeline (768 px).
 - A traced or exported module reuses the noise of its traced shape.
+- Portable FP16 with long_side=1280 on a 994 × 1482 image uses 4,440 MiB allocated and 4,900 MiB reserved, compared with 4,705/5,440 MiB before. Warm time was 882 vs 862 ms. Normals matched bitwise on two synthetic inputs and three labeled iBims images.
 
 </details>
 
@@ -1279,16 +1342,16 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `unidepth-v2-vitl14` | NYUv2 test, AbsRel / delta1 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 |  |
-| `unidepth-v2-vitl14` | iBims-1, AbsRel / delta1 | 0.0298 / 0.9850 | 0.0298 / 0.9850 | 0.0298 / 0.9851 | 0.0298 / 0.9850 |  |
-| `unidepth-v2-vitl14` | ETH3D two-view train left, AbsRel / delta1 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | possibly in the training data |
-| `unidepth-v2-vitl14` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `unidepth-v2-vitl14` | NYUv2 test, AbsRel / delta1 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 |  |
+| `unidepth-v2-vitl14` | iBims-1, AbsRel / delta1 | 0.0298 / 0.9850 | 0.0298 / 0.9850 | 0.0298 / 0.9851 | 0.0298 / 0.9850 | 0.0298 / 0.9850 |  |
+| `unidepth-v2-vitl14` | ETH3D two-view train left, AbsRel / delta1 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 |  | 0.0586 / 0.9802 | possibly in the training data |
+| `unidepth-v2-vitl14` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 |  | 0.0221 / 0.9970 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1314,7 +1377,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>1609 / 1678 |
+| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>107<br>62.8<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1063 / 1152<br>985 / 1066<br>1258 / 1312<br>1609 / 1678 |
 
 <details><summary>Details</summary>
 
@@ -1331,21 +1394,22 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unik3d-vitl` 3000x4000 (2.2 GiB peak allocated, 2.4 reserved)
 - `unik3d-vitl` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 105 s (ONNX + engine).
 - `unik3d-vitl` original 994x1482: torch.autocast(fp16) around the forward
-- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 3.77 s / 0.298 s (518x770)
+- `unik3d-vitl` portable 994x1482, kernels 994x1482: Left image from Middlebury 2014 trainingH Motorcycle, with camera prediction and confidence enabled.
+- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 0.88 s / 0.337 s, kernels 3.77 s / 0.298 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `unik3d-vitl` | NYUv2 test, AbsRel / delta1 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 |  |
-| `unik3d-vitl` | iBims-1, AbsRel / delta1 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 |  |
-| `unik3d-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0630 / 0.9624 | 0.0630 / 0.9624 | 0.0630 / 0.9626 | 0.0630 / 0.9628 | possibly in the training data |
-| `unik3d-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `unik3d-vitl` | NYUv2 test, AbsRel / delta1 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 |  |
+| `unik3d-vitl` | iBims-1, AbsRel / delta1 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 |  |
+| `unik3d-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0630 / 0.9624 | 0.0630 / 0.9624 | 0.0630 / 0.9626 |  | 0.0630 / 0.9628 | possibly in the training data |
+| `unik3d-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 |  | 0.0210 / 0.9966 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1367,8 +1431,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 11626<br>202<br>200 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>202<br>200 | 8264 / 11916<br>1962 / 2224<br>1967 / 2226 |
+| `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>58.4<br>100 (single image)<br>60.3 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1344<br>886 / 914 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x480x640) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5064<br>3786<br>954<br>835<br>762 (full 88-frame clip)<br>524 (full 88-frame clip) | 6030 / 8210<br>4780 / 6794<br>1730 / 1946<br>1796 / 1946<br>2587 / 3260<br>2753 / 3148 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
+| `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
 
@@ -1385,23 +1453,31 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
-- `video-depth-anything-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
-- `video-depth-anything-metric-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
-- `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
+- `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
+- `video-depth-anything-s` 88x480x640, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
+- `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
+- `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
+- `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` original (fp32) 88x480x640, original (fp32) 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=True): uint8 numpy frames in, numpy out (its API)
+- `video-depth-anything-s` original 88x480x640, original 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` portable 88x480x640, kernels 88x480x640, portable 88x1080x1920, kernels 88x1080x1920: Float32 CUDA RGB frames in [0, 1] to depth on the device; 88-frame public video API.
+- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-metric-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` load / first call: original 0.26 s / 12.771 s (88x1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
+- `video-depth-anything-metric-s` load / first call: original 2.74 s / 11.32 s (88x1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over all its pixels with Kinect depth, mean over sequences. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over all its pixels with Kinect depth, mean over sequences. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0549 / 0.9802 | 0.0549 / 0.9802 | 0.0550 / 0.9802 | 0.0549 / 0.9802 |  |
-| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  | 0.1120 / 0.8716 |  |
-| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0786 / 0.9769 | 0.0785 / 0.9769 | 0.0786 / 0.9769 | 0.0785 / 0.9769 |  |
-| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  | 0.1214 / 0.8883 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0549 / 0.9802 | 0.0549 / 0.9802 | 0.0550 / 0.9802 | 0.0549 / 0.9802 | 0.0549 / 0.9802 |  |
+| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  |  | 0.1120 / 0.8716 |  |
+| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0786 / 0.9769 | 0.0785 / 0.9769 | 0.0786 / 0.9769 | 0.0786 / 0.9769 | 0.0785 / 0.9769 |  |
+| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  |  | 0.1214 / 0.8883 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7, 2026-11-12.
 
@@ -1419,6 +1495,7 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 - `model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.
 - Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.
 - The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.
+- Video Depth Anything Small at 40 frames of 480 × 640 in FP16 uses 1,231 MiB portable and 1,297 MiB kernels on an RTX 5060 Ti, with warm medians of 458.1 and 375.8 ms. Depth matches bitwise on this clip and three labeled TUM clips within each mode.
 
 </details>
 
@@ -1432,7 +1509,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960<br>1813 / 1880<br>2246 / 2306 |
+| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>1843 / 1944<br>1771 / 1960<br>1813 / 1880<br>2246 / 2306 |
 
 <details><summary>Details</summary>
 
@@ -1449,22 +1526,23 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `zoedepth-nk` 3000x4000 (2.4 GiB peak allocated, 2.6 reserved)
 - `zoedepth-nk` 994x1482, first call: portable + torch.compile 94 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `zoedepth-nk` original 994x1482: torch.autocast(fp16) around the forward
-- `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 1.92 s / 0.275 s, kernels 0.33† s / 0.122 s
+- `zoedepth-nk` portable 994x1482: Batches the per-pixel distribution head in row groups, with bitwise identical synthetic and three iBims predictions.
+- `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 0.46 s / 0.493 s, kernels 0.33† s / 0.122 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `zoedepth-nk` | NYUv2 test, AbsRel / delta1 | 0.0532 / 0.9737 | 0.0528 / 0.9743 (NaN / inf output) | 0.0532 / 0.9737 | 0.0532 / 0.9737 |  |
-| `zoedepth-nk` | iBims-1, AbsRel / delta1 | 0.0669 / 0.9545 | 0.0668 / 0.9546 (NaN / inf output) | 0.0669 / 0.9545 | 0.0669 / 0.9545 |  |
-| `zoedepth-nk` | ETH3D two-view train left, AbsRel / delta1 | 0.1139 / 0.8648 | 0.1130 / 0.8653 (NaN / inf output) | 0.1139 / 0.8647 | 0.1139 / 0.8648 | possibly in the training data |
-| `zoedepth-nk` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `zoedepth-nk` | NYUv2 test, AbsRel / delta1 | 0.0532 / 0.9737 | 0.0528 / 0.9743 (NaN / inf output) | 0.0532 / 0.9737 | 0.0532 / 0.9737 | 0.0532 / 0.9737 |  |
+| `zoedepth-nk` | iBims-1, AbsRel / delta1 | 0.0669 / 0.9545 | 0.0668 / 0.9546 (NaN / inf output) | 0.0669 / 0.9545 | 0.0669 / 0.9545 | 0.0669 / 0.9545 |  |
+| `zoedepth-nk` | ETH3D two-view train left, AbsRel / delta1 | 0.1139 / 0.8648 | 0.1130 / 0.8653 (NaN / inf output) | 0.1139 / 0.8647 |  | 0.1139 / 0.8648 | possibly in the training data |
+| `zoedepth-nk` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 |  | 0.0449 / 0.9860 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

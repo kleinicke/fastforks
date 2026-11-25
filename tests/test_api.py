@@ -31,6 +31,7 @@ class Params:
     dim_expansion: int
     use_positivity: bool
     refine_iter: int
+    cuda_graphs: bool
 
 
 class Dummy(Runner):
@@ -125,6 +126,29 @@ def test_batch_of_one_keeps_batch_dim(fake_runner):
     one = np.full((1, 4, 5, 3), 200, np.uint8)
     assert m(one, one).disparity.shape == (1, 4, 5)
     assert m(one[0], one[0]).disparity.shape == (4, 5)
+
+
+class PixelBudget(Dummy):
+    batch = None
+    batch_pixels = 45  # two 4 x 5 inputs per call
+    sizes: list[int] = []  # noqa: RUF012 - test log
+
+    def __call__(self, left, right):
+        PixelBudget.sizes.append(left.shape[0])
+        return super().__call__(left, right)
+
+
+def test_batch_pixels_chunk_a_batch(fake_runner):
+    fake_runner["portable"] = PixelBudget
+    PixelBudget.sizes = []
+    m = stereo.load("s2m2-s", device="cpu")
+    left = np.full((5, 4, 5, 3), 200, np.uint8)
+    assert m(left, left // 2).disparity.shape == (5, 4, 5)
+    assert PixelBudget.sizes == [2, 2, 1]
+    big = np.full((3, 8, 10, 3), 200, np.uint8)  # 80 px: more than the budget, still one per call
+    PixelBudget.sizes = []
+    m(big, big)
+    assert PixelBudget.sizes == [1, 1, 1]
 
 
 class Mobile(Dummy):
@@ -275,6 +299,12 @@ def test_device_errors(monkeypatch, device, match):
     with pytest.raises(OptionsError, match=match):
         core_model.resolve_device(device)
     assert core_model.resolve_device(None) == torch.device("cpu")
+
+
+def test_load_device_error_names_mlx():
+    card, _ = registry.resolve("stereo", "psmnet-sceneflow")
+    with pytest.raises(OptionsError, match=r"invalid device 'mlx:0'.*'mlx'"):
+        core_model.resolve_device("mlx:0", card)
 
 
 def test_device_index_out_of_range(monkeypatch):

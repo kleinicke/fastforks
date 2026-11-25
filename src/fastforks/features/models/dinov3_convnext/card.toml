@@ -3,7 +3,7 @@ name = "DINOv3 ConvNeXt"
 summary = "DINOv3 ConvNeXt T/S/B/L (Meta, 2025), distilled from the DINOv3 ViT-7B: stride-32 grid features + pooled token (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
 licence_notes = [
   "Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.",
 ]
@@ -31,10 +31,13 @@ interpolation = "bilinear"  # as the checkpoints' preprocessor_config.json; the 
 pad = { multiple = 32, mode = "none" }
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["cnn_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: the only libraries this family imports
 
 [[papers]]

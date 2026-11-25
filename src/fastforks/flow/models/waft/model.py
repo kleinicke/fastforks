@@ -11,6 +11,9 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import ViTWarpV8
@@ -24,6 +27,7 @@ class Params:
     """Card `[options]`."""
 
     iters: int  # warping iterations (upstream config/eval: 5)
+    cuda_graphs: bool
 
 
 def _net() -> ViTWarpV8:
@@ -41,6 +45,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: 8 pairs 480 x 640 101.6 -> 80.7 ms per pair at 1.4 GB (RTX 5060 Ti,
+    # Windows, fp16; mean |flow diff| to one pair per call 0.004 px); 720p runs one pair per call, as before
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -59,8 +67,11 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a batch (the last iteration's)."""
+        final_only = image1.is_cuda and not (
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+        )
         with self._autocast(image1):
-            flow = self.net(image1, image2, self.ctx.params.iters)["flow"][-1]
+            flow = self.net(image1, image2, self.ctx.params.iters, final_flow_only=final_only)["flow"][-1]
         return {"flow": flow.float()}
 
     def module(self) -> torch.nn.Module:
@@ -73,11 +84,12 @@ class Kernels(Runner):
     """Our kernels: fp16 NHWC convs with fused epilogues, Depth Anything's fast ViT; the flow state in fp32."""
 
     Params = Params
+    _GRAPH_PIXELS = 336 * 448  # fixed: cap padded work where replay pays off
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and prepare it for the kernels."""
         super().__init__(ctx)
-        from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
+        from .kernels.inference import forward_kernels, graph_pixels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
 
         self.net = _net()
         sd = ctx.state_dict()
@@ -86,10 +98,35 @@ class Kernels(Runner):
         self.net.eval().to(ctx.device)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(
+            self._flow,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            size=graph_pixels,
+            one_shape=True,
+        )
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, image1, image2, self.ctx.params.iters)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a batch (the last iteration's)."""
-        return {"flow": self._forward(self.net, image1, image2, self.ctx.params.iters)}
+        return {"flow": self._graphs(image1, image2)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair),
+}

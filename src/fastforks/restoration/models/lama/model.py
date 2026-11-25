@@ -23,6 +23,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.preprocess import Crop, pad_widths
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import FFCResNetGenerator
@@ -96,7 +97,8 @@ class Portable(Runner):
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    # the bias in the conv's cuDNN graph, not a separate pass (1024^2: 79.0 -> 75.3 ms, the golden passes)
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 class Kernels(Portable):
@@ -129,4 +131,4 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import tomllib
+import warnings
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -18,12 +19,12 @@ S2M2_CARD = MODELS / "s2m2/card.toml"
 
 @pytest.fixture
 def data():
-    return tomllib.loads(S2M2_CARD.read_text())
+    return tomllib.loads(S2M2_CARD.read_text(encoding="utf-8"))
 
 
 @pytest.fixture
 def raft():
-    d = tomllib.loads((MODELS / "raft_stereo/card.toml").read_text())
+    d = tomllib.loads((MODELS / "raft_stereo/card.toml").read_text(encoding="utf-8"))
     return parse_card(d, family="raft_stereo", task="stereo", where="card")
 
 
@@ -148,11 +149,14 @@ def test_pad_none(data):
 def test_architecture_lives_in_the_cards():
     """Per-variant padding and encoder choices are card data (no `_Padded` runner, no id -> encoder table)."""
     aanet = parse_card(
-        tomllib.loads((MODELS / "aanet/card.toml").read_text()), family="aanet", task="stereo", where="card"
+        tomllib.loads((MODELS / "aanet/card.toml").read_text(encoding="utf-8")),
+        family="aanet",
+        task="stereo",
+        where="card",
     )
     assert {v.id: v.io.pad_multiple for v in aanet.variants} == {"aanet-sceneflow": 48, "aanet-plus-sceneflow": 96}
     fs = parse_card(
-        tomllib.loads((MODELS / "foundationstereo/card.toml").read_text()),
+        tomllib.loads((MODELS / "foundationstereo/card.toml").read_text(encoding="utf-8")),
         family="foundationstereo",
         task="stereo",
         where="card",
@@ -276,6 +280,24 @@ def test_option_aliases_parse_and_must_be_unique(data):
         d["options"]["b"] = {"default": 2, "aliases": [clash]}
         with pytest.raises(CardError, match="alias"):
             parse(d)
+
+
+def test_renamed_options_work_with_a_future_warning(data):
+    from fastforks._core.model import check_options  # noqa: PLC0415 - next to its test
+
+    d = copy.deepcopy(data)
+    d["options"] = {"iters": {"default": 2, "min": 0, "renamed": ["refine"], "aliases": ["num_refine"]}}
+    card = parse(d)
+    assert dict(card.option_aliases) == {"num_refine": "iters", "refine": "iters"}
+    assert card.option_renamed == {"refine"}
+    with pytest.warns(FutureWarning, match=r"option refine= of .* is renamed to iters="):
+        assert check_options(card, {"refine": 3}) == {"iters": 3}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert check_options(card, {"num_refine": 3}) == {"iters": 3}  # a plain alias stays silent
+    d["options"]["other"] = {"default": 1, "renamed": ["refine"]}
+    with pytest.raises(CardError, match="alias"):
+        parse(d)
 
 
 def test_papers_and_official(data):

@@ -23,6 +23,19 @@ def test_card() -> None:
     assert card.options["voxel_size"] == pytest.approx(0.002)
 
 
+@pytest.mark.parametrize(
+    ("aggregator", "patch", "enabled"), [("hh", "hh", True), ("ff", "hh", False), ("hh", "ff", False)]
+)
+def test_widest_attention_retry_uses_wider_gemm(aggregator: str, patch: str, enabled: bool) -> None:  # noqa: FBT001
+    """Either attention launcher widening to FF must widen the retry's matrix accumulation."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    runner = SimpleNamespace(
+        flash=SimpleNamespace(variant=aggregator), patch_embed=SimpleNamespace(attn=SimpleNamespace(variant=patch))
+    )
+    assert model.Kernels._use_fp16_gemm(runner) is enabled
+
+
 def test_voxelize_matches_loop() -> None:
     """Upstream `voxelizaton_with_fusion`: per voxel, the points and features weighted by the softmax of `conf`."""
     g = torch.Generator().manual_seed(0)

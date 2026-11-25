@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 import torch
 import torch.nn as nn
+from fastforks._core.upload import device_tensor  # fastforks
 
 from .amp import autocast
 from .geometry import bhwc_grid_sample, get_normalized_grid
@@ -202,14 +203,14 @@ class ConvRefiner(nn.Module):
         # fastforks: upstream concatenates in float32 and the first block's autocast casts the result; here the
         # parts are cast while they are copied into the block dtype (the same rounding, half the tensor, no float32
         # copy), and the parts are dropped before the blocks run.
-        d = torch.empty(B, self.hidden_dim, H_A, W_A, dtype=self.block1.amp or f_A.dtype, device=f_A.device)
-        if self.cfg.channels_last:
-            d = d.to(memory_format=torch.channels_last)
+        # FastForks: allocate the layout consumed by the first depthwise convolution directly.
+        d = torch.empty((B, self.hidden_dim, H_A, W_A), dtype=self.block1.amp or f_A.dtype, device=f_A.device,
+                        memory_format=torch.channels_last if self.cfg.channels_last else torch.contiguous_format)
         c = 0
         for part in parts:
             d[:, c : c + part.shape[1]].copy_(part)
             c += part.shape[1]
-        del parts, f_A, f_B, f_BA, f_A_bdhw, f_BA_bdhw, emb_in_displacement, in_displacement, in_displacement_bdhw
+        del part, parts, f_A, f_B, f_BA, f_A_bdhw, f_BA_bdhw, emb_in_displacement, in_displacement, in_displacement_bdhw
         z = self.block1(d)
         del d
         z = self.hidden_blocks(z)
@@ -223,7 +224,7 @@ class ConvRefiner(nn.Module):
         delta_confidence = delta_confidence.view(B, H_A, W_A, self.cfg.confidence_dim)
         warp = prev_warp + displacement / (
             self.cfg.refine_init
-            * torch.tensor((W_A, H_A), device=prev_warp.device)[None, None, None]
+            * device_tensor((W_A, H_A), device=prev_warp.device)[None, None, None]  # fastforks: no host sync (a pageable upload syncs the host)
         )
 
         if delta_confidence.shape[-1] == 4:

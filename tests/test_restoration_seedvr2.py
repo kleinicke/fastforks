@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import Mock, call
+
 import pytest
 import torch
 import torch.nn.functional as F
 
 import fastforks.restoration
 from fastforks._core import registry
+from fastforks.restoration.models.seedvr2.net import vae
 from fastforks.restoration.models.seedvr2.net.vae import CausalConv3d, State
 from fastforks.shared import host_blocks, nf4
 
@@ -78,8 +82,79 @@ def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
         host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
     monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: 40 * 2**30)
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
-    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable (not Linux): no check
+    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable: no check
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+
+
+def test_windows_cudart_uses_a_loaded_handle_outside_torch(monkeypatch: pytest.MonkeyPatch) -> None:
+    handle = Mock(side_effect=[None, 42])
+    runtime = Mock()
+    monkeypatch.setattr(torch.version, "cuda", "13.0")
+    monkeypatch.setattr(
+        host_blocks.ctypes, "windll", SimpleNamespace(kernel32=SimpleNamespace(GetModuleHandleW=handle)), raising=False
+    )
+    monkeypatch.setattr(host_blocks.ctypes, "CDLL", runtime)
+    assert host_blocks._windows_runtime() is runtime.return_value
+    dll_name = "cudart64_13.dll"
+    assert handle.call_args_list[-1] == call(dll_name)
+    runtime.assert_called_once_with(dll_name, handle=42)
+
+
+def test_choose_kept_takes_unpinned_blocks_then_spreads_the_rest() -> None:
+    sizes = [10] * 8
+    starts = [10 * i for i in range(8)]
+    assert host_blocks.choose_kept(sizes, starts, 80, 0) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 9) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 40) == [1, 3, 5, 7]  # every other block
+    assert host_blocks.choose_kept(sizes, starts, 80, 25) == [3, 7]
+    assert host_blocks.choose_kept(sizes, starts, 80, 1000) == list(range(8))
+    assert host_blocks.choose_kept(sizes, starts, 60, 20) == [6, 7]  # the pageable tail first
+    assert host_blocks.choose_kept(sizes, starts, 60, 50) == [1, 3, 5, 6, 7]
+
+
+@pytest.mark.gpu
+def test_kept_blocks_match_the_streamed_ones() -> None:
+    torch.manual_seed(0)
+    specs = [
+        {f"{i}.w": (torch.bfloat16, torch.Size((64, 32))), f"{i}.b": (torch.float32, torch.Size((7,)))}
+        for i in range(5)
+    ]
+    data = {k: torch.randn(shape).to(dt) for spec in specs for k, (dt, shape) in spec.items()}
+    hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]), workers=3)  # filled from 3 threads
+    device = torch.device("cuda")
+    for budget in (0, hb.sizes[0] * 2, hb.sizes[0] * 5, 0):
+        kept = hb.keep(budget)
+        assert kept == sum(hb.sizes[i] for i in hb.kept) <= budget
+        for _ in range(2):  # the kept blocks are uploaded once, then reused
+            got = {k: v.cpu() for block in hb.run(device) for k, v in block.items()}
+            assert got.keys() == data.keys()
+            assert all(torch.equal(got[k], data[k]) for k in data)
+
+
+def test_register_prefix_pins_what_the_os_allows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The OS page-locks at most `limit` bytes (Windows: about half of the RAM): the longest block prefix is pinned."""
+
+    class Cudart:
+        def __init__(self, limit: int) -> None:
+            self.limit, self.held = limit, 0
+
+        def cudaHostRegister(self, ptr: int, n: int, flags: int) -> int:  # noqa: ARG002, N802 - cudart's names
+            if self.held or n > self.limit:
+                return 2  # cudaErrorMemoryAllocation
+            self.held = n
+            return 0
+
+        def cudaHostUnregister(self, ptr: int) -> int:  # noqa: ARG002, N802
+            self.held = 0
+            return 0
+
+    ends = [10, 20, 30, 40, 50]
+    for limit, pinned in ((60, 50), (50, 50), (49, 40), (35, 30), (10, 10), (9, 0)):
+        fake = Cudart(limit)
+        monkeypatch.setattr(host_blocks.torch.cuda, "cudart", lambda fake=fake: fake)
+        monkeypatch.setattr(host_blocks, "_clear_last_error", lambda: None)
+        assert host_blocks._register_prefix(0, ends) == pinned, limit
+        assert fake.held == pinned  # exactly one registration left
 
 
 @pytest.mark.gpu
@@ -94,3 +169,32 @@ def test_stream_false_is_bit_identical() -> None:
         del model
         torch.cuda.empty_cache()
     assert torch.equal(*out)
+
+
+@pytest.mark.gpu
+def test_nf4_portable_tiles_preserve_scale_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(nf4, "_PACKED_TILE", 256)
+    q = torch.arange(13 * 64, device="cuda").to(torch.uint8).view(13, 64).t()
+    scales = torch.linspace(0, 9, q.numel() // nf4.BLOCK * 2, device="cuda")
+    lut = nf4.pair_lut(nf4.code(q.device))
+    decoded = torch.nn.functional.embedding(q.int(), lut).reshape(-1, nf4.BLOCK)
+    expected = (decoded * scales[:, None]).bfloat16().view(13, -1)
+    torch.testing.assert_close(nf4.dequant_lut(q, scales, lut, 13), expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("frames", [1, 3])
+def test_group_norm_in_bf16_matches_the_float32_norm_rounded(frames: int) -> None:
+    torch.manual_seed(2)
+    x = torch.randn(2, 28, frames, 19, 17, device="cuda", dtype=torch.bfloat16) * 3 + 1
+    norm = torch.nn.GroupNorm(7, 28, device="cuda", dtype=torch.bfloat16)
+    with torch.inference_mode():
+        norm.weight.copy_(torch.randn_like(norm.weight))
+        norm.bias.copy_(torch.randn_like(norm.bias))
+        actual = vae.group_norm(norm, x, upcast=True, silu=True)
+        frame = [
+            F.group_norm(x[:, :, i].float(), 7, norm.weight.float(), norm.bias.float(), norm.eps).bfloat16()
+            for i in range(frames)
+        ]
+        expected = F.silu(torch.stack(frame, 2))
+    torch.testing.assert_close(actual, expected, atol=1e-6, rtol=2**-7)  # one bf16 rounding

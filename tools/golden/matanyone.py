@@ -63,8 +63,8 @@ def load_upstream(checkout: Path) -> Path:
 
 def config(root: Path) -> Config:
     """`eval_matanyone_config.yaml` with `model/base.yaml` as `model` (hydra defaults), no ImageNet download."""
-    cfg = yaml.safe_load((root / "matanyone/config/eval_matanyone_config.yaml").read_text())
-    cfg["model"] = yaml.safe_load((root / "matanyone/config/model/base.yaml").read_text())
+    cfg = yaml.safe_load((root / "matanyone/config/eval_matanyone_config.yaml").read_text(encoding="utf-8"))
+    cfg["model"] = yaml.safe_load((root / "matanyone/config/model/base.yaml").read_text(encoding="utf-8"))
     cfg["model"]["pretrained_resnet"] = False  # the checkpoint replaces the ImageNet weights
 
     def resolve(v: object) -> object:  # OmegaConf interpolation `${model.embed_dim}` (whole values only)

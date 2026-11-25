@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "fastforks (written for the kernels path on Apple MPS): MVSplat's plane-sweep correlation over the warped other-view features without the [V, C, D, h, w] volume (the math of `multiview.models.mvsplat`'s cost volume)"

@@ -10,6 +10,7 @@ import torch
 
 from fastforks import BackendUnavailableError, WeightsError, promptable_segmentation
 from fastforks._core import registry
+from fastforks.promptable_segmentation.models.insid3 import model as insid3
 from fastforks.promptable_segmentation.models.sam3.model import BOX_BUCKET, Kernels, Portable, exemplars
 from synth import image
 
@@ -20,14 +21,16 @@ IMAGE = image(240, 320, seed=3)  # fixed: any texture; the tests compare two pat
 TEXT = "coin"
 
 
-def _load(mode: Mode, device: str) -> promptable_segmentation.ConceptSegmentationModel:
+def _load(
+    mode: Mode, device: str, *, cuda_graphs: bool = True, stream: bool = False
+) -> promptable_segmentation.ConceptSegmentationModel:
     card, variant = registry.resolve("promptable_segmentation", "sam3")
     try:
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"sam3: gated weights not available locally: {e}")
     try:
-        return promptable_segmentation.load("sam3", mode=mode, device=device)
+        return promptable_segmentation.load("sam3", mode=mode, device=device, cuda_graphs=cuda_graphs, stream=stream)
     except BackendUnavailableError as e:
         pytest.skip(f"sam3 {mode}: {e}")
 
@@ -85,10 +88,22 @@ def test_kernels_graph_cache_per_bucket():
     twice(text=TEXT)
     assert set(graphs) == {(8, 0)}
     text_only = graphs[8, 0]
+    with m._session():
+        features = dict(emb.features)
+        raw = r.segment_concept(features, TEXT)
+        for threshold in (0.0, 0.5, 1.0):
+            expected = r.select_concepts(raw, threshold)
+            got = r.selected_concepts(features, TEXT, None, None, threshold=threshold)
+            for key in expected:
+                torch.testing.assert_close(got[key], expected[key], rtol=0, atol=0)
+    del raw, expected, got
     one, _ = _boxes(1)
     twice(input_boxes=one * scale)
     assert set(graphs) == {(8, 0), (8, BOX_BUCKET)}
     boxed = graphs[8, BOX_BUCKET]
+    # ids and padding are per-key; the three large image feature buffers are shared.
+    for i in (2, 3, 4):
+        assert boxed[1][i].data_ptr() == text_only[1][i].data_ptr()
     five, five_labels = _boxes(5)
     twice(text=TEXT, input_boxes=five * scale, input_boxes_labels=five_labels)  # same bucket: no new capture
     many, many_labels = _boxes(BOX_BUCKET + 1)
@@ -102,6 +117,55 @@ def test_kernels_graph_cache_per_bucket():
     assert graphs[8, BOX_BUCKET] is boxed
     twice(text="a yellow school bus with a long black roof rack", input_boxes=one * scale)
     assert set(graphs) == {(16, BOX_BUCKET)}  # a shape >= 2x larger than every held graph frees them
+    m.release_graphs()
+    assert not graphs
+    twice(text=TEXT)
+    assert set(graphs) == {(8, 0)}
+
+
+@pytest.mark.model
+@pytest.mark.gpu
+def test_sam3_portable_skips_masks_for_empty_selection(monkeypatch):
+    """An empty score selection skips decoding while surviving queries still get their masks."""
+    m = _load("portable", "cuda")
+    emb = m.get_image_embeddings(IMAGE)
+    decoder = cast("Portable", m._runner).net.mask_decoder
+    original = decoder.forward
+    calls = 0
+
+    def count_masks(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(decoder, "forward", count_masks)
+    empty = m(emb, text=TEXT, score_threshold=1.0)
+    assert calls == 0
+    assert empty.scores.shape == (0,)
+    assert empty.boxes.shape == (0, 4)
+    assert empty.masks.shape == (0, *IMAGE.shape[:2])
+
+    full = m(emb, text=TEXT, score_threshold=0.0)
+    assert calls == 1
+    assert 0 < len(full.scores) == len(full.masks)
+
+
+@pytest.mark.model
+@pytest.mark.gpu
+def test_sam3_can_disable_graph_capture(monkeypatch):
+    """Repeated prompts stay eager when the caller disables the graph pool."""
+    m = _load("kernels", "cuda", cuda_graphs=False)
+    r = cast("Kernels", m._runner)
+    emb = m.get_image_embeddings(IMAGE)
+
+    def unexpected_capture(*_args, **_kwargs):
+        pytest.fail("disabled graph cache received a request")
+
+    monkeypatch.setattr(r.cache, "run", unexpected_capture)
+    results = [m(emb, text=TEXT) for _ in range(2)]
+    assert not r.cache.graphs
+    torch.testing.assert_close(results[0].masks, results[1].masks, rtol=0, atol=0)
+    m.release_graphs()
 
 
 @pytest.mark.model
@@ -117,10 +181,15 @@ def test_kernels_graphs_from_two_streams():
     embs = [m.get_image_embeddings(image(240, 320, seed=s)) for s in (3, 4)]
     feats = [dict(e.features) for e in embs]
     texts = (TEXT, "a red car")
+    boxes = (None, _boxes(2)[0])  # distinct graphs writing the same image-feature buffers
+
+    def segment(i: int) -> dict[str, torch.Tensor]:
+        return r.segment_concept(feats[i], texts[i], boxes[i])
+
     with m._session():
-        for f, t in zip(feats, texts, strict=True):  # the key's first call is eager, the second captures the graph
-            r.segment_concept(f, t)
-        want = [r.segment_concept(f, t) for f, t in zip(feats, texts, strict=True)]
+        for i in range(2):
+            segment(i)
+        want = [segment(i) for i in range(2)]
     torch.cuda.synchronize()
     got: list[list[dict[str, torch.Tensor]]] = [[], []]
     start = threading.Barrier(2)
@@ -130,7 +199,7 @@ def test_kernels_graphs_from_two_streams():
         stream.wait_stream(torch.cuda.default_stream())
         start.wait()
         with torch.inference_mode(), torch.cuda.stream(stream):
-            got[i] += [r.segment_concept(feats[i], texts[i]) for _ in range(12)]
+            got[i] += [segment(i) for _ in range(12)]
         stream.synchronize()
 
     threads = [threading.Thread(target=work, args=(i,)) for i in range(2)]
@@ -143,3 +212,42 @@ def test_kernels_graphs_from_two_streams():
         for out in got[i]:
             for k in ("scores", "boxes", "pred_masks"):
                 torch.testing.assert_close(out[k], want[i][k], rtol=0, atol=0, msg=f"call {i}: {k}")
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+def test_streamed_sam3_reuses_frame_for_subsequent_prompts(mode: Mode, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.shared.host_blocks import HostBlocks  # noqa: PLC0415
+
+    m = _load(mode, "cuda", cuda_graphs=False, stream=True)
+    uploaded: list[int] = []
+    original = HostBlocks._upload
+
+    def count(bank: HostBlocks, i: int, j: int) -> None:
+        uploaded.append(bank.sizes[i])
+        original(bank, i, j)
+
+    monkeypatch.setattr(HostBlocks, "_upload", count)
+    emb = m.get_image_embeddings(IMAGE)
+    assert len(uploaded) == 32
+    m(emb, text=TEXT)
+    m(emb, input_boxes=[[4, 5, 30, 40]])
+    assert len(uploaded) == 32
+
+
+@pytest.mark.parametrize("seed", [0, 1])
+def test_insid3_linkage_host_tail_matches_device_rounds(monkeypatch: pytest.MonkeyPatch, seed: int) -> None:
+    """INSID3's average linkage gives the same labels with its small rounds in numpy as all in torch (ties included)."""
+    gen = torch.Generator().manual_seed(seed)
+    centres = torch.randn(12, 32, generator=gen)
+    x = centres[torch.randint(0, 12, (600,), generator=gen)] + 0.6 * torch.randn(600, 32, generator=gen)
+    x[500:] = x[:100]  # duplicated points: tied distances
+    x = torch.nn.functional.normalize(x, dim=1)
+    labels = {}
+    for tail in (0, 10**9, 128):
+        monkeypatch.setattr(insid3, "HOST_TAIL", tail)
+        labels[tail] = insid3.average_linkage(x, 0.4)
+    assert int(labels[0].max()) > 1
+    assert torch.equal(labels[0], labels[10**9])
+    assert torch.equal(labels[0], labels[128])

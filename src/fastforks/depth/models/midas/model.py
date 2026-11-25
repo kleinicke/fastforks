@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.midas_beit import HEAD_SCALE, DPTDepthModel, dpt_beit_large, scale_head, use_sdpa_attention
 from fastforks.shared.midas_beit import load as load_state
 from fastforks.shared.midas_beit.fast import decoder, encode, fp16_accumulate, to_kernels
@@ -124,4 +125,11 @@ class Kernels(Runner):
         return {"inverse_depth": _restore(d[:, 0], image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    # `gemm1x1=False`: the 1x1 GEMMs gave no time here, and two of six float32 runs of
+    # midas-dpt-beit-large-512 peaked about 150 MB higher with them.
+    "portable_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+    "kernels_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+}

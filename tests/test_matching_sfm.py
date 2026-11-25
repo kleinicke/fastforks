@@ -41,7 +41,7 @@ def scene(tmp_path, monkeypatch):
     (tmp_path / "img" / "sub").mkdir(parents=True)
     for name, size in (("a.png", (32, 24)), ("b.jpg", (32, 24)), ("sub/c.png", (16, 16))):
         Image.new("RGB", size).save(tmp_path / "img" / name)
-    (tmp_path / "img" / "notes.txt").write_text("not an image")
+    (tmp_path / "img" / "notes.txt").write_text("not an image", encoding="utf-8")
     monkeypatch.setattr(matching, "load", lambda *_a, **_k: FakeMatcher())
     monkeypatch.setattr(relative_pose, "estimate_fundamental", fake_fundamental)
     return tmp_path

@@ -218,6 +218,16 @@ class FastModel(nn.Module):
             *args: Passed on to the model's forward.
             **kwargs: Passed on to the model's forward (`pixel_values=` instead of `x`).
         """
+        return _to_float(self.forward_native(x, *args, **kwargs))
+
+    def forward_native(self, x: torch.Tensor | None = None, *args: object, **kwargs: object) -> Any:  # noqa: ANN401 - network-dependent tensor tree
+        """Run in the built precision and retain its output dtype for an attached inference head.
+
+        Args:
+            x: Input image tensor, or the first argument required by the optimized module.
+            *args: Additional positional arguments for the module.
+            **kwargs: Additional named arguments, including the alternative image input `pixel_values`.
+        """
         key = None
         if x is None:
             key = "pixel_values"
@@ -239,10 +249,9 @@ class FastModel(nn.Module):
             net = big
         xi = self._input(net, x)
         if not self._acc:  # see `traceable()`
-            return _to_float(net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs))
+            return net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
         with fp16_accumulate():
-            y = net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
-        return _to_float(y)
+            return net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
 
 
 def _family(names: set[str]) -> str | None:
@@ -318,6 +327,12 @@ def patch(
     if mode == "kernels" and want is not None:
         msg = "patch(mode='kernels') runs its own mixed precision: dtype must be None"
         raise OptionsError(msg)
+    if isinstance(device, str) and device.lower() == "mlx":
+        msg = (
+            "patch uses a PyTorch device. Use device='mps' for Apple Metal, "
+            "or fastforks.load(..., device='mlx') for MLX."
+        )
+        raise OptionsError(msg)
     if isinstance(model, FastModel):  # wrapping it again would convert inputs and outputs twice
         return _repatch(model, mode, device, want)
     fp16 = want is None and _device(model, device).type != "mps"  # MPS: float32 by default, as for `load`
@@ -357,6 +372,7 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
     fp16: bool = True,
     auto: bool = False,
     family: str | None = None,
+    fuse_convs: bool = True,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
@@ -416,7 +432,17 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
             fast = FastModel(small, model, mode, report, big=big)
             fast._shuffle_big = big
             return fast
-        return _optimize(model, mode, family, names, dev, report, half=fp16 and dev.type in {"cuda", "mps"}, auto=auto)
+        return _optimize(
+            model,
+            mode,
+            family,
+            names,
+            dev,
+            report,
+            half=fp16 and dev.type in {"cuda", "mps"},
+            auto=auto,
+            fuse_convs=fuse_convs,
+        )
 
 
 def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipeline
@@ -428,6 +454,7 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     report: dict[str, Any],
     *,
     half: bool,
+    fuse_convs: bool = True,
     auto: bool = False,
 ) -> FastModel:
     from . import blocks, fold, transformer  # noqa: PLC0415
@@ -488,7 +515,13 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     if is_kernels and family == "cnn":
         nfused = 0
         if isinstance(net, fx.GraphModule):
-            nfused = _fuse_cnn(net, names, report)
+            if fuse_convs:
+                nfused = _fuse_cnn(net, names, report)
+            else:
+                from . import cnn  # noqa: PLC0415 - CUDA graph rewrites
+
+                nfused = cnn.replace_maxpool(net) + cnn.replace_avgpool(net)
+                report["npool"] = nfused
         report["fused_convs"] = nfused
         if not nfused:  # untraceable / nothing fused: fp16-accumulate cuDNN convs for big inputs instead
             from fastforks.kernels import cudnn_hacc  # noqa: PLC0415
@@ -523,19 +556,20 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
 
 
 def _fuse_cnn(gm: fx.GraphModule, names: set[str], report: dict[str, Any]) -> int:
-    from . import blocks, cnn  # noqa: PLC0415
+    from . import blocks, cnn, graph  # noqa: PLC0415
 
-    n = cnn.fuse_all(gm)
-    for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
-        report[k] = int(getattr(gm, k, 0))
-    report["xdw"] = cnn.fuse_xdw(gm)
-    if "LiteMLA" in names:
-        report["litemla"] = blocks.patch_litemla(gm)
-    report["gconv"] = cnn.fuse_gconv(gm)
-    report["dwmult"] = cnn.fuse_dwmult(gm)
-    # half2 depthwise not for FastViT: re-parameterized RepMixer activations are too large for fp16 accumulation
-    report["dw2"] = 0 if "RepMixer" in names else cnn.to_dw2(gm)
-    report["gconv2"], report["se_scale"] = cnn.fuse_regnet(gm)
-    report["conv_tc"] = cnn.to_conv_tc(gm)
-    report["pw"] = cnn.to_pw(gm)
-    return n
+    with graph.deferred_recompile(gm):  # the passes recompile once, at the end
+        n = cnn.fuse_all(gm)
+        for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
+            report[k] = int(getattr(gm, k, 0))
+        report["xdw"] = cnn.fuse_xdw(gm)
+        if "LiteMLA" in names:
+            report["litemla"] = blocks.patch_litemla(gm)
+        report["gconv"] = cnn.fuse_gconv(gm)
+        report["dwmult"] = cnn.fuse_dwmult(gm)
+        # half2 depthwise not for FastViT: re-parameterized RepMixer activations are too large for fp16 accumulation
+        report["dw2"] = 0 if "RepMixer" in names else cnn.to_dw2(gm)
+        report["gconv2"], report["se_scale"] = cnn.fuse_regnet(gm)
+        report["conv_tc"] = cnn.to_conv_tc(gm)
+        report["pw"] = cnn.to_pw(gm)
+        return n

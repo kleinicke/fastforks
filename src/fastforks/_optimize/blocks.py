@@ -15,6 +15,7 @@ from torch import fx, nn
 from fastforks._core.patch import override
 
 from . import ops
+from .graph import recompile
 
 _Blk = Any  # a timm / torchvision / transformers block patched with our buffers: untyped to the checker
 
@@ -400,5 +401,5 @@ def patch_litemla(gm: fx.GraphModule) -> int:
             gm.graph.erase_node(us[0])
         n += 1
     gm.graph.lint()
-    gm.recompile()
+    recompile(gm)
     return n

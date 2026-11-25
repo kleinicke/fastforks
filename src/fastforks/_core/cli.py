@@ -60,18 +60,37 @@ import gc
 import importlib
 import importlib.resources
 import importlib.util
+import io
 import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
 
 from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
-from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
-from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
-from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
+from fastforks._core.errors import (
+    BackendUnavailableError,
+    FastforksError,
+    LicenceError,
+    MissingDependencyError,
+    OptionsError,
+    install_hint,
+)
+from fastforks._core.files import (
+    OFFLINE_ENV,
+    _human_size,
+    blob_path,
+    cache_root,
+    download_progress,
+    env_flag,
+    link_view,
+    locate,
+    offline,
+    present,
+)
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -169,6 +188,7 @@ def _list_machine(entries: Sequence[tuple[ModelCard, Variant]], fmt: str) -> Non
 def _kernel_libs_text(card: ModelCard) -> str:
     parts = [f"CUDA: {', '.join(card.kernel_libs)}"] if card.kernel_libs else []
     parts += [f"Apple MPS: {', '.join(card.mps_kernel_libs)}"] if card.mps_kernel_libs else []
+    parts += [f"Apple MLX: {', '.join(card.mlx_kernel_libs)}"] if card.mlx_kernel_libs else []
     return f" (kernel libs: {'; '.join(parts)})" if parts else ""
 
 
@@ -190,6 +210,19 @@ def _auto_text(v: Variant) -> str:
     return "; auto: portable on CUDA (kernels measured no faster)" if v.id in _auto_portable() else ""
 
 
+def _mlx_env_text() -> str:
+    """The `apple mlx` row of `env`: the MLX version, the GPU and the tunables row it runs with."""
+    try:
+        from fastforks._core import mlx as runtime  # noqa: PLC0415 - optional (the mlx extra)
+    except MissingDependencyError:
+        return f"not installed ({install_hint('mlx')})"
+    g = runtime.gpu()
+    return (
+        f"mlx {runtime.version()}, {g.architecture}, {g.memory / 2**30:.0f} GB"
+        f" (tunables: {runtime.tuning_row()}; device='mlx')"
+    )
+
+
 def _apple_text(card: ModelCard) -> str:
     """The `apple gpu` row of `info`: what `mode="auto"` picks there, and the dtypes."""
     if not card.portable_mps_dtypes:
@@ -197,8 +230,18 @@ def _apple_text(card: ModelCard) -> str:
     dt = ", ".join(card.portable_mps_dtypes)
     if card.mps_kernel_libs:
         kd = card.mps_kernels_dtype or card.kernels_dtype
-        return f"auto: kernels (Metal, {kd}); portable: {dt} (float32 is the default)"
-    return f"auto: portable; dtypes {dt} (float32 is the default)"
+        return f"auto: kernels (Metal, {kd}); portable: {dt} (float32; auto: float16 where measured better)"
+    return f"auto: portable; dtypes {dt} (float32; auto: float16 where measured better)"
+
+
+def _mlx_text(card: ModelCard) -> str:
+    """The `apple mlx` row of `info`: the modes and dtypes of the family's MLX port (`device="mlx"`)."""
+    if not card.portable_mlx_dtypes:
+        return "no port (device='mlx' raises)"
+    text = f"portable: {', '.join(card.portable_mlx_dtypes)}"
+    if card.mlx_kernel_libs:
+        text = f"auto: kernels ({', '.join(card.kernels_mlx_dtypes)}); " + text
+    return text + " (float32 is the default; needs the mlx extra)"
 
 
 def _info(args: argparse.Namespace) -> None:
@@ -221,6 +264,7 @@ def _info(args: argparse.Namespace) -> None:
         "options": ", ".join(_option_text(card, k, val) for k, val in card.options.items()) or "none",
         "modes": ", ".join(card.modes) + _kernel_libs_text(card) + _auto_text(v),
         "apple gpu": _apple_text(card),
+        "apple mlx": _mlx_text(card),
         "outputs": ", ".join(v.outputs) + "".join(f", {k} = {val}" for k, val in v.output_info.items()),
         "input size": size_range(v, card).describe(),
         "revision": f"{v.revision} (pin with `{v.ref}`)",
@@ -257,12 +301,20 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
     """`(tag:target, file)` pairs to fetch; libraries without a manifest (e.g. cuDNN-backed) have no binaries.
 
     For this GPU only the build its driver loads; with `--arch` / `--all-archs` (for other machines) the older-driver
-    `compat` build too.
+    `compat` build too. Shared libraries: the build of this OS (`platform_manifest`).
     """
+    from fastforks._core.kernels import (  # noqa: PLC0415 - imports torch
+        for_driver,
+        platform_manifest,
+        platform_reason,
+        read_manifest,
+        select_target,
+    )
+
     path = Path(str(importlib.resources.files("fastforks.kernels") / lib / "manifest.toml"))
     if not path.is_file():
         return []
-    manifest = read_manifest(path)
+    manifest = read_manifest(platform_manifest(path))
     builds = [manifest] if manifest.compat is None else [manifest, manifest.compat]
     if all_archs:
         return [(f"{m.tag}:{t}", f) for m in builds for t, f in m.files.items()]
@@ -273,6 +325,9 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
         if not torch.cuda.is_available():
             msg = f"no CUDA device to pick {lib} binaries for; name the targets with --arch sm_XX or use --all-archs"
             raise FastforksError(msg)
+        if reason := platform_reason(manifest):  # binaries for this machine: none it cannot load
+            print(f"note: skipping {lib}: {reason}", file=sys.stderr)
+            return []
         caps = [torch.cuda.get_device_capability()]
         builds = [for_driver(manifest)]
     targets: dict[str, tuple[int, int]] = {}
@@ -371,12 +426,35 @@ def _download(args: argparse.Namespace) -> int:
         if kernels and not apple_gpu
         else []
     )
-    missing = [] if args.kernels_only else _weights(args, entries)
-    for lib, tag, spec in plan:
-        missing += _kernel(args, lib, tag, spec)
+    with download_progress(_progress_printer(tty=sys.stderr.isatty())):
+        missing = [] if args.kernels_only else _weights(args, entries)
+        for lib, tag, spec in plan:
+            missing += _kernel(args, lib, tag, spec)
     for line in missing:
         print(f"MISSING {line}", file=sys.stderr)
     return 1 if missing else 0
+
+
+_PROGRESS_TTY_S = 0.5  # fixed: a terminal's progress line is rewritten this often
+_PROGRESS_LINE_S = 10.0  # fixed: else (a log file) a progress line is printed this often
+
+
+def _progress_printer(*, tty: bool) -> Callable[[str, int, int | None], None]:
+    """Print each download's progress to stderr: one rewritten line on a terminal, else a line every 10 s."""
+    last = [0.0]
+
+    def report(url: str, n: int, total: int | None) -> None:
+        now, done = time.monotonic(), total is not None and n >= total
+        if not done and now - last[0] < (_PROGRESS_TTY_S if tty else _PROGRESS_LINE_S):
+            return
+        if done and not tty:
+            return  # the size is in the start line; no line per finished file in a log
+        last[0] = now
+        share = f"{100 * n // total} % of {_human_size(total)}" if total else _human_size(n)
+        line = f"  {url.rsplit('/', 1)[-1]}: {share}"
+        print(f"\r{line}" if tty else line, end="\n" if done or not tty else "", file=sys.stderr, flush=True)
+
+    return report
 
 
 def _cache_link(_args: argparse.Namespace) -> int:
@@ -385,10 +463,26 @@ def _cache_link(_args: argparse.Namespace) -> int:
     for lib in sorted({lib for card, _ in _all_cards().values() for lib in card.kernel_libs}):
         specs += [(lib, f) for _, f in _kernel_files(lib, archs=[], all_archs=True)]
     shas: dict[tuple[str, str], set[str]] = {}
+    unlinked = 0
     for g, w in specs:
         if link_view(w, g):
             shas.setdefault((g, w.name), set()).add(w.sha256)
+        elif blob_path(w.sha256).is_file():
+            unlinked += 1
     print(f"{len(shas)} files linked under {cache_root()} ({len(specs)} listed by the cards, the rest not cached)")
+    files = f"{unlinked} cached file{'s' if unlinked > 1 else ''}"
+    if unlinked and not shas and sys.platform == "win32":
+        print(
+            f"note: {files} could not be linked: symbolic links on Windows need Developer Mode "
+            "(Settings > System > For developers) or an administrator shell; the cache works without the view",
+            file=sys.stderr,
+        )
+    elif unlinked:
+        print(
+            f"note: {files} not linked (a file of that name is in the way, or the cache is read-only); "
+            "the cache works without the view",
+            file=sys.stderr,
+        )
     for (g, name), found in sorted(shas.items()):
         if len(found) > 1:
             print(f"note: {g}/{name} is used by files with different contents; the view shows one", file=sys.stderr)
@@ -433,6 +527,8 @@ def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Varian
 
 def _kernel(args: argparse.Namespace, lib: str, tag: str, spec: FileSpec) -> list[str]:
     """Fetch (or `--dry-run`: size, `--check`: look for) one kernel binary; returns what is missing."""
+    from fastforks._core.kernels import KERNEL_PATH_ENV  # noqa: PLC0415 - imports torch
+
     if args.dry_run:
         print(f"{tag}: {_size_text(spec.size or 0)}")
     elif args.check:
@@ -489,7 +585,8 @@ def _bench_mode(
     """Load `card`'s model in `mode`, time it; returns ref, backend, median ms and peak `(allocated, reserved)` MiB.
 
     On MPS (no peak counters) reserved is the Metal driver's memory after the timed runs: its allocator keeps freed
-    buffers, so that covers the peak; allocated is `None` there. No memory on the CPU.
+    buffers, so that covers the peak; allocated is `None` there. On MLX allocated is MLX's peak of live arrays and
+    reserved that plus its buffer cache after the timed runs. No memory on the CPU.
     """
     import torch  # noqa: PLC0415 - heavy, only for these commands
 
@@ -500,14 +597,23 @@ def _bench_mode(
     )
     inputs, kwargs = bench_inputs(model, BenchSize(*args.size, views=args.views))
     cuda = model.device.type == "cuda"
+    # the model is on MLX: the package is there
+    mlx = importlib.import_module("fastforks._core.mlx").mx if model.backend.device == "mlx" else None
     if cuda:
         torch.cuda.reset_peak_memory_stats(model.device)
+    if mlx is not None:
+        mlx.reset_peak_memory()
     ms = median_ms(lambda: model(*inputs, **kwargs), device=model.device.type, runs=args.runs)
     mem = None
     if cuda:
         mem = (
             round(torch.cuda.max_memory_allocated(model.device) / 2**20),
             round(torch.cuda.max_memory_reserved(model.device) / 2**20),
+        )
+    elif mlx is not None:  # before MPS: an MLX port loaded for `device="mps"` reports `mps`, its memory is MLX's
+        mem = (
+            round(mlx.get_peak_memory() / 2**20),
+            round((mlx.get_active_memory() + mlx.get_cache_memory()) / 2**20),
         )
     elif model.device.type == "mps":
         mem = (None, round(torch.mps.driver_allocated_memory() / 2**20))
@@ -531,10 +637,13 @@ def _bench(args: argparse.Namespace) -> None:
 
     from fastforks._core.model import resolve_device  # noqa: PLC0415
 
-    dev = resolve_device(args.device, card)
     modes = ["portable"]
-    if "kernels" in card.modes and dev.type in ("cuda", "mps") and card.kernel_libs_on(dev):
-        modes.append("kernels")
+    if args.device == "mlx":
+        modes += ["kernels"] if card.mlx_kernel_libs else []
+    else:
+        dev = resolve_device(args.device, card)
+        if "kernels" in card.modes and dev.type in ("cuda", "mps") and card.kernel_libs_on(dev):
+            modes.append("kernels")
     if len(modes) == 1:  # nothing to compare: the one-line form, with a hint
         args.mode = "portable"
         _bench(args)
@@ -751,8 +860,19 @@ def _kernel_status(lib: str, arch: tuple[int, int] | None, driver: tuple[int, in
 
 
 def _binary_status(lib: str, path: Path, arch: tuple[int, int] | None, driver: tuple[int, int] | None) -> str:
-    full = read_manifest(path)
+    from fastforks._core.kernels import (  # noqa: PLC0415 - imports torch
+        KERNEL_PATH_ENV,
+        for_driver,
+        platform_manifest,
+        platform_reason,
+        read_manifest,
+        select_target,
+    )
+
+    full = read_manifest(platform_manifest(path))
     manifest = full if driver is None else for_driver(full, driver)
+    if reason := platform_reason(manifest):
+        return f"unusable here: {reason}"
     if arch is None:
         return f"built for {', '.join(manifest.files)}; no CUDA GPU"
     target = select_target(manifest.files, arch)
@@ -800,11 +920,11 @@ def _env(_args: argparse.Namespace) -> None:
     import torch  # noqa: PLC0415 - heavy, only for these commands
 
     from fastforks import __version__  # noqa: PLC0415
-    from fastforks._core.kernels import driver_version  # noqa: PLC0415
+    from fastforks._core.kernels import DRIVER_LIB, driver_version  # noqa: PLC0415
 
     try:
         driver: tuple[int, int] | None = driver_version()
-    except (OSError, RuntimeError):  # no libcuda.so.1, or a failing cuDriverGetVersion
+    except (OSError, RuntimeError):  # no libcuda.so.1 / nvcuda.dll, or a failing cuDriverGetVersion
         driver = None
     cuda = torch.cuda.is_available()
     arch = torch.cuda.get_device_capability() if cuda else None
@@ -821,6 +941,7 @@ def _env(_args: argparse.Namespace) -> None:
         rows["apple gpu"] = f"MPS available (macOS {mac or '?'})" if mps else "MPS not available"
         metal = sorted({lib for card in cards for lib in card.mps_kernel_libs})
         rows |= {f"metal {lib}": "Metal source, compiled on first use" for lib in metal} if mps else {}
+        rows["apple mlx"] = _mlx_env_text()
     if not cuda and driver is None:  # no NVIDIA driver at all (e.g. a Mac): per-library CUDA rows say nothing
         rows["cuda"] = "not available (no NVIDIA driver); CUDA kernels unused"
     else:
@@ -830,7 +951,9 @@ def _env(_args: argparse.Namespace) -> None:
             cudnn = f"cuDNN {_backend.version_str(_backend.version())}"
         except Exception as e:  # noqa: BLE001 - a broken install (missing libcudnn ...) is what `env` should show
             cudnn = f"unusable: {type(e).__name__}: {e}"
-        rows["driver"] = f"supports CUDA {driver[0]}.{driver[1]}" if driver else "no NVIDIA driver (libcuda.so.1) found"
+        rows["driver"] = (
+            f"supports CUDA {driver[0]}.{driver[1]}" if driver else f"no NVIDIA driver ({DRIVER_LIB}) found"
+        )
         rows["gpu"] = f"{torch.cuda.get_device_name()}, sm_{arch[0]}{arch[1]}" if arch else "no usable CUDA GPU"
         libs = sorted({lib for card in cards for lib in card.kernel_libs})
         by_status: dict[str, list[str]] = {}  # identical lines (most libraries) collapse into one
@@ -870,7 +993,8 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
         help="backend (default auto: kernels if it can run and is faster here)",
     )
     p.add_argument(
-        "--device", help="e.g. cpu, cuda, cuda:1, mps (default: cuda if available, else mps if validated, else cpu)"
+        "--device",
+        help="e.g. cpu, cuda, cuda:1, mps, mlx (default: cuda if available, else mps if validated, else cpu)",
     )
     p.add_argument(
         "--format",
@@ -1058,7 +1182,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--dtype", choices=("float32", "float16", "bfloat16"), help="compute dtype (default: the validated one)"
     )
     p.add_argument(
-        "--device", help="e.g. cpu, cuda, cuda:1, mps (default: cuda if available, else mps if validated, else cpu)"
+        "--device",
+        help="e.g. cpu, cuda, cuda:1, mps, mlx (default: cuda if available, else mps if validated, else cpu)",
     )
     p.add_argument(
         "--size",
@@ -1102,7 +1227,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _run(ap.parse_args(argv))
 
 
+def _replace_unencodable() -> None:
+    """Print characters the output's encoding lacks as `?`, not a crash (a Windows pipe or file is cp1252: `pi`).
+
+    `surrogateescape` (what Python picks under a C / POSIX locale) fails on them as `strict` does.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper) and stream.errors in {"strict", "surrogateescape"}:
+            stream.reconfigure(errors="replace")
+
+
 def _run(args: argparse.Namespace) -> int:
+    _replace_unencodable()
     try:
         status = args.run(args) or 0
         sys.stdout.flush()  # a closed pipe (`fastforks list | head`) surfaces here, not as exit 120 at shutdown

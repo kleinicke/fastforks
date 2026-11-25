@@ -272,7 +272,7 @@ def main() -> None:
     items = [(ds, k, ld) for ds in DATASETS["stereo"] for k, ld in stereo_items(ds)[: a.limit or None]]
     for tier in a.tiers.split(","):
         per = out / f"{a.ref}__{tier}.jsonl"
-        rows = [json.loads(x) for x in per.read_text().splitlines()] if per.exists() else []
+        rows = [json.loads(x) for x in per.read_text(encoding="utf-8").splitlines()] if per.exists() else []
         done = {(r["ds"], r["key"]) for r in rows if "key" in r}
         todo = [x for x in items if (x[0], x[1]) not in done]
         if not todo or any("error" in r for r in rows):
@@ -285,7 +285,7 @@ def main() -> None:
                 "gpu": os.environ.get("FF_GPU_NAME", "NVIDIA GeForce RTX 5060 Ti"), "torch": None,
                 "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "command": " ".join(["python", "tools/eval_foreign.py", *sys.argv[1:]])}  # fmt: skip
-        with per.open("a") as f:
+        with per.open("a", encoding="utf-8") as f:
             f.write(json.dumps(meta) + "\n")
             first = True
             for ds, key, ld in todo:
@@ -322,7 +322,7 @@ def _speed(a: argparse.Namespace, warmup: int = 3, runs: int = 5) -> None:
 
     out = Path(a.out)
     have = (
-        {(r["ref"], r["tier"], r["input"]) for r in map(json.loads, out.read_text().splitlines())}
+        {(r["ref"], r["tier"], r["input"]) for r in map(json.loads, out.read_text(encoding="utf-8").splitlines())}
         if out.exists()
         else set()
     )
@@ -359,7 +359,7 @@ def _speed(a: argparse.Namespace, warmup: int = 3, runs: int = 5) -> None:
                    "commit": getattr(net, "commit", CRE_COMMIT if a.ref == "crestereo-eth3d" else ""),
                    "ff_commit": _commit(), "source": "",
                    "command": " ".join(["python", "tools/eval_foreign.py", *sys.argv[1:]])}  # fmt: skip
-            with out.open("a") as f:
+            with out.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             print(json.dumps(row), flush=True)
 

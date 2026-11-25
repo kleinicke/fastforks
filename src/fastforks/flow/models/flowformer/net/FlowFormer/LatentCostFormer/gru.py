@@ -111,7 +111,7 @@ class BasicUpdateBlock(nn.Module):
         delta_flow = self.flow_head(net)
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net)
+        mask = .25 * self.mask(net) if upsample else None
         return net, mask, delta_flow
 
 from .gma import Aggregate
@@ -130,7 +130,7 @@ class GMAUpdateBlock(nn.Module):
 
         self.aggregator = Aggregate(args=self.args, dim=128, dim_head=128, heads=1)
 
-    def forward(self, net, inp, corr, flow, attention):
+    def forward(self, net, inp, corr, flow, attention, upsample=True):
         motion_features = self.encoder(flow, corr)
         motion_features_global = self.aggregator(attention, motion_features)
         inp_cat = torch.cat([inp, motion_features, motion_features_global], dim=1)
@@ -141,5 +141,5 @@ class GMAUpdateBlock(nn.Module):
         delta_flow = self.flow_head(net)
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net)
+        mask = .25 * self.mask(net) if upsample else None
         return net, mask, delta_flow

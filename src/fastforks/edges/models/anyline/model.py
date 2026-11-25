@@ -9,20 +9,29 @@ size (`edges._runner.to_detect`, 0..255 floats), then resized to the input size 
   than 12 pixels removed (upstream: `remove_small_objects(min_size=36, connectivity=1)` on the 3-channel copy);
 - out: `1 - (1 - top) * (1 - base)` where the line art `top` is drawn, else `base`.
 
-`portable`: upstream's modules in plain PyTorch, fp32 or fp16; the line art in float32.
+`portable`: upstream's modules in plain PyTorch, fp32 or fp16; the line art in float32. On Apple MLX both modes are
+`mlx_net`: MTEED written in `mlx.core` operations, the line art in Metal kernels.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import to_device
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.kernels import edge_components
+from fastforks.shared import mlx_wrap
+from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.teed import TED, edge_map
+from fastforks.shared.teed.net.Fsmish import smish
+from fastforks.shared.teed.net.ted import DoubleFusion
 
 if TYPE_CHECKING:
     from fastforks.edges._runner import Context
@@ -48,7 +57,7 @@ def gaussian_blur(x: torch.Tensor) -> torch.Tensor:
     """OpenCV `GaussianBlur(x, (0, 0), 2.0)` of `[B, C, H, W]` float32 (separable, reflect-101 border)."""
     t = torch.arange(TAPS, dtype=torch.float64) - TAPS // 2  # float64 on the CPU: MPS has none
     k = torch.exp(-(t**2) / (2 * SIGMA**2))
-    k = (k / k.sum()).float().to(x.device)
+    k = to_device((k / k.sum()).float(), x.device)
     c, p = x.shape[1], TAPS // 2
     x = F.conv2d(F.pad(x, (p, p, 0, 0), mode="reflect"), k.view(1, 1, 1, -1).expand(c, 1, 1, TAPS), groups=c)
     return F.conv2d(F.pad(x, (0, 0, p, p), mode="reflect"), k.view(1, 1, -1, 1).expand(c, 1, TAPS, 1), groups=c)
@@ -58,9 +67,14 @@ def median_above(v: torch.Tensor, threshold: float) -> torch.Tensor:
     """Numpy `median(v[v > threshold])` per row of `[B, N]` (the mean of the two middle values); NaN if none."""
     valid = v > threshold
     n = valid.sum(-1, keepdim=True)
-    s = torch.where(valid, v, math.inf).sort(-1).values
     lo, hi = ((n - 1).clamp(min=0) // 2), (n // 2).clamp(max=v.shape[-1] - 1)
-    med = (s.gather(-1, lo) + s.gather(-1, hi))[:, 0] / 2
+    if torch.compiler.is_exporting():
+        a = kth_smallest(v, lo[:, 0], valid)
+        b = kth_smallest(v, hi[:, 0], valid)
+        med = (a + b) / 2
+    else:
+        s = torch.where(valid, v, math.inf).sort(-1).values
+        med = (s.gather(-1, lo) + s.gather(-1, hi))[:, 0] / 2
     return torch.where(n[:, 0] > 0, med, math.nan)
 
 
@@ -79,37 +93,75 @@ def remove_small(fg: torch.Tensor, min_pixels: int = MIN_PIXELS) -> torch.Tensor
     """
     n = fg.numel()
     label = torch.where(fg, torch.arange(n, device=fg.device).view(fg.shape), n)
-    for _ in range(min_pixels - 1):
-        label = torch.where(fg, torch.minimum(label, torch.stack(_shifted(label, n)).amin(0)), n)
+    if torch.compiler.is_compiling():
+        for _ in range(min_pixels - 1):
+            label = torch.where(fg, torch.minimum(label, torch.stack(_shifted(label, n)).amin(0)), n)
+    else:
+        background = ~fg
+        for _ in range(min_pixels - 1):
+            # Padding snapshots the previous labels, so the running minimum can reuse the label buffer.
+            for nb in _shifted(label, n):
+                torch.minimum(label, nb, out=label)
+            label.masked_fill_(background, n)
     differs = torch.zeros_like(fg)
     for nb in _shifted(label, n):
         differs |= (nb != label) & (nb < n)
-    li = label.clamp(max=n - 1)
-    count = torch.bincount(li[fg], minlength=n)
-    opened = torch.zeros(n, dtype=torch.bool, device=fg.device)
-    opened[li[differs & fg]] = True
-    return fg & ((count[li] >= min_pixels) | opened[li])
+    nb = None  # release the view of the padded labels before allocating the scatter workspace
+    # Give background pixels distinct indices so their zero updates do not
+    # contend on one location when the scatter runs on a GPU.
+    li = torch.where(fg, label, torch.arange(n, device=fg.device).view(fg.shape))
+    # Fixed-size scatter avoids the data-dependent shapes from boolean indexing
+    # and bincount, so the complete portable module can be exported.
+    # One marked pixel is enough to keep a label group; weight it by the
+    # threshold so one reduction encodes both the size and the open flag.
+    weight = fg.long() + (differs & fg).long() * min_pixels
+    count = torch.zeros(n, dtype=torch.int64, device=fg.device).scatter_add(0, li.flatten(), weight.flatten())
+    return fg & (count[li] >= min_pixels)
 
 
-def line_art(x: torch.Tensor) -> torch.Tensor:
+def line_art(x: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """controlnet_aux `lineart_standard` levels of `[B, 3, h, w]` 0..255 floats with the specks removed, in `[0, 1]`."""
     x = x.float()
     intensity = (gaussian_blur(x) - x).amin(1).clamp_(0, 255)
     med = median_above(intensity.flatten(1), THRESHOLD).nan_to_num(16).clamp(min=16)
     lin = (intensity / med[:, None, None] * 127).clamp_(0, 255).floor_()
-    return torch.where(remove_small(lin > 0), lin / 255, 0)
+    mask = edge_components.keep_twelve(lin > 0) if fused else remove_small(lin > 0)
+    return torch.where(mask, lin / 255, 0)
 
 
-def anyline(outputs: list[torch.Tensor], x: torch.Tensor) -> torch.Tensor:
+def anyline(outputs: list[torch.Tensor], x: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """MTEED outputs + the detect-size input `x` (0..255) -> the AnyLine map `[B, h, w]` in `[0, 1]`."""
     base = safe_step(edge_map(outputs), 2)
-    top = line_art(x)
+    top = line_art(x, fused=fused)
     return torch.where(top > 0, 1 - (1 - top) * (1 - base), base)
+
+
+def _activation(x: torch.Tensor) -> torch.Tensor:
+    """Apply Smish in the original operation order using one activation buffer."""
+    return x.sigmoid().add_(1).log_().tanh_().mul_(x)
+
+
+def _fuse_heads(fusion: DoubleFusion, x: torch.Tensor) -> torch.Tensor:
+    """Fuse the edge heads with a smaller eager CUDA workspace."""
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or in_onnx_export()
+    ):
+        return DoubleFusion.forward(fusion, x)
+    # PixelShuffle(1) leaves the spatial and channel order unchanged.
+    first = fusion.DWconv1(_activation(x))
+    second = fusion.DWconv2(_activation(first))
+    return smish(second.add_(first).sum(1, keepdim=True))
 
 
 class Portable(Runner):
     """Upstream's network in plain PyTorch, float32 or float16 (NCHW); the line art in float32."""
 
+    fused_components = False
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -119,17 +171,52 @@ class Portable(Runner):
         self.dtype = getattr(torch, ctx.dtype)
         net = TED()
         net.load_state_dict(ctx.state_dict())
-        # NCHW: channels-last measured 15-25 % slower and +20 % memory at 1024 px (RTX 5060 Ti)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            override(net.block_cat, _fuse_heads)
         self.net = net.eval().to(ctx.device, self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversions; with the fused heads
+            # 5-7 % faster from 512 px to 4K, same memory (1080p kernels 35.4 -> 33.1 ms, RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """AnyLine map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         x = to_detect(image, self.ctx.params.short_side)
-        return {"edges": to_input(anyline(self.net(x.to(self.dtype)), x), image)}
+        return {"edges": to_input(anyline(self.net(x.to(self.dtype)), x, fused=self.fused_components), image)}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> edges `[B, H, W]`."""
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Apply the bounded foreground-component kernel to the original network output."""
+
+    fused_components = True
+    module = Runner.module
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: MTEED and the line art in `mlx.core` operations and Metal kernels (`mlx_net`)."""
+
+    net: Any  # mlx_net.MlxAnyline
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = TED()
+        net.load_state_dict(ctx.state_dict())
+        self.net = mlx_net.MlxAnyline(net, mlx_wrap.run_dtype(ctx))  # the PyTorch network is not kept
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        x = to_detect(image, self.ctx.params.short_side).float().permute(0, 2, 3, 1)
+        return {"edges": to_input(to_torch(self.net(to_mx(x.contiguous()))), image)}
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

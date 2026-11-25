@@ -23,6 +23,14 @@ def test_card_multi_label():
     assert card.io.pad_square == 1.0
 
 
+def test_imagenet_evaluator_rejects_tagger_indices():
+    """WD tag indices and ImageNet class indices represent different labels."""
+    from eval_classification import _run  # noqa: PLC0415
+
+    with pytest.raises(ValueError, match="ImageNet evaluation requires the ImageNet-1k label set"):
+        _run("wd-vit-tagger-v3", "portable32", [], 1)
+
+
 def test_probs_sigmoid_vs_softmax():
     logits = torch.tensor([[0.0, 2.0, -1.0]])
     single = ClassificationResult(logits, ("a", "b", "c"), "m", None)

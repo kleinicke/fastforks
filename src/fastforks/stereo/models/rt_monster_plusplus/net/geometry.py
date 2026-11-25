@@ -1,5 +1,6 @@
 # ruff: noqa: RUF002, RUF003  (fastforks: upstream Chinese comments / docstrings with full-width commas)
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn.functional as F
 from .utils import bilinear_sampler  # fastforks: was core.utils.utils (only this function is vendored)
 from .submodule import get_warped_feats  # fastforks: relative import (was core.submodule)
@@ -26,7 +27,7 @@ class Combined_Geo_Encoding_Volume:
         dx = dx.view(1, 1, 2*r+1, 1).to(disp.device)
 
         if ndisps is not None:  # For local geo_encoding_volume[B, 8, ndisps, H, W], use the center of the disparity dim (ndisps // 2) as reference
-            center = torch.tensor([ndisps//2], dtype=torch.float32).to(disp.device).unsqueeze(0).repeat(b*h*w, 1)
+            center = to_device(torch.tensor([ndisps//2], dtype=torch.float32), disp.device).unsqueeze(0).repeat(b*h*w, 1)  # fastforks: to_device (a pageable upload syncs the host)
             x0 = dx + center.reshape(b*h*w, 1, 1, 1)
         else:  # For full geo_encoding_volume[B, 8, D, H, W], directly use the ground-truth disparity value as reference 
             x0 = dx + disp.reshape(b*h*w, 1, 1, 1)

@@ -24,6 +24,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import half_weights, pure_half
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import flash_attention, sdpa_attention
 
 from .net import LAYERS, PATCH, UniK3DNet, camera_rays, embed_rays, get_paddings, get_resize_factor, pinhole_rays
@@ -105,9 +106,21 @@ def _restore(
 
 
 def _refl_conv(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    """`nn.Conv2d` with 1-pixel reflect padding: slices + cat (the `F.pad` reflect kernel is slower)."""
-    x = torch.cat([x[..., 1:2, :], x, x[..., -2:-1, :]], -2)
-    x = torch.cat([x[..., 1:2], x, x[..., -2:-1]], -1)
+    """One-pixel reflection, with a single padding buffer for large channels-last activations."""
+    if (
+        not torch.compiler.is_compiling()
+        and not torch.jit.is_tracing()
+        and x.is_cuda
+        and torch.is_inference_mode_enabled()
+        and x.numel() >= 1 << 20
+        and x.is_contiguous(memory_format=torch.channels_last)
+    ):
+        x = _pad_reflect(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+    elif x.device.type == "mps":  # 2-5x faster than the two concatenations there
+        x = F.pad(x, (1, 1, 1, 1), mode="reflect")
+    else:
+        x = torch.cat([x[..., 1:2, :], x, x[..., -2:-1, :]], -2)
+        x = torch.cat([x[..., 1:2], x, x[..., -2:-1]], -1)
     return F.conv2d(x, self.weight, self.bias, self.stride, 0, self.dilation, self.groups)
 
 
@@ -132,14 +145,16 @@ def _radial_fast(
     b, h, w, _ = features[0].shape
     emb = embed_rays(rays, size, (h, w))
     cond = [p(f.reshape(b, h * w, -1), emb) for p, f in zip(self.prompt_camera, features, strict=True)]
-    lat = self.to_latents(cond[0])
+    lat = self.to_latents(cond.pop(0))
     with torch.autocast("cuda", enabled=False):
         x = lat.view(b, h, w, -1).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+        del lat
         for i, up in enumerate(self.ups):
             k, cout, wm, bias = self._ff_pf[i]
-            y = F.linear(cond[i + 1].reshape(b * h * w, -1).to(wm.dtype), wm, bias)
+            y = F.linear(cond.pop(0).reshape(b * h * w, -1).to(wm.dtype), wm, bias)
             xv = x.permute(0, 2, 3, 1).view(b, h, k, w, k, cout)
             xv.add_(y.view(b, h, w, k, k, cout).permute(0, 1, 3, 2, 4, 5))
+            del xv, y
             for r in up.convs:
                 x = _rcu(r, x)
             x = F.interpolate(up.up[0](x), scale_factor=2, mode="bilinear", align_corners=False)
@@ -313,10 +328,12 @@ class _Head:
         """Features `[B, h, w, C]` -> log map `[B, 1, H, W]` (fp16)."""
         shape, lw, lb, eps = self.ln
         t = k.gemm(F.layer_norm(z, shape, lw, lb, eps), *self.lin)
-        y = k.conv(_pad_reflect(t), *self.lr)
-        y = k.bilinear(y, size, align_corners=True)
-        y = F.leaky_relu_(k.conv(_pad_reflect(y), *self.hr), SLOPE)
-        return F.linear(y, *self.out).permute(0, 3, 1, 2)
+        t = _pad_reflect(t)
+        t = k.conv(t, *self.lr)
+        t = k.bilinear(t, size, align_corners=True)
+        t = _pad_reflect(t)
+        t = F.leaky_relu_(k.conv(t, *self.hr), SLOPE)
+        return F.linear(t, *self.out).permute(0, 3, 1, 2)
 
 
 class Kernels(Runner):
@@ -399,6 +416,7 @@ class Kernels(Runner):
             for i in range(b):
                 k.gemm(t[i, 1:], wa, ba, out=f[i])
             feats.append(f)
+            del t, f
         if rays is None:
             adapter, angular = self.camera
             with torch.autocast("cuda", dtype=torch.float16):
@@ -406,13 +424,14 @@ class Kernels(Runner):
                 rays = camera_rays(fov, sh, *size)
         emb = embed_rays(rays.float(), size, (h, w)).half()
         cond = [self._prompt(p, f, emb) for p, f in zip(self.prompts, feats, strict=True)]
-        z = k.gemm(cond[0], *self.latents).view(b, h, w, -1)
+        del toks, feats, emb
+        z = k.gemm(cond.pop(0), *self.latents).view(b, h, w, -1)
         for i, (rcus, wu, bu) in enumerate(self.ups):
             s, wg, bg = self.pf[i]
             if s == 1:
-                k.gemm(cond[i + 1], wg, bg, res=z, out=z)
+                k.gemm(cond.pop(0), wg, bg, res=z, out=z)
             else:
-                z += k.gemm(cond[i + 1], wg, bg, shuffle=(h, w, s, s))
+                z += k.gemm(cond.pop(0), wg, bg, shuffle=(h, w, s, s))
             for r in rcus:
                 z = self._rcu(r, z)
             z = k.gemm(z, wu, bu)
@@ -422,4 +441,9 @@ class Kernels(Runner):
         return _restore(g, logr, logc, rays)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

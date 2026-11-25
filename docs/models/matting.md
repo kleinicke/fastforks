@@ -8,23 +8,23 @@ Input: one RGB image (trimap-guided models also a trimap: background / unknown /
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak. The accuracy column is lower-is-better (DIS-VD MAE).
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 1698, 0.61x |
-| [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
-| [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
-| [`inspyrenet`](#inspyrenet) | yes | – | no kernels | no kernels |
-| [`inspyrenet-fast`](#inspyrenet) | yes | – | no kernels | no kernels |
+| [`ben2`](#ben2) | yes | 0.0403 | 105, 1.9x | 1118, 0.4x |
+| [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1256, 0.65x |
+| [`birefnet-lite`](#birefnet) | yes | – | 47.6, 1.6x | 660, 0.68x |
+| [`inspyrenet`](#inspyrenet) | yes | – | 107, 2.3x | 1494, 0.46x |
+| [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.8, 4.5x | 454, 0.54x |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
-| [`matanyone`](#matanyone) | no | – | no kernels | no kernels |
-| [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
-| [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
-| [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
-| [`u2netp`](#u2net) | yes | – | 9.80, 1.5x | 172, 0.55x |
-| [`vitmatte-b`](#vitmatte) | yes | – | 148, 1.7x | 1552, 0.3x |
+| [`matanyone`](#matanyone) | no | – | 911, 1.3x | 2706, 0.84x |
+| [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1296, 0.65x |
+| [`u2net`](#u2net) | yes | – | 5.18, 3.1x | 236, 0.47x |
+| [`u2net-human-seg`](#u2net) | yes | – | 5.14, 3.1x | 236, 0.47x |
+| [`u2netp`](#u2net) | yes | – | 2.92, 5.1x | 124, 0.39x |
+| [`vitmatte-b`](#vitmatte) | yes | – | 146, 1.8x | 832, 0.16x |
 | [`vitmatte-s`](#vitmatte) | yes | – | 84.1, 1.7x | 1404, 0.54x |
 
 <a id="ben2"></a>
@@ -37,7 +37,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1956<br>1430 / 1698<br>813 / 916<br>1280 / 1326 |
+| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>115<br>105<br>103<br>58.2 | 2466 / 2772<br>1296 / 1376<br>1046 / 1118<br>813 / 916<br>1280 / 1326 |
 
 <details><summary>Details</summary>
 
@@ -46,6 +46,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md ; https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/LICENSE
 - Training data: DIS5K (dichotomous image segmentation), Prama LLC proprietary segmentation data (BEN2 card: "BEN2 was trained on the DIS5k and our 22K proprietary segmentation dataset"; it implies DIS-VD stayed out of training ("RMBG 2.0 did not preserve the DIS 5k validation dataset"). Only the weights licence (MIT) counts for the commercial flag.)
+- Options: `cuda_graphs` = False (speed only)
 - Kernel libraries: `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `ben2`
 - Outputs: alpha
@@ -53,6 +54,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ben2` 3000x4000 (1.8 GiB peak allocated, 2.7 reserved)
 - `ben2` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `ben2` original 1080x1920: the authors' mixed-precision option (float16); PramaLLC/BEN2@2c99a5da477b BEN2.py, bicubic resize / normalisation / bilinear back / min-max
+- `ben2` portable 1080x1920, kernels 1080x1920: Keeps only the downsampled shallow features and applies the final upsample convolution in strips. Alphas match exactly on three AIM-500 images and a two-image odd-size batch.
 - `ben2` load / first call: original 2.29 s / 0.926 s, portable 13.95 s / 0.919 s, kernels 1.12 s / 0.435 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -60,10 +62,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `ben2` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  | 0.0403 / 0.9000 |  |
-| `ben2` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `ben2` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  |  | 0.0403 / 0.9000 |  |
+| `ben2` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7, 2026-11-12.
 
@@ -87,9 +89,9 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>131<br>121<br>138<br>87.8 | 1666 / 1930<br>1660 / 1908<br>1674 / 1916<br>1874 / 1932<br>1753 / 1814 |
-| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>58.0<br>48.1<br>50.2<br>49.0 | 913 / 974<br>810 / 952<br>754 / 960<br>1469 / 1552<br>874 / 934 |
-| `rmbg-2.0` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 149<br>132<br>121<br>110<br>88.1 | 1672 / 1990<br>1660 / 1908<br>1674 / 1936<br>1874 / 1932<br>1723 / 1784 |
+| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>133<br>121<br>138<br>87.8 | 1666 / 1930<br>1165 / 1288<br>1145 / 1256<br>1874 / 1932<br>1753 / 1814 |
+| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>58.1<br>47.6<br>50.2<br>49.0 | 913 / 974<br>748 / 792<br>594 / 660<br>1469 / 1552<br>874 / 934 |
+| `rmbg-2.0` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 149<br>133<br>121<br>110<br>88.1 | 1672 / 1990<br>1165 / 1288<br>1145 / 1296<br>1874 / 1932<br>1723 / 1784 |
 
 <details><summary>Details</summary>
 
@@ -109,8 +111,11 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 - `birefnet-lite` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `rmbg-2.0` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache), TensorRT fp16 219 s (ONNX + engine).
 - `birefnet` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet@e2bf8e4460fc birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `birefnet` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise. Three labeled DIS-VD masks also matched bitwise.
 - `birefnet-lite` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet_lite@aa62cd87eafb birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `birefnet-lite` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise. Three labeled DIS-VD masks also matched bitwise.
 - `rmbg-2.0` original 1080x1920: the authors' float16 model option; HF briaai/RMBG-2.0@2fd7b4b0f239 birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `rmbg-2.0` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise.
 - `birefnet` load / first call: original 3.6 s / 0.387 s, portable 0.46 s / 0.556 s, kernels 13.58 s / 0.368 s
 - `birefnet-lite` load / first call: original 8.04 s / 1.104 s, portable 0.67 s / 0.42 s, kernels 0.2 s / 0.471 s
 - `rmbg-2.0` load / first call: original 6.42 s / 0.942 s, portable 0.94 s / 0.494 s, kernels 0.64 s / 0.471 s
@@ -120,14 +125,14 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `birefnet` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  | 0.0325 / 0.9074 |  |
-| `birefnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 |  |
-| `birefnet-lite` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0446 / 0.8620 | 0.0446 / 0.8619 | 0.0446 / 0.8620 | 0.0446 / 0.8620 |  |
-| `rmbg-2.0` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0205 / 0.9324 | 0.0206 / 0.9324 | 0.0205 / 0.9326 | 0.0205 / 0.9326 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `birefnet` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  |  | 0.0325 / 0.9074 |  |
+| `birefnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 |  |
+| `birefnet-lite` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0446 / 0.8620 | 0.0446 / 0.8619 | 0.0446 / 0.8620 | 0.0446 / 0.8620 | 0.0446 / 0.8620 |  |
+| `rmbg-2.0` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0205 / 0.9324 | 0.0206 / 0.9324 | 0.0205 / 0.9326 | 0.0205 / 0.9327 | 0.0205 / 0.9326 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7 / dc38c37c, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14.
 
 ### Parity
 
@@ -151,8 +156,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>no kernels<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>no kernels<br>913 / 1018<br>1181 / 1252 |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>no kernels<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>no kernels<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>107<br>107<br>85.8<br>51.1 | 3240 / 3262<br>1153 / 1468<br>1153 / 1494<br>913 / 1018<br>1181 / 1252 |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>45.4<br>15.8<br>17.7<br>6.99 | 810 / 836<br>363 / 448<br>363 / 454<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -161,28 +166,27 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/plemeri/transparent-background/blob/f0fa91701a98cfc8e955c554e84522f365ec6da3/LICENSE ; https://github.com/plemeri/transparent-background/releases/tag/1.2.12 ; https://github.com/plemeri/InSPyReNet/blob/692ad8a5774cf95ef615a730d5070aad18f6b160/docs/model_zoo.md
 - Training data: DUTS (salient object detection), HRSOD (high-resolution salient object detection), UHRSD (ultra-high-resolution salient object detection), DIS5K (dichotomous image segmentation) (plemeri/InSPyReNet docs/model_zoo.md, Plus_Ultra(_LR): DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, DIS-TR/VD/TE1-4, DUT-OMRON, ECSSD, HKU-IS, PASCAL-S, DAVIS-S, FSS-1000, MSRA-10K (all test sets included, so benchmark numbers on them are not held out). Swin-B backbone from ImageNet-22k -> 1k.)
-- Kernel libraries: none (measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %)
+- Kernel libraries: `image_normalize`
 - Variants: `inspyrenet`, `inspyrenet-fast`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inspyrenet` 3000x4000 (2.0 GiB peak allocated, 2.4 reserved); `inspyrenet-fast` 3000x4000 (0.9 GiB peak allocated, 1.0 reserved)
-- no kernels: measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %.
 - `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 133 s (ONNX + engine).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
 - `inspyrenet-fast` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.78 s / 0.625 s
-- `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 11.07 s / 0.794 s
+- `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.78 s / 0.625 s, kernels 1.14 s / 0.462 s
+- `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 11.07 s / 0.794 s, kernels 0.75 s / 0.861 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | note |
-|---|---|---|---|---|
-| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
-| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
+| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8953 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -192,8 +196,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `inspyrenet` | no kernels backend | - | - |
-| `inspyrenet-fast` | no kernels backend | - | - |
+| `inspyrenet` | 3e-05 / 0.00067 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+| `inspyrenet-fast` | 1e-05 / 0.00029 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 
 </details>
 
@@ -234,10 +238,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `isnet-general-use` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 |  |
-| `isnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0768 / 0.7820 | 0.0768 / 0.7821 | 0.0768 / 0.7821 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `isnet-general-use` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 |  |
+| `isnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0768 / 0.7820 | 0.0768 / 0.7821 | 0.0768 / 0.7820 | 0.0768 / 0.7821 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -262,7 +266,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>no kernels<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>no kernels<br>–<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>966<br>911<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2268 / 2726<br>2268 / 2706<br>1363 / 3452<br>– |
+| `matanyone` | YouTubeMatte youtubematte_motion/0004 (100 frames) (100x288x512) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1721<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>414 / 496<br>–<br>474 / 542 |
 
 <details><summary>Details</summary>
 
@@ -271,26 +276,30 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Weights licence: LicenseRef-noncommercial
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
-- Options: `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only)
+- Options: `cuda_graphs` = True (speed only), `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
+- Kernel libraries: `image_normalize`
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
-- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only.
+- `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
+- `matanyone` 100x288x512, first call: TensorRT fp32 16 s (ONNX + engine).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
-- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
+- `matanyone` portable 1080x1920: Portable reuses frame-zero encoder features during warm-up. Synthetic output and all 300 alpha maps from three labeled YouTubeMatte clips matched bitwise.
+- `matanyone` kernels 1080x1920: Eager CUDA decoder reuses activation storage after projecting the residual.
+- `matanyone` portable 100x288x512: The archived portable run used the same 100 YouTubeMatte frames, initial mask and FP32 settings as the staged TensorRT run.
+- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s, kernels 0.35 s / 1.559 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing 4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence error dtSSD (lower is better), averaged over frames, then clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 374541c1b, 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
 
 ### Parity
 
@@ -298,7 +307,11 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `matanyone` | no kernels backend | - | - |
+| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+
+### Limitations
+
+- `torch.compile` compiles the image encoder, mask encoder and tensor decoder. It runs the recurrent memory and video loop eagerly. Each new input shape has a compilation cost.
 
 </details>
 
@@ -312,9 +325,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>14.9<br>8.83<br>6.24<br>3.07 | 476 / 502<br>248 / 278<br>237 / 260<br>235 / 278<br>335 / 390 |
-| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>14.6<br>9.80<br>5.44<br>1.87 | 280 / 314<br>150 / 172<br>138 / 172<br>152 / 188<br>206 / 236 |
-| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>14.6<br>9.05<br>6.25<br>3.08 | 476 / 502<br>248 / 278<br>237 / 260<br>235 / 278<br>335 / 390 |
+| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>9.77<br>5.18<br>9.09<br>3.07 | 476 / 502<br>240 / 278<br>161 / 236<br>221 / 258<br>335 / 390 |
+| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>15.1<br>2.92<br>5.73<br>1.87 | 280 / 314<br>139 / 180<br>72 / 124<br>129 / 144<br>206 / 236 |
+| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>10.0<br>5.14<br>6.18<br>3.08 | 476 / 502<br>240 / 278<br>161 / 236<br>193 / 234<br>335 / 390 |
 
 <details><summary>Details</summary>
 
@@ -324,14 +337,15 @@ Commercial use: yes.
 - Licence evidence: https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE ; https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/README.md
 - Training data: DUTS (salient object detection) (README / paper: trained on DUTS-TR (10553 images).)
   - `u2net-human-seg`: Supervisely Person Dataset (human segmentation) (README (2021-Feb-06): the human segmentation model, trained on the Supervisely Person Dataset.)
-- Kernel libraries: `cudnn_hacc`, `igev`, `cutlass_conv`
+- Options: `cuda_graphs` = True (speed only)
+- Kernel libraries: `resize_cat`, `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `u2net`, `u2netp`, `u2net-human-seg`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `u2net` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `u2netp` 3000x4000 (0.7 GiB peak allocated, 1.0 reserved); `u2net-human-seg` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved)
-- `u2net` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
-- `u2netp` 1080x1920, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
-- `u2net-human-seg` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
+- `u2net` 1080x1920, first call: TensorRT fp16 36 s (ONNX + engine).
+- `u2netp` 1080x1920, first call: TensorRT fp16 26 s (ONNX + engine).
+- `u2net-human-seg` 1080x1920, first call: TensorRT fp16 35 s (ONNX + engine).
 - `u2net` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
 - `u2netp` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
 - `u2net-human-seg` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
@@ -344,11 +358,11 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `u2net` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1484 / 0.5278 | 0.1485 / 0.5270 | 0.1485 / 0.5273 |  |
-| `u2netp` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1533 / 0.5374 | 0.1531 / 0.5391 | 0.1531 / 0.5405 |  |
-| `u2net-human-seg` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1717 / 0.3264 | 0.1717 / 0.3265 | 0.1717 / 0.3266 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `u2net` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1484 / 0.5278 | 0.1485 / 0.5270 | 0.1484 / 0.5278 | 0.1485 / 0.5273 |  |
+| `u2netp` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1533 / 0.5374 | 0.1531 / 0.5391 | 0.1533 / 0.5374 | 0.1531 / 0.5405 |  |
+| `u2net-human-seg` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1717 / 0.3264 | 0.1717 / 0.3265 | 0.1717 / 0.3264 | 0.1717 / 0.3266 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -358,9 +372,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `u2net` | 0.00022 / 0.00703 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `u2netp` | 0.00073 / 0.02029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `u2net-human-seg` | 0.00033 / 0.00492 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `u2net` | 0.00023 / 0.00721 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
+| `u2netp` | 0.00061 / 0.01642 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
+| `u2net-human-seg` | 0.00013 / 0.00207 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
 
 </details>
 
@@ -375,7 +389,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>84.1<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1305 / 1404<br>1025 / 1284<br>876 / 920 |
-| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>182<br>148<br>157<br>108 | 5070 / 5128<br>1548 / 1692<br>1452 / 1552<br>1166 / 1472<br>1233 / 1262 |
+| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>180<br>146<br>157<br>108 | 5070 / 5128<br>891 / 1036<br>747 / 832<br>1166 / 1472<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 
@@ -384,6 +398,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/hustvl/vitmatte-small-composition-1k/blob/6a58ad7646403c1df626fbd746900aec7361ea1d/README.md ; https://huggingface.co/hustvl/vitmatte-base-composition-1k/blob/bf486d01a7d9e3dbcc8400f7942835caf0eaf76e/README.md ; https://github.com/hustvl/ViTMatte/blob/8cd7ef068380977c3962c4cb733cb1fe7f2241a5/LICENSE
 - Training data: Composition-1k (Adobe Deep Image Matting) (The HF cards: "ViTMatte model trained on Composition-1k". Adobe Deep Image Matting (Composition-1k) is released for non-commercial research on request; only the weights licence (Apache-2.0) counts for the commercial flag.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `dpt_fused`, `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `vitmatte-s`, `vitmatte-b`
 - Outputs: alpha
@@ -393,6 +408,7 @@ Commercial use: yes.
 - `vitmatte-b` 1080x1920, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
 - `vitmatte-s` original 1080x1920: the authors' mixed-precision option (float16); transformers 5.19.0 VitMatteForImageMatting, normalise / trimap / pad 32 / crop
 - `vitmatte-b` original 1080x1920: the authors' mixed-precision option (float16); transformers 5.19.0 VitMatteForImageMatting, normalise / trimap / pad 32 / crop
+- `vitmatte-b` portable 1080x1920, kernels 1080x1920: The 1080p decoder changes reduce paired peak allocation by 657 MiB portable and 706 MiB kernels. All four standard and labeled alphas match in each mode. The odd-size two-image kernels stress test differs by at most 0.000453 alpha.
 - `vitmatte-s` load / first call: original 2.85 s / 0.722 s, portable 0.16 s / 0.413 s, kernels 1.3 s / 0.202 s
 - `vitmatte-b` load / first call: original 0.21 s / 0.562 s, portable 0.52 s / 0.35 s, kernels 1.32 s / 0.249 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -401,11 +417,11 @@ Commercial use: yes.
 
 Trimap-guided models, AIM-500: each image at its own size with a trimap made from its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vitmatte-s` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 13.86 / 11.727 | 13.85 / 11.727 | 13.85 / 11.726 | 13.85 / 11.723 |  |
-| `vitmatte-b` | AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region) |  |  |  | 13.72 / 12.180 |  |
-| `vitmatte-b` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 16.39 / 13.937 | 16.40 / 13.936 | 16.40 / 13.936 | 16.39 / 13.938 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vitmatte-s` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 13.86 / 11.727 | 13.85 / 11.727 | 13.85 / 11.726 | 13.86 / 11.727 | 13.85 / 11.723 |  |
+| `vitmatte-b` | AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region) |  |  |  |  | 13.72 / 12.180 |  |
+| `vitmatte-b` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 16.39 / 13.937 | 16.40 / 13.936 | 16.40 / 13.936 | 16.39 / 13.937 | 16.39 / 13.938 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4068530d, 2026-11-12.
 
@@ -431,11 +447,11 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`ben2`](#ben2) | portable, kernels | MIT | MIT | dis5k, prama-internal | yes | alpha |
 | [`birefnet`](#birefnet) | portable, kernels | MIT | MIT | dis5k, duts, hrsod, uhrsd, hrs10k, p3m-10k | yes | alpha |
 | [`birefnet-lite`](#birefnet) | portable, kernels | MIT | MIT | dis5k, duts, hrsod, uhrsd, hrs10k, p3m-10k | yes | alpha |
-| [`inspyrenet`](#inspyrenet) | portable | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
-| [`inspyrenet-fast`](#inspyrenet) | portable | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
+| [`inspyrenet`](#inspyrenet) | portable, kernels | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
+| [`inspyrenet-fast`](#inspyrenet) | portable, kernels | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
 | [`isnet`](#isnet) | portable, kernels | Apache-2.0 | Apache-2.0 | dis5k | yes | alpha |
 | [`isnet-general-use`](#isnet) | portable, kernels | Apache-2.0 | Apache-2.0 | dis5k | yes | alpha |
-| [`matanyone`](#matanyone) | portable | LicenseRef-noncommercial | LicenseRef-noncommercial | vm800, composition-1k, distinctions-646, bg20k, dvm-background, coco, youtube-vis-2021, supervisely-person | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | alpha |
+| [`matanyone`](#matanyone) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | vm800, composition-1k, distinctions-646, bg20k, dvm-background, coco, youtube-vis-2021, supervisely-person | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | alpha |
 | [`rmbg-2.0`](#birefnet) | portable, kernels | MIT | CC-BY-NC-4.0 | bria-internal | **no** (weights: CC-BY-NC-4.0) | alpha |
 | [`u2net`](#u2net) | portable, kernels | Apache-2.0 | Apache-2.0 | duts | yes | alpha |
 | [`u2net-human-seg`](#u2net) | portable, kernels | Apache-2.0 | Apache-2.0 | supervisely-person | yes | alpha |

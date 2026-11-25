@@ -3,7 +3,12 @@ name = "MoGe"
 summary = "MoGe-2 / MoGe-3 (Wang et al., Microsoft): monocular metric geometry; a DINOv2 ViT with conv heads predicts an affine point map, a validity mask, normals and a metric scale, and the focal length and shift are recovered from the points (MoGe-3 adds a sparse 3-D refiner)."
 tier = "stable"
 outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: the camera of the points (given ones: only fx is used; fy != fx or an off-centre principal point raise); normals: option `normals`
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_vit", "mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = [
+  "MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.",
+  "At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.",
+  "In paired portable FP16 runs at 994 x 1482, reusing the resize buffer reduced peak allocation by 421 MiB on each MoGe-2 checkpoint and by 121 MiB on MoGe-3 with normals enabled. The checked outputs were bitwise identical.",
+]
 
 [output]
 kind = "metric"
@@ -35,6 +40,8 @@ mps_dtypes = ["float32", "float16"]
 # Kernels keeps the class token (the only source of the metric scale) in a float32 residual. Its golden error (synthetic
 # test image, vs CPU float32: ~1e-3..4e-3 relative depth) is fp16-stream noise, not the model's error: on 16 real images
 # (8 iBims-1 + 8 NYUv2) the kernels metric scale is within 4.5e-4 mean (1.7e-3 max) of the float32 scale.
+mlx_dtypes = ["float32", "float16"]
+
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused", "sparse_conv"]  # sparse_conv: the MoGe-3 refiner
 mps_kernels = ["sparse_metal"]  # the MoGe-3 refiner's sparse convs (MoGe-2: the portable network as is)
@@ -74,7 +81,7 @@ weights = [{ name = "moge-2-vitl-normal/model.pt", size = 1323815904, sha256 = "
 
 [[variants]]
 id = "moge-3-vitl"
-planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)", compile = "Inductor fails a value-range assertion (0 not in [2, inf])" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "vitl", version = 3 }
 weights = [{ name = "moge-3-vitl/model.pt", size = 1481333394, sha256 = "9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925", url = "https://huggingface.co/Ruicheng/moge-3-vitl/resolve/184008f877d7ad1ad4c2cd2182a9bd1f63d0e5be/model.pt" }]

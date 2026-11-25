@@ -5,6 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.tracing import exporting_for_mlx
+
 from .act import build_act
 from .norm import build_norm
 from .utils import get_same_padding, list_sum, resize, val2list, val2tuple
@@ -297,6 +300,10 @@ class LiteMLA(nn.Module):
 
         if qkv.dtype == torch.float16:
             qkv = qkv.float()
+        elif exporting_for_mlx():
+            # fastforks: `.float()` records nothing on the float32 twin an MLX runner exports; its float16 replay
+            # would sum over H * W in float16 and overflow
+            qkv = to_float32(qkv)
 
         qkv = torch.reshape(
             qkv,
@@ -373,7 +380,7 @@ class LiteMLA(nn.Module):
 
         H, W = list(qkv.size())[-2:]
         if H * W > self.dim:
-            out = self.relu_linear_att(qkv).to(qkv.dtype)
+            out = to_run_dtype(self.relu_linear_att(qkv), qkv.dtype)  # fastforks: `.to(qkv.dtype)`, MLX-aware
         else:
             out = self.relu_quadratic_att(qkv)
         out = self.proj(out)

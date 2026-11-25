@@ -3,7 +3,7 @@ name = "MonSter"
 summary = "MonSter (Cheng et al. 2025): Depth Anything V2 (ViT-L) monocular branch + IGEV-style geometry volume, with stereo and mono ConvGRUs that refine each other, 32 iterations. The original README flags its monster-sceneflow checkpoint as buggy."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "depth_anything_v2", "monster_fit", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX Runtime differs from PyTorch at a few pixels: monster-mix-all differs at 7 of 12288 pixels by up to 0.3 px on the test pair.",
 ]
@@ -33,6 +33,7 @@ iters = { default = 32, min = 1 }  # update iterations; the last 7 are mixed ste
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]

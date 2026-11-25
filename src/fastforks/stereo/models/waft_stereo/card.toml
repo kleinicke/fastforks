@@ -3,11 +3,12 @@ name = "WAFT-Stereo"
 summary = "WAFT-Stereo (Wang and Deng 2025): warping instead of a cost volume; Depth Anything V2 (LoRA) features, a ViT-based disparity proposal and 3 warp-and-refine iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "timm_blocks", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.",
-  "Portable WAFT-B is slightly slower than the original code and allocates slightly more memory; kernels is about 3x faster with a third of the memory.",
+  "On the 994 x 1482 FP16 profile, portable WAFT-B groups the attention heads to save about 2 GiB of peak allocation at comparable latency. Kernels runs about three times faster than portable and uses under half its peak allocation.",
   "WAFT-Stereo-B kernels runs its ViT attention with fp16 accumulation: single attention outputs differ from fp32 by up to 34 % (relative), but end-to-end ETH3D / Middlebury-H accuracy matches the fp32 original (EPE 0.163 / 0.728).",
+  "The standalone FP32 TensorRT engine at 384 x 1248 matched portable FP32 at 2.904% D1 over 200 KITTI pairs. Median time was 1,208 ms with TensorRT and 381 ms portable. The default FP16 TensorRT exporter remains gated.",
 ]
 licence_notes = [
   "WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.",
@@ -34,12 +35,23 @@ min_size = 17  # 16 x 16 px images reach an InstanceNorm over 1 x 1 px, which ra
 [params]
 max_disp = 800
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 600k (up to KITTI
+# 375x1242 and 544x960) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2
+# shapes per model (Windows WAFT-Stereo-S KITTI 114 -> 64 ms, 544x960 76 -> 66 ms). The graph pool stays reserved (KITTI
+# 1.7 vs 0.7 GB eager) until `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and
+# run eagerly (720x1280 153 vs 146 ms with a graph, for 3.0 vs 1.1 GB reserved). The kernels path normalises and warps
+# with tensors made on the device (upstream's `normalize_image` / `meshgrid` copy CPU tensors, which no graph can
+# capture): the same numbers
 
 # Upstream also publishes DAv2L-5 (SynLarge) and the Real/ KITTI and Middlebury fine-tunes; only the two SynLarge
 # checkpoints below are available locally and added so far.
@@ -58,7 +70,7 @@ weights = [{ name = "DAv2S-4.pth", size = 747814994, sha256 = "340d6bff17adff7d4
 
 [[variants]]
 id = "waft-stereo-b"
-planned = { tensorrt = "the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "the fp16 engine outputs all NaN. At 994x1482, the fp32 builder also fails when a tactic requests 6.6 GiB of workspace with a 6 GiB cap" }
 revision = 1
 params = { arch = "vitb" }
 # The checkpoint contains the (fine-tuned) Depth Anything V2 ViT-B encoder, whose weights are CC-BY-NC-4.0; the HF

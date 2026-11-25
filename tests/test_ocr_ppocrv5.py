@@ -1,4 +1,4 @@
-"""PP-OCRv5 and the shared OCR steps: card, components, crops, CTC decoding, float16 neck scaling, bench page."""
+"""PP-OCRv5 and the shared OCR steps: card, components, box lines, crops, CTC, float16 neck scaling, bench page."""
 
 from __future__ import annotations
 
@@ -7,9 +7,12 @@ import pytest
 import torch
 
 from fastforks._core import registry
-from fastforks.ocr import _crop, _runner
+from fastforks.ocr import _crop, _db, _runner
 from fastforks.ocr._api import text_page
-from fastforks.ocr.models.ppocrv5.net import Detector
+from fastforks.ocr.models.ppocrv5.model import fold_affine
+from fastforks.ocr.models.ppocrv5.net import Detector, Recognizer
+from fastforks.ocr.models.ppocrv5.net.heads import DBHead
+from fastforks.ocr.models.ppocrv5.net.layers import LearnableAffineBlock, up
 
 
 def test_card() -> None:
@@ -105,9 +108,87 @@ def test_scale_neck_keeps_the_map() -> None:
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
 
 
+@pytest.mark.parametrize("kind", ["det", "rec"])
+def test_fold_affine_keeps_the_output(kind: str) -> None:
+    """The mobile networks with their affine blocks folded into the convs: the same function (float32)."""
+    torch.manual_seed(0)
+    net = (Detector(server=False) if kind == "det" else Recognizer(server=False, classes=11)).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.uniform_(-0.5, 0.5)
+                m.running_var.uniform_(0.5, 2)
+            for name in ("scale", "bias"):  # the learnable affine blocks: 1 and 0 at init
+                t = getattr(m, name, None)
+                if isinstance(t, torch.nn.Parameter) and t.numel() == 1:
+                    t.uniform_(0.5, 1.5) if name == "scale" else t.uniform_(-0.5, 0.5)
+        x = torch.randn(2, 3, 48, 96) if kind == "rec" else torch.randn(1, 3, 64, 96)
+        want = net(x)
+        fold_affine(net)
+        got = net(x)
+    folded = [m.consts == (1.0, 0.0) for m in net.modules() if isinstance(m, LearnableAffineBlock)]
+    assert sum(folded) > len(folded) / 2  # every `lab`, and the depthwise `act_lab`s before a 1 x 1 conv
+    torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
+
+
 def test_bench_page_has_text_lines() -> None:
     page = text_page(108, 192)
     assert page.shape == (108, 192, 3)
     assert page.dtype == np.uint8
     assert (page < 128).any(axis=(1, 2)).sum() > 10  # dark rows: several lines of words
     np.testing.assert_array_equal(page, text_page(108, 192))  # fixed seed
+
+
+def test_local_detector_strips_preserve_halos() -> None:
+    head = DBHead(16, local=True).eval()
+    rng = torch.Generator().manual_seed(541)
+    half_res = torch.randn(2, 4, 131, 9, generator=rng)
+    shrink = torch.rand(2, 1, 262, 18, generator=rng)
+    with torch.inference_mode():
+        full = head.last_1(head.last_3(torch.cat((shrink, up(half_res, 2)), dim=1))).sigmoid()
+        strips = head._local_strips(shrink, half_res)
+    torch.testing.assert_close(strips, full, rtol=0.0, atol=1e-6)
+
+
+def _reference_line(mask: np.ndarray, p: tuple[int, int], q: tuple[int, int]) -> None:
+    """OpenCV's 8-connected `Line` stepped pixel by pixel (the loop `_db._line` replaces with its closed form)."""
+    h, w = mask.shape
+    a, b = list(p), list(q)
+    if _db._outside(w, h, a, b) and not _db._clip_line(w, h, a, b):
+        return
+    (x0, y0), (x1, y1) = a, b
+    if x1 < x0:
+        x0, y0, x1, y1 = x1, y1, x0, y0
+    dx, dy = x1 - x0, y1 - y0
+    sy = 1 if dy >= 0 else -1
+    dy = abs(dy)
+    vert = dy > dx
+    if vert:
+        dx, dy = dy, dx
+    err = dx - 2 * dy
+    x, y = x0, y0
+    for _ in range(dx + 1):
+        mask[y, x] = 1
+        diag = err < 0
+        err += -2 * dy + (2 * dx if diag else 0)
+        if vert:
+            y += sy
+            x += 1 if diag else 0
+        else:
+            x += 1
+            y += sy if diag else 0
+
+
+def test_line_matches_the_stepped_line() -> None:
+    """`_db._line`'s closed form draws OpenCV's stepped line exactly: every direction, long lines, clipped ends."""
+    rng = np.random.default_rng(0)
+    h, w = 61, 3000
+    ends = [((5, 5), (5, 5)), ((0, 0), (2999, 60)), ((2999, 0), (0, 60)), ((10, 60), (11, 0)), ((-40, -7), (3100, 70))]
+    ends += [
+        tuple(tuple(int(v) for v in rng.integers((-50, -20), (w + 50, h + 20))) for _ in range(2)) for _ in range(400)
+    ]
+    for p, q in ends:
+        got, want = np.zeros((h, w), np.uint8), np.zeros((h, w), np.uint8)
+        _db._line(got, p, q)
+        _reference_line(want, p, q)
+        assert np.array_equal(got, want), (p, q)

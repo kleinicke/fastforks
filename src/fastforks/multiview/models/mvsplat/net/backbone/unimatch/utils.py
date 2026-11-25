@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from .position import PositionEmbeddingSine
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 
 def generate_window_grid(h_min, h_max, w_min, w_max, len_h, len_w, device=None):
@@ -115,7 +116,7 @@ def feature_add_position(feature0, feature1, attn_splits, feature_channels):
         feature0_splits = split_feature(feature0, num_splits=attn_splits)
         feature1_splits = split_feature(feature1, num_splits=attn_splits)
 
-        position = pos_enc(feature0_splits)
+        position = to_run_dtype(pos_enc(feature0_splits), feature0.dtype)  # fastforks: float32 table on MLX
 
         feature0_splits = feature0_splits + position
         feature1_splits = feature1_splits + position
@@ -123,7 +124,7 @@ def feature_add_position(feature0, feature1, attn_splits, feature_channels):
         feature0 = merge_splits(feature0_splits, num_splits=attn_splits)
         feature1 = merge_splits(feature1_splits, num_splits=attn_splits)
     else:
-        position = pos_enc(feature0)
+        position = to_run_dtype(pos_enc(feature0), feature0.dtype)  # fastforks: float32 table on MLX
 
         feature0 = feature0 + position
         feature1 = feature1 + position

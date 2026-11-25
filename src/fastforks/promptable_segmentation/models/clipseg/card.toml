@@ -3,9 +3,9 @@ name = "CLIPSeg (text-prompted segmentation, CLIP B/16)"
 summary = "CLIPSeg (Lüddecke and Ecker 2022): a frozen CLIP ViT-B/16 with a small transformer decoder that segments whatever a free-text prompt names; the text embedding conditions the decoder by FiLM. Semantic: one mask per prompt (all pixels of the concept), at 352 x 352, resized to the image. Pass `text=` at call time. The portable `module()` is the network on the normalised 352 x 352 image plus a projected text embedding."
 tier = "experimental"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
-uses = ["seginfer", "cuda_graphs", "clip_tokenizer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "cuda_graphs", "clip_tokenizer", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
-  "No accuracy measurement: CLIPSeg is scored on PhraseCut and Pascal-5i one-shot splits, which are not part of the evaluation data here; tiers are compared by output parity and speed only.",
+  "Accuracy uses 500 COCO validation images. Each annotated class supplies a text prompt and its target combines that class's instance masks.",
   "Requires the optional transformers library (the network is its `CLIPSegForImageSegmentation`).",
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (CIDAS/clipseg-rd64-refined); the authors' timojl/clipseg code was not run.",
   "Text prompts only (no box exemplars or visual prompts); one instance per prompt: its mask is every pixel above probability 0.5, its score the highest pixel probability, its box the mask's bounding box.",
@@ -43,6 +43,7 @@ arch = "CLIPSegForImageSegmentation"
 [modes.portable]
 cuda_dtype = "float16"  # all of the network; scores, boxes and the mask upsampling in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # vision-tower GEMMs with fused bias / SiLU (folded QuickGELU) / residual epilogues, fp16 accumulation, CUDA graphs
@@ -55,7 +56,6 @@ venue = "CVPR 2022"
 
 [[variants]]
 id = "clipseg"
-planned = { onnx = "the export wrapper does not pass the text condition (TypeError: missing cond)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
     { name = "clipseg-rd64-refined.config.json", size = 4732, sha256 = "c023375966d31b3b1392764f7bd91df47098ce19f62f11b0263d8eedcf708bcd", url = "https://huggingface.co/CIDAS/clipseg-rd64-refined/resolve/999e0328d9e10b484360c477313983f9afdd7050/config.json" },

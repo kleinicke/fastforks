@@ -56,6 +56,7 @@ max_detections = { default = 100, min = 1 }  # TEST.DETECTIONS_PER_IMAGE
 [modes.portable]
 cuda_dtype = "float16"  # backbone, FPN, RPN / box / mask heads; ROIAlign, box decoding, NMS and mask pasting stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU)

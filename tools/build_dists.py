@@ -67,9 +67,9 @@ def _licences(dirs: list[Path]) -> tuple[set[str], list[str]]:
     """The code licence expressions and the licence files (relative to the source root) of model directories."""
     licences, files = set(), []
     for d in dirs:
-        card = tomllib.loads((d / "card.toml").read_text())
+        card = tomllib.loads((d / "card.toml").read_text(encoding="utf-8"))
         licences.add(card["licence"]["code"])
-        files += [str((d / f).relative_to(ROOT)) for f in card["licence"]["files"]]
+        files += [(d / f).relative_to(ROOT).as_posix() for f in card["licence"]["files"]]
     return licences, files
 
 
@@ -88,8 +88,8 @@ def stage(name: str, spec: dict, version: str, out: Path, extras: dict[str, list
             d, out / d.relative_to(ROOT), ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "golden.toml")
         )
     licences, files = _licences(dirs)
-    include = [str(d.relative_to(ROOT)) for d in dirs]
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    include = [d.relative_to(ROOT).as_posix() for d in dirs]
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     if extras is None:
         extras = project["optional-dependencies"]
     deps = [f"{CORE}=={version}", *library_requirements(spec, extras)]
@@ -98,6 +98,7 @@ def stage(name: str, spec: dict, version: str, out: Path, extras: dict[str, list
 name = "{name}"
 version = "{version}"
 description = "{spec["summary"]}"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "{_expression(licences)}"
 license-files = {files!r}
@@ -112,8 +113,8 @@ build-backend = "hatchling.build"
 only-include = {json.dumps(include)}
 sources = ["src"]
 """
-    (out / "pyproject.toml").write_text(pyproject)
-    (out / "README.md").write_text(f"# {name}\n\n{spec['summary']}\n")
+    (out / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    (out / "README.md").write_text(f"# {name}\n\n{spec['summary']}\n", encoding="utf-8")
 
 
 def _urls(project: dict) -> str:
@@ -154,7 +155,7 @@ def core_pyproject(text: str, dists: dict, version: str) -> str:
     if _MODELS_EXCLUDE not in text:
         msg = f"pyproject.toml: the wheel exclude has no {_MODELS_EXCLUDE}"
         raise ValueError(msg)
-    others = [str(d.relative_to(ROOT)) + "/" for spec in dists.values() for d in select(spec)]
+    others = [d.relative_to(ROOT).as_posix() + "/" for spec in dists.values() for d in select(spec)]
     exclude = ", ".join([*(json.dumps(x) for x in others), _MODELS_EXCLUDE])
     text = text.replace(_MODELS_EXCLUDE, exclude, 1)
     extras = "".join(f'{name.removeprefix("fastforks-")} = ["{name}=={version}"]\n' for name in dists)
@@ -172,8 +173,8 @@ def build_core(dists: dict, version: str, out: Path = DIST) -> None:
         for name in ("README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"):
             shutil.copy2(ROOT / name, stage_dir / name)
         shutil.copytree(ROOT / "src", stage_dir / "src", ignore=shutil.ignore_patterns("__pycache__", "*.so"))
-        text = core_pyproject((ROOT / "pyproject.toml").read_text(), dists, version)
-        (stage_dir / "pyproject.toml").write_text(text)
+        text = core_pyproject((ROOT / "pyproject.toml").read_text(encoding="utf-8"), dists, version)
+        (stage_dir / "pyproject.toml").write_text(text, encoding="utf-8")
         subprocess.run(["uv", "build", "--quiet", "--wheel", "-o", out, stage_dir], check=True)
 
 
@@ -228,7 +229,9 @@ def build_meta(dists: dict, version: str, out: Path = DIST) -> None:
         stage_dir = Path(tmp)
         for name in ("README.md", "LICENSE"):
             shutil.copy2(ROOT / name, stage_dir / name)
-        (stage_dir / "pyproject.toml").write_text(meta_pyproject((ROOT / "pyproject.toml").read_text(), dists, version))
+        (stage_dir / "pyproject.toml").write_text(
+            meta_pyproject((ROOT / "pyproject.toml").read_text(encoding="utf-8"), dists, version), encoding="utf-8"
+        )
         subprocess.run(["uv", "build", "--quiet", "--wheel", "-o", out, stage_dir], check=True)
 
 
@@ -237,8 +240,8 @@ def main() -> None:
     ap.add_argument("dists", nargs="*", help=f"names from dists.toml, {CORE} or {META} (default: all)")
     ap.add_argument("--out", type=Path, default=DIST, help="output directory (default: dist/)")
     a = ap.parse_args()
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
-    version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     for name in a.dists or [CORE, META, *dists]:
         if name in (CORE, META):
             (build_core if name == CORE else build_meta)(dists, version, a.out)

@@ -22,3 +22,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-14"
 mean_px = 0.00034
 p99_px = 0.00154
+
+[validated."film@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-23"
+mean_px = 0.00024
+p99_px = 0.00099

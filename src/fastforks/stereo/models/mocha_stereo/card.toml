@@ -3,7 +3,7 @@ name = "MoCha-Stereo"
 summary = "MoCha-Stereo (Chen et al. 2024): EfficientNetV2-L features, a motif channel correlation volume next to an IGEV-style geometry volume, 3-level Mogrifier LSTM updates and a refinement step, 32 iterations. mocha-v2-sceneflow is an unofficial reconstruction (the authors released no V2 code)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/ZYangChen/MoCha-Stereo"
@@ -25,14 +25,21 @@ max_disp = 192  # geometry-volume depth at full resolution
 
 [options]
 iters = { default = 32, min = 1 }  # LSTM update iterations (original valid_iters)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "mocha", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2 shapes per
+# model (Windows KITTI 199 -> 141 ms). The graph pool stays reserved (KITTI 1.8 vs 0.9 GB eager) until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (720x1280
+# 296 vs 273 ms with a graph for 3.0 vs 1.2 GB reserved, Middlebury-H 452 vs 446 ms for 5.3 vs 2.0 GB)
 
 [[papers]]
 title = "MoCha-Stereo: Motif Channel Attention Network for Stereo Matching"

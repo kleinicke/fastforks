@@ -3,11 +3,13 @@ name = "LoFTR"
 summary = "LoFTR (Sun et al., CVPR 2021): detector-free dense matching. A ResNet-FPN gives 1/8 and 1/2 resolution features; a linear-attention transformer matches the 1/8 cells of both images (dual-softmax, mutual nearest neighbours above a confidence threshold) and a second transformer refines each match to sub-pixel precision in a 5 x 5 window at 1/2 resolution. Returns the matched points of both images, their (identity) index pairs and the coarse confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
+  "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. Whole-graph TensorRT trials lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
+  "The standalone ResNetFPN TensorRT plans took about 199 ms versus 273 ms for paired portable FP32 at 768 x 1024. The matching stages stayed in PyTorch. Each variant passed a 12-pair check that included its six worst whole-graph cases.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
-  "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Match counts depend on image content. The verified ONNX export takes a fixed input size and returns variable-length matches.",
   "Images are converted to grayscale and matched at `long_side` (default 840, upstream's MegaDepth test size); the coarse matching holds an (H W / 64)^2 score matrix, so memory grows with the 4th power of the side. The indoor weights were evaluated by upstream at 640 x 480 (ScanNet).",
 ]
 
@@ -36,10 +38,11 @@ threshold = 0.2  # coarse dual-softmax confidence (upstream MATCH_COARSE.THR)
 [modes.portable]
 cuda_dtype = "float16"  # fastforks (upstream float32): backbone and transformers in float16; coarse and fine similarities, dual-softmax and outputs float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]  # float16: backbone and coarse transformer; its ragged 196-channel 3x3 convs padded into MLX's Winograd (`half_wino_pad`), without that the float16 backbone is slower than float32; fine matching runs in PyTorch on the CPU
 
 [modes.kernels]
 dtype = "float16"  # the backbone's convs as fp16 channels-last cuDNN / CUTLASS kernels with the BatchNorm, ReLU and residual in the epilogue; the transformers as portable; peak memory equals portable (the peak is in the transformer, not the backbone): 905 MB allocated, 18 % faster, AUC@5 +0.3 on 1500 pairs
-kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+kernels = ["dual_softmax", "igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "LoFTR: Detector-Free Local Feature Matching with Transformers"
@@ -49,14 +52,14 @@ venue = "CVPR 2021"
 
 [[variants]]
 id = "loftr-outdoor"  # upstream outdoor_ds: trained with the original (buggy) position encoding, eval border_rm 2
-planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)", tensorrt = "fixed 768 x 1024 engines lose 4.29 pose AUC@5 points in FP16 and 2.49 in FP32 on 50 MegaDepth pairs" }
 revision = 1
 params = { temp_bug_fix = false, border_rm = 2 }
 weights = [{ name = "loftr_outdoor.ckpt", size = 46341978, sha256 = "21f5bec5968178e8bc8b7633441836fe5de4f47d861dd2cd7dc38e271b0479ec", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_outdoor.ckpt" }]
 
 [[variants]]
 id = "loftr-indoor"  # upstream indoor_ds_new: the fixed position encoding, eval border_rm 0
-planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "fixed 768 x 1024 TensorRT loses 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on ScanNet" }
 revision = 1
 params = { temp_bug_fix = true, border_rm = 0 }
 weights = [{ name = "loftr_indoor_ds_new.ckpt", size = 46355053, sha256 = "be9ff88b323ec27889114719f668ae41aff7034b56a4c4acbd46b8b180b87ed3", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_indoor_ds_new.ckpt" }]

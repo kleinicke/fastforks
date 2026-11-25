@@ -3,7 +3,12 @@ name = "GIMM-VFI"
 summary = "GIMM-VFI (Guo et al., NeurIPS 2024), the RAFT-based GIMM-VFI-R: arbitrary-time video frame interpolation. RAFT estimates the flow between both frames in both directions; a generalizable implicit motion model (a SIREN MLP on time and position, conditioned on the forward-splatted flow latents) predicts the flow at the requested time; an AMT-style decoder refines it with the bidirectional feature correlation and blends both warped frames. Any time in [0, 1]. `gimm-vfi-r` is trained for accuracy, `gimm-vfi-r-p` adds an LPIPS loss for sharper, perceptually better frames."
 tier = "experimental"
 outputs = ["frame"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = [
+  "At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.",
+  "At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.",
+  "The GIMM-VFI-R feature encoder alone passed the 16-triplet check. End-to-end FP32 latency was 1210 ms versus 1230 ms for paired portable FP32, with a PSNR change of at most 0.0395 dB on the checked triplets.",
+]
 
 [upstream]
 repo = "https://github.com/GSeanCDAT/GIMM-VFI"
@@ -22,6 +27,9 @@ input = "0-1"  # video_Nx.py load_image divides by 255
 min_size = 128  # RAFT's 1/64 correlation level must be >= 2 px (align_corners lookups divide by size - 1)
 pad = { multiple = 32, mode = "centre", fill = "replicate" }  # utils.InputPadder(shape, 32): replicate, centred
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the whole call from a CUDA graph for inputs up to 2^19 pixels (false: eager, no graph pool)
+
 [params]
 iters = 20  # GIMMVFI_R.raft_iter
 ds_factor = 1.0  # video_Nx.py --ds-factor: scale of the flow estimation (0.5 / 0.25 for 2K / 4K in X4K.py), synthesis at full size
@@ -29,6 +37,7 @@ ds_factor = 1.0  # video_Nx.py --ds-factor: scale of the flow estimation (0.5 / 
 [modes.portable]
 cuda_dtype = "float16"  # float16 autocast; the correlation lookups sample in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft_flow", "cudnn_hacc"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the three all-pairs volumes; the full-size decoder convs with float16 accumulation; otherwise the portable float16 network
@@ -41,6 +50,7 @@ venue = "NeurIPS 2024"
 
 [[variants]]
 id = "gimm-vfi-r"
+planned = { tensorrt = "the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets" }
 revision = 1
 weights = [{ name = "gimmvfi_r_arb.pt", size = 79305223, sha256 = "1dff0ac3ca91483950eff814818115ff90cc3d16070089cc8cc3090eb3ee76f2", url = "https://huggingface.co/GSean/GIMM-VFI/resolve/ab7735cdcfbd2e03c1bf2819380a25e8a4f321d1/gimmvfi_r_arb.pt" }]
 

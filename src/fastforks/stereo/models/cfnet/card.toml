@@ -3,7 +3,7 @@ name = "CFNet"
 summary = "CFNet (Shen et al. 2021): cascade and fused cost volumes (fused 1/8-1/32 3-D volumes), then two refinement stages that adapt to the uncertainty of the disparity (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/gallenszl/CFNet"
@@ -23,12 +23,16 @@ pad = { multiple = 64, mode = "top_right", fill = "zero" }  # the original code'
 [params]
 max_disp = 192  # cost-volume depth at full resolution
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+kernels = ["cfnet_volume", "igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
 # Kernels is 1.2x faster at a repeated input size (490x940: 90 vs 112 ms; Midd-H 397 vs 481 ms), but every new padded
 # size first builds fp16-accumulate cuDNN graphs (~0.2 s once vs ~0.04 s for portable). On ETH3D, which has many

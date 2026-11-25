@@ -40,7 +40,9 @@ __all__ = [
     "NoParams",
     "Runner",
     "components",
+    "ctc_best",
     "ctc_decode",
+    "ctc_decode_best",
     "det_input",
     "det_size",
     "levels",
@@ -104,10 +106,8 @@ def components(mask: torch.Tensor) -> list[_db.Rows]:
     runs = int(max(h_run.max().item(), v_run.max().item())) + 1 if len(ys) else 0
     while True:
         pad = torch.nn.functional.pad(label, (1, 1, 1, 1), value=big)
-        low = label
-        for dy in range(3):
-            for dx in range(3):
-                low = torch.minimum(low, pad[dy : dy + h, dx : dx + w])
+        low = torch.minimum(torch.minimum(pad[:, :-2], pad[:, 1:-1]), pad[:, 2:])  # 3 x 3 min, separably
+        low = torch.minimum(torch.minimum(low[:-2], low[1:-1]), low[2:])
         lab = low[ys, xs]
         for run in (h_run, v_run):
             lab = lab.new_full((runs,), big).scatter_reduce_(0, run, lab, "amin")[run]
@@ -180,7 +180,16 @@ def ctc_decode(probs: torch.Tensor, chars: Sequence[str]) -> tuple[list[str], np
 
     Repeated classes merge, blanks drop; the score is the float32 mean probability of the kept steps (0 if none).
     """
-    p, k = probs.float().max(-1)
+    return ctc_decode_best(*ctc_best(probs), chars)
+
+
+def ctc_best(probs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """The greedy step probabilities and classes `[B, T]` of `ctc_decode`, on the probabilities' device."""
+    return probs.float().max(-1)
+
+
+def ctc_decode_best(p: torch.Tensor, k: torch.Tensor, chars: Sequence[str]) -> tuple[list[str], np.ndarray]:
+    """`ctc_decode` of the output of `ctc_best`."""
     p, k = p.cpu().numpy(), k.cpu().numpy()
     texts, scores = [], np.zeros(len(k), np.float32)
     for b in range(len(k)):

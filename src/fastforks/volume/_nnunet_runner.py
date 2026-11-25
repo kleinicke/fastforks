@@ -9,17 +9,20 @@ dataset json and the configuration (nnU-Net v2 writes them into every checkpoint
 
 from __future__ import annotations
 
+import copy
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
+import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_strict, restricted_load
-from fastforks._core.errors import WeightsError
+from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.patch import base_type, override
-from fastforks.volume._nnunet import Plan, Predictor, UNet, read_plan
+from fastforks._core.runner import host
+from fastforks.volume._nnunet import Plan, Predictor, UNet, _conv_slabs_, _ConvNormAct, read_plan
 from fastforks.volume._runner import Runner
 
 if TYPE_CHECKING:
@@ -52,6 +55,7 @@ class Params:
         mirror: Test-time mirroring along the axes the checkpoints allow.
         configuration: The plans configuration, or empty: the part name's last `__` field (nnU-Net's layout).
         checkpoint: Checkpoint file name in every fold folder.
+        stream: Keep fold networks on the CPU between parts and stage one part per volume on CUDA.
         embedded: The parts are bare checkpoints; plans, dataset json and configuration come from their `init_args`.
     """
 
@@ -62,6 +66,7 @@ class Params:
     configuration: str = ""
     checkpoint: str = "checkpoint_final.pth"
     embedded: bool = False
+    stream: bool = False
 
 
 def weight_names(
@@ -74,7 +79,7 @@ def weight_names(
 
 
 def _json(path: Path) -> dict[str, Any]:
-    return json.loads(Path(path).read_text())
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def _init_args(path: Path) -> dict[str, Any]:
@@ -102,12 +107,16 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    compiled_methods = ("_forward_patch",)
     windows: ClassVar[int] = 2
 
     def __init__(self, ctx: Context) -> None:
         """Read the plans and the fold checkpoints of every part."""
         super().__init__(ctx)
         p: Params = ctx.params
+        if p.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for nnU-Net part transfers"
+            raise OptionsError(msg)
         files = ctx.weights()
         self.parts: list[Predictor] = []
         labels: list[Mapping[int, str]] = []
@@ -131,7 +140,7 @@ class Portable(Runner):
             labels.append(plan.labels)
         self.class_names = self._names(labels)
         index = {n: k for k, n in self.class_names.items()}
-        self._luts = []
+        self._luts: list[torch.Tensor | None] = []
         for part, lab in zip(self.parts, labels, strict=True):
             lut = torch.zeros(part.plan.n_labels, dtype=torch.int16)
             for k, n in lab.items():
@@ -139,7 +148,8 @@ class Portable(Runner):
                     msg = f"{ctx.variant.ref}: class {n!r} is not in the class list"
                     raise WeightsError(msg)
                 lut[k] = index[n]
-            self._luts.append(lut.to(ctx.device))
+            identity = torch.equal(lut, torch.arange(lut.numel(), dtype=lut.dtype))
+            self._luts.append(None if identity else lut.to(ctx.device))
         self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
 
     def _names(self, labels: Sequence[Mapping[int, str]]) -> dict[int, str]:
@@ -158,7 +168,8 @@ class Portable(Runner):
         net = UNet(plan, channels)
         sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
         load_strict(net, UNet.state_dict_of(sd, plan.dims), f"{self.ctx.variant.ref} checkpoint")
-        net.eval().requires_grad_(requires_grad=False).to(self.ctx.device, self._dtype_of())
+        device = torch.device("cpu") if self.ctx.params.stream else self.ctx.device
+        net.eval().requires_grad_(requires_grad=False).to(device, self._dtype_of())
         if self.ctx.device.type == "cuda":
             net = net.to(memory_format=torch.channels_last_3d)
         return net
@@ -178,18 +189,34 @@ class Portable(Runner):
             dtype=self._dtype_of(),
         )
 
+    def _forward_patch(self, net: torch.nn.Module, patch: torch.Tensor) -> torch.Tensor:
+        """Compile the fold network on fixed-size patches. Resampling and merging stay eager."""
+        return net(patch)
+
     def networks(self) -> tuple[torch.nn.Module, ...]:
         """Every fold network of every part."""
         return tuple(n for part in self.parts for n in part.nets)
 
     def segment(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
         """The merged labels of every part on the grid of `volume`."""
-        out = self._luts[0][self.parts[0](volume, spacing).long()]
-        for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):
-            m = lut[part(volume, spacing).long()]
-            out = torch.where(m != 0, m, out)
-        return out.to(self._dtype)
 
+        def predict(part: Predictor, lut: torch.Tensor | None) -> torch.Tensor:
+            nets = part.nets
+            if self.ctx.params.stream:
+                # Keep each fold on device for every window of this part. The host masters stay
+                # immutable, including when two callers run inference on different CUDA streams.
+                nets = [copy.deepcopy(net).to(volume.device) for net in part.nets]
+            predictor = replace(part, nets=nets, forward=self._forward_patch)
+            labels = predictor(volume, spacing)
+            return (labels if lut is None else lut[labels.long()]).to(self._dtype)
+
+        out = predict(self.parts[0], self._luts[0])
+        for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):
+            labels = predict(part, lut)
+            torch.where(labels != 0, labels, out, out=out)
+        return out
+
+    @host
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> dict[str, torch.Tensor]:
         """Labels of one volume on its grid."""
         return {"labels": self.segment(volume, spacing)}
@@ -202,6 +229,26 @@ def fused_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 
     if vol_norm.supported(y):
         return vol_norm.norm_act_(y, self.norm.weight, self.norm.bias, self.norm.eps, self.slope)
     return base_type(self).norm_act(self, y)
+
+
+def _biased_conv_norm(self: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    # cuDNN otherwise adds the channel bias in a separate pass over the complete feature map.
+    conv = self.conv
+    return _bias_norm_act(self, F.conv3d(x, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups))
+
+
+def _biased_conv_norm_(self: Any, y: torch.Tensor, depth: int) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    """`_biased_conv_norm` written over `y` (`_ConvNormAct.forward_`)."""
+    return _bias_norm_act(self, _conv_slabs_(self.conv, y, None, depth))
+
+
+def _bias_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+    conv = self.conv
+    if vol_norm.supported(y):
+        return vol_norm.norm_act_(y, self.norm.weight, self.norm.bias, self.norm.eps, self.slope, conv_bias=conv.bias)
+    return self.norm_act(y.add_(conv.bias.view(1, -1, 1, 1, 1)))
 
 
 class Kernels(Portable):
@@ -217,6 +264,9 @@ class Kernels(Portable):
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         net = super()._net(index, plan, channels)
         for m in net.modules():
-            if hasattr(m, "norm_act"):
+            if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
+                if m.conv.bias is not None:
+                    override(m, _biased_conv_norm)
+                    override(m, _biased_conv_norm_, "forward_")
         return net

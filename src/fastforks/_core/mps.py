@@ -5,12 +5,23 @@ on MPS", torch 2.14), and its transposed convolutions are slow in every dtype. `
 stride-2 one (the cost-volume families' 3-D upsampling, most 2-D ones) as one convolution per parity of the output
 position, a 2-D one whose kernel equals its stride (ViT necks and DPT heads) as a 1 x 1 convolution and
 `pixel_shuffle`, each 1.3-4x faster on an M1 Pro; any other float16 / bfloat16 3-D one in float32 (input and weights
-cast for the call, the output cast back).
+cast for the call, the output cast back). Its 3-D convolutions are slow too (channels-last-3d far more so): `adapt`
+runs a plain `Conv3d` as one 2-D convolution over the depth planes per depth tap (`conv3d`, 3-30x faster).
 
 `sync_at_exit` waits for the GPU before the interpreter shuts down: a CPU tensor copied to MPS (a NumPy image, say)
 stays referenced by the command buffer, and a NumPy-owned one is freed from Metal's completion thread, which needs the
 GIL; if that happens during interpreter shutdown, the process hangs or aborts ("Fatal Python error:
 gilstate_tss_set", torch 2.14).
+
+`fence` waits for the GPU at a stage boundary. MPS reuses a freed intermediate only once the command buffer that used
+it has completed, so a long queue of stages keeps every stage's temporaries alive, and the allocator backs allocations
+of 10-512 MB with 1 GB heaps (counted whole in the process footprint): a synchronize between big stages lets the next
+stage reuse the last one's memory (vitmatte-s at 1080p: 3.7 -> 2.6 GB, same speed).
+
+`release` is `fence` plus `torch.mps.empty_cache()`: the allocator's cached buffers count against the MPS limit, and
+a stage with different shapes cannot reuse them (DepthFM at 1024x1472: 5 GiB cached after the VAE encoder).
+
+`attention` is `scaled_dot_product_attention` in query blocks: MPS materialises the whole score matrix.
 
 `quiet_nd_padding` silences MPS's note that it pads tensors of more than 3 dimensions as view ops (slower, not wrong).
 """
@@ -21,6 +32,7 @@ import atexit
 import contextlib
 import functools
 import itertools
+import math
 import warnings
 from typing import TYPE_CHECKING, cast
 
@@ -30,9 +42,88 @@ import torch.nn.functional as F
 from fastforks._core.patch import base_type, override
 
 _POLYPHASE = 2  # the stride `conv_transpose` splits into output parities
+_DEPTH_TAPS = 4  # `conv3d`: a (kd, 1, 1) kernel with more depth taps than this runs as one `conv2d` ...
+_DEPTH_ROW_BYTES = 256  # ... when one input position's channels take at most this many bytes
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+
+def conv3d(
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None,
+    stride: tuple[int, int, int],
+    padding: tuple[int, int, int],
+) -> torch.Tensor:
+    """`F.conv3d` (groups 1, dilation 1, zero padding) as one `conv2d` over the depth planes per depth tap.
+
+    Output plane `d` sums tap `k` of the input plane `d * stride + k - padding`; the planes of `x` in
+    channels-last-3d are channels-last 2-D images (`[N, C, D, H, W]` -> `[N * D, C, H, W]` is a view), and the output
+    is channels-last-3d. On an M1 Pro, 192 -> 96 (1, 3, 3) / 96 -> 48 3x3x3 / 48 -> 8 3x3x3 on 18 x 256 x 376 fp32:
+    torch NCDHW 481 / 413 / 83 ms, channels-last-3d 3303 / 2512 / 1245 ms, this 105 / 130 / 21 ms (fp16 3-6x).
+    """
+    n, c, d = x.shape[:3]
+    kd, sd, pd = weight.shape[2], stride[0], padding[0]
+    d_out = (d + 2 * pd - kd) // sd + 1
+    if _depth_only(weight, stride, padding) and kd > _DEPTH_TAPS and c * x.element_size() <= _DEPTH_ROW_BYTES:
+        return _depth_conv(x, weight, bias, sd, pd)
+    x = x.contiguous(memory_format=torch.channels_last_3d)  # no-op when it already is
+    out: torch.Tensor | None = None
+    for k in sorted(range(kd), key=lambda k: k != pd):  # the centre tap first: it covers every output plane
+        lo = max(0, -((k - pd) // sd))  # first output plane whose input plane d * sd + k - pd is >= 0
+        hi = min(d_out - 1, (d - 1 + pd - k) // sd)
+        if hi < lo:
+            continue
+        i0 = lo * sd + k - pd
+        planes = x[:, :, i0 : i0 + (hi - lo) * sd + 1 : sd].permute(0, 2, 1, 3, 4).reshape(-1, c, *x.shape[3:])
+        full = out is None and lo == 0 and hi == d_out - 1
+        y = F.conv2d(planes, weight[:, :, k], bias if full else None, stride[1:], padding[1:])
+        y = y.view(n, hi - lo + 1, *y.shape[1:]).permute(0, 2, 1, 3, 4)
+        if full:
+            out = y
+            continue
+        if out is None:
+            out = y.new_zeros(n, y.shape[1], d_out, *y.shape[3:]).contiguous(memory_format=torch.channels_last_3d)
+            if bias is not None:
+                out += bias.view(-1, 1, 1, 1)
+        out[:, :, lo : hi + 1] += y
+    if out is None:  # no tap reaches any output plane (a padding wider than the kernel)
+        out = F.conv3d(x, weight, bias, stride, padding)
+    return out
+
+
+def _depth_only(weight: torch.Tensor, stride: tuple[int, int, int], padding: tuple[int, int, int]) -> bool:
+    """A `(kd, 1, 1)` kernel, stride 1 and no padding in height and width."""
+    return weight.shape[3:] == (1, 1) and tuple(stride[1:]) == (1, 1) and tuple(padding[1:]) == (0, 0)
+
+
+def _depth_conv(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None, sd: int, pd: int) -> torch.Tensor:
+    """A `(kd, 1, 1)` kernel as one `(kd, 1)` `conv2d` over the contiguous `[N, C, D, H * W]` (output contiguous).
+
+    The taps loop runs `kd` 1 x 1 `conv2d`s, then adds partial planes. M1 Pro, C -> C (17, 1, 1) at C-FoundationStereo's
+    hourglass levels, taps / this (ms, the channels-last-3d input copy included): fp16 28 @ 104 x 256 x 376 402 / 278,
+    56 @ 52 x 128 x 188 151 / 108, 112 @ 26 x 64 x 94 34 / 27, 168 @ 13 x 32 x 47 11.4 / 12.6; fp32 544 / 321,
+    163 / 151, 39 / 81 (also 96 and 128 channels lose in fp32). Hence the gates: more than `_DEPTH_TAPS` taps
+    ((2, 1, 1) stride 2 loses, 0.8 / 1.5 ms) and input rows of at most `_DEPTH_ROW_BYTES`.
+    """
+    n, c, _, h, w = x.shape
+    y = F.conv2d(x.contiguous().view(n, c, -1, h * w), weight.squeeze(-1), bias, (sd, 1), (pd, 0))
+    return y.view(n, y.shape[1], y.shape[2], h, w)
+
+
+def _conv3d(self: torch.nn.Conv3d, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - torch's name
+    """`Conv3d.forward` of a layer `adapt` picked, by `conv3d` (in the input dtype)."""
+    unbatched = input.dim() == 4  # noqa: PLR2004 - [C, D, H, W]
+    x = input.unsqueeze(0) if unbatched else input
+    out = conv3d(
+        x,
+        self.weight.to(x.dtype),
+        _cast(self.bias, x),
+        cast("tuple[int, int, int]", self.stride),
+        cast("tuple[int, int, int]", self.padding),
+    )
+    return out.squeeze(0) if unbatched else out
 
 
 def _float32_conv_transpose3d(
@@ -104,7 +195,7 @@ def _polyphase(
     lo = [max(0, -min(a[1] for a in axis)) for axis in taps]
     hi = [max(0, max(a[2] for a in axis) - n[d] + 1) for d, axis in enumerate(taps)]
     x = F.pad(x, [v for d in reversed(range(nd)) for v in (lo[d], hi[d])])
-    conv = F.conv2d if nd == 2 else F.conv3d  # noqa: PLR2004 - 2-D
+    conv = F.conv2d if nd == 2 else functools.partial(conv3d, stride=(1, 1, 1), padding=(0, 0, 0))  # noqa: PLR2004 - 2-D
     out = x.new_empty(x.shape[0], weight.shape[1], *sizes)
     for parity in itertools.product((0, 1), repeat=nd):
         axes = [taps[d][e] for d, e in enumerate(parity)]
@@ -172,7 +263,9 @@ def _quiet_nd_padding() -> Generator[None]:
 
 
 def adapt(net: torch.nn.Module) -> None:
-    """Replace the transposed convolutions of `net` (a runner's module) that MPS runs slowly or not at all; in place.
+    """Replace the 3-D / transposed convolutions of `net` (a runner's module) MPS runs slowly or not at all; in place.
+
+    A `Conv3d` with groups 1, dilation 1 and zero padding goes through `conv3d`.
 
     A layer `conv_transpose` speeds up (groups 1, dilation 1, the same stride and padding on every axis, square
     kernel equal to the stride or stride 2) goes through it in the input dtype; any other
@@ -180,6 +273,16 @@ def adapt(net: torch.nn.Module) -> None:
     """
     for m in net.modules():
         kind = base_type(m)
+        if kind is torch.nn.Conv3d:
+            m = cast("torch.nn.Conv3d", m)
+            if (
+                m.groups == 1
+                and set(m.dilation) == {1}
+                and m.padding_mode == "zeros"
+                and not isinstance(m.padding, str)
+            ):
+                override(m, _conv3d)
+            continue
         if kind not in (torch.nn.ConvTranspose2d, torch.nn.ConvTranspose3d):
             continue
         m = cast("torch.nn.ConvTranspose2d | torch.nn.ConvTranspose3d", m)
@@ -189,6 +292,48 @@ def adapt(net: torch.nn.Module) -> None:
             override(m, _conv_transpose)
         elif kind is torch.nn.ConvTranspose3d:  # whatever dtype the layer gets later (a no-op cast in float32)
             override(m, _float32_conv_transpose3d)
+
+
+def fence(t: torch.Tensor) -> torch.Tensor:
+    """Wait for the queued MPS work when `t` is on MPS (eager only), so freed intermediates become reusable; `t`."""
+    if t.device.type == "mps" and not (torch.compiler.is_compiling() or torch.jit.is_tracing()):
+        torch.mps.synchronize()
+    return t
+
+
+def release(t: torch.Tensor) -> torch.Tensor:
+    """`fence`, then hand the buffers MPS keeps cached back to the system when `t` is on MPS (eager, no grad); `t`.
+
+    The cache is counted against the MPS memory limit and is only reused by requests of a matching size: a stage
+    with other shapes than the last one (an encoder, then attention blocks or a correlation volume) allocates on top
+    of it and runs out of memory with gigabytes cached. A call costs about a millisecond plus the reallocation: use
+    it between the big stages of a call, not inside loops.
+    """
+    if t.device.type == "mps" and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+    ):
+        torch.mps.synchronize()
+        torch.mps.empty_cache()
+    return t
+
+
+ATTENTION_SCORE_BYTES = 512 << 20
+"""Score bytes per query block of `attention`."""
+
+
+def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float | None = None) -> torch.Tensor:
+    """`F.scaled_dot_product_attention`; on MPS (eager) in query blocks of `ATTENTION_SCORE_BYTES` of scores.
+
+    MPS materialises the scores and their softmax outside PyTorch's allocator ("other allocations"): one head of
+    32400 tokens (1080 x 1920 at 1/8) is 2 x 4 GiB in float32. Captured graphs keep the single op.
+    """
+    row = math.prod(q.shape[:-2]) * k.shape[-2] * q.element_size()  # bytes of one query's scores
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    if q.device.type != "mps" or capture or q.shape[-2] * row <= ATTENTION_SCORE_BYTES:
+        return F.scaled_dot_product_attention(q, k, v, scale=scale)
+    block = max(1, ATTENTION_SCORE_BYTES // row)
+    parts = [F.scaled_dot_product_attention(part, k, v, scale=scale) for part in q.split(block, dim=-2)]
+    return torch.cat(parts, dim=-2)
 
 
 @functools.cache

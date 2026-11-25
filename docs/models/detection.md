@@ -8,7 +8,7 @@ Input: one RGB image. Output: boxes, class labels, scores and instance masks.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -25,18 +25,18 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dfine-s-coco`](#dfine) | yes | 3.75, 6.8x | 170, 0.92x |
 | [`dfine-x-coco`](#dfine) | yes | 9.59, 4.7x | 298, 0.61x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
-| [`grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
-| [`grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
+| [`grounding-dino-base`](#grounding_dino) | yes | 109, 2.1x | 1322, 0.43x |
+| [`grounding-dino-tiny`](#grounding_dino) | yes | 86.9, 2.3x | 1106, 0.41x |
 | [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
 | [`lw-detr-medium-coco`](#lwdetr) | yes | 3.78, 6.2x | 178, 0.65x |
 | [`lw-detr-small-coco`](#lwdetr) | yes | 2.80, 7.1x | 140, 0.84x |
 | [`lw-detr-tiny-coco`](#lwdetr) | yes | 2.20, 7.5x | 134, 1.0x |
 | [`lw-detr-xlarge-coco`](#lwdetr) | yes | 9.39, 2.7x | 382, 0.45x |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
-| [`mm-grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
+| [`mm-grounding-dino-base`](#grounding_dino) | yes | 110, 2.1x | 1324, 0.43x |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | 87.2, 2.3x | 1108, 0.41x |
 | [`owlv2-b16`](#owlv2) | yes | 23.7, 3.9x | 612, 0.64x |
-| [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1184, 0.45x |
+| [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1164, 0.45x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.30, 2.2x | 206, 0.86x |
 | [`rf-detr-m-coco`](#rfdetr) | yes | 3.86, 3.0x | 178, 1.0x |
 | [`rf-detr-n-coco`](#rfdetr) | yes | 2.39, 4.4x | 142, 0.89x |
@@ -75,12 +75,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.4<br>2.48<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.4<br>2.48<br>5.43<br>1.08 | 91 / 122<br>92 / 126<br>92 / 114<br>94 / 118<br>101 / 118<br>104 / 128 |
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.4<br>3.75<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>108 / 128<br>108 / 170<br>131 / 152<br>147 / 160 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.7<br>5.07<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.6<br>6.53<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>155 / 172<br>151 / 216<br>175 / 198<br>219 / 256 |
-| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.6<br>9.59<br>11.0<br>5.03 | 452 / 488<br>476 / 536<br>230 / 258<br>231 / 298<br>245 / 284<br>342 / 374 |
-| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.4<br>2.46<br>5.44<br>1.01 | 93 / 124<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
+| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.6<br>9.59<br>11.0<br>5.64 | 452 / 488<br>476 / 536<br>230 / 258<br>231 / 298<br>245 / 284<br>342 / 374 |
+| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.4<br>2.46<br>5.44<br>1.10 | 93 / 124<br>92 / 114<br>94 / 118<br>101 / 118<br>104 / 128 |
 | `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.3<br>3.73<br>5.63<br>1.68 | 154 / 180<br>108 / 128<br>108 / 170<br>131 / 152<br>163 / 176 |
 | `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.8<br>5.08<br>6.73<br>2.54 | 210 / 250<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `deim-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.1<br>16.3<br>6.50<br>7.99<br>3.39 | 264 / 322<br>155 / 172<br>151 / 216<br>175 / 198<br>229 / 266 |
@@ -104,12 +104,12 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `deim-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `deim-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.6 reserved)
-- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
+- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `dfine-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `dfine-m-coco` 800x1344, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `dfine-l-coco` 800x1344, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 59 s (ONNX + engine).
-- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
-- `deim-n-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
+- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 107 s (ONNX + engine).
+- `deim-n-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `deim-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `deim-m-coco` 800x1344, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `deim-l-coco` 800x1344, first call: portable + torch.compile 50 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
@@ -145,20 +145,20 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.97 |  |
-| `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.89 |  |
-| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 | 52.00 |  |
-| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 | 54.17 |  |
-| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 | 56.32 |  |
-| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 | 44.38 |  |
-| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 | 49.52 |  |
-| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 | 52.43 |  |
-| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 | 54.67 |  |
-| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 | 56.90 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.98 | 42.97 |  |
+| `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.84 | 49.89 |  |
+| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 | 51.92 | 52.00 |  |
+| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 | 54.15 | 54.17 |  |
+| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 | 56.35 | 56.32 |  |
+| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 | 44.36 | 44.38 |  |
+| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 | 49.36 | 49.52 |  |
+| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 | 52.38 | 52.43 |  |
+| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 | 54.67 | 54.67 |  |
+| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 | 56.88 | 56.90 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -204,7 +204,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/detr/blob/29901c51d7fe8712168b8d0d64351170bc0f83e0/README.md (License section)
 - Training data: COCO 2017 (train, instance annotations), ImageNet-1k (ILSVRC 2012 classification) (COCO 2017 train (500 epochs); the ResNet backbone was initialised from torchvision's ImageNet-1k model)
-- Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1)
+- Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `detr-r50-coco`, `detr-r101-coco`
 - Outputs: boxes, scores, labels; label_set: `coco-80`
@@ -225,12 +225,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.62 |  |
-| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.56 | 43.62 |  |
+| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 | 44.05 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -283,12 +283,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.10 / 38.64 |  |
-| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.58 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.13 / 38.66 | 42.10 / 38.64 |  |
+| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.57 | 41.58 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -311,10 +311,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
-| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
-| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 199<br>110<br>86.9<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>987 / 1106<br>987 / 1106<br>2550 / 2664<br>883 / 888 |
+| `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.0<br>55.4<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>841 / 948<br>841 / 948<br>387 / 406 |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>132<br>109<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1105 / 1322<br>1105 / 1322<br>2669 / 2800<br>1153 / 1160 |
+| `grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.6 (fixed 80-class text prompt) | –<br>–<br>–<br>609 / 628 |
+| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 202<br>110<br>87.2<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>989 / 1108<br>989 / 1108<br>2555 / 2666<br>883 / 890 |
+| `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.2<br>55.5<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>842 / 950<br>842 / 950<br>387 / 408 |
+| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 232<br>132<br>110<br>132<br>158 (fixed 80-class text prompt) | 2895 / 3094<br>1107 / 1324<br>1107 / 1324<br>2669 / 2800<br>1153 / 1160 |
+| `mm-grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.7 (fixed 80-class text prompt) | –<br>–<br>–<br>641 / 662 |
 
 <details><summary>Details</summary>
 
@@ -327,40 +331,60 @@ Commercial use: yes.
   - `mm-grounding-dino-tiny`: Objects365 (train, box annotations) (MM-Grounding-DINO-T (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361).)
   - `mm-grounding-dino-base`: Objects365 (train, box annotations) (MM-Grounding-DINO-B (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361).)
 - Options: `score_threshold` = 0.25 (0.0 to 1.0), `max_detections` = 100 (>= 1)
-- Kernel libraries: none (not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640))
+- Kernel libraries: `msda`
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base`
-- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
+- Public ONNX / TensorRT export is unavailable for `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base` (the ONNX converter has no decomposition for aten._is_all_true).
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
-- no kernels: not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640).
-- `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
-- `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache).
-- `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache).
-- `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache).
+- `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache), TensorRT fp32 104 s (ONNX + engine).
+- `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache), TensorRT fp32 130 s (ONNX + engine).
+- `grounding-dino-base` 320x320, first call: TensorRT fp32 119 s (ONNX + engine).
+- `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp32 104 s (ONNX + engine).
+- `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp32 125 s (ONNX + engine).
+- `mm-grounding-dino-base` 320x320, first call: TensorRT fp32 134 s (ONNX + engine).
 - `grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
+- `grounding-dino-tiny` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
+- `grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
+- `grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
+- `grounding-dino-base` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
 - `mm-grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
+- `mm-grounding-dino-tiny` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
+- `mm-grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
+- `mm-grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `mm-grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `grounding-dino-tiny` load / first call: original 4.06 s / 1.176 s, portable 3.01 s / 0.508 s
-- `grounding-dino-base` load / first call: original 4.16 s / 0.989 s, portable 3.29 s / 0.527 s
-- `mm-grounding-dino-tiny` load / first call: original 4.17 s / 0.99 s, portable 3.26 s / 0.517 s
-- `mm-grounding-dino-base` load / first call: original 4.1 s / 1.029 s, portable 3.33 s / 0.527 s
+- `mm-grounding-dino-base` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
+- `grounding-dino-tiny` load / first call: original 4.06 s / 1.176 s, portable 3.01 s / 0.508 s, kernels 4.14 s / 0.422 s (320x320)
+- `grounding-dino-base` load / first call: original 4.16 s / 0.989 s, portable 3.29 s / 0.527 s, kernels 4.22 s / 0.449 s
+- `mm-grounding-dino-tiny` load / first call: original 4.17 s / 0.99 s, portable 3.26 s / 0.517 s, kernels 3.42 s / 0.43 s (320x320)
+- `mm-grounding-dino-base` load / first call: original 4.1 s / 1.029 s, portable 3.33 s / 0.527 s, kernels 4.67 s / 0.453 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one prepared prompt for all 80 COCO class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. The same FP32 320 x 320 preparation and top 100 predictions for all 80 classes, restricted to every 100th validation image in filename order. Resize the same 500 RGB inputs to 800 x 1344. Use one prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 |  |
-| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |
-| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |
-| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 | 51.12 | 51.04 |  |  |  |
+| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.30 |  |  | 35.47 |  |
+| `grounding-dino-tiny` | COCO val2017, 50 images at fixed 320 x 320, box mAP |  |  |  | 34.92 |  | 34.92 |  |  |
+| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 49.85 |  |  | 49.80 |  |
+| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |  |  |
+| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 | 57.12 |  |  |  |
+| `grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 39.83 |  |  | 39.76 |  |
+| `grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 56.21 |  |  | 56.15 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |  |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 |  |  | 35.79 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 50.14 |  |  | 50.05 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 | 55.40 | 54.99 |  |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |  |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.64 |  |  | 35.60 |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 52.09 |  |  | 52.23 |  |
+| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 | 56.94 | 56.89 |  |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 912f67dd / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
@@ -368,10 +392,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `grounding-dino-tiny` | no kernels backend | - | - |
-| `grounding-dino-base` | no kernels backend | - | - |
-| `mm-grounding-dino-tiny` | no kernels backend | - | - |
-| `mm-grounding-dino-base` | no kernels backend | - | - |
+| `grounding-dino-tiny` | 0.12884 / 0.53156 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
+| `grounding-dino-base` | 0.16413 / 0.50577 | RTX 5060 Ti, torch 2.14.1+cu130 | `msda@7db8a6f4e515:sm_120` |
+| `mm-grounding-dino-tiny` | 0.08186 / 0.19259 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
+| `mm-grounding-dino-base` | 0.08714 / 0.23686 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
 
 ### Limitations
 
@@ -433,12 +457,15 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 | 48.99 |  |
-| `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 | 60.74 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 | 49.04 | 48.99 |  |
+| `lw-detr-small-coco` | COCO val2017, every 20th image, box mAP | 52.85 | 52.63 | 52.93 | 52.76 |  |
+| `lw-detr-medium-coco` | COCO val2017, every 20th image, box mAP | 57.65 | 57.48 | 57.60 | 57.68 |  |
+| `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 | 60.69 | 60.74 |  |
+| `lw-detr-xlarge-coco` | COCO val2017, every 20th image, box mAP | 61.57 | 61.60 | 61.58 | 61.62 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4f561e54 / aee4b565, 2026-11-13 to 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4f561e54 / aee4b565, 2026-11-13 to 2026-11-14.
 
 ### Parity
 
@@ -469,8 +496,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `owlv2-b16` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.3<br>31.8<br>23.7<br>28.5<br>18.4 | 921 / 960<br>460 / 510<br>461 / 612<br>487 / 530<br>655 / 726 |
-| `owlv2-l14` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 212<br>154<br>110<br>141<br>95.9 | 2550 / 2606<br>1097 / 1144<br>1027 / 1184<br>1190 / 1242<br>1786 / 1820 |
+| `owlv2-b16` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.3<br>30.6<br>23.7<br>28.5<br>18.4 | 921 / 960<br>423 / 490<br>440 / 612<br>487 / 530<br>655 / 726 |
+| `owlv2-l14` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 212<br>154<br>110<br>141<br>95.9 | 2550 / 2606<br>1027 / 1064<br>1027 / 1164<br>1190 / 1242<br>1786 / 1820 |
 
 <details><summary>Details</summary>
 
@@ -488,7 +515,11 @@ Commercial use: yes.
 - `owlv2-b16` 800x1344, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `owlv2-l14` 800x1344, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `owlv2-b16` original 800x1344: torch.autocast(float16) around the call; transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best
+- `owlv2-b16` portable 800x1344: Release attention intermediates before applying the MLP and reuse the QuickGELU activation buffer.
+- `owlv2-b16` kernels 800x1344: Release the padded detector image during Gaussian resizing.
 - `owlv2-l14` original 800x1344: torch.autocast(float16) around the call; transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best
+- `owlv2-l14` portable 800x1344: Release attention intermediates before applying the MLP and reuse the QuickGELU activation buffer.
+- `owlv2-l14` kernels 800x1344: Release the padded detector image during Gaussian resizing.
 - `owlv2-b16` load / first call: original 8.22 s / 0.744 s, portable 3.41 s / 0.256 s, kernels 3.32 s / 0.244 s
 - `owlv2-l14` load / first call: original 9.55 s / 1.182 s, portable 4.44 s / 0.388 s, kernels 4.1 s / 0.35 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -497,12 +528,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `owlv2-b16` | COCO val2017, every 10th image, box mAP | 46.14 | 46.04 | 46.11 | 46.14 |  |
-| `owlv2-l14` | COCO val2017, every 10th image, box mAP | 47.75 | 47.80 | 47.81 | 47.88 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `owlv2-b16` | COCO val2017, every 10th image, box mAP | 46.14 | 46.04 | 46.11 | 46.14 | 46.14 |  |
+| `owlv2-l14` | COCO val2017, every 10th image, box mAP | 47.75 | 47.80 | 47.81 | 47.75 | 47.88 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12.
 
 ### Parity
 
@@ -553,7 +584,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), Objects365 (train, box annotations), LVD-142M (DINOv2's curated web-image set, not released) (COCO 2017 train (README); the RF-DETR paper (arXiv:2511.09554) pretrains detection on Objects365; the DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated.)
 - Options: `score_threshold` = 0.5 (0.0 to 1.0), `max_detections` = 100 (>= 1)
-- Kernel libraries: `fastbb`, `fvm_conv`
+- Kernel libraries: `rfdetr_input`, `fastbb`, `fvm_conv`
 - Variants: `rf-detr-n-coco`, `rf-detr-s-coco`, `rf-detr-m-coco`, `rf-detr-l-coco`, `rf-detr-seg-n-coco`, `rf-detr-seg-s-coco`, `rf-detr-seg-m-coco`, `rf-detr-seg-l-coco`, `rf-detr-seg-xl-coco`, `rf-detr-seg-2xl-coco`
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -594,13 +625,21 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.40 |  |
-| `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 | 54.51 |  |
-| `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.49 / 44.38 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rf-detr-n-coco` | COCO val2017, every 10th image, box mAP | 48.18 |  | 48.17 | 48.19 | 48.23 |  |
+| `rf-detr-s-coco` | COCO val2017, every 10th image, box mAP | 52.54 |  | 52.54 | 52.46 | 52.49 |  |
+| `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.42 | 54.40 |  |
+| `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 |  | 54.51 |  |
+| `rf-detr-l-coco` | COCO val2017, every 10th image, box mAP | 56.41 |  | 56.50 | 56.44 | 56.38 |  |
+| `rf-detr-seg-n-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 48.42 / 40.06 |  | 48.28 / 39.99 | 48.34 / 40.01 | 48.39 / 39.95 |  |
+| `rf-detr-seg-s-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 51.05 / 42.78 |  | 51.06 / 42.80 | 51.01 / 42.78 | 51.08 / 42.82 |  |
+| `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.35 / 44.32 | 53.49 / 44.38 |  |
+| `rf-detr-seg-l-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 54.91 / 46.09 |  | 54.80 / 45.91 | 54.91 / 46.14 | 54.76 / 46.00 |  |
+| `rf-detr-seg-xl-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 56.75 / 48.04 |  | 56.59 / 47.88 | 56.87 / 48.05 | 56.88 / 48.07 |  |
+| `rf-detr-seg-2xl-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 57.58 / 49.38 |  | 57.47 / 49.25 | 57.40 / 49.33 | 57.55 / 49.35 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4f561e54 / 7cecd6cb, 2026-11-12 to 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4f561e54 / 7cecd6cb, 2026-11-12 to 2026-11-14.
 
 ### Parity
 
@@ -608,16 +647,16 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rf-detr-n-coco` | 0.04829 / 0.1498 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-n-coco` | 0.25982 / 1.06715 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-l-coco` | 0.26359 / 0.91166 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-xl-coco` | 0.73043 / 2.97183 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-2xl-coco` | 0.37543 / 1.74394 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-n-coco` | 0.04829 / 0.1498 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-n-coco` | 0.21732 / 0.87894 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-l-coco` | 0.34109 / 0.86718 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-xl-coco` | 0.67382 / 2.7521 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-2xl-coco` | 0.29464 / 1.03198 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
 
 ### Limitations
 
@@ -683,15 +722,15 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.31 |  |
-| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.79 |  |
-| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 |  |
-| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.49 |  |
-| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.49 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.30 | 49.31 |  |
+| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.83 | 49.79 |  |
+| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 | 51.96 |  |
+| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.55 | 54.49 |  |
+| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.56 | 55.49 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -778,17 +817,17 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rtmdet-tiny-coco` | COCO val2017, every 10th image, box mAP | 40.51 | 39.95 | 40.48 | 40.52 |  |
-| `rtmdet-s-coco` | COCO val2017, every 10th image, box mAP | 45.36 | 44.58 | 45.27 | 45.37 |  |
-| `rtmdet-m-coco` | COCO val2017, every 10th image, box mAP | 49.11 | 49.14 | 49.11 | 49.14 |  |
-| `rtmdet-l-coco` | COCO val2017, every 10th image, box mAP | 52.37 | 52.39 | 52.37 | 52.41 |  |
-| `rtmdet-x-coco` | COCO val2017, every 10th image, box mAP | 52.79 | 52.79 | 52.79 | 52.85 |  |
-| `rtmdet-nano-person` | COCO val2017, every 10th image, box AP of the person class | 36.86 | 36.79 | 36.91 | 36.94 |  |
-| `rtmdet-m-person` | COCO val2017, every 10th image, box AP of the person class | 60.20 | 60.21 | 60.20 | 60.21 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rtmdet-tiny-coco` | COCO val2017, every 10th image, box mAP | 40.51 | 39.95 | 40.48 | 40.53 | 40.52 |  |
+| `rtmdet-s-coco` | COCO val2017, every 10th image, box mAP | 45.36 | 44.58 | 45.27 | 45.35 | 45.37 |  |
+| `rtmdet-m-coco` | COCO val2017, every 10th image, box mAP | 49.11 | 49.14 | 49.11 | 49.15 | 49.14 |  |
+| `rtmdet-l-coco` | COCO val2017, every 10th image, box mAP | 52.37 | 52.39 | 52.37 | 52.38 | 52.41 |  |
+| `rtmdet-x-coco` | COCO val2017, every 10th image, box mAP | 52.79 | 52.79 | 52.79 | 52.77 | 52.85 |  |
+| `rtmdet-nano-person` | COCO val2017, every 10th image, box AP of the person class | 36.86 | 36.79 | 36.91 | 36.86 | 36.94 |  |
+| `rtmdet-m-person` | COCO val2017, every 10th image, box AP of the person class | 60.20 | 60.21 | 60.20 | 60.21 | 60.21 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
 
 ### Parity
 
@@ -809,7 +848,7 @@ CPU, float32: max |diff| <= 0.0037 vs the original. GPU, float16 (the default), 
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~65 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable at 640 x 480 and ~125 MiB at 1920 x 1080 (136 vs 56, 238 vs 114 MiB; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -863,13 +902,13 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `yolox-tiny` | COCO val2017, every 25th image (200), box mAP | 38.16 | 38.20 | 38.21 | 38.29 |  |
-| `yolox-s` | COCO val2017, every 25th image (200), box mAP | 44.67 | 44.75 | 44.67 | 44.73 |  |
-| `yolox-m` | COCO val2017, every 25th image (200), box mAP | 50.34 | 50.28 | 50.29 | 50.38 |  |
-| `yolox-l` | COCO val2017, every 25th image (200), box mAP | 54.13 | 54.11 | 54.13 | 54.19 |  |
-| `yolox-x` | COCO val2017, every 25th image (200), box mAP | 54.64 | 54.61 | 54.64 | 54.60 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `yolox-tiny` | COCO val2017, every 25th image (200), box mAP | 38.16 | 38.20 | 38.29 | 38.21 | 38.29 |  |
+| `yolox-s` | COCO val2017, every 25th image (200), box mAP | 44.67 | 44.75 | 44.72 | 44.67 | 44.73 |  |
+| `yolox-m` | COCO val2017, every 25th image (200), box mAP | 50.34 | 50.28 | 50.39 | 50.29 | 50.38 |  |
+| `yolox-l` | COCO val2017, every 25th image (200), box mAP | 54.13 | 54.11 | 54.14 | 54.13 | 54.19 |  |
+| `yolox-x` | COCO val2017, every 25th image (200), box mAP | 54.64 | 54.61 | 54.62 | 54.64 | 54.60 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13.
 
@@ -890,7 +929,7 @@ CPU, float32: max |diff| <= 0.00037 vs the original. GPU, float16 (the default),
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - One label per box (the cell's best class), as upstream: a cell does not report a second class.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~45 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~60 MiB above portable at 640 x 480 and ~100 MiB at 1920 x 1080 (116 vs 56, 196 vs 94 MiB; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -915,16 +954,16 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`dfine-s-coco`](#dfine) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, imagenet-1k | yes | boxes, scores, labels |
 | [`dfine-x-coco`](#dfine) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, imagenet-1k | yes | boxes, scores, labels |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
-| [`grounding-dino-base`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
-| [`grounding-dino-tiny`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`grounding-dino-base`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`grounding-dino-tiny`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
 | [`lw-detr-large-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-medium-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-small-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-tiny-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-xlarge-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
-| [`mm-grounding-dino-base`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`mm-grounding-dino-base`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
 | [`owlv2-b16`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
 | [`owlv2-l14`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
 | [`rf-detr-l-coco`](#rfdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365, lvd-142m | yes | boxes, scores, labels, masks |

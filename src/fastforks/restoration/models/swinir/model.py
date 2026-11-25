@@ -28,19 +28,24 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
+from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
     pad_heads,
     patch_embed,
+    patch_unembed,
     relative_bias,
     shift_mask,
+    shifted_window_regions,
     window_attention,
 )
 
 from .net import SwinIR
-from .net.network_swinir import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
+from .net.network_swinir import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -71,13 +76,25 @@ class _NoMask:
 
 
 _NO_MASK = _NoMask()
+_COMPACT_MASK_MIN_WINDOWS = 512  # fixed: window count from which per-token mask labels beat a dense mask
 
 
 def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask:
     """`SwinTransformerBlock.calculate_mask` made on the device, once per size (upstream: all zeros if unshifted)."""
     if not m.shift_size:
         return _NO_MASK
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
+    h, w = x_size
+    window, shift = m.window_size, m.shift_size
+    weight = m.norm1.weight
+    if (
+        weight.is_cuda
+        and weight.dtype == torch.float16
+        and (h // window) * (w // window) >= _COMPACT_MASK_MIN_WINDOWS
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+    ):
+        return shifted_window_regions(h, w, window, shift, weight.device)
+    return shift_mask(h, w, window, shift, weight.device, dtype=weight.dtype)
 
 
 def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -86,6 +103,24 @@ def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = 
 
 
 _LAST_SCALE = 64.0  # fixed: float16 headroom of the last group's residual sum, not an upstream parameter
+_TAIL_TILE_BYTES = 64 * 1024**2
+
+
+def _upsample_nearest_strips(m: SwinIR, x: torch.Tensor) -> torch.Tensor:
+    """Run the independent nearest and convolution tail with two low-resolution halo rows."""
+    b, c, h, w = x.shape
+    scale = m.upscale
+    rows = max(1, _TAIL_TILE_BYTES // (b * c * scale**2 * w * x.element_size()))
+    if rows >= h or torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled():
+        return SwinIR.upsample_nearest(m, x)
+
+    out = x.new_empty((b, m.conv_last.out_channels, scale * h, scale * w))
+    for start in range(0, h, rows):
+        end = min(start + rows, h)
+        first, last = max(0, start - 2), min(h, end + 2)
+        tile = SwinIR.upsample_nearest(m, x[..., first:last, :])
+        out[..., scale * start : scale * end, :].copy_(tile[..., scale * (start - first) : scale * (end - first), :])
+    return out
 
 
 def _rstb_scaled(m: RSTB, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
@@ -111,6 +146,8 @@ class Portable(Runner):
                 upsampler=p.upsampler, resi_connection=p.resi_connection,
             )  # fmt: skip
         load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+        if ctx.device.type == "cuda" and ctx.dtype == "float16" and p.upsampler == "nearest+conv":
+            override(self.net, _upsample_nearest_strips, "upsample_nearest")
         for m in self.net.modules():
             if isinstance(m, WindowAttention):
                 table, index = m.relative_position_bias_table, m.relative_position_index
@@ -122,10 +159,12 @@ class Portable(Runner):
                 override(m, _mask, "calculate_mask")
             elif isinstance(m, PatchEmbed):
                 override(m, patch_embed)
+            elif isinstance(m, PatchUnEmbed):
+                override(m, patch_unembed)
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
-        if ctx.dtype == "float16":
+        if mlx_wrap.run_dtype(ctx) == "float16":
             last = self.net.layers[-1]
             *_, conv = (c for c in last.modules() if isinstance(c, torch.nn.Conv2d))  # its `conv` (3conv: the last)
             with torch.no_grad():
@@ -135,6 +174,10 @@ class Portable(Runner):
             override(last, _rstb_scaled)
             self.net.norm.eps /= _LAST_SCALE**2  # LayerNorm(x / k, eps / k²) = LayerNorm(x, eps)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 portable 167.3 -> 163.0 ms and 417 -> 368 MB, kernels unchanged; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`main_test_swinir.py`: mirror-pad bottom / right to `(size // window + 1) * window`."""
@@ -158,6 +201,16 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """Keep the shifted window layout only while attention consumes it."""
+    mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
+    windows = rearrange(m.norm1(x), x_size, m.window_size, m.shift_size)
+    attended = m.attn(windows, mask=mask)
+    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
+    x = x + m.drop_path(attended)
+    return x + m.drop_path(m.mlp(m.norm2(x)))
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
@@ -168,6 +221,8 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, SwinTransformerBlock) and m.shift_size:
+                override(m, _shifted_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
@@ -177,7 +232,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 

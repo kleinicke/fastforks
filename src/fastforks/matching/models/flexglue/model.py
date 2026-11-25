@@ -26,8 +26,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.half import half_weights
+from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import image_normalize
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared.aliked import ALIKED
+from fastforks.shared import mlx_wrap
+from fastforks.shared.aliked import ALIKED, lazy
+from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import resize_long
 
@@ -52,6 +58,7 @@ class Params:
     max_keypoints: int  # ALIKED keypoints per image (upstream README 2048)
     long_side: int  # ALIKED's image: long side (LightGlue extractor resize 1024), aspect kept; 0 = input size
     size: int  # the descriptor's image: side of the square (upstream 512)
+    cuda_graphs: bool  # replay the descriptor on repeated sizes in kernels mode
 
 
 Described = tuple[torch.Tensor, torch.Tensor]  # keypoints [N, 2] in input pixels, upstream corner origin; features
@@ -81,7 +88,7 @@ class Matcher(nn.Module):
         p = self.params
         h, w = image.shape[-2:]
         x = resize_long(image, p.long_side) if p.long_side > 0 else image
-        scale = torch.tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
+        scale = device_tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
         kpts = self.extractor({"image": x})["keypoints"][0]
         sq = F.interpolate(image, (p.size, p.size), mode="bilinear", align_corners=False)
         with torch.autocast(image.device.type, self.amp or torch.float16, enabled=self.amp is not None):
@@ -93,8 +100,14 @@ class Matcher(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """The pair's matches from both images' `describe` results."""
         (k0, f0), (k1, f1) = d1, d2
-        sizes = [image.new_tensor([image.shape[-1], image.shape[-2]]) for image in (image1, image2)]
-        resized = [f.new_tensor([STRIDE * f.shape[-1], STRIDE * f.shape[-2]]) for f in (f0, f1)]
+        sizes = [
+            device_tensor([image.shape[-1], image.shape[-2]], device=image.device, dtype=image.dtype)
+            for image in (image1, image2)
+        ]
+        resized = [
+            device_tensor([STRIDE * f.shape[-1], STRIDE * f.shape[-2]], device=f.device, dtype=f.dtype)
+            for f in (f0, f1)
+        ]
         kpts = [k0[None], k1[None]]
         cf = self.matcher.decode(f0, f1, self.amp)
         p2d, conf = [], []
@@ -192,4 +205,72 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+def _descriptor_forward(descriptor: Descriptor, image: torch.Tensor) -> torch.Tensor:
+    x = image_normalize.normalize(image, descriptor.mean, descriptor.std).contiguous(memory_format=torch.channels_last)
+    return descriptor.head(descriptor.backbone(x)).contiguous()
+
+
+class Kernels(Portable):
+    """Fuse the descriptor input normalization, capture repeated feature grids, ALIKED's score head per level.
+
+    ALIKED (`fastforks.shared.aliked.lazy`) convolves its four feature levels with the score head's first 1 x 1
+    convolution before upsampling them, the full-size 128-channel map is not formed: the score map up to float32
+    rounding.
+    """
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the accelerated inference path on the model device."""
+        super().__init__(ctx)
+        descriptor = self.net.descriptor
+        if self.net.amp == torch.float16:
+            # run only under float16 autocast, which recast their requires_grad=False fp32 weights on every call
+            half_weights(descriptor, channels_last=False)
+            half_weights(self.net.matcher.transformers, channels_last=False)
+        override(descriptor, _descriptor_forward)
+        lazy.install(self.net.extractor)
+        self.graphs = None
+        if ctx.params.cuda_graphs:
+            dense = CapturedModule(self.net.descriptor, pixels=2**21)
+            self.net.set_submodule("descriptor", dense)
+            self.graphs = dense.graphs
+
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        if self.graphs is not None:
+            self.graphs.release()
+
+
+class _MlxKeypoints(nn.Module):
+    """ALIKED's keypoints from `fastforks.shared.aliked.mlx` (in MLX operations, no descriptors), as the extractor."""
+
+    def __init__(self, extractor: ALIKED) -> None:
+        """Copy `extractor`'s weights to MLX."""
+        super().__init__()
+        from fastforks.shared.aliked.mlx import MlxAliked  # noqa: PLC0415 - imports mlx
+
+        self._aliked = MlxAliked(extractor)
+
+    def forward(self, data: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        """`ALIKED.forward`'s keypoints `[1, N, 2]` (pixels) of `data["image"]`, a CPU tensor."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        kpts, _ = self._aliked(self._aliked.maps(to_mx(data["image"].float())))
+        return {"keypoints": torch.from_numpy(kpts)[None]}
+
+
+class _MlxPortable(Portable):
+    """`Portable` for MLX: ALIKED's keypoints in MLX operations (float32 in every dtype)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and hand the extractor to MLX."""
+        super().__init__(ctx)
+        self.net.extractor = _MlxKeypoints(self.net.extractor)  # ty: ignore[invalid-assignment] - ALIKED's MLX stand-in
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=("net.descriptor",), methods=("net.matcher.decode",)),
+}

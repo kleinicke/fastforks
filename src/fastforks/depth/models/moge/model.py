@@ -20,34 +20,41 @@ The estimated intrinsics have the principal point at the image centre and square
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import half_weights
+from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
+from fastforks._core.upload import to_device
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import sparse_conv
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
-from .net import PATCH, ConvStack, MoGeNet
+from .net import PATCH, ConvStack, MoGeNet, Resampler
 from .sparse import Level, SparseKernels, SubmConv3d
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from fastforks.depth._runner import Context
 
     from .sparse import SparseUNet
 
+
 _TOKENS = (1200, 3600)  # num_tokens_range of the released checkpoints
 _REFINE_STEPS = 3  # MoGe-3 infer default
 _DEPTH_RES = 256  # MoGe-3 refiner_depth_resolution: z bins per unit of log depth
 _FIT = (64, 64)  # recover_focal_shift subsample
+_PAD_COPY_MIN_BYTES = 32 * 1024**2
 
 
 @dataclass(frozen=True)
@@ -136,6 +143,46 @@ def _solve_shift(uv: torch.Tensor, xyz: torch.Tensor, w: torch.Tensor, focal: to
     return s
 
 
+def _solve_shift_item(uv: np.ndarray, xyz: np.ndarray, focal: float | None) -> float:
+    """`_solve_shift` of one batch item on its valid points only (`uv` `[n, 2]`, `xyz` `[n, 3]`, float64): eager path.
+
+    The same Levenberg-Marquardt steps; the sums are BLAS dot products over the n valid points and the scalars Python
+    floats, so an iteration costs about 15 vector operations instead of `_solve_shift`'s masked `[B, 4096, 2]` ones
+    (moge-2-vitb 1482 x 994 on Windows: 10.5 -> about 1 ms). The sums are in a different order, so the shift differs
+    from `_solve_shift`'s in the last float64 bits.
+    """
+    u, v, x, y, z = (np.ascontiguousarray(c) for c in (uv[:, 0], uv[:, 1], xyz[:, 0], xyz[:, 1], xyz[:, 2]))
+    dot = np.dot
+
+    def residual(s: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        q = 1 / (z + s)
+        px, py = x * q, y * q
+        qx, qy = px * q, py * q  # -dp/ds
+        if focal is None:
+            a, b = dot(px, u) + dot(py, v), dot(px, px) + dot(py, py)
+            da, db = -(dot(qx, u) + dot(qy, v)), -2 * (dot(px, qx) + dot(py, qy))
+            f, df = a / b, (da * b - a * db) / (b * b)
+        else:
+            f, df = focal, 0.0
+        return f * px - u, f * py - v, df * px - f * qx, df * py - f * qy
+
+    s, lam = 0.0, 1e-3
+    rx, ry, jx, jy = residual(s)
+    cost = dot(rx, rx) + dot(ry, ry)
+    for _ in range(100):
+        g, hess = dot(jx, rx) + dot(jy, ry), dot(jx, jx) + dot(jy, jy)
+        step = -g / max(hess * (1 + lam), 1e-300)
+        r2 = residual(s + step)
+        c2 = dot(r2[0], r2[0]) + dot(r2[1], r2[1])
+        if math.isfinite(c2) and c2 <= cost:
+            s, (rx, ry, jx, jy), cost, lam = s + step, r2, c2, lam / 10
+        else:
+            lam *= 10
+        if abs(step) <= 1e-13 * (abs(s) + 1e-9):
+            break
+    return s
+
+
 def focal_shift(
     points: torch.Tensor, mask: torch.Tensor, focal: torch.Tensor | None = None
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -150,9 +197,22 @@ def focal_shift(
     u, v = u[_nearest_index(w, _FIT[1], points.device)], v[_nearest_index(h, _FIT[0], points.device)]
     ul = torch.stack(torch.meshgrid(u, v, indexing="xy"), -1).reshape(1, -1, 2)
     ml = near(mask[:, None].float())[:, 0].reshape(b, -1) > 0
-    pl, ul, wl = pl.cpu().double(), ul.cpu().double(), ml.cpu().double()  # cast on the CPU: MPS has no float64
+    # one copy to the CPU for all three (each .cpu() is a host sync); cast there: MPS has no float64
+    host = torch.cat((pl.flatten(), ul.flatten(), ml.float().flatten())).cpu().double()
+    pl, ul, wl = (
+        t.view_as(r) for t, r in zip(host.split((pl.numel(), ul.numel(), ml.numel())), (pl, ul, ml), strict=True)
+    )
     fd = focal.cpu().double() if focal is not None else None
-    shift = _solve_shift(ul, pl, wl, fd)
+    if torch.compiler.is_compiling():
+        shift = _solve_shift(ul, pl, wl, fd)
+    else:
+        uvn, xyzn, keep = ul.expand(b, -1, -1).numpy(), pl.numpy(), wl.numpy() > 0
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):  # z + s = 0: an infinite cost, rejected
+            items = [
+                _solve_shift_item(uvn[i][keep[i]], xyzn[i][keep[i]], None if fd is None else float(fd[i]))
+                for i in range(b)
+            ]
+        shift = torch.tensor(items, dtype=torch.float64)
     few = wl.sum(1) < 2  # noqa: PLR2004 - upstream: fewer than 2 points -> focal 1, shift 0
     shift = torch.where(few, 0, shift).float()
     if fd is None:
@@ -162,7 +222,8 @@ def focal_shift(
         f = torch.where(few, 1, f)
     else:
         f = fd.float()
-    return f.to(points.device), shift.to(points.device)
+    f, shift = to_device(torch.stack((f, shift)), points.device)  # one asynchronous upload
+    return f, shift
 
 
 # MoGe accepts relative |fy - fx| / fx (and skew) and |c - size / 2| / size up to these (NYU: cy is 2.9 % off)
@@ -240,9 +301,33 @@ def refine(
     return c.permute(0, 3, 1, 2)
 
 
+# The sparse refiner derives occupied voxels and neighbor lists from the predicted depth.
+_refine_eager = eager_in_compile(refine)
+
+
 # ------------------------------------------------------------------------------------------------ portable
+def _replicate_border(out: torch.Tensor) -> None:
+    """Fill a one-pixel border from the already populated interior."""
+    out[..., 0, 1:-1].copy_(out[..., 1, 1:-1])
+    out[..., -1, 1:-1].copy_(out[..., -2, 1:-1])
+    out[..., 0].copy_(out[..., 1])
+    out[..., -1].copy_(out[..., -2])
+
+
 def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
-    """Replicate-pad the last two dims by 1 (as `F.pad(mode="replicate")`, which is slower than slices + cat)."""
+    """Replicate-pad both spatial dimensions by one while retaining the input memory format."""
+    if (
+        x.is_cuda
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        and x.numel() * x.element_size() >= _PAD_COPY_MIN_BYTES
+    ):
+        # Copy large activations into one buffer. CUDA replication_pad2d converts channels-last here.
+        h, w = x.shape[-2:]
+        fmt = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+        out = torch.empty((*x.shape[:-2], h + 2, w + 2), device=x.device, dtype=x.dtype, memory_format=fmt)
+        out[..., 1:-1, 1:-1].copy_(x)
+        _replicate_border(out)
+        return out
     x = torch.cat([x[..., :1, :], x, x[..., -1:, :]], -2)
     return torch.cat([x[..., :1], x, x[..., -1:]], -1)
 
@@ -250,6 +335,28 @@ def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
 def _rep_conv(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     """`nn.Conv2d` with 1-pixel replicate padding (the conv itself runs unpadded)."""
     return F.conv2d(_rep_pad1(x), self.weight, self.bias, self.stride, 0, self.dilation, self.groups)
+
+
+def _upsample_rep_conv(self: Resampler, x: torch.Tensor) -> torch.Tensor:
+    """Write the final 2x bilinear resize directly into its replicate-padded convolution buffer."""
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or 4 * x.numel() * x.element_size() < _PAD_COPY_MIN_BYTES
+    ):
+        return base_type(self).forward(self, x)
+    h, w = 2 * x.shape[-2], 2 * x.shape[-1]
+    fmt = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    out = torch.empty((*x.shape[:-2], h + 2, w + 2), device=x.device, dtype=x.dtype, memory_format=fmt)
+    torch.ops.aten.upsample_bilinear2d.out(
+        x, [h, w], align_corners=False, scales_h=2.0, scales_w=2.0, out=out[..., 1:-1, 1:-1]
+    )
+    _replicate_border(out)
+    conv = cast("nn.Conv2d", self[1])
+    return F.conv2d(out, conv.weight, conv.bias, conv.stride, 0, conv.dilation, conv.groups)
 
 
 class Portable(Runner):
@@ -274,19 +381,33 @@ class Portable(Runner):
         if self.half:
             # fp16 Linear / Conv weights (outputs bit-identical under the autocast below); the output convs stay fp32
             net = self.net
+            # MPS: channels-last fp16 convs and the concatenating replicate pad are each about 2x slower there
+            mps = ctx.device.type == "mps"
             half_weights(net.encoder, channels_last=False)
             for m in (net.neck, net.points_head, net.mask_head, net.normal_head):
-                half_weights(m)
+                half_weights(m, channels_last=not mps)
+                override(m.resamplers[-1], _upsample_rep_conv)
             net.points_head.output_blocks.float()
             net.normal_head.output_blocks.float()
             if net.refiner is not None and ctx.device.type == "cuda":
                 net.refiner.half()
             for m in net.modules():
-                if isinstance(m, nn.Conv2d) and m.padding_mode == "replicate" and m.padding == (1, 1):
+                if not mps and isinstance(m, nn.Conv2d) and m.padding_mode == "replicate" and m.padding == (1, 1):
                     override(m, _rep_conv)
 
     def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
         """Network outputs at its size (see `finish`) and the metric scale `[B]`."""
+        coords, mask, normal, scale, enc = self._trunk(image)
+        net = self.net
+        if net.refiner is not None:  # data-dependent sparse voxels: never part of an exported graph
+            rdt = next(net.refiner.parameters()).dtype
+            coords = _refine_eager(net.refiner, coords, enc.float(), rdt)
+        return coords, mask, normal, scale
+
+    def _trunk(
+        self, image: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor]:
+        """Encoder, neck and heads: coords, mask, normal, scale and the encoder features the refiner reads."""
         net, p = self.net, self.ctx.params
         b, _, h, w = image.shape
         rows, cols = grid(h, w, p.resolution_level)
@@ -304,10 +425,7 @@ class Portable(Runner):
             normal = net.normal_head(levels, fp32_out=True)[-1].float() if p.normals else None
         with torch.autocast(image.device.type, enabled=False):
             scale = net.scale_head(cls.float())[:, 0].exp()
-            if net.refiner is not None:
-                rdt = next(net.refiner.parameters()).dtype
-                coords = refine(net.refiner, coords, enc.float(), rdt)
-        return coords, mask, normal, scale
+        return coords, mask, normal, scale, enc
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:
         return finish(*self._forward(image), image.shape[-2:], k)
@@ -325,7 +443,11 @@ class Portable(Runner):
 # ------------------------------------------------------------------------------------------------ kernels
 # kernels-only dependencies (after the portable part)
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD  # noqa: E402
-from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared DPT conversions
+    FusedViT,
+    _linear_1x1,
+    _resize,
+)
 from fastforks.kernels.dpt_fused import DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.shared.depth_anything_v2.fast_vit import _flash  # noqa: E402
@@ -398,32 +520,47 @@ class _FusedStack:
     def _conv(self, x: torch.Tensor, c: tuple[torch.Tensor, torch.Tensor], **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
         return self.k.conv(x, c[0], c[1], **kw)
 
-    def levels(self, x: torch.Tensor, adds: Sequence[torch.Tensor | None]) -> list[torch.Tensor]:
-        """Level features from level 0's (input block applied) `x`; `adds[i]`: level i's input (i >= 1)."""
+    def _run_levels(
+        self,
+        x: torch.Tensor,
+        adds: Iterator[torch.Tensor | None],
+        outputs: list[torch.Tensor] | None,
+    ) -> torch.Tensor:
+        """Decode from the level-0 projection, keeping all levels only for the neck."""
         k = self.k
-        outs = []
         n = len(self.res)
         for i in range(n):
             for c1, c2 in self.res[i]:
                 y = self._conv(_pad(x, relu=True), c1)
                 x = self._conv(_pad(y, relu=True), c2, res=x, out=x)
-            outs.append(x)
+                del y
+            if outputs is not None:
+                outputs.append(x)
             if i < n - 1:
                 pre, c = self.up[i]
                 _, h, w, _ = x.shape
                 if pre is None:
-                    u = k.bilinear(x, (2 * h, 2 * w), align_corners=False)
+                    padded = _pad(k.bilinear(x, (2 * h, 2 * w), align_corners=False), relu=False)
                 else:
                     _, wg, bg, s = pre
-                    u = k.gemm(x, wg, bg, shuffle=(h, w, s, s))
-                x = self._conv(_pad(u, relu=False), c, res=adds[i + 1])
-        return outs
+                    padded = _pad(k.gemm(x, wg, bg, shuffle=(h, w, s, s)), relu=False)
+                res = next(adds)
+                # A head owns its projections and can overwrite them. The neck reads cached tables.
+                x = self._conv(padded, c, res=res, out=res if outputs is None else None)
+                del padded, res
+        return x
+
+    def levels(self, x: torch.Tensor, adds: Sequence[torch.Tensor | None]) -> list[torch.Tensor]:
+        """Level features from level 0's (input block applied) `x`; `adds[i]`: level i's input (i >= 1)."""
+        outputs: list[torch.Tensor] = []
+        self._run_levels(x, iter(adds[1:]), outputs)
+        return outputs
 
     def head(self, levels: Sequence[torch.Tensor]) -> torch.Tensor:
         """Head over the neck's levels -> its fp32 output `[B, h, w, C_out]` (last level, fp32 1x1 conv)."""
         k = self.k
-        adds = [k.gemm(f, w, b) for f, (w, b) in zip(levels, self.inp, strict=True)]
-        x = self.levels(adds[0], adds)[-1]
+        adds = (k.gemm(f, w, b) for f, (w, b) in zip(levels, self.inp, strict=True))
+        x = self._run_levels(next(adds), adds, None)
         assert self.out is not None  # noqa: S101 - heads have an output conv
         w, b = self.out
         return torch.addmm(b, x.view(-1, x.shape[-1]).float(), w).view(*x.shape[:-1], -1)
@@ -627,6 +764,122 @@ class MetalKernels(Portable):
             override(m, _metal_subm_conv)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+# ------------------------------------------------------------------------------------------------ MLX
+# Rows `[dy, t]` of the 2x bilinear resize (align_corners=False) seen through a 3x3 replicate-padded conv: output row
+# `2 i + a` reads resized rows `2 i + a + dy - 1`, each a mix of the input rows `i + t - 1` (index clamped, which is
+# both the resize's own border rule and the conv's replicate padding).
+_PHASE = torch.tensor(
+    [
+        [[0.75, 0.25, 0.0], [0.25, 0.75, 0.0], [0.0, 0.75, 0.25]],
+        [[0.25, 0.75, 0.0], [0.0, 0.75, 0.25], [0.0, 0.25, 0.75]],
+    ],
+    dtype=torch.float64,
+)
+
+
+def _phase_weight(k: torch.Tensor) -> torch.Tensor:
+    """The 3x3 conv `[4 O, C, 3, 3]` on the input that equals the 3x3 replicate-padded conv `k` on its 2x resize.
+
+    Its output is the result's four phases per channel (`pixel_shuffle` order); the input is replicate-padded by one.
+    """
+    p = torch.einsum("ocyx,ayt,bxs->oabcts", k.double(), _PHASE, _PHASE)
+    return p.reshape(-1, *p.shape[3:])
+
+
+class _FoldedTop(nn.Module):
+    """A head's full-resolution level, computed at half resolution.
+
+    That level is linear: the neck's and the head's bilinear resamplers (2x resize, 3x3 conv), the 1x1 convs of the
+    view-plane uv and of the neck's level, the sum and the 1x1 output conv. Folded, it is one 3x3 conv on the head's
+    half-resolution features and one on the neck's (`_phase_weight`, 4 x the output channels), a `pixel_shuffle` and
+    the uv plane; no 32-channel map at full resolution is left (four resamplers and seven 1x1 convs of the three
+    heads). The weights are folded in float64 and the level runs in float32 (upstream's `fp32_output_projection`).
+    """
+
+    def __init__(self, neck: ConvStack, head: ConvStack) -> None:
+        """Fold the last level of `neck` and `head`."""
+        super().__init__()
+        kn = cast("nn.Conv2d", cast("nn.Sequential", neck.resamplers[-1])[1])
+        kh = cast("nn.Conv2d", cast("nn.Sequential", head.resamplers[-1])[1])
+        uv, mid, out = neck.input_blocks[-1], head.input_blocks[-1], head.output_blocks[-1]
+
+        def mat(m: nn.Module) -> torch.Tensor:
+            return cast("nn.Conv2d", m).weight.detach()[:, :, 0, 0].double()
+
+        def vec(m: nn.Module) -> torch.Tensor:
+            return cast("torch.Tensor", cast("nn.Conv2d", m).bias).detach().double()
+
+        through = mat(out) @ mat(mid)
+        bias = mat(out) @ (vec(kh) + vec(mid) + mat(mid) @ (vec(kn) + vec(uv))) + vec(out)
+        fold = lambda m, k: _phase_weight(torch.einsum("po,ocyx->pcyx", m, k.weight.detach().double())).float()  # noqa: E731
+        self.register_buffer("head", fold(mat(out), kh))
+        self.register_buffer("neck", fold(through, kn))
+        self.register_buffer("plane", (through @ mat(uv)).float())
+        self.register_buffer("bias", bias.float())
+
+    def forward(self, head: torch.Tensor, neck: torch.Tensor, u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """`head`, `neck`: `[B, 64, h + 2, w + 2]` (float32, replicate-padded); `u`, `v`: the axes of the uv plane.
+
+        The reference of `mlx_net.forward`'s top level, which runs these weights channels-last.
+        """
+        y = F.conv2d(head, self.get_buffer("head")) + F.conv2d(neck, self.get_buffer("neck"))
+        b, c, h, w = y.shape
+        y = y.view(b, c // 4, 2, 2, h, w).permute(0, 1, 4, 2, 5, 3).reshape(b, c // 4, 2 * h, 2 * w)
+        plane = self.get_buffer("plane")
+        rows = plane[:, 1].view(1, -1, 1, 1) * v.view(1, 1, -1, 1) + self.get_buffer("bias").view(1, -1, 1, 1)
+        return y + plane[:, 0].view(1, -1, 1, 1) * u.view(1, 1, 1, -1) + rows
+
+
+class _MlxPortable(Portable):
+    """`Portable` for the MLX runners.
+
+    The trunk is hand-written MLX operations (`mlx_net`: no exported graph, so no trace on a first call) with the
+    heads' full-resolution level folded to half resolution (`_FoldedTop`); the MoGe-3 refiner is hand-written MLX
+    operations and Metal kernels too (`mlx_refine`, float32; on the CPU it took 3.8 s and ~4 GB at 994x1482).
+    """
+
+    module = Runner.module  # MLX operations: nothing to export
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert the trunk's weights (folding the heads' last level); only the refiner stays a module."""
+        Runner.__init__(self, ctx)
+        from . import mlx_net, mlx_refine  # noqa: PLC0415 - MLX only on Apple
+
+        net = _net(ctx)
+        heads = {"points": net.points_head, "mask": net.mask_head}
+        if ctx.params.normals:
+            heads["normal"] = net.normal_head
+        folded: dict[str, nn.Module] = {k: _FoldedTop(net.neck, m) for k, m in heads.items()}
+        self.trunk = mlx_net.Trunk(net, folded, mlx_wrap.run_dtype(ctx))
+        self.refiner = None if net.refiner is None else mlx_refine.MlxRefiner(net.refiner)
+
+    def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
+        from fastforks._core.mlx import mx, to_torch  # noqa: PLC0415 - MLX only on Apple
+
+        b, _, h, w = image.shape
+        rows, cols = grid(h, w, self.ctx.params.resolution_level)
+        a = w / h
+        axes = [_plane_axes(cols << i, rows << i, a, "cpu") for i in range(5)]
+        tops, scale, feat = self.trunk(image, rows, cols, axes)
+        maps = dict(zip(self.trunk.names, (to_torch(mx.transpose(t, (0, 3, 1, 2))) for t in tops), strict=True))
+        coords = maps["points"]
+        if self.refiner is not None:
+            from . import mlx_refine  # noqa: PLC0415 - MLX only on Apple
+
+            uv0 = torch.stack(torch.meshgrid(*axes[0], indexing="xy"))[None].expand(b, -1, -1, -1)
+            enc = torch.cat([to_torch(mx.transpose(feat, (0, 3, 1, 2))), uv0], 1)
+            coords = mlx_refine.refine(self.refiner, coords, enc, _REFINE_STEPS, _DEPTH_RES)
+        return coords, maps["mask"], maps.get("normal"), to_torch(scale)
+
+
+# `mlx_wrap.port` with nothing to wrap: it builds the runner with float32 weights read lazily from the checkpoint
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
+    "kernels_mps": MetalKernels,
+}
 
 __all__ = ["RUNNERS", "finish", "focal_shift", "grid", "view_plane_uv"]

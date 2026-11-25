@@ -24,11 +24,15 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, style_weights
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import GFPGANv1Clean
+from .net.stylegan2_clean_arch import ModulatedConv2d
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -36,7 +40,6 @@ if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
 
     from .net.gfpganv1_clean_arch import ResBlock
-    from .net.stylegan2_clean_arch import ModulatedConv2d
 
     Conv = Callable[..., torch.Tensor]
 
@@ -48,6 +51,7 @@ class Params:
     scale: int  # 1: the restored face has the input's size
     size: int  # 512: the aligned face crop (out_size)
     key: str  # checkpoint key ("params_ema")
+    cuda_graphs: bool  # kernels: replay the network from a CUDA graph
 
 
 def _torch_conv(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int, groups: int) -> torch.Tensor:
@@ -59,23 +63,38 @@ def _hacc(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int
         msg = "cudnn_hacc convolutions have groups 1"
         raise ValueError(msg)
     w = w.contiguous(memory_format=torch.channels_last)
-    return cudnn_hacc.conv_half_acc(x, w, b, (padding, padding), (1, 1))
+    return cudnn_hacc.conv_half_acc(x, w, b, (padding, padding), (1, 1), fuse_bias=True)
 
 
-def _modconv(  # noqa: PLR0913, PLR0917 - the StyleConv / ToRGB call sites pass all six
-    m: ModulatedConv2d, x: torch.Tensor, style: torch.Tensor, gain: float, bias: torch.Tensor | None, conv: Conv
-) -> torch.Tensor:
-    """`ModulatedConv2d.forward(x, style) * gain + bias` (bias `[C]`): the batch as groups, as upstream."""
-    b, c = x.shape[:2]
-    s = m.modulation(style).float().view(b, 1, c, 1, 1)
-    w = m.weight.float() * s
+def _weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
+    b, c = style.shape
+    s = to_float32(style).view(b, 1, c, 1, 1)  # float32 on MLX too: the squared sums overflow float16
+    w = to_float32(m.weight) * s
     if m.demodulate:
         w = w * torch.rsqrt(w.pow(2).sum([2, 3, 4]) + m.eps).view(b, -1, 1, 1, 1)
-    w = (w * gain).to(x.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
+    return to_run_dtype(w * gain, style.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
+
+
+def _cuda_weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
+    return style_weights.pack(m.weight[0], style, gain, m.eps, demodulate=m.demodulate)
+
+
+def _modconv(  # noqa: PLR0913, PLR0917 - style, convolution and the selected weight preparation
+    m: ModulatedConv2d,
+    x: torch.Tensor,
+    style: torch.Tensor,
+    gain: float,
+    bias: torch.Tensor | None,
+    conv: Conv,
+    pack: Callable[[ModulatedConv2d, torch.Tensor, float], torch.Tensor],
+) -> torch.Tensor:
+    """Modulated convolution for a group per face (the CUDA weight kernel takes one face)."""
+    b, c = x.shape[:2]
+    w = pack(m, m.modulation(style), gain)
     if m.sample_mode == "upsample":
         x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False)
     h, wd = x.shape[-2:]
-    bias = None if bias is None else bias.to(x.dtype).repeat(b)
+    bias = None if bias is None else (bias.to(x.dtype) if b == 1 else bias.to(x.dtype).repeat(b))
     out = conv(x.reshape(1, b * c, h, wd), w, bias, m.padding, b)
     return out.reshape(b, m.out_channels, *out.shape[-2:])
 
@@ -98,7 +117,13 @@ def _module_conv(m: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return m(x)
 
 
-def _forward(m: GFPGANv1Clean, x: torch.Tensor, noise: list[torch.Tensor], conv: Conv) -> torch.Tensor:
+def _forward(
+    m: GFPGANv1Clean,
+    x: torch.Tensor,
+    noise: list[torch.Tensor],
+    conv: Conv,
+    pack: Callable[[ModulatedConv2d, torch.Tensor, float], torch.Tensor] = _weights,
+) -> torch.Tensor:
     """`GFPGANv1Clean.forward(x, return_rgb=False, randomize_noise=False)[0]` (v1.3 / v1.4 configs).
 
     v1.3 / v1.4: input_is_latent, different_w, sft_half; `noise` = the decoder's noise buffers times each StyleConv's
@@ -109,23 +134,18 @@ def _forward(m: GFPGANv1Clean, x: torch.Tensor, noise: list[torch.Tensor], conv:
     skips = []
     for block in m.conv_body_down:
         feat = _resblock(block, feat, mc)  # ty: ignore[invalid-argument-type]
-        skips.insert(0, feat)
+        skips.append(feat)
     feat = F.leaky_relu_(m.final_conv(feat), 0.2)
     latent = m.final_linear(feat.flatten(1)).view(feat.shape[0], -1, m.num_style_feat)
-    conditions = []
-    for i, block in enumerate(m.conv_body_up):
-        feat = _resblock(block, feat + skips[i], mc)  # ty: ignore[invalid-argument-type]
-        conditions += [m.condition_scale[i](feat), m.condition_shift[i](feat)]
-
     d = m.stylegan_decoder
     sqrt2 = 2**0.5
 
     def style_conv(sc: Any, out: torch.Tensor, style: torch.Tensor, n: torch.Tensor) -> torch.Tensor:  # noqa: ANN401
-        out = _modconv(sc.modulated_conv, out, style, sqrt2, sc.bias.view(-1), conv)
+        out = _modconv(sc.modulated_conv, out, style, sqrt2, sc.bias.view(-1), conv, pack)
         return F.leaky_relu_(out.add_(n), 0.2)
 
     def to_rgb(tr: Any, out: torch.Tensor, style: torch.Tensor, skip: torch.Tensor | None) -> torch.Tensor:  # noqa: ANN401
-        out = _modconv(tr.modulated_conv, out, style, 1.0, tr.bias.view(-1), conv)
+        out = _modconv(tr.modulated_conv, out, style, 1.0, tr.bias.view(-1), conv, pack)
         if skip is None:
             return out
         return out.add_(F.interpolate(skip, scale_factor=2, mode="bilinear", align_corners=False))
@@ -134,12 +154,14 @@ def _forward(m: GFPGANv1Clean, x: torch.Tensor, noise: list[torch.Tensor], conv:
     out = style_conv(d.style_conv1, out, latent[:, 0], noise[0])
     skip = to_rgb(d.to_rgb1, out, latent[:, 1], None)
     convs = d.style_convs
-    for j, rgb in enumerate(d.to_rgbs):
+    for j, (rgb, block) in enumerate(zip(d.to_rgbs, m.conv_body_up, strict=True)):
         i = 2 * j + 1
         out = style_conv(convs[2 * j], out, latent[:, i], noise[i])
-        if i < len(conditions):  # sft_half: scale and shift the second half of the channels
-            half = out.shape[1] // 2
-            out[:, half:].mul_(conditions[i - 1]).add_(conditions[i])
+        # Each resolution's SFT depends only on its current U-Net feature. Consume each map as it is produced.
+        feat = _resblock(block, feat + skips.pop(), mc)  # ty: ignore[invalid-argument-type]
+        second = out[:, out.shape[1] // 2 :]
+        second.mul_(m.condition_scale[j](feat)).add_(m.condition_shift[j](feat))
+        del second
         out = style_conv(convs[2 * j + 1], out, latent[:, i + 1], noise[i + 1])
         skip = to_rgb(rgb, out, latent[:, i + 2], skip)
     return skip
@@ -201,11 +223,14 @@ class Portable(Runner):
 
 
 def _hacc_module(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`, modulated ones included); one face a call."""
+    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`, modulated ones included); one face a call.
+
+    The faces replay from a CUDA graph per input shape (about 350 launches a face, host-bound on Windows).
+    """
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
@@ -214,18 +239,33 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, ModulatedConv2d):
+                weight = m.weight[0].detach().contiguous(memory_format=torch.channels_last)
+                m.weight = torch.nn.Parameter(weight.unsqueeze(0), requires_grad=False)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_module)
+        after = cudnn_hacc.capture_after()
+        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+
+    def _eager(self, image: torch.Tensor) -> torch.Tensor:
+        x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)
+        with fp16_accumulate():
+            out = [_forward(self.net, x[i : i + 1], self.noise, _hacc, _cuda_weights) for i in range(x.shape[0])]
+        faces = out[0] if len(out) == 1 else torch.cat(out)
+        return (faces.float() + 1) / 2
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored faces in [0, 1]."""
-        x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)
-        with fp16_accumulate():
-            out = [_forward(self.net, x[i : i + 1], self.noise, _hacc) for i in range(x.shape[0])]
-        return {"image": (torch.cat(out).float() + 1) / 2}
+        out = None if self.graphs is None else self.graphs.run((image.device, image.dtype, tuple(image.shape)), image)
+        return {"image": self._eager(image) if out is None else out}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}
 
 
 def _build(size: int) -> GFPGANv1Clean:

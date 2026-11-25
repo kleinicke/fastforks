@@ -78,12 +78,12 @@ class _Fake(model._Video):  # the runner's windowing with a fake network
         self.encoded += x.shape[0]
         return [x]
 
-    def _window(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:  # noqa: ARG002 - fake
-        return _net(feats[0])
+    def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:  # noqa: ARG002 - fake
+        return _net(feats[0])[:valid]
 
 
 @pytest.mark.parametrize("metric", [False, True])
-@pytest.mark.parametrize("n", [1, 5, 32, 33, 50, 70])
+@pytest.mark.parametrize("n", [1, 5, 22, 23, 24, 25, 32, 33, 50, 70])
 def test_windows_match_upstream(n: int, metric: bool, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: FBT001
     """Windows, keyframes, padding, scale + shift alignment and blending as upstream; each frame encoded once."""
     monkeypatch.setattr(model, "scale", lambda x, _io: x)
@@ -135,3 +135,66 @@ def test_video_and_batch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_Frames, "video", False)
     with pytest.raises(InputError, match="image model"):
         m.video(frames)
+
+
+def test_clip_reads_only_the_frames_asked_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The windowing over a `Clip` (frames converted as each window asks) equals it over the whole video tensor."""
+    from fastforks.depth._api import Clip  # noqa: PLC0415
+
+    monkeypatch.setattr(model, "scale", lambda x, _io: x)
+    frames = [np.asarray(np.random.default_rng(t).integers(0, 256, (11, 16, 3)), np.uint8) for t in range(50)]
+    video = (torch.from_numpy(np.stack(frames)).permute(0, 3, 1, 2).float() / 255).contiguous()  # as to_rgb_batch
+    runner = _Fake(Params("vits", 28, metric=False))
+    want = runner._video(video)
+    for given in (frames, np.stack(frames), video):
+        clip = Clip(given, torch.device("cpu"))
+        assert clip.shape == (50, 3, 11, 16)
+        torch.testing.assert_close(runner._video(clip), want, rtol=0, atol=0)
+
+
+class _ClipFrames(DepthRunner):
+    """Fake windowed video runner: reads frames [0, 1] then [2, ...]; inverse depth = each frame's mean colour."""
+
+    Params = Params
+    batch = 1
+    video = True
+    clip_frames = True
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - test stub
+        parts = [image[[0, 1]], image[list(range(2, image.shape[0]))]]
+        return {"inverse_depth": torch.cat(parts).mean(1)}
+
+
+@pytest.mark.usefixtures("card_min_size")
+@pytest.mark.parametrize("runner", [_Frames, _ClipFrames])
+def test_video_returns_on_the_routed_models_device(runner: type[DepthRunner], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A routed MLX runner reads CPU frames, while `video` returns to the caller's device."""
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": runner}))
+    m = depth.load("video-depth-anything-s", device="cpu")
+    m.device = m._result_device = torch.device("meta")  # a second device available on all of CI
+    v = m.video(np.zeros((4, 16, 20, 3), dtype=np.uint8))
+    assert v.inverse_depth.shape == (4, 16, 20)
+    assert v.inverse_depth.device == m.device
+
+
+@pytest.mark.usefixtures("card_min_size")
+def test_clip_video_inputs_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `clip_frames` runner gets the frames of a list or a batch; a frame of another size fails when it is read."""
+    monkeypatch.setattr(
+        registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": _ClipFrames})
+    )
+    m = depth.load("video-depth-anything-s", device="cpu")
+    frames = [np.full((16, 20, 3), 10 * t, np.uint8) for t in range(4)]
+    v = m.video(frames)
+    assert v.inverse_depth.shape == (4, 16, 20)
+    torch.testing.assert_close(v.inverse_depth[:, 0, 0], torch.tensor([0.0, 10, 20, 30]) / 255)
+    torch.testing.assert_close(m.video(np.stack(frames)).inverse_depth, v.inverse_depth)
+    torch.testing.assert_close(
+        m.video(torch.from_numpy(np.stack(frames)).permute(0, 3, 1, 2)).inverse_depth, v.inverse_depth
+    )
+    with pytest.raises(InputError, match="no frames"):
+        m.video([])
+    with pytest.raises(InputError, match="one size"):
+        m.video([frames[0], frames[1], frames[2][:8]])
+    with pytest.raises(InputError, match="sequence of frames"):
+        m.video("clip.mp4")

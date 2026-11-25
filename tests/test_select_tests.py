@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import shutil
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
+import fetch_goldens
+import merge_check
 import select_tests as st
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 CARD = "uses = {uses}\n\n[modes.kernels]\nkernels = {kernels}\n"
@@ -52,10 +58,15 @@ MINI = {
     "src/fastforks/depth/models/fc/card.toml": CARD.format(kernels="[]", uses='["vit"]'),
     "tests/conftest.py": "",
     "tests/data/x.json": "{}",
+    "tests/test_docs.py": "",
+    "tests/test_eval_coco.py": "from eval_coco import run\n",
     "tests/test_golden.py": "import fastforks._core\nimport fastforks.kernels.kb\nimport fastforks.stereo\n",
     "tests/test_plain.py": "import fastforks._core.util\n",
     "tests/test_fa.py": "from fastforks.stereo.models import fa\n",
+    "tests/test_dynamic_fa.py": 'from fastforks import stereo\nx = stereo.load("fa-y@2")\n',
     "tools/select_tests.py": "",
+    "tools/_prefetch.py": "",
+    "tools/eval_coco.py": "from _prefetch import prefetch\n",
 }
 ALL = {"fa", "fb", "fc"}
 
@@ -65,8 +76,32 @@ def mini(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("mini")
     for rel, text in MINI.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (root / rel).write_text(text)
+        (root / rel).write_text(text, encoding="utf-8")
     return root
+
+
+def test_imports_in_runtime_statement_bodies() -> None:
+    tree = ast.parse("""
+try:
+    import main
+except ImportError:
+    match platform:
+        case "test":
+            import fallback
+finally:
+    import cleanup
+
+if typing.TYPE_CHECKING:
+    import type_only
+else:
+    import runtime
+
+async def get_model():
+    import lazily
+""")
+    immediate = {"main", "fallback", "cleanup", "runtime"}
+    assert st._imported_names(tree, "", lazy=False) == immediate
+    assert st._imported_names(tree, "", lazy=True) == immediate | {"lazily"}
 
 
 @pytest.mark.parametrize(
@@ -92,17 +127,59 @@ def test_mini_families(mini: Path, changed: str, want: set[str]) -> None:
 
 
 def test_mini_fast_tier(mini: Path) -> None:
+    assert st.select([], mini).as_dict() == {"changed": [], "families": {}, "fast": [], "release": False}
     fa = st.select(["src/fastforks/stereo/models/fa/model.py"], mini)
     assert "tests/test_fa.py" in fa.fast
     assert "tests/test_plain.py" in fa.fast  # reaches no family: always in the fast tier
     docs = st.select(["docs/index.md"], mini)
-    assert "tests/test_fa.py" not in docs.fast
-    assert "tests/test_plain.py" in docs.fast
+    assert docs.fast == ["tests/test_docs.py"]
     assert st.select(["tests/data/x.json"], mini).fast == ["tests"]
     assert st.select(["tests/conftest.py"], mini).fast == ["tests"]
     release = st.select(["uv.lock"], mini)
     assert release.release
     assert release.fast == ["tests"]
+
+
+def test_affected_fast_keeps_imports_and_model_references(mini: Path) -> None:
+    path = "src/fastforks/stereo/models/fa/model.py"
+    result = st.select([path], mini, affected_fast=True)
+    assert result.fast == ["tests/test_dynamic_fa.py", "tests/test_fa.py"]
+    default = st.select([path], mini)
+    assert result.golden_nodeids("cpu") == default.golden_nodeids("cpu")
+    assert result.golden_nodeids("gpu") == default.golden_nodeids("gpu")
+
+    for changed in ([path, "tools/select_tests.py"], ["src/fastforks/shared/vit.py"], ["pyproject.toml"]):
+        assert st.select(changed, mini, affected_fast=True).as_dict() == st.select(changed, mini).as_dict()
+
+
+@pytest.mark.parametrize("changed", ["tools/eval_coco.py", "tools/_prefetch.py", "tests/test_eval_coco.py"])
+def test_evaluator_only_changes_select_affected_tools_tests(mini: Path, changed: str) -> None:
+    selection = st.select([changed], mini)
+    assert selection.fast == ["tests/test_eval_coco.py"]
+    assert not selection.families
+    assert "tests/test_plain.py" in st.select([changed, "tools/eval_missing.py"], mini).fast
+
+
+def test_boundary_matcher_change_selects_its_evaluator_test(mini: Path) -> None:
+    (mini / "tools/bsds_correspond.cc").write_text("// matcher adapter", encoding="utf-8")
+    (mini / "tools/eval_edges.py").write_text("", encoding="utf-8")
+    (mini / "tests/test_eval_edges.py").write_text("import eval_edges\n", encoding="utf-8")
+    selection = st.select(["tools/bsds_correspond.cc"], mini)
+    assert selection.fast == ["tests/test_eval_edges.py"]
+    assert not selection.families
+
+
+def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) -> None:
+    old = '[[package]]\nname="fastforks-core"\nversion="0.1.1"\nsource={editable="."}\n'
+    old += '[[package]]\nname="torch"\nversion="2.8"\nsource={registry="https://example.com"}\n'
+    new = old.replace('version="0.1.1"', 'version="0.2.0"')
+    assert st.same_lock_dependencies(old, new)
+    assert not st.same_lock_dependencies(old, new.replace('version="2.8"', 'version="2.9"'))
+    assert not st.same_lock_dependencies(old, "not valid toml")
+    sel = st.select(["uv.lock"], mini, metadata_only=frozenset({"uv.lock"}))
+    assert not sel.release
+    assert not sel.families
+    assert sel.fast != ["tests"]
 
 
 def test_mini_ref_table(mini: Path) -> None:
@@ -120,6 +197,324 @@ def test_mini_k_expression(mini: Path) -> None:
     assert sel.families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
     assert sel.k("fa") == "test_gpu and ([fa-x or [fa-y)"
     assert sel.as_dict()["families"]["fa"]["k"] == sel.k("fa")
+
+
+def test_golden_nodeids_keep_revisions_and_similar_names_separate() -> None:
+    selection = st.Selection(
+        [],
+        families={
+            "lineart": {"task": "edges", "refs": ["lineart@1"]},
+            "classification": {"task": "classification", "refs": ["example@1", "example@2"]},
+        },
+    )
+    cpu = {nodeid.split("::")[1] for nodeid in selection.golden_nodeids("cpu")}
+    gpu = {nodeid.split("::")[1] for nodeid in selection.golden_nodeids("gpu")}
+    refs = ("lineart@1", "example@1", "example@2")
+    assert cpu == {f"{test}[{ref}]" for test in ("test_cpu_portable", "test_kernels_validated") for ref in refs}
+    assert gpu == {f"test_gpu[{ref}-{mode}]" for ref in refs for mode in ("portable", "kernels")} | {
+        "test_gpu_module[example@1]",
+        "test_gpu_module[example@2]",
+    }
+    assert st.Selection([]).golden_nodeids("cpu") == []
+
+
+@pytest.fixture
+def git_repo(tmp_path: Path) -> Callable[..., None]:
+    def git(*args: str) -> None:
+        subprocess.run(
+            [  # noqa: S607 - local test repository uses the installed Git client
+                "git",
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.org",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                *args,
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            check=True,
+        )
+
+    git("init")
+    return git
+
+
+def test_git_version_bump_keeps_model_scope(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    project = tmp_path / "pyproject.toml"
+    lock = tmp_path / "uv.lock"
+    old_project = '[project]\nname="fastforks-core"\nversion="0.2.0"\ndependencies=["torch>=2.8"]\n'
+    old_lock = '[[package]]\nname="fastforks-core"\nversion="0.2.0"\nsource={editable="."}\n'
+    project.write_text(old_project, encoding="utf-8")
+    lock.write_text(old_lock, encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Release baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": "fa", "ref": "fa-x@1"}]
+
+    def receipt() -> str:
+        return merge_check._golden_sources_by_ref(jobs, "HEAD")["fa-x@1"][0]
+
+    original_receipt = receipt()
+    project.write_text(old_project.replace("0.2.0", "0.2.1"), encoding="utf-8")
+    lock.write_text(old_lock.replace("0.2.0", "0.2.1"), encoding="utf-8")
+    assert receipt() == original_receipt
+    model = "src/fastforks/stereo/models/fa/model.py"
+    (tmp_path / model).write_text("VALUE = 1\n", encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Bump version and update one model")
+
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
+    assert metadata == {"pyproject.toml", "uv.lock"}
+    selected = st.select(paths, tmp_path, metadata_only=metadata)
+    assert not selected.release
+    assert set(selected.families) == {"fa"}
+
+    model_receipt = receipt()
+    assert model_receipt != original_receipt
+    project.write_text(project.read_text(encoding="utf-8").replace("torch>=2.8", "torch>=2.9"), encoding="utf-8")
+    git_repo("add", "pyproject.toml")
+    git_repo("commit", "-m", "Change the Torch requirement")
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    assert not st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
+    assert st.select(paths, tmp_path).release
+    assert receipt() != model_receipt
+
+
+def test_card_prose_keeps_goldens_out_of_the_selection(mini: Path, tmp_path: Path, git_repo) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    for name in ("cards", "site_data"):
+        (tmp_path / f"tests/test_{name}.py").touch()
+    path = "src/fastforks/stereo/models/fa/card.toml"
+    card = tmp_path / path
+    card.write_text(
+        'summary = "Old description"\n' + card.read_text(encoding="utf-8") + "\n[params]\na = 1\n", encoding="utf-8"
+    )
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Add card")
+
+    card.write_text(
+        card.read_text(encoding="utf-8").replace(
+            'summary = "Old description"', 'summary = "New description"\nlimitations = ["note"]'
+        ),
+        encoding="utf-8",
+    )
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change only the card prose")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert metadata == {path}
+    sel = st.select([path], tmp_path, metadata_only=metadata)
+    assert not sel.families
+    assert sel.fast == ["tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"]
+    other = "src/fastforks/stereo/models/fb/model.py"
+    assert set(st.select([path, other], tmp_path, metadata_only=metadata).families) == {"fb"}
+
+    card.write_text(card.read_text(encoding="utf-8").replace("a = 1", "a = true"), encoding="utf-8")
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change a runtime parameter type")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert not metadata
+    assert set(st.select([path], tmp_path, metadata_only=metadata).families) == {"fa"}
+
+
+def test_git_changed_reports_both_sides_of_a_moved_module(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = "src/fastforks/stereo/models/fa/helper with spaces.py"
+    new = "src/fastforks/stereo/models/fb/helper with spaces.py"
+    git_repo("config", "diff.renames", "true")
+    for name in (old, new):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / old).write_text("VALUE = 1\n", encoding="utf-8")
+    git_repo("add", old)
+    git_repo("commit", "-m", "Initial module")
+    git_repo("mv", old, new)
+    git_repo("commit", "-m", "Move module")
+
+    assert set(st.git_changed("HEAD~1", "HEAD", tmp_path)) == {old, new}
+    monkeypatch.setattr(fetch_goldens, "ROOT", tmp_path)
+    assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fb"}
+
+
+def test_git_selects_only_the_changed_golden_reference(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None]
+) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    manifest = "src/fastforks/stereo/models/fa/golden.toml"
+    file = tmp_path / manifest
+    fixture = '[tolerance]\ncpu_atol = 0.01\n[refs."fa-x@1"]\n[refs."fa-y@2"]\nsha256 = "old"\n'
+    file.write_text(fixture, encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    file.write_text(fixture.replace('"old"', '"new"'), encoding="utf-8")
+    git_repo("commit", "-am", "Replace one reference")
+
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    scopes = st.git_fixture_refs("HEAD~1", "HEAD", paths, tmp_path)
+    assert scopes == {manifest: ("fa-y@2",)}
+    selected = st.select(paths, tmp_path, fixture_refs=scopes)
+    assert selected.families["fa"]["refs"] == ["fa-y@2"]
+    assert selected.golden_nodeids("gpu") == [
+        "tests/test_golden.py::test_gpu[fa-y@2-kernels]",
+        "tests/test_golden.py::test_gpu[fa-y@2-portable]",
+    ]
+    assert st.select(paths, tmp_path).families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
+    source = "src/fastforks/stereo/models/fa/model.py"
+    assert st.select([*paths, source], tmp_path, fixture_refs=scopes).families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
+
+    file.write_text(file.read_text(encoding="utf-8").replace("0.01", "0.02"), encoding="utf-8")
+    git_repo("commit", "-am", "Change the shared tolerance")
+    assert st.git_fixture_refs("HEAD~1", "HEAD", paths, tmp_path) == {}
+
+
+def test_fetch_goldens_scopes_single_file_shared_changes(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, contents in MINI.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents, encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Shared helper baseline")
+    (tmp_path / "src/fastforks/shared/vit.py").write_text("FEATURE = 1\n", encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Update shared helper")
+
+    monkeypatch.setattr(fetch_goldens, "ROOT", tmp_path)
+    assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fc"}
+
+
+def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = tmp_path / "docs/data/speed.jsonl"
+    golden = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
+    for path in (doc, golden):
+        path.parent.mkdir(parents=True)
+        path.write_text("", encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    first, legacy = merge_check._golden_sources("baseline")
+
+    doc.write_text("{}\n", encoding="utf-8")
+    assert merge_check._golden_sources("baseline")[0] == first
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Refresh timings")
+    source, old_format = merge_check._golden_sources("docs")
+    assert source == first
+    assert old_format != legacy
+
+    golden.write_text('[refs."fa-x@1"]\n', encoding="utf-8")
+    assert merge_check._golden_sources("docs")[0] != first
+
+
+def test_golden_source_tracks_untracked_source(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "pyproject.toml").write_text("", encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    initial = merge_check._golden_sources("baseline")
+    (tmp_path / "selection.json").write_text("{}\n", encoding="utf-8")
+    assert merge_check._golden_sources("baseline") == initial
+
+    helper = tmp_path / "src" / "helper.py"
+    helper.parent.mkdir()
+    helper.write_text("VALUE = 1\n", encoding="utf-8")
+    first = merge_check._golden_sources("baseline")
+    assert len(first) == 1
+    assert first[0] not in initial
+    helper.write_text("VALUE = 2\n", encoding="utf-8")
+    assert merge_check._golden_sources("baseline") != first
+    helper.unlink()
+    assert merge_check._golden_sources("baseline") == initial
+
+
+def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, contents in MINI.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents, encoding="utf-8")
+    dependent = tmp_path / "src/fastforks/depth/models/fc/__init__.py"
+    dependent.write_text("from fastforks.stereo.models.fa import model\n", encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Model families")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": f, "ref": f"{f}-test@1"} for f in sorted(ALL)]
+
+    def sources() -> dict[str, str]:
+        return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
+
+    before = sources()
+    (tmp_path / "docs/index.md").write_text("# Revised guide\n", encoding="utf-8")
+    assert sources() == before
+    fa = tmp_path / "src/fastforks/stereo/models/fa/model.py"
+    fa.write_text(fa.read_text(encoding="utf-8") + "\nVALUE = 1\n", encoding="utf-8")
+    after = sources()
+    assert after["fa-test@1"] != before["fa-test@1"]
+    assert after["fc-test@1"] != before["fc-test@1"]
+    assert after["fb-test@1"] == before["fb-test@1"]
+
+    sibling = fa.with_name("untracked.py")
+    sibling.write_text("VALUE = 2\n", encoding="utf-8")
+    untracked = sources()
+    assert untracked["fa-test@1"] != after["fa-test@1"]
+    assert untracked["fc-test@1"] != after["fc-test@1"]
+    assert untracked["fb-test@1"] == after["fb-test@1"]
+
+    (tmp_path / "tests/data/x.json").write_text('{"changed":true}\n', encoding="utf-8")
+    assert all(sources()[ref] != untracked[ref] for ref in untracked)
+
+
+def test_golden_receipt_tracks_only_its_fixture_record(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    manifest = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
+    fixture = '[tolerance]\ngpu_mean = 0.01\n[refs."fa-x@1"]\nsha256 = "old"\n[refs."fa-y@2"]\nsha256 = "same"\n'
+    manifest.write_text(fixture, encoding="utf-8")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Initial golden fixtures")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": "fa", "ref": ref} for ref in ("fa-x@1", "fa-y@2")]
+
+    def receipts() -> dict[str, str]:
+        return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
+
+    baseline = receipts()
+    manifest.write_text(fixture.replace('"old"', '"replacement"'), encoding="utf-8")
+    changed = receipts()
+    assert changed["fa-x@1"] != baseline["fa-x@1"]
+    assert changed["fa-y@2"] == baseline["fa-y@2"]
+
+    manifest.write_text(manifest.read_text(encoding="utf-8").replace("0.01", "0.02"), encoding="utf-8")
+    assert all(receipt != changed[ref] for ref, receipt in receipts().items())
+
+
+def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    def require_no_floor() -> None:
+        pytest.fail("golden-only job selection must not load the speed floor")
+
+    monkeypatch.setattr(merge_check, "speed_check", require_no_floor)
+    families = {"fa": {"task": "stereo", "refs": ["fa-x@1", "fa-x@2"]}}
+    jobs = merge_check.jobs({"families": families}, ["fa"], ["portable", "kernels"], golden_only=True)
+    assert [(job["ref"], job["mode"], job["inputs"]) for job in jobs] == [
+        ("fa-x@1", "portable", []),
+        ("fa-x@1", "kernels", []),
+        ("fa-x@2", "portable", []),
+        ("fa-x@2", "kernels", []),
+    ]
 
 
 @pytest.fixture(scope="module")
@@ -149,5 +544,14 @@ def test_real_cli_docs_only(capsys: pytest.CaptureFixture[str]) -> None:
     assert st.main(["--files", "docs/index.md", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["families"] == {}
-    assert out["fast"]
+    assert out["fast"] == ["tests/test_docs.py"]
     assert not out["release"]
+
+
+def test_documentation_only_checks() -> None:
+    bench = st.select(["docs/data/speed.jsonl", "docs/models/restoration.md", "docs/benchmarks.md"])
+    assert bench.fast == ["tests/test_docs.py", "tests/test_site_data.py", "tests/test_speed_floor.py"]
+    assert not bench.families
+    assert not bench.release
+    geometry = st.select(["README.md", "docs/stereo_geometry.md"])
+    assert geometry.fast == ["tests/test_docs.py", "tests/test_geometry_example.py"]

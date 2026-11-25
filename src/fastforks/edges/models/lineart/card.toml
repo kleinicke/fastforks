@@ -3,7 +3,7 @@ name = "Line art (informative-drawings)"
 summary = "Line art preprocessor of ControlNet 1.1 (controlnet_aux `LineartDetector`, ComfyUI's \"Realistic Lineart\"): the informative-drawings generator (Chan, Durand and Isola, CVPR 2022; 3 residual blocks, instance norm) turns a photo into a line drawing. `lineart` is the realistic model, `lineart-coarse` the coarse one."
 tier = "experimental"
 outputs = ["edges"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap", "mlx_graph"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"
@@ -26,10 +26,12 @@ short_side = { default = 512, min = 64, aliases = ["resolution", "detect_resolut
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off"
+kernels = ["vol_norm", "igev", "cutlass_conv", "cudnn_hacc"]
+mlx_kernels = ["graph_mlx"]  # the one-pass instance norm statistics
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "Learning to generate line drawings that convey geometry and semantics"

@@ -21,14 +21,21 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import closing
+from itertools import chain
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from scipy.ndimage import distance_transform_edt
 
+from _prefetch import prefetch
 from eval_stereo_depth import depth_items
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _EPS = 1e-6  # valid-pixel count floor of the prompt pooling
 _DELTA1 = 1.25  # the delta1 threshold
@@ -87,8 +94,9 @@ class Tier:
         else:
             from fastforks import depth  # noqa: PLC0415
 
-            self.orig, self.model = None, depth.load(ref, mode=tier, device="cuda")
-            self.mode, self.dtype = tier, str(self.model.backend.dtype).removeprefix("torch.")
+            mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+            self.orig, self.model = None, depth.load(ref, mode=mode, dtype=dtype, device="cuda")
+            self.mode, self.dtype = mode, str(self.model.backend.dtype).removeprefix("torch.")
 
     def __call__(self, img: np.ndarray, prompt: np.ndarray) -> torch.Tensor:  # noqa: D102
         p = torch.from_numpy(prompt).cuda()
@@ -116,6 +124,12 @@ def metrics(pred: torch.Tensor, gt: np.ndarray) -> tuple[float, float, int]:
     )
 
 
+def read_prompt(load: Callable[[], tuple[np.ndarray, np.ndarray]]) -> tuple[np.ndarray, np.ndarray]:
+    """Prepare the persistent prompt and its ground truth for the prompt-only reference."""
+    _, gt = load()
+    return make_prompt(gt), gt
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ref", default="prompt-depth-anything-l")
@@ -133,35 +147,37 @@ def main() -> None:
         check=False,
     ).stdout.strip()
     cmd = "python " + " ".join(sys.argv)
-    items = {ds: [(k, ld) for k, ld in depth_items(ds)][:: a.every if ds == "nyu" else a.ibims_every] for ds in SETS}
-    data = {ds: [(k, *ld()) for k, ld in it] for ds, it in items.items()}  # (key, image, gt); ~ 264 images
-    prompts = {ds: [make_prompt(gt) for _, _, gt in d] for ds, d in data.items()}
+    loaders = {ds: [load for _, load in depth_items(ds)][:: a.every if ds == "nyu" else a.ibims_every] for ds in SETS}
+    prompts = {}
     base = {}
-    for ds, d in data.items():
-        r = [
-            metrics(
-                F.interpolate(torch.from_numpy(p)[None, None].cuda(), gt.shape, mode="bilinear", align_corners=False)[
-                    0, 0
-                ],
-                gt,
-            )
-            for p, (_, _, gt) in zip(prompts[ds], d, strict=False)
-        ]
+    for ds, samples in loaders.items():
+        # Keep the small depth prompts for reuse across tiers. Decode full images and labels as each tier needs them.
+        prompts[ds], r = [], []
+        with closing(prefetch(read_prompt, samples, workers=2)) as inputs:
+            for p, gt in inputs:
+                prompts[ds].append(p)
+                up = F.interpolate(
+                    torch.from_numpy(p)[None, None].cuda(), gt.shape, mode="bilinear", align_corners=False
+                )
+                r.append(metrics(up[0, 0], gt))
         base[ds] = (float(np.mean([x[0] for x in r])), float(np.mean([x[1] for x in r])))
     for tier in a.tiers.split(","):
         pr = Tier(a.ref, tier)
-        for ds, d in data.items():
-            pr(d[0][1], prompts[ds][0])  # warm-up
-            torch.cuda.synchronize()
-            torch.cuda.reset_peak_memory_stats()
+        for ds, samples in loaders.items():
+            n = len(samples)
             res, t = [], 0.0
-            for (_key, img, gt), p in zip(d, prompts[ds], strict=False):
+            with closing(prefetch(lambda load: load(), samples, workers=2)) as inputs:
+                first = next(inputs)
+                pr(first[0], prompts[ds][0])  # warm-up
                 torch.cuda.synchronize()
-                t0 = time.perf_counter()
-                out = pr(img, p)
-                torch.cuda.synchronize()
-                t += time.perf_counter() - t0
-                res.append(metrics(out, gt))
+                torch.cuda.reset_peak_memory_stats()
+                for (img, gt), p in zip(chain((first,), inputs), prompts[ds], strict=True):
+                    torch.cuda.synchronize()
+                    t0 = time.perf_counter()
+                    out = pr(img, p)
+                    torch.cuda.synchronize()
+                    t += time.perf_counter() - t0
+                    res.append(metrics(out, gt))
             rel, d1 = float(np.mean([x[0] for x in res])), float(np.mean([x[1] for x in res]))
             dsn = (
                 SETS[ds].format(a.every)
@@ -175,13 +191,13 @@ def main() -> None:
                 "mode": pr.mode,
                 "dtype": pr.dtype,
                 "dataset": dsn,
-                "n": len(d),
-                "n_images": len(d),
+                "n": n,
+                "n_images": n,
                 "met_absrel": round(rel, 4),
                 "met_d1": round(d1, 4),
                 "metrics": {"met_absrel": round(rel, 4), "met_d1": round(d1, 4)},
                 "prompt_only": {"absrel": round(base[ds][0], 4), "d1": round(base[ds][1], 4)},
-                "ms_per_img": round(1e3 * t / len(d), 2),
+                "ms_per_img": round(1e3 * t / n, 2),
                 "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20),
                 "commit": commit,
@@ -191,7 +207,7 @@ def main() -> None:
                 "command": cmd,
             }
             print(json.dumps(row), flush=True)
-            with Path(a.out).open("a") as f:
+            with Path(a.out).open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
         del pr
         torch.cuda.empty_cache()

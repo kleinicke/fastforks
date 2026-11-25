@@ -15,6 +15,8 @@ from torch import Tensor, nn
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
+
 from .utils import cat_keep_shapes, uncat_with_shapes
 
 
@@ -98,8 +100,8 @@ class SelfAttention(nn.Module):
         k_prefix = k[:, :, :prefix, :]
         k = rope_apply(k[:, :, prefix:, :], sin, cos)  # [B, head, hw, D//head]
         k = torch.cat((k_prefix, k), dim=-2)  # [B, head, N, D//head]
-        q = q.to(dtype=q_dtype)
-        k = k.to(dtype=k_dtype)
+        q = to_run_dtype(q, q_dtype)  # fastforks: a float16 MLX replay keeps q / k in float16 (fp32 RoPE tables)
+        k = to_run_dtype(k, k_dtype)
         return q, k
 
     def forward(self, x: Tensor, attn_bias=None, rope: Tensor = None) -> Tensor:

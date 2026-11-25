@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2.net.dpt import DepthAnythingV2
 
 RES = 3  # fixed: upstream num_resolution (gradients at 1, 1/2, 1/4 of the 1/4-resolution grid)
@@ -286,12 +287,24 @@ class Backbone(nn.Module):
         fe1 = self.conv1(torch.cat([self.conv1_rgb(rgb), self.conv1_dep(depth)], 1))
         fe2, fe3, fe4, fe5, fe6, fe7 = self.former(fe1)
         fd5 = self.dec5(_cat(self.dec6(fe7), fe6))
+        del fe7, fe6
         fd4 = self.dec4(_cat(fd5, fe5))
+        del fd5, fe5
         fd2 = self.dec2(_cat(self.dec3(_cat(fd4, fe4)), fe3))
+        del fe3
         f2 = _cat(fd2, fe2)
-        guide = self.gd_dec0(_cat(self.gd_dec1(f2), fe1))
-        conf_spn = self.cf_dec0(_cat(self.cf_dec1(f2), fe1))
+        del fd2, fe2
+        # Keep the projected branches and release their larger shared input before the final full-size convolutions.
+        conf_spn = self.cf_dec1(f2)
+        guide = self.gd_dec1(f2)
+        del f2
+        guide = _cat(guide, fe1)
+        guide = self.gd_dec0(guide)
+        conf_spn = _cat(conf_spn, fe1)
+        del fe1
+        conf_spn = self.cf_dec0(conf_spn)
         f4 = _cat(fd4, fe4)
+        del fd4, fe4
         return guide, conf_spn, self.ctx_dec0(self.ctx_dec1(f4)), self.cfi_dec0(self.cfi_dec1(f4))
 
 
@@ -450,7 +463,7 @@ class OmniDCNet(nn.Module):
         oa = self.prop_layer.conv_offset_aff(guide.float())
         off = oa[:, : 2 * NUM * PROP].view(b, PROP, NUM, 2, h, w)
         aff = oa[:, 2 * NUM * PROP :].view(b, PROP, NUM, h, w).softmax(2)
-        o3 = torch.tensor(OFFSETS, dtype=torch.float32, device=depth.device)
+        o3 = device_tensor(OFFSETS, dtype=torch.float32, device=depth.device)
         ys = torch.arange(h, dtype=torch.float32, device=depth.device)
         xs = torch.arange(w, dtype=torch.float32, device=depth.device)
         # grid_sample (align_corners False) at pixel (x + dx + ox, y + dy + oy): normalised (2 p + 1) / size - 1
@@ -475,7 +488,7 @@ def mono_size(h: int, w: int) -> tuple[int, int]:
 def quantile_normalise(d: torch.Tensor) -> torch.Tensor:
     """`relu(d)` mapped so its 2 % / 98 % quantiles (per image) are 0 / 1."""
     d = F.relu(d)
-    q = torch.quantile(d.flatten(1), torch.tensor(QUANT, device=d.device), dim=1)
+    q = torch.quantile(d.flatten(1), device_tensor(QUANT, device=d.device), dim=1)
     lo, hi = q[0].view(-1, 1, 1, 1), q[1].view(-1, 1, 1, 1)
     return (d - lo) / (hi - lo)
 
@@ -545,6 +558,8 @@ class CGState:
     tolerance stop needs every image. `x` holds the iterate upstream returns once `done` is set (it stops changing).
     """
 
+    normal = staticmethod(normal_op)
+
     def __init__(self, d: torch.Tensor, b: torch.Tensor) -> None:
         """Build the layers."""
         self.d, self.b = d, b
@@ -578,7 +593,7 @@ class CGState:
         self.k += 1
         beta = self.rr / torch.where(self.rr_old == 0, 1e-8, self.rr_old)
         self.p.copy_(torch.where(self.k == 1, self.r, self.r + beta.view(s) * self.p))
-        ap = normal_op(self.p, self.d)
+        ap = self.normal(self.p, self.d)
         den = (self.p * ap).flatten(1).sum(1)
         alpha = (self.rr / torch.where(den == 0, 1e-8, den)).view(s)
         self.x.copy_(torch.where(self.done, self.x, self.x + alpha * self.p))

@@ -28,9 +28,14 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
+from fastforks.kernels import msda
+from fastforks.shared import mlx_wrap
 from fastforks.shared.bert_tokenizer import BertTokenizer
 from fastforks.shared.seginfer import pretrained
 
@@ -97,6 +102,68 @@ def _msda(value, shapes, shapes_list, start, loc, weights, step):  # noqa: ANN00
     return deformable_sample(value, loc.flatten(3, 4), weights.flatten(3), shapes_list, points)
 
 
+def _attention_forward(  # noqa: PLR0913, PLR0917 - transformers' signature
+    self: Any,  # noqa: ANN401 - upstream attention module
+    hidden_states: torch.Tensor,
+    attention_mask: torch.Tensor | None = None,
+    encoder_hidden_states: torch.Tensor | None = None,
+    encoder_attention_mask: torch.Tensor | None = None,
+    position_embeddings: torch.Tensor | None = None,
+    reference_points: torch.Tensor | None = None,
+    spatial_shapes: torch.Tensor | None = None,
+    spatial_shapes_list: list[tuple[int, int]] | None = None,
+    level_start_index: torch.Tensor | None = None,
+    output_attentions: bool = False,  # noqa: FBT001, FBT002 - upstream signature
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Upstream's attention without its redundant spatial-length assertion.
+
+    The runner constructs both the flattened features and spatial shapes from the same maps, so the check cannot fail;
+    it read the shapes back from the device in each of the 12 layers (a host sync each), and ONNX tracing cannot
+    trace it. Only calls asking for the attention maps run upstream's forward.
+    """
+    if output_attentions:
+        return base_type(self).forward(
+            self,
+            hidden_states,
+            attention_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            position_embeddings,
+            reference_points,
+            spatial_shapes,
+            spatial_shapes_list,
+            level_start_index,
+            output_attentions,
+        )
+    if position_embeddings is not None:
+        hidden_states = hidden_states + position_embeddings
+    assert encoder_hidden_states is not None  # noqa: S101
+    assert reference_points is not None  # noqa: S101
+    assert spatial_shapes is not None  # noqa: S101
+    batch, queries, _ = hidden_states.shape
+    length = encoder_hidden_states.shape[1]
+    value = self.value_proj(encoder_hidden_states)
+    if attention_mask is not None:
+        value = value.masked_fill(~attention_mask[..., None], 0.0)
+    value = value.view(batch, length, self.n_heads, self.d_model // self.n_heads)
+    offsets = self.sampling_offsets(hidden_states).view(batch, queries, self.n_heads, self.n_levels, self.n_points, 2)
+    weights = self.attention_weights(hidden_states).view(batch, queries, self.n_heads, self.n_levels * self.n_points)
+    weights = F.softmax(weights, -1).view(batch, queries, self.n_heads, self.n_levels, self.n_points)
+    if reference_points.shape[-1] == 2:  # noqa: PLR2004 - point coordinates
+        normalizer = torch.stack([spatial_shapes[..., 1], spatial_shapes[..., 0]], -1)
+        locations = reference_points[:, :, None, :, None, :] + offsets / normalizer[None, None, None, :, None, :]
+    elif reference_points.shape[-1] == 4:  # noqa: PLR2004 - box coordinates
+        locations = (reference_points[:, :, None, :, None, :2] + offsets / self.n_points
+                     * reference_points[:, :, None, :, None, 2:] * 0.5)  # fmt: skip
+    else:
+        msg = f"Last dim of reference_points must be 2 or 4, got {reference_points.shape[-1]}"
+        raise ValueError(msg)
+    result = self.attn(
+        value, spatial_shapes, spatial_shapes_list, level_start_index, locations, weights, self.im2col_step
+    )
+    return self.output_proj(result), weights
+
+
 class Portable(Runner):
     """transformers' network in the compute dtype (text tower float32, once per query list), heads float32."""
 
@@ -122,6 +189,11 @@ class Portable(Runner):
         for mod in net.modules():  # fastforks: the shared per-level deformable sampling (no stack of the samples)
             if type(mod).__name__ == "MultiScaleDeformableAttention":
                 mod.forward = _msda
+            elif type(mod).__name__ in {
+                "GroundingDinoMultiscaleDeformableAttention",
+                "MMGroundingDinoMultiscaleDeformableAttention",
+            }:
+                override(mod, _attention_forward)
         self.head = net.bbox_embed[-1]
         # shared with the decoder (the same module, or tied weights since transformers 5.2x): a float copy
         if any(p.dtype != torch.float32 for p in self.head.parameters()):
@@ -169,7 +241,7 @@ class Portable(Runner):
         att, pos = phrase_masks(ids, self.separators)
         dev = self.ctx.device
         m = self.net.model
-        i = torch.tensor([ids], device=dev)
+        i = device_tensor([ids], device=dev)
         att, pos = att[None].to(dev), pos[None].to(dev)
         with torch.no_grad():
             h = m.text_backbone(i, att[:, None], torch.zeros_like(i), pos).last_hidden_state
@@ -212,6 +284,7 @@ class Portable(Runner):
         tmask = torch.ones(feat.shape[:2], dtype=torch.bool, device=x.device)
         pmask = torch.ones((b, *x.shape[-2:]), dtype=torch.long, device=x.device)
         vis, poss = m.backbone(x, pmask)
+        del pmask
         maps = [m.input_proj_vision[i](s) for i, (s, _) in enumerate(vis)]
         masks = [k for _, k in vis]
         for lvl in range(len(maps), m.config.num_feature_levels):
@@ -220,15 +293,19 @@ class Portable(Runner):
             maps.append(s)
             masks.append(k)
             poss.append(m.backbone.position_embedding(s, k).to(s.dtype))
+            del s, k
+        del vis
         shapes = [tuple(s.shape[-2:]) for s in maps]
         src = torch.cat([s.flatten(2).transpose(1, 2) for s in maps], 1)
         mflat = torch.cat([k.flatten(1) for k in masks], 1)
         lpos = torch.cat(
             [p.flatten(2).transpose(1, 2) + m.level_embed[i].view(1, 1, -1) for i, p in enumerate(poss)], 1
         )
-        sh = torch.as_tensor(shapes, dtype=torch.long, device=x.device)
+        del maps, masks, poss
+        sh = device_tensor(shapes, dtype=torch.long, device=x.device)
         start = torch.cat((sh.new_zeros((1,)), sh.prod(1).cumsum(0)[:-1]))
         ratios = torch.ones((b, len(shapes), 2), dtype=src.dtype, device=x.device)
+        del x
         enc = m.encoder(
             vision_features=src,
             vision_attention_mask=~mflat,
@@ -245,11 +322,15 @@ class Portable(Runner):
             return_dict=True,
         )
         vis_h, txt_h = enc.last_hidden_state_vision, enc.last_hidden_state_text
+        del enc, src, lpos, feat, att, pos
         obj, proposals = m.generate_encoder_output_proposals(vis_h, ~mflat, shapes)
         enc_cls = m.encoder_output_class_embed(obj, txt_h, tmask)
         coords = m.encoder_output_bbox_embed(obj) + proposals
+        del obj, proposals
         top = torch.topk(enc_cls.max(-1)[0], m.config.num_queries, dim=1)[1]
+        del enc_cls
         ref = torch.gather(coords, 1, top.unsqueeze(-1).expand(-1, -1, 4)).sigmoid()
+        del coords, top
         target = m.query_position_embeddings.weight.unsqueeze(0).expand(b, -1, -1)
         dec = m.decoder(
             inputs_embeds=target,
@@ -265,12 +346,12 @@ class Portable(Runner):
             self_attn_mask=None,
             return_dict=True,
         )
-        hid = dec.intermediate_hidden_states[:, -1].float()
+        hid = to_float32(dec.intermediate_hidden_states[:, -1])
         last_ref = dec.intermediate_reference_points[:, -2] if len(m.decoder.layers) > 1 else ref
-        logits = hid @ txt_h.float().transpose(-1, -2)
+        logits = hid @ to_float32(txt_h).transpose(-1, -2)
         if self.logit_affine is not None:
             logits = logits / self.logit_affine[0] + self.logit_affine[1]
-        boxes = (self.head(hid) + torch.special.logit(last_ref.float(), eps=1e-5)).sigmoid()
+        boxes = (self.head(hid) + torch.special.logit(to_float32(last_ref), eps=1e-5)).sigmoid()
         return logits, boxes
 
     def _image(self, x: torch.Tensor, text: Text) -> tuple[torch.Tensor, torch.Tensor]:
@@ -306,7 +387,9 @@ class Portable(Runner):
         scores, flat = scores[keep], flat[keep]
         cx, cy, bw, bh = boxes[0][flat // n].unbind(-1)
         h, w = image.shape[-2:]
-        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * boxes.new_tensor([w, h, w, h])
+        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
+            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
+        )
         return {"boxes": out, "scores": scores, "labels": flat % n}
 
 
@@ -316,4 +399,22 @@ def _float_copy(mod: torch.nn.Module) -> torch.nn.Module:
     return copy.deepcopy(mod).float()
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Fuse all levels of bilinear sampling and the weighted reduction in one CUDA launch."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the portable network and replace its multi-scale sampler."""
+        super().__init__(ctx)
+        msda.load(ctx.device)
+        for mod in self.net.modules():
+            if type(mod).__name__ == "MultiScaleDeformableAttention":
+                mod.forward = msda.sample
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",)),
+}

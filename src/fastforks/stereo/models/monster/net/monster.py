@@ -1,5 +1,6 @@
 # ruff: noqa: RUF002  (fastforks: upstream Chinese comments / docstrings with full-width commas)
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 # fastforks: relative imports (were core.*); matplotlib and the sys.path insert of Depth-Anything-V2-list3 dropped. The
@@ -49,7 +50,7 @@ def compute_scale_shift(monocular_depth, gt_depth, mask=None):
     b = torch.matmul(X.t(), y)
     params = torch.linalg.solve(A, b)
     
-    scale, shift = params[0].item(), params[1].item()
+    scale, shift = params.tolist()  # fastforks: one host sync, not two (the same Python floats)
     
     return scale, shift
 
@@ -394,7 +395,7 @@ class Monster(nn.Module):
         geo_block = Combined_Geo_Encoding_Volume
         geo_fn = geo_block(match_left.float(), match_right.float(), geo_encoding_volume.float(), radius=self.args.corr_radius, num_levels=self.args.corr_levels)
         b, c, h, w = match_left.shape
-        coords = torch.arange(w).float().to(match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1).contiguous()
+        coords = to_device(torch.arange(w).float(), match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1).contiguous()  # fastforks: to_device (a pageable upload syncs the host)
         disp = init_disp
         disp_preds = []
         for itr in range(iters):

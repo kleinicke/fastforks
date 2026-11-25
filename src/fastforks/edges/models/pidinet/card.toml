@@ -3,7 +3,7 @@ name = "PiDiNet soft edges"
 summary = "Soft edge preprocessor of ControlNet 1.1 (controlnet_aux `PidiNetDetector`, ComfyUI's \"PiDiNet Soft-Edge Lines\"): pixel difference networks (Su et al., ICCV 2021), a 0.7 M-parameter edge detector of difference convolutions, here converted to plain depthwise convolutions (the authors' re-parameterization). Research use only."
 tier = "experimental"
 outputs = ["edges"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"
@@ -28,10 +28,12 @@ safe = false  # true: quantize the map to 3 levels (controlnet_aux `safe=True`, 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off"
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
+kernels = ["cv_resample"]
 
 [[papers]]
 title = "Pixel Difference Networks for Efficient Edge Detection"

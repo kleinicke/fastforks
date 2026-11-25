@@ -14,9 +14,12 @@ import math
 import torch
 import torch.nn.functional as F
 
+from fastforks._core import volume_ops  # noqa: F401 - registers `fastforks::upsample_soft_argmax`
+from fastforks._core.tracing import exporting_for_mlx
+
 
 def upsample_softmax_regress(
-    cost: torch.Tensor, max_disp: int, height: int, width: int, rows: int = 64
+    cost: torch.Tensor, max_disp: int, height: int, width: int, rows: int = 128
 ) -> torch.Tensor:
     """Disparity `[B, H, W]` float32 from a cost volume `[B, 1, d, h, w]` (any float dtype).
 
@@ -31,6 +34,8 @@ def upsample_softmax_regress(
         msg = f"output {max_disp}x{height}x{width} is not an integer multiple of the volume {d}x{h}x{w}"
         raise ValueError(msg)
     values = torch.arange(max_disp, device=cost.device, dtype=torch.float32).view(1, max_disp, 1, 1)
+    if exporting_for_mlx():  # one op: the MLX replay fuses upsample + softmax + regression
+        return torch.ops.fastforks.upsample_soft_argmax(cost, max_disp, height, width)
     if torch.compiler.is_exporting():  # one block: a traced loop would keep the traced height's blocks
         up = F.interpolate(cost.float(), size=(max_disp, height, width), mode="trilinear", align_corners=False)
         return torch.sum(F.softmax(up.squeeze(1), dim=1) * values, 1)
@@ -47,6 +52,7 @@ def upsample_softmax_regress(
             recompute_scale_factor=False,
         ).squeeze(1)  # output rows i0 * sh .. i1 * sh
         a = y0 - i0 * sh
-        p = F.softmax(up[:, :, a : a + (y1 - y0)], dim=1)
-        out[:, y0:y1] = torch.sum(p * values, 1)
+        p = F.softmax(up, dim=1)[:, :, a : a + (y1 - y0)]  # the margin rows too: no contiguous copy of the block
+        # `sum(p * values, 1)` as one GEMV over the strided block (no product map): [1, D] @ [B, D, rows * W]
+        out[:, y0:y1] = torch.matmul(values.view(1, max_disp), p.flatten(2)).view(b, y1 - y0, width)
     return out

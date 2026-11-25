@@ -3,11 +3,12 @@ name = "TAPNext"
 summary = "TAPNext (Zholus, Doersch, Yang, Koppula et al., Google DeepMind 2025): tracking any point as next-token prediction. A TRecViT-B (12 blocks, each a gated linear recurrence over time per token and a ViT layer over the tokens of a frame) reads 8 x 8 patches of 256 x 256 frames plus one token per query point and predicts, frame by frame, the point's position (512-bin classification, windowed soft-argmax) and whether it is visible. Online: each frame only sees the past."
 tier = "experimental"
 outputs = ["tracks", "visibility"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.",
   "Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.",
   "One video per call; all queries of a call share the video.",
+  "Kernels mode can replay frames from one CUDA graph per query count. The first clip for a query count runs eagerly. Later clips reset and update the graph's tracking buffers in place. `cuda_graphs=False` turns graphs off and `release_graphs()` frees the cached graphs.",
 ]
 
 [upstream]
@@ -29,9 +30,13 @@ min_size = 16
 [modes.portable]
 cuda_dtype = "float16"  # as upstream's evaluation: fp16 autocast GEMMs; residual stream, norms, temporal conv and RG-LRU scan float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay recurrent frames for repeated query counts
 
 [[papers]]
 title = "TAPNext: Tracking Any Point (TAP) as Next Token Prediction"
@@ -54,6 +59,5 @@ weights = [{ name = "bootstapnext_ckpt.npz", size = 776980182, sha256 = "19de6b1
 
 [[variants]]
 id = "tapnext-pp"  # upstream TAPNext++ 256 (tapnextpp_ckpt.pt, a Lightning checkpoint with optimizer state); TAP-Vid DAVIS first AJ 65.6 (upstream README); long videos, re-detection after occlusion
-planned = { compile = "Inductor fails to compile a fused Triton kernel" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "tapnextpp_ckpt.pt", size = 2532282370, sha256 = "cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da", url = "https://storage.googleapis.com/dm-tapnet/tapnextpp/tapnextpp_ckpt.pt" }]

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 from .utils import split_feature, merge_splits, split_feature_1d, merge_splits_1d
 
@@ -8,13 +9,51 @@ from .utils import split_feature, merge_splits, split_feature_1d, merge_splits_1
 def sdpa(q, k, v, attn_mask=None):
     """softmax(q k^T / sqrt(C) + mask) v as one fused kernel (fastforks: replaces upstream's matmul / softmax / matmul,
     which wrote the [L, L] scores; same maths). Value channels are padded to a multiple of 8 (2-channel flow values)."""
+    # fastforks: preserve upstream's float32 operation order on CPU. Chunk
+    # queries in eager mode so large images do not materialize an N x N matrix;
+    # capture uses one dynamic matmul instead of unrolling a shape-dependent loop.
+    if q.device.type == "cpu":
+        if torch.compiler.is_compiling():
+            scores = torch.matmul(q, k.transpose(-2, -1)) / (q.size(-1) ** 0.5)
+            if attn_mask is not None:
+                scores = scores + attn_mask
+            return torch.matmul(torch.softmax(scores, dim=-1), v)
+        step = 256
+        out = []
+        for start in range(0, q.size(-2), step):
+            scores = torch.matmul(q[..., start:start + step, :], k.transpose(-2, -1)) / (q.size(-1) ** 0.5)
+            if attn_mask is not None:
+                mask = attn_mask if attn_mask.size(-2) == 1 else attn_mask[..., start:start + step, :]
+                scores = scores + mask
+            out.append(torch.matmul(torch.softmax(scores, dim=-1), v))
+        return torch.cat(out, dim=-2)
+    if q.device.type == "mps" and not torch.compiler.is_compiling() and not torch.jit.is_tracing():
+        # fastforks: MPS SDPA writes the [B, L, M] scores (4 GB for the global matching at 1080p), so chunk the
+        # queries to at most 256 MiB of scores per call (it holds five copies): rows are independent, the maths
+        # is unchanged
+        rows = max(1, (1 << 28) // (q.numel() // (q.size(-2) * q.size(-1)) * k.size(-2) * q.element_size()))
+        if rows < q.size(-2):
+            return torch.cat([
+                sdpa(q[..., start:start + rows, :], k, v,
+                     attn_mask if attn_mask is None or attn_mask.size(-2) == 1
+                     else attn_mask[..., start:start + rows, :])
+                for start in range(0, q.size(-2), rows)
+            ], dim=-2)
     pad = -v.size(-1) % 8
     if pad:
         v = F.pad(v, (0, pad))
     if attn_mask is not None:
-        attn_mask = attn_mask.to(q.dtype)
+        attn_mask = to_run_dtype(attn_mask, q.dtype)  # fastforks: .to is a no-op in the float32 MLX twin
+    # ONNX requires an explicit attention head dimension for rank-three inputs.
+    export = torch.compiler.is_exporting() and q.dim() == 3
+    if export:
+        q, k, v = (t.unsqueeze(1) for t in (q, k, v))
+        if attn_mask is not None:
+            attn_mask = attn_mask.unsqueeze(1)
     # contiguous: a transposed token layout (last stride != 1) drops the fused kernel to the math path
     out = F.scaled_dot_product_attention(q.contiguous(), k.contiguous(), v.contiguous(), attn_mask=attn_mask)
+    if export:
+        out = out.squeeze(1)
     return out[..., :-pad] if pad else out
 
 
@@ -56,6 +95,7 @@ def single_head_split_window_attention(q, k, v,
                                        h=None,
                                        w=None,
                                        attn_mask=None,
+                                       attention=sdpa,  # fastforks: per-runner CUDA attention layout
                                        ):
     # ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # q, k, v: [B, L, C]
@@ -90,8 +130,26 @@ def single_head_split_window_attention(q, k, v,
     k = split_feature(k, num_splits=num_splits, channel_last=True)
     v = split_feature(v, num_splits=num_splits, channel_last=True)
 
-    mask = attn_mask.repeat(b, 1, 1) if with_shift else None  # [B*K*K, H/K*W/K, H/K*W/K]
-    out = sdpa(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
+    q, k, v = (x.view(b_new, -1, c) for x in (q, k, v))
+    if with_shift:
+        # fastforks: CUDA and MPS SDPA use a mask in the query dtype. Cast before copying across the batch.
+        gpu = q.device.type in ("cuda", "mps")
+        if gpu:
+            attn_mask = attn_mask.to(q.dtype)
+        if (
+            gpu and b > 1 and not torch.compiler.is_compiling() and not torch.jit.is_tracing()
+            and attn_mask.numel() > (1 << 27)
+        ):
+            # For large shifted windows, share one mask across batches instead of tiling it.
+            windows = num_splits * num_splits
+            out = torch.cat([
+                attention(qa, ka, va, attn_mask)
+                for qa, ka, va in zip(q.split(windows), k.split(windows), v.split(windows), strict=True)
+            ])
+        else:
+            out = attention(q, k, v, attn_mask.repeat(b, 1, 1))
+    else:
+        out = attention(q, k, v, None)
 
     out = merge_splits(out.view(b_new, h // num_splits, w // num_splits, c),
                        num_splits=num_splits, channel_last=True)  # [B, H, W, C]

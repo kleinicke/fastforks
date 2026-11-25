@@ -31,7 +31,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import float32_call, to_float32
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import in_onnx_export
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -40,6 +42,8 @@ FACTOR = 16  # fixed: the coarse level works at 1/16 resolution
 FEATURE, CONTEXT, ITER_CONTEXT = 128, 64, 64  # fixed: upstream NeuFlow/config.py (the same at 1/16 and 1/8)
 RADIUS = 4  # fixed: correlation lookup radius (one level), upstream neuflow.py
 ITERS_S16 = 1  # fixed: refinements at 1/16, upstream's `iters_s16` default (all its evaluations)
+_MATCH_MIN_TOKENS = 4096
+_MATCH_SOFTMAX_BYTES = 32 * 2**20
 
 
 class ConvBlock(nn.Module):
@@ -187,8 +191,25 @@ class UpSample(nn.Module):
         mask = self.conv3(F.relu(self.conv2(F.relu(self.conv1(torch.cat([flow, feature], dim=1))))))
         b, _, h, w = flow.shape
         k = self.factor
-        mask = torch.softmax(mask.float().view(b, 1, 9, k, k, h, w), dim=2)
-        up = F.unfold(flow, (3, 3), padding=1).view(b, 2, 9, 1, 1, h, w)
+        neighbors = F.unfold(flow, (3, 3), padding=1)
+        if (
+            mask.is_cuda
+            and flow.dtype == torch.float32
+            and mask.is_contiguous(memory_format=torch.channels_last)
+            and torch.is_inference_mode_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+            and torch.get_float32_matmul_precision() == "highest"
+        ):
+            # Each cell combines nine neighbors for every subpixel and both flow channels. Multiplying per cell
+            # avoids writing the full [B, 2, 9, k, k, H, W] product. Keep the softmax and the product in FP32.
+            cells = b * h * w
+            weights = mask.permute(0, 2, 3, 1).reshape(cells, 9, k * k).softmax(dim=1, dtype=torch.float32)
+            patches = neighbors.transpose(1, 2).reshape(cells, 2, 9)
+            with torch.autocast("cuda", enabled=False):
+                up = torch.bmm(patches, weights)
+            return up.view(b, h, w, 2, k, k).permute(0, 3, 1, 4, 2, 5).reshape(b, 2, k * h, k * w)
+        mask = torch.softmax(to_float32(mask).view(b, 1, 9, k, k, h, w), dim=2)
+        up = neighbors.view(b, 2, 9, 1, 1, h, w)
         up = torch.sum(mask * up, dim=2).permute(0, 1, 4, 2, 5, 3)
         return up.reshape(b, 2, k * h, k * w)
 
@@ -221,7 +242,30 @@ def _match(feature0: torch.Tensor, feature1: torch.Tensor) -> torch.Tensor:
     f0, f1 = (f.flatten(-2).permute(0, 2, 1) for f in (feature0, feature1))
     # ONNX's SDPA translator requires [batch, heads, tokens, channels], including for one head.
     values = grid.flatten(-2).permute(0, 2, 1).expand(b, h * w, 2)
-    match = F.scaled_dot_product_attention(f0.unsqueeze(1), f1.unsqueeze(1), values.unsqueeze(1)).squeeze(1)
+    q, k, v = f0.unsqueeze(1), f1.unsqueeze(1), values.unsqueeze(1)
+    if (
+        feature0.is_cuda
+        and feature0.dtype == torch.float32
+        and h * w >= _MATCH_MIN_TOKENS
+        and torch.is_inference_mode_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+        and not torch.is_autocast_enabled("cuda")
+        and torch.backends.cuda.math_sdp_enabled()
+    ):
+        # Match the math SDPA's two full-size FP32 products. Changing the reduction in either product can amplify
+        # small coordinate shifts during refinement. Normalize in row blocks to reuse the logits' storage safely.
+        scale = math.sqrt(1.0 / math.sqrt(q.shape[-1]))
+        logits = torch.matmul(q * scale, k.transpose(-1, -2) * scale)
+        rows = max(1, _MATCH_SOFTMAX_BYTES // (b * h * w * logits.element_size()))
+        for block in logits.split(rows, dim=-2):
+            empty = block.amax(dim=-1, keepdim=True).isneginf()
+            probs = block.softmax(dim=-1)
+            probs.masked_fill_(empty, 0)
+            block.copy_(probs)
+            del probs
+        match = torch.matmul(logits, v).squeeze(1)
+    else:
+        match = F.scaled_dot_product_attention(q, k, v).squeeze(1)
     return match.view(b, h, w, 2).permute(0, 3, 1, 2) - grid
 
 
@@ -229,7 +273,8 @@ def _correlation(feature0: torch.Tensor, feature1: torch.Tensor) -> torch.Tensor
     """All-pairs correlation `[B * H * W, 1, H, W]`: dot product / sqrt(C) (upstream corr.py, one level)."""
     b, c, h, w = feature0.shape
     corr = torch.matmul(feature0.view(b, c, h * w).transpose(1, 2), feature1.view(b, c, h * w))
-    return corr.view(b * h * w, 1, h, w) / math.sqrt(c)
+    corr.div_(math.sqrt(c))
+    return corr.view(b * h * w, 1, h, w)
 
 
 def _lookup(corr: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
@@ -280,7 +325,7 @@ def volume_lookup(features: torch.Tensor) -> Callable[[torch.Tensor], torch.Tens
     the largest tensor, with the scale applied to the first operand so the stored values stay small.
     """
     if features.dtype != torch.float16:
-        return functools.partial(_lookup, _correlation(*features.float().chunk(2, dim=0)))
+        return functools.partial(_lookup, _correlation(*to_float32(features).chunk(2, dim=0)))
     feature0, feature1 = features.chunk(2, dim=0)
     b, c, h, w = feature0.shape
     f0 = (feature0.float() / math.sqrt(c)).half().view(b, c, h * w).transpose(1, 2)
@@ -319,25 +364,29 @@ class NeuFlow(nn.Module):
             corrs = lookup(flow)
             with self._amp(flow.device):
                 iter_context, delta = refine(corrs, context, iter_context, flow)
-            flow = flow + delta.float()
+            flow = flow + to_float32(delta)
         return flow
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
         """Flow from `image1` to `image2` (`[B, 3, H, W]` in [0, 1], H and W multiples of 16)."""
         device = image1.device
         with self._amp(device):
-            features_s16, features_s8 = self.backbone(torch.cat([image1, image2], dim=0))
+            # The backbone and the s8 merges in fp32 under MLX float16: in half the s8 features drift past the golden.
+            features_s16, features_s8 = float32_call(self.backbone, torch.cat([image1, image2], dim=0))
             features_s16, context_s16 = _split(self.cross_attn_s16(features_s16))
             features_s8, context_s8 = _split(features_s8)
-        flow = _match(*features_s16.float().chunk(2, dim=0))
+        flow = _match(*to_float32(features_s16).chunk(2, dim=0))
         flow = self._refine(self.refine_s16, features_s16, context_s16, flow, ITERS_S16)
         flow = F.interpolate(flow, scale_factor=2, mode="nearest") * 2
         with self._amp(device):
             features_s16 = F.interpolate(features_s16, scale_factor=2, mode="nearest")
-            features_s8 = self.merge_s8(torch.cat([features_s8, features_s16], dim=1))
+            features_s8 = float32_call(self.merge_s8, torch.cat([features_s8, features_s16], dim=1))
+            del features_s16
             context_s16 = F.interpolate(context_s16, scale_factor=2, mode="nearest")
-            context_s8 = self.context_merge_s8(torch.cat([context_s8, context_s16], dim=1))
+            context_s8 = float32_call(self.context_merge_s8, torch.cat([context_s8, context_s16], dim=1))
+            del context_s16
         flow = self._refine(self.refine_s8, features_s8, context_s8, flow, iters)
+        del features_s8, context_s8
         with self._amp(device):
             feature = self.conv_s8(image1)
             return self.upsample_s8(feature, flow) * 8

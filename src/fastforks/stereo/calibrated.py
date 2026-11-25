@@ -22,7 +22,7 @@ from fastforks._core.arguments import renamed_attributes, warn_renamed
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import checked_ranges
 from fastforks._core.io import MAP_SUFFIXES, check_suffix
-from fastforks._core.outputs import MapOutputs
+from fastforks._core.outputs import MapOutputs, short_repr
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks.stereo.geometry.calib import read_calib
 from fastforks.stereo.geometry.ply import write_cloud
@@ -650,6 +650,7 @@ class StereoResult(PairViews):
     _by_view: Mapping[str, StereoView] | None = dataclasses.field(default=None, repr=False, kw_only=True)
 
 
+StereoResult.__repr__ = short_repr  # as every result: tensor shapes, no None fields
 _new_init = StereoResult.__init__
 
 
@@ -701,7 +702,8 @@ def build_result(
     result = StereoResult(
         model.variant.ref, model.backend, model.options, views, geometry, calibrated=geometry is not None
     )
-    by_view = {v: make_view(v, m, geometry, image=images[side_of(v)], device=model.device) for v, m in maps.items()}
+    device = model._device  # noqa: SLF001 - where the model's maps are
+    by_view = {v: make_view(v, m, geometry, image=images[side_of(v)], device=device) for v, m in maps.items()}
     object.__setattr__(result, "_by_view", by_view)
     return result
 

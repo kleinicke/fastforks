@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from fastforks.matting.models.matanyone.net.model.transformer.positional_encoding import PositionalEncoding
 from fastforks.matting.models.matanyone.net.utils.device import safe_autocast
+from fastforks._core.mlx_cast import to_float32  # fastforks: `.float()` that stays float32 in a float16 MLX replay
 
 
 # @torch.jit.script
@@ -79,7 +80,7 @@ class ObjectSummarizer(nn.Module):
             value = value + pe
 
         with safe_autocast(enabled=False):  # autocast disabled intentionally
-            value = value.float()
+            value = to_float32(value)  # fastforks: to_float32 for .float()
             feature = self.feature_pred(value)
             logits = self.weights_pred(value)
             sums, area = _weighted_pooling(repeated_masks, feature, logits)

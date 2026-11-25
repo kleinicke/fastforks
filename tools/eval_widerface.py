@@ -22,6 +22,8 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import closing
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _data import DATA
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCORE, NMS = 0.02, 0.45
@@ -140,6 +143,16 @@ def subset(gt: dict, every: int) -> list[tuple[str, str]]:
     return items[::every]
 
 
+def _read_image(root: Path, item: tuple[str, str]) -> tuple[str, str, np.ndarray]:
+    event, image = item
+    path = root / event / f"{image}.jpg"
+    bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if bgr is None:
+        msg = f"cannot decode WIDER FACE image {path}"
+        raise ValueError(msg)
+    return event, image, bgr
+
+
 def average_precisions(ev: Any, gt_dir: Path, preds: dict, keep: set) -> dict[str, float]:  # noqa: ANN401
     """Upstream `wider_evaluation` restricted to the images in `keep` (the others count neither faces nor boxes)."""
     from scipy.io import loadmat  # noqa: PLC0415
@@ -181,6 +194,7 @@ def main() -> None:
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     data = DATA / "widerface"
+    read = partial(_read_image, data / "WIDER_val" / "images")
     tree = _golden().reference_tree(Path(os.environ["FF_YUNET_REPO"]), _golden().REF_COMMIT)
     sys.path.insert(0, str(tree))
     import yunet_train.tasks.face.evaluation as ev  # noqa: PLC0415  # ty: ignore[unresolved-import] - upstream AP code
@@ -198,18 +212,18 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats()
             preds: dict[str, dict[str, np.ndarray]] = {}
             times = []
-            for event, image in items:
-                bgr = cv2.imread(str(data / "WIDER_val" / "images" / event / f"{image}.jpg"), cv2.IMREAD_COLOR)
-                x = torch.from_numpy(bgr).cuda().permute(2, 0, 1)[None].float()
-                torch.cuda.synchronize()
-                t = time.perf_counter()
-                with torch.inference_mode():
-                    boxes, scores = fn(x)
-                torch.cuda.synchronize()
-                times.append(time.perf_counter() - t)
-                b, s = boxes.float().cpu().numpy(), scores.float().cpu().numpy()
-                xywh = np.stack([b[:, 0], b[:, 1], b[:, 2] - b[:, 0], b[:, 3] - b[:, 1], s], 1).astype(np.float32)
-                preds.setdefault(event, {})[image] = xywh
+            with closing(prefetch(read, items, workers=4)) as inputs:
+                for event, image, bgr in inputs:
+                    x = torch.from_numpy(bgr).cuda().permute(2, 0, 1)[None].float()
+                    torch.cuda.synchronize()
+                    t = time.perf_counter()
+                    with torch.inference_mode():
+                        boxes, scores = fn(x)
+                    torch.cuda.synchronize()
+                    times.append(time.perf_counter() - t)
+                    b, s = boxes.float().cpu().numpy(), scores.float().cpu().numpy()
+                    xywh = np.stack([b[:, 0], b[:, 1], b[:, 2] - b[:, 0], b[:, 3] - b[:, 1], s], 1).astype(np.float32)
+                    preds.setdefault(event, {})[image] = xywh
             metrics = average_precisions(ev, data / "gt", preds, set(items))
             row = {
                 "ref": ref, "task": "pose", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
@@ -222,7 +236,7 @@ def main() -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

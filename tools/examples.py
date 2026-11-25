@@ -71,6 +71,20 @@ INPUTS: dict[str, tuple[str, str, str, str, str]] = {
 _SK = "https://scikit-image.org/docs/stable/api/skimage.data.html"
 _SKCRED = "scikit-image sample image"
 INPUTS |= {
+    "astronaut-lowres-2x": (
+        "astronaut",
+        "Astronaut, 2x downscaled with blur and noise",
+        "NASA",
+        "public domain",
+        "https://flic.kr/p/r9qvLn",
+    ),
+    "astronaut-lowres-4x": (
+        "astronaut",
+        "Astronaut, 4x downscaled with blur and noise",
+        "NASA",
+        "public domain",
+        "https://flic.kr/p/r9qvLn",
+    ),
     "astronaut-face": (
         "astronaut",
         "Astronaut Eileen Collins, face crop",
@@ -174,14 +188,28 @@ TASK_INPUT = {
     "tracking": "astronaut-pan",
     "volume": "ct-s0013",
 }
-# Variants whose task input is another one: faces for the face models, a text line for the line recogniser.
+# Variants that need a task-specific subject or text crop.
 INPUT_OF = {
     "bisenet-face-parsing": "astronaut-face",
+    "sapiens-seg-0.3b-goliath": "astronaut",
+    "sapiens-seg-1b-goliath": "astronaut",
     "segformer-b5-face-parsing": "astronaut-face",
     "segformer-b2-clothes": "astronaut",
     "parseq": "page-line",
     "parseq-tiny": "page-line",
 }
+for name, caption in (
+    ("ct-s0013-features", "axial crop for encoder features"),
+    ("ct-s0013-interactive", "axial and coronal slices for interactive segmentation"),
+):
+    loader, _title, credit, licence, source = INPUTS["ct-s0013"]
+    INPUTS[name] = (
+        loader,
+        f"CT case s0013 of TotalSegmentator v3.0.0 (test split), {caption}",
+        credit,
+        licence,
+        source,
+    )
 FACE = (150, 20, 350, 220)  # the astronaut's face (x0, y0, x1, y1)
 OPEN_VOCAB = ["person", "flag", "helmet"]  # open-vocabulary detectors' queries on the astronaut
 VOLUME = DATA / "totalsegmentator_subset" / "s0013" / "ct.nii.gz"
@@ -351,7 +379,13 @@ def _depth(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, An
     if r.depth is None and r.inverse_depth is None and r.normals is not None:  # normal estimators: normals as colour
         n = _np(r.normals)
         return ((np.clip(n, -1, 1) * 0.5 + 0.5) * 255).astype(np.uint8), {"kind": "normals"}
-    inv = _np(r.inverse_depth) if r.inverse_depth is not None else 1 / np.maximum(_np(r.depth), 1e-6)
+    if r.inverse_depth is not None:
+        inv = _np(r.inverse_depth)
+    elif r.kind in {"affine_invariant", "affine_invariant_log"}:
+        # A relative depth may have an arbitrary offset, including negative values.
+        inv = -_np(r.depth)
+    else:
+        inv = 1 / np.maximum(_np(r.depth), 1e-6)
     valid = _np(r.mask) > 0 if r.mask is not None else None
     out = turbo(_normalise(inv, valid))
     if valid is not None:
@@ -477,7 +511,10 @@ def _detection(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str
 
 
 def _promptable(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
-    if "text" in getattr(model, "prompts", ()):
+    prompts = getattr(model, "prompts", ())
+    if "reference" in prompts:
+        return _reference_prompt(model, imgs[0])
+    if "text" in prompts:
         r = model(imgs[0], text=CONCEPT)
         out, objects = _instances(imgs[0], r, _np(r.scores) >= SCORE, CONCEPT)
         return out, {"prompt": f'text "{CONCEPT}"', "objects": objects}
@@ -489,6 +526,38 @@ def _promptable(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[st
     x, y = POINT
     draw.ellipse((x - 7, y - 7, x + 7, y + 7), fill=(255, 220, 0), outline=(0, 0, 0), width=2)
     return np.asarray(pil), {"prompt": "one foreground point", "iou": round(float(r.iou_scores[best]), 3)}
+
+
+def _reference_prompt(model: Any, img: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
+    """Show the reference mask on a flipped crop of the coffee photo alongside the target result."""
+    crop = (160, 90, 470, 330)
+    mask = Image.new("L", (img.shape[1], img.shape[0]))
+    ImageDraw.Draw(mask).polygon(
+        [
+            (207, 156),
+            (265, 130),
+            (339, 145),
+            (387, 183),
+            (411, 230),
+            (380, 258),
+            (347, 250),
+            (290, 280),
+            (233, 258),
+            (209, 222),
+        ],
+        fill=255,
+    )
+    reference = np.asarray(Image.fromarray(img).crop(crop).transpose(Image.Transpose.FLIP_LEFT_RIGHT))
+    foreground = np.asarray(mask.crop(crop).transpose(Image.Transpose.FLIP_LEFT_RIGHT)) > 0
+    result = model(img, reference_images=reference, reference_masks=foreground)
+    blue = (64, 160, 255)
+    panel = Image.new("RGB", (img.shape[1] + reference.shape[1], img.shape[0]), (28, 28, 28))
+    panel.paste(Image.fromarray(_blend(reference, foreground, blue)), (0, 20))
+    panel.paste(Image.fromarray(_blend(img, _np(result.masks) > 0, blue)), (reference.shape[1], 0))
+    draw = ImageDraw.Draw(panel)
+    _label(draw, (4, 2), "Reference mask", blue)
+    _label(draw, (reference.shape[1] + 4, 2), "Predicted mask", blue)
+    return np.asarray(panel), {"prompt": "cup mask on a flipped crop of the same photo", "layout": "reference | target"}
 
 
 PEOPLE = 0.5  # pose: person score a bottom-up model's detection needs to be drawn
@@ -589,6 +658,8 @@ def _restoration(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[s
     ref = model.variant.id
     face = any(k in ref for k in ("gfpgan", "codeformer"))
     _clean, low, name, kw = _degrade(ref, model.scale, face)
+    if name == "astronaut-lowres" and model.scale in (2, 4):
+        name = f"astronaut-lowres-{model.scale}x"
     r = model(low, **kw)
     out = (np.clip(_np(r.image), 0, 1).transpose(1, 2, 0) * 255).round().astype(np.uint8)
     inp = _up(low, out.shape[0] / low.shape[0], Image.Resampling.NEAREST)
@@ -709,13 +780,49 @@ def _slice_rgb(ct: np.ndarray, lab: np.ndarray, spacing: tuple[float, float]) ->
     return np.asarray(Image.fromarray(img).resize((w, h), Image.Resampling.NEAREST))
 
 
+def _volume_features(model: Any, vol: np.ndarray, sp: tuple[float, float, float]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
+    """Display the first three principal components of one axial feature slice as RGB."""
+    crop = tuple(slice(max(0, (n - 96) // 2), min(n, (n + 96) // 2)) for n in vol.shape)
+    roi = vol[crop]
+    r = model(np.ascontiguousarray(roi))
+    feat = r.features[0]
+    axial = feat[:, feat.shape[1] // 2].float()
+    h, w = axial.shape[1:]
+    tokens = axial.flatten(1).T
+    tokens = tokens - tokens.mean(0)
+    _, _, basis = torch.linalg.svd(tokens, full_matrices=False)
+    components = _np(tokens @ basis[:3].T).reshape(h, w, 3)
+    rgb = np.stack([_normalise(channel) for channel in components.transpose(2, 0, 1)], -1)
+    ct = roi[roi.shape[0] // 2]
+    plain = _slice_rgb(ct, np.zeros_like(ct), (sp[1], sp[2]))
+    overlay = Image.fromarray((rgb * 255).astype(np.uint8))
+    out = np.asarray(overlay.resize((plain.shape[1], plain.shape[0]), Image.Resampling.BICUBIC))
+    return out, {
+        "input": "ct-s0013-features",
+        "_inputs": [plain],
+        "layout": "axial encoder features (three PCA channels)",
+    }
+
+
 def _volume(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401, ARG001 - the CT is read from disk
-    from fastforks.volume import read_nifti  # noqa: PLC0415
+    from fastforks.volume import VolumeEncoder, VolumeInteractive, read_nifti  # noqa: PLC0415
 
     vol, meta = read_nifti(VOLUME)
-    r = model(vol, meta=meta)
-    lab = _np(r.labels).astype(np.int64)
     sp = tuple(float(s) for s in meta.spacing)  # (d, h, w) mm
+    if isinstance(model, VolumeEncoder):
+        return _volume_features(model, vol, sp)
+    extra: dict[str, Any] = {}
+    if isinstance(model, VolumeInteractive):
+        organ, _ = read_nifti(VOLUME.with_name("segmentations") / "spleen.nii.gz")
+        points = np.argwhere(organ > 0)
+        point = points[np.argmin(((points - points.mean(0)) ** 2).sum(1))].tolist()
+        lab = _np(model(vol, point=point).mask).astype(np.int64)
+        names = {1: "predicted foreground"}
+        extra = {"input": "ct-s0013-interactive", "prompt": "one foreground point inside the spleen"}
+    else:
+        r = model(vol, meta=meta)
+        lab = _np(r.labels).astype(np.int64)
+        names = r.class_names
     z = int(np.argmax((lab > 0).sum((1, 2))))
     y = int(np.argmax((lab > 0).sum((0, 2))))
     axial = _slice_rgb(vol[z], lab[z], (sp[1], sp[2]))
@@ -732,10 +839,11 @@ def _volume(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, A
     )
     ids, counts = np.unique(lab[lab > 0], return_counts=True)
     top = [
-        [r.class_names.get(int(i), str(i)), round(float(c) * float(np.prod(sp)) / 1e6, 2), palette(int(i))]
+        [names.get(int(i), str(i)), round(float(c) * float(np.prod(sp)) / 1e6, 2), palette(int(i))]
         for i, c in sorted(zip(ids, counts, strict=True), key=lambda t: -t[1])[:6]
     ]
     return out, {
+        **extra,
         "_inputs": [plain],
         "classes_litres": top,
         "labels_found": len(ids),
@@ -780,7 +888,7 @@ def _done() -> set[str]:
     if not ROWS.exists():
         return set()
     today = _today()  # a failure of today is not retried (the next step of the same job would hit it again)
-    rows = map(json.loads, ROWS.read_text().splitlines())
+    rows = map(json.loads, ROWS.read_text(encoding="utf-8").splitlines())
     return {r["ref"] for r in rows if "error" not in r or r.get("date") == today}
 
 
@@ -813,7 +921,7 @@ def main() -> int:
     done = _done()
     inflight = a.out / f".inflight-{a.task}"
     if inflight.exists():  # the previous step was killed (time limit) on this variant: record it, do not retry
-        ref = inflight.read_text()
+        ref = inflight.read_text(encoding="utf-8")
         inflight.unlink()
         row = {
             "ref": ref,
@@ -822,7 +930,7 @@ def main() -> int:
             "date": _today(),
             "error": "killed: over the 175 s step limit",
         }
-        with ROWS.open("a") as f:
+        with ROWS.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
     for ref in refs:
         if ref in done and not a.force:
@@ -834,7 +942,7 @@ def main() -> int:
         _save_inputs(a.out, name, imgs)
         target = a.out / f"{ref}.webp"
         row: dict[str, Any] = {"ref": ref, "task": a.task, "input": name, "date": _today()}
-        inflight.write_text(ref)
+        inflight.write_text(ref, encoding="utf-8")
         try:
             model = api.load(ref, mode=a.mode, device=a.device)
             with torch.inference_mode():
@@ -853,7 +961,7 @@ def main() -> int:
                 torch.cuda.empty_cache()
         inflight.unlink(missing_ok=True)
         print(json.dumps(row), flush=True)
-        with ROWS.open("a") as f:
+        with ROWS.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
     return 0
 

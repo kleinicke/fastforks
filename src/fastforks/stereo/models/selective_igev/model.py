@@ -6,6 +6,9 @@ import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.igev_stereo import IGEVStereo
@@ -24,6 +27,7 @@ class Params:
 
     max_disp: int
     iters: int
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> IGEVStereo:
@@ -72,6 +76,7 @@ class Kernels(Runner):
     """Our kernels: fused geometry lookup, fp16-accumulate convolutions with fused epilogues, fused selective GRU."""
 
     Params = Params
+    _GRAPH_PIXELS = 384 * 640  # fixed: cap the pool at the measured launch-bound sizes
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
@@ -81,10 +86,24 @@ class Kernels(Runner):
         self.net = _net(ctx)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(
+            self._disparity,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, left, right, iters=self.ctx.params.iters)[:, 0]
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": self._forward(self.net, left, right, iters=self.ctx.params.iters)[:, 0]}
+        return {"disparity": self._graphs(left, right)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 class MetalKernels(Portable):
@@ -106,4 +125,10 @@ class MetalKernels(Portable):
         patch_igev(self.net, FastGeoEncodingVolume, None, stereo_metal.load(ctx.device))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

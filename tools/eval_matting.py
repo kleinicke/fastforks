@@ -37,13 +37,15 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 import torch
+
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 BETA2 = 0.3
@@ -167,15 +169,14 @@ def main_video(a: argparse.Namespace, commit: str) -> None:
             fn([np.zeros((288, 512, 3), np.uint8)] * 2, np.full((288, 512), 255, np.uint8))
             torch.cuda.reset_peak_memory_stats()
             scores, n_frames, seconds = [], 0, 0.0
-            with ThreadPoolExecutor(2) as pool:  # decode the next clip while the GPU runs
-                for frames, mask, gt in pool.map(read_clip, data):
-                    torch.cuda.synchronize()
-                    t = time.perf_counter()
-                    alpha = fn(frames, mask)
-                    torch.cuda.synchronize()
-                    seconds += time.perf_counter() - t
-                    n_frames += len(frames)
-                    scores.append(score_video(alpha, gt))
+            for frames, mask, gt in prefetch(read_clip, data):
+                torch.cuda.synchronize()
+                t = time.perf_counter()
+                alpha = fn(frames, mask)
+                torch.cuda.synchronize()
+                seconds += time.perf_counter() - t
+                n_frames += len(frames)
+                scores.append(score_video(alpha, gt))
             mad, mse, dtssd = np.mean(scores, 0)
             metrics = {"mad": round(float(mad), 3), "mse": round(float(mse), 3), "dtssd": round(float(dtssd), 3)}
             row = {
@@ -189,7 +190,7 @@ def main_video(a: argparse.Namespace, commit: str) -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()
@@ -199,6 +200,11 @@ def read(item: tuple[Path, Path]) -> tuple[np.ndarray, np.ndarray]:
     """RGB image, grey mask."""
     im, gt = item
     return np.ascontiguousarray(cv2.imread(str(im))[..., ::-1]), cv2.imread(str(gt), cv2.IMREAD_GRAYSCALE)
+
+
+def _read_image(item: tuple[Path, Path], *, trimap: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    img, gt = read(item)
+    return img, gt, trimap_of(gt) if trimap else None
 
 
 def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
@@ -288,23 +294,22 @@ def main() -> None:
             )
             torch.cuda.reset_peak_memory_stats()
             maes, curves, times = [], [], []
-            with ThreadPoolExecutor(4) as pool:  # decode the next images while the GPU runs
-                for img, gt in pool.map(read, data):
-                    x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
-                    g = torch.from_numpy(gt).cuda()
-                    tri = torch.from_numpy(trimap_of(gt)).cuda() if aim else None
-                    t01 = None if tri is None else tri[None, None].float() / 255
-                    torch.cuda.synchronize()
-                    t = time.perf_counter()
-                    alpha = fn(x, t01)
-                    torch.cuda.synchronize()
-                    times.append(time.perf_counter() - t)
-                    if tri is not None:
-                        maes.append(score_trimap(alpha.float(), g, tri))
-                    else:
-                        mae, f = score(alpha.float(), g)
-                        maes.append(mae)
-                        curves.append(f)
+            for img, gt, trimap in prefetch(partial(_read_image, trimap=aim), data):
+                x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
+                g = torch.from_numpy(gt).cuda()
+                tri = None if trimap is None else torch.from_numpy(trimap).cuda()
+                t01 = None if tri is None else tri[None, None].float() / 255
+                torch.cuda.synchronize()
+                t = time.perf_counter()
+                alpha = fn(x, t01)
+                torch.cuda.synchronize()
+                times.append(time.perf_counter() - t)
+                if tri is not None:
+                    maes.append(score_trimap(alpha.float(), g, tri))
+                else:
+                    mae, f = score(alpha.float(), g)
+                    maes.append(mae)
+                    curves.append(f)
             if aim:
                 sad, mse = np.mean(maes, 0)
                 metrics = {"sad": round(float(sad), 2), "mse": round(float(mse) * 1000, 3)}
@@ -324,7 +329,7 @@ def main() -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

@@ -3,8 +3,9 @@
 What changes in `BasicEncoder` / `MultiBasicEncoder`:
   - eval BatchNorm folded into the conv in front of it (the cnet; `conv1/norm1`, `conv2/norm2`, `conv/norm1` pairs and
     the `Sequential(conv, norm)` shortcut of a ResidualBlock)
-  - InstanceNorm2d (the fnet): the fastbb kernels, fp32 statistics in one read and one apply pass on the NHWC
-    activation (no layout copies); in a ResidualBlock the ReLUs and the residual add are fused into the apply passes
+  - InstanceNorm2d (the fnet): the biases of the convs in front of them dropped (the norm cancels them), the fastbb
+    kernels, fp32 statistics in one read and one apply pass on the NHWC activation (no layout copies); in a
+    ResidualBlock the ReLUs and the residual add are fused into the apply passes
   - weights fp16 channels-last, dense convs with at least `HACC_MIN_MACS` multiply-adds as fp16-accumulate cuDNN graphs
     (`cudnn_hacc`); the encoder casts its image input to fp16 channels-last and returns fp16 channels-last
   - the convs on the depth features (`convd` of the fnet, `conv08 / conv16 / conv32` of the cnet) stay bf16: the DPT
@@ -22,17 +23,16 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.kernels import linear
 from fastforks._core.patch import base_type, is_base, override
 from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.shared.cnn_kernels import CL
+from fastforks.shared.instance_norm import instance_norm, is_in_resblock, resblock_forward
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 HACC_MIN_MACS = 2e8  # per conv, batch x pixels x MACs per pixel: smaller convs stay on PyTorch (memory bound)
 _PAIRS = (("conv1", "norm1"), ("conv2", "norm2"), ("conv", "norm1"))
-_RELU, _RELU_RES = 1, 2  # in_apply modes (0: plain norm)
 
 
 def _fold(conv: nn.Module, bn: nn.Module) -> None:
@@ -68,87 +68,14 @@ def fold_bn(module: nn.Module) -> int:
     return n
 
 
-# ------------------------------------------------------------------------------------------------ instance norm
-def _instance_norm(self: nn.Module, x: torch.Tensor, mode: int = 0, res: torch.Tensor | None = None) -> torch.Tensor:
-    """InstanceNorm2d (no affine, no running stats) of an NHWC fp16 / bf16 activation with the fastbb kernels.
-    mode 0: norm, 1: relu(norm), 2: relu(res + relu(norm)) (the tail of a ResidualBlock)."""
-    n, c, h, w = x.shape
-    ok = (
-        x.is_cuda
-        and x.dtype in (torch.float16, torch.bfloat16)
-        and c % 8 == 0
-        and c <= 2048
-        and x.is_contiguous(memory_format=CL)
-        and x.data_ptr() % 16 == 0
-        and not self.affine
-        and (res is None or (res.dtype == x.dtype and res.shape == x.shape and res.is_contiguous(memory_format=CL)))
-    )
-    if not ok:
-        msg = f"fastbb instance norm needs NHWC fp16/bf16, C % 8 == 0, C <= 2048, no affine (got {tuple(x.shape)} {x.dtype})"
-        raise RuntimeError(msg)
-    k = fastbb.load(x.device)
-    sfx = "h" if x.dtype == torch.float16 else "b"
-    hw = h * w
-    rows = max(1, 256 // (c // 8))
-    nbx = max(1, min((hw + rows - 1) // rows, max(1, 288 // n)))  # blocks per image
-    rpb = (hw + nbx - 1) // nbx
-    buf = torch.empty(2 * n * c * (nbx + 1), device=x.device, dtype=torch.float32)
-    partial, st = buf[: 2 * n * c * nbx], buf[2 * n * c * nbx :]  # per block (mean, M2); result (mean, rstd)
-    k.launch(f"in_stats_{sfx}", (nbx, n, 1), (256, 1, 1), x, partial, hw, c, rpb, smem=fastbb.IN_STATS_SMEM)
-    k.launch(
-        "in_stats_final",
-        ((n * c + 7) // 8, 1, 1),
-        (256, 1, 1),
-        partial,
-        st,
-        n,
-        nbx,
-        hw,
-        c,
-        rpb,
-        float(self.eps),
-        None,
-        None,
-    )
-    y = torch.empty_like(x)
-    k.launch(
-        f"in_apply_{sfx}", *linear(n * hw * c // 8), x, y, st, None, None, res, n, hw, c, float(self.eps), mode
-    )  # fmt: skip
-    return y
-
-
-def _resblock_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
-    """ResidualBlock with instance norms: the ReLUs and the residual add run inside the norm passes."""
-    y = _instance_norm(self.norm1, self.conv1(x), _RELU)
-    r = x if self.downsample is None else _instance_norm(self.norm3, self.downsample[0](x), 0)
-    return _instance_norm(self.norm2, self.conv2(y), _RELU_RES, r.contiguous(memory_format=CL))
-
-
-def _is_in_resblock(m: nn.Module) -> bool:
-    """A RAFT ResidualBlock with instance norms (the layout `_resblock_forward` fuses)."""
-    if base_type(m).__name__ != "ResidualBlock":
-        return False
-    norms = ("norm1", "norm2")
-    if not all(base_type(getattr(m, n, None)) is nn.InstanceNorm2d for n in norms):
-        return False
-    d = getattr(m, "downsample", "missing")
-    if d is None:
-        return True
-    return (
-        isinstance(d, nn.Sequential)
-        and len(d) == 2
-        and is_base(d[0], nn.Conv2d)
-        and d[1] is getattr(m, "norm3", None)
-        and is_base(d[1], nn.InstanceNorm2d)
-    )
-
-
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    # the bias inside cuDNN's conv + bias plan (`fuse_bias`): defom-vitl 994 x 1482 628 -> 620 ms, the disparity vs
+    # fp32 unchanged (mean 0.00176 px both)
     n, _, h, w = x.shape
     if self._macs_per_px * n * h * w >= HACC_MIN_MACS:
         return cudnn_hacc.conv_half_acc(
-            x, self.weight, self.bias, list(self.padding), list(self.stride), list(self.dilation)
+            x, self.weight, self.bias, list(self.padding), list(self.stride), list(self.dilation), fuse_bias=True
         )
     return F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
@@ -177,6 +104,25 @@ def _fp16_encoder_forward(self: nn.Module, x: torch.Tensor, *a: object, **kw: ob
         return base_type(self).forward(self, _cast(x, torch.float16), *a, **kw)
 
 
+def drop_normalized_biases(module: nn.Module) -> int:
+    """Remove the bias of each conv whose output goes straight into an InstanceNorm2d; returns how many.
+
+    The norm subtracts each channel's mean over the image, so a per-channel constant added before it cancels: the
+    conv's separate bias pass (`add_` over the largest activations of the fnet) does nothing but round. The pairs are
+    those `fold_bn` folds (`conv1/norm1`, `conv2/norm2`, `conv/norm1`) and a ResidualBlock's `Sequential(conv, norm)`.
+    """
+    n = 0
+    for m in module.modules():
+        pairs = [(getattr(m, c, None), getattr(m, b, None)) for c, b in _PAIRS]
+        if isinstance(m, nn.Sequential) and len(m) == 2:  # the downsample shortcut
+            pairs.append((m[0], m[1]))
+        for conv, norm in pairs:
+            if is_base(conv, nn.Conv2d) and conv.bias is not None and is_base(norm, nn.InstanceNorm2d):
+                conv.bias = None
+                n += 1
+    return n
+
+
 def optimize_encoder(enc: nn.Module, keep_bf16: Sequence[str] = ()) -> dict[str, int]:
     """Convert a DEFOM fnet / cnet in place (see the module docstring); `keep_bf16`: direct submodules that stay bf16.
     The first positional argument (the image, or a list of them) is cast to fp16 channels-last; others pass through.
@@ -186,19 +132,20 @@ def optimize_encoder(enc: nn.Module, keep_bf16: Sequence[str] = ()) -> dict[str,
     kept = [getattr(enc, n) for n in keep_bf16]
     kept_ids = {id(m) for k in kept for m in k.modules()}
     info = {"folded_bn": fold_bn(enc), "instance_norm": 0, "fused_blocks": 0, "hacc_convs": 0}
+    info["dropped_biases"] = drop_normalized_biases(enc)
     for m in mods:
         if is_base(m, nn.InstanceNorm2d):
             if m.affine or m.track_running_stats:
                 msg = "DEFOM kernels encoder: instance norms without affine / running statistics only"
                 raise NotImplementedError(msg)
-            override(m, _instance_norm)
+            override(m, instance_norm)
             info["instance_norm"] += 1
         elif isinstance(m, nn.GroupNorm):
             msg = "DEFOM kernels encoder: GroupNorm encoders are not supported (norm_fn must be batch or instance)"
             raise NotImplementedError(msg)
     for m in mods:
-        if _is_in_resblock(m) and id(m) not in kept_ids:
-            override(m, _resblock_forward)
+        if is_in_resblock(m) and id(m) not in kept_ids:
+            override(m, resblock_forward)
             info["fused_blocks"] += 1
     enc.to(torch.float16)
     for k in kept:
@@ -228,4 +175,4 @@ def prepare_encoders(model: nn.Module) -> None:
     optimize_encoder(model.cnet, keep_bf16=("conv08", "conv16", "conv32"))
 
 
-__all__ = ["optimize_encoder", "prepare_encoders"]
+__all__ = ["drop_normalized_biases", "optimize_encoder", "prepare_encoders"]

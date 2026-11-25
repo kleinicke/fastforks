@@ -20,6 +20,8 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .fast import Neck, neck, pos_embed, prepare, trunk
 from .fused import FusedEncoder
@@ -41,6 +43,8 @@ PATCH_STRIDE = 4  # fixed: Hiera's patch-embedding stride (all released checkpoi
 STRIDE = 16  # fixed: SAM 2's image-embedding stride (all released checkpoints)
 STABILITY = (0.05, 0.98)  # fixed: upstream build_sam2 post-processing (stability delta, threshold)
 LOGIT_CLAMP = 32.0  # fixed: upstream SAM2ImagePredictor clamps the returned low-resolution logits
+GRAPH_PROMPTS = 4  # fixed: kernels replays the prompt decode of up to this many prompts (as HQ-SAM / EfficientViT-SAM)
+GRAPHS = 4  # fixed: prompt layouts with a decode graph at a time (points, a box, both, with a mask)
 # The video-memory modules of the checkpoint (image mode does not use them); every other tensor must fit.
 VIDEO = (*VIDEO_KEYS, "no_mem_pos_enc")  # `video` loads VIDEO_KEYS on first use; no_mem_pos_enc is never used
 
@@ -58,6 +62,8 @@ class Params:
     pos_embed_size: list[int]  # background position-embedding grid (upstream window_pos_embed_bkg_spatial_size)
     kf_score_weight: float  # SAMURAI motion weight
     samurai: bool  # option: `video` as SAMURAI
+    cuda_graphs: bool  # replay the prompt decoder on CUDA
+    cuda_graphs_encoder: bool  # also replay the image encoder when CUDA graphs are enabled
 
 
 class Sam2Image(torch.nn.Module):
@@ -139,16 +145,43 @@ class _Sam2(Runner):
         multimask: bool,
     ) -> dict[str, torch.Tensor]:
         """Upstream `SAM2ImagePredictor._prep_prompts` + `_predict` (logits before the clamp)."""
-        (h, w), s = size, self.ctx.params.image_size
-        wh = torch.tensor([w, h], device=self.ctx.device, dtype=torch.float32)
+        pts = self._points(size, points, labels, boxes)
+        low, iou = self._decode(features, pts, masks, multimask=multimask)
+        return {"pred_masks": low, "iou_scores": iou}
+
+    def _points(
+        self,
+        size: tuple[int, int],
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
+        """Upstream `_prep_prompts`: the box corners (labels 2 / 3) then the points, in encoder-input pixels.
+
+        No host copy: `[w, h]` is filled on the device (`torch.tensor(..., device=cuda)` waited for the encoder, so
+        the prompt side could not be launched while the encoder ran).
+        """
+        (h, w), s, dev = size, self.ctx.params.image_size, self.ctx.device
+        wh = torch.full((2,), float(w), device=dev)
+        wh[1:].fill_(h)  # `wh[1] = h` copies a host scalar (a sync)
         coords, labs = [], []
         if boxes is not None:
             coords.append(boxes.float().view(-1, 2, 2) / wh * s)
-            labs.append(torch.tensor([[2, 3]], device=self.ctx.device).expand(boxes.shape[0], 2))
+            labs.append(torch.arange(2, 4, device=dev)[None].expand(boxes.shape[0], 2))
         if points is not None and labels is not None:
             coords.append(points.float() / wh * s)
             labs.append(labels)
-        pts = (torch.cat(coords, 1), torch.cat(labs, 1)) if coords else None
+        return (torch.cat(coords, 1), torch.cat(labs, 1)) if coords else None
+
+    def _decode(
+        self,
+        features: dict[str, torch.Tensor],
+        pts: tuple[torch.Tensor, torch.Tensor] | None,
+        masks: torch.Tensor | None,
+        *,
+        multimask: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Prompt encoder + mask decoder: low-resolution logits `[P, M, 256, 256]` and scores `[P, M]`."""
         pe = self.net.sam_prompt_encoder
         sparse, dense = pe(points=pts, boxes=None, masks=masks)
         low, iou, _, _ = self.net.sam_mask_decoder(
@@ -160,7 +193,7 @@ class _Sam2(Runner):
             repeat_image=sparse.shape[0] > 1,
             high_res_features=[features["feat_s0"], features["feat_s1"]],
         )
-        return {"pred_masks": low, "iou_scores": iou}
+        return low, iou
 
     def upsample(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Upstream `SAM2Transforms.postprocess_masks` (no hole / sprinkle removal, as `SAM2ImagePredictor`)."""
@@ -194,7 +227,7 @@ class _Sam2(Runner):
         masks: torch.Tensor | None,
     ) -> dict[str, torch.Tensor]:
         """Upstream `SAM2VideoPredictor`: frame 0 prompts, then `propagate_in_video` (`video.py`; option `samurai`)."""
-        tracker, s, dev = self._tracker(), self.ctx.params.image_size, self.ctx.device
+        tracker, s = self._tracker(), self.ctx.params.image_size
         coords = labs = mask = None
         if masks is not None:
             mask = masks.float()[:, None]
@@ -203,16 +236,11 @@ class _Sam2(Runner):
                 mask = (mask >= 0.5).float()  # noqa: PLR2004 - upstream add_new_mask
             p = mask.shape[0]
         else:
-            (h, w) = size
-            wh = torch.tensor([w, h], device=dev, dtype=torch.float32)
-            cs, ls = [], []
-            if boxes is not None:
-                cs.append(boxes.float().view(-1, 2, 2) / wh * s)
-                ls.append(torch.tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
-            if points is not None and labels is not None:
-                cs.append(points.float() / wh * s)
-                ls.append(labels)
-            coords, labs = torch.cat(cs, 1), torch.cat(ls, 1).int()
+            pts = self._points(size, points, labels, boxes)
+            if pts is None:
+                msg = "SAM 2 video: no point / box prompt"
+                raise ValueError(msg)
+            coords, labs = pts[0], pts[1].int()
             p = coords.shape[0]
         # On the CPU, filled frame by frame (as the original's offloaded state): device memory stays bounded by the
         # memory bank instead of growing with the video length x resolution.
@@ -272,7 +300,11 @@ class Portable(_Sam2):
 
 
 class Kernels(_Sam2):
-    """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation); SDPA flash attention."""
+    """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation); SDPA flash attention.
+
+    With `cuda_graphs` the decoder replays one CUDA graph per prompt layout up to `GRAPH_PROMPTS` prompts.
+    `cuda_graphs_encoder` also enables an encoder graph, for workloads that benefit from keeping its workspace.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build on the CPU, convert the encoder, move the float32 prompt side to the device."""
@@ -284,10 +316,71 @@ class Kernels(_Sam2):
         self.no_mem = n.no_mem.to(ctx.device)
         del net.image_encoder
         self.net = net.to(ctx.device)
+        on = ctx.params.cuda_graphs
+        self.encoder_graph = GraphCache(self._encode, graphs=1) if on and ctx.params.cuda_graphs_encoder else None
+        self.decode_graphs = GraphCache(self._graph_decode, graphs=GRAPHS, share_inputs=(0, 1, 2)) if on else None
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` and the projected high-resolution maps, float32."""
-        return self.encoder(prepare(image, self.ctx.io, self.ctx.params.image_size))
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size)
+        out = None if self.encoder_graph is None or not x.is_cuda else self.encoder_graph.run((x.device,), x)
+        return self.encoder(x) if out is None else out
+
+    def _encode(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        return self.encoder(x)
+
+    def _decode(
+        self,
+        features: dict[str, torch.Tensor],
+        pts: tuple[torch.Tensor, torch.Tensor] | None,
+        masks: torch.Tensor | None,
+        *,
+        multimask: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """As `_Sam2._decode`, from a CUDA graph per prompt layout (prompts, points per prompt, mask)."""
+        given = [t for t in (*(pts or ()), masks) if t is not None]
+        graphs = self.decode_graphs
+        if graphs is None or not given or len(given[0]) > GRAPH_PROMPTS or not given[0].is_cuda:
+            return super()._decode(features, pts, masks, multimask=multimask)
+        key = tuple((t.dtype, tuple(t.shape)) for t in given)
+        inputs = (features["image_embed"], features["feat_s0"], features["feat_s1"], *given)
+        out = graphs.run(key, *inputs, post=lambda o: tuple(t.clone() for t in (o[:2] if multimask else o[2:])))
+        return super()._decode(features, pts, masks, multimask=multimask) if out is None else out
+
+    def _graph_decode(
+        self, embed: torch.Tensor, s0: torch.Tensor, s1: torch.Tensor, *given: torch.Tensor
+    ) -> tuple[torch.Tensor, ...]:
+        """`_Sam2._decode` on the cache's static inputs, both outputs: multimask logits + scores, then single.
+
+        The mask decoder's own `forward` with `multimask_output` True / False (upstream `MaskDecoder.forward`: tokens
+        1-3, or token 0 with `dynamic_multimask_via_stability`), from one `predict_masks`. Inputs: points `[P, N, 2]`
+        + labels `[P, N]`, and / or a mask `[P, 1, 256, 256]` (told apart by rank).
+        """
+        by = {t.ndim: t for t in given}
+        pts = (by[3], by[2]) if 3 in by else None  # noqa: PLR2004 - coordinates [P, N, 2]
+        pe, dec = self.net.sam_prompt_encoder, self.net.sam_mask_decoder
+        sparse, dense = pe(points=pts, boxes=None, masks=by.get(4))
+        # upstream annotates two outputs; it returns masks, scores, mask tokens and object scores
+        low, iou = dec.predict_masks(
+            image_embeddings=embed,
+            image_pe=pe.get_dense_pe(),
+            sparse_prompt_embeddings=sparse,
+            dense_prompt_embeddings=dense,
+            repeat_image=sparse.shape[0] > 1,
+            high_res_features=[s0, s1],
+        )[:2]
+        single = dec._dynamic_multimask_via_stability(low, iou)  # noqa: SLF001 - upstream forward's single-mask choice
+        return low[:, 1:], iou[:, 1:], *single
+
+    def release_graphs(self) -> None:
+        """Free the encoder and prompt-decode CUDA graphs and their memory pools (they are captured again)."""
+        for graphs in (self.encoder_graph, self.decode_graphs):
+            if graphs is not None:
+                graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="trunk"),
+}

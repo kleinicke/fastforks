@@ -1,4 +1,6 @@
 import torch
+from fastforks.stereo._volume import concat_fn, correlation_band, stacked_volume  # fastforks: correlation_band
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
 import torch.nn as nn
 
 
@@ -19,6 +21,17 @@ class CostVolume(nn.Module):
     def forward(self, left_feature, right_feature):
         b, c, h, w = left_feature.size()
 
+        if exporting_for_mlx():
+            fns = {
+                "difference": lambda a, r: a - r,
+                "concat": concat_fn,
+                "correlation": lambda a, r: (a * r).mean(dim=1, keepdim=True),
+            }
+            if self.feature_similarity not in fns:
+                raise NotImplementedError
+            v = stacked_volume(left_feature, right_feature, self.max_disp, fns[self.feature_similarity])
+            return v.squeeze(1) if self.feature_similarity == "correlation" else v
+
         if self.feature_similarity == 'difference':
             cost_volume = left_feature.new_zeros(b, c, self.max_disp, h, w)
 
@@ -36,6 +49,11 @@ class CostVolume(nn.Module):
                                                             dim=1)
                 else:
                     cost_volume[:, :, i, :, :] = torch.cat((left_feature, right_feature), dim=1)
+
+        elif (self.feature_similarity == 'correlation' and left_feature.is_cuda
+              and not (torch.compiler.is_exporting() or in_onnx_export())):
+            # fastforks: eager CUDA only. ONNX cannot lower the float32-output half GEMM.
+            cost_volume = correlation_band(left_feature, right_feature, self.max_disp)[:, 0]
 
         elif self.feature_similarity == 'correlation':
             cost_volume = left_feature.new_zeros(b, self.max_disp, h, w)

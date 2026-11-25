@@ -9,6 +9,9 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from fastforks import pose
+from fastforks._core.errors import WeightsError
+from fastforks.kernels import cudnn_hacc
 from fastforks.pose.models.retinaface import model as rf
 from fastforks.pose.models.retinaface.net import HEAD, _up
 
@@ -73,3 +76,53 @@ def test_nms_drops_boxes_a_kept_one_overlaps():
     boxes = torch.tensor([[0.0, 0.0, 10.0, 10.0], [1.0, 0.0, 11.0, 10.0], [8.0, 0.0, 18.0, 10.0]])
     assert rf.nms(boxes, 0.4).tolist() == [0, 2]
     assert rf.nms(boxes[:0], 0.4).tolist() == []
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("count", [0, 1, 33, 256, 257, 1037])
+def test_bounded_nms_preserves_order(count: int) -> None:
+    from fastforks.kernels import box_nms  # noqa: PLC0415
+    from fastforks.pose.models.retinaface.model import nms  # noqa: PLC0415
+
+    rng = torch.Generator(device="cuda").manual_seed(51)
+    start, size = torch.rand(2, count, 2, generator=rng, device="cuda").unbind()
+    xyxy = torch.cat((start, start + size * 0.4), dim=1)
+    if count:
+        xyxy[2::3] = xyxy[0].clone()
+        xyxy[::17, 2:] = xyxy[::17, :2]  # zero-area candidates
+    expected = nms(xyxy.cpu(), 0.42).cuda()
+    torch.testing.assert_close(box_nms.indices(xyxy, 0.42), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+def test_kernels_graph_replays_network_and_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kernels replays the decoded anchors of a repeated shape from a CUDA graph: eager values, new outputs, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    monkeypatch.setattr(cudnn_hacc, "BUILD_AFTER", 0)  # plans on the first call, the graph on the second
+    monkeypatch.setattr(cudnn_hacc, "CAPTURE_AFTER", 1)
+    try:
+        model = pose.load("retinaface-mobilenet0.25", mode="kernels", device="cuda")
+    except WeightsError as e:
+        pytest.skip(f"retinaface weights not available: {e}")
+    r = model._runner
+    cache = r.graphs.cache
+    assert cache is not None
+    g = torch.Generator().manual_seed(0)
+    a, b = (torch.rand(1, 3, 96, 160, generator=g).cuda() for _ in range(2))
+    with torch.inference_mode():
+        want_a, want_b = rf.Portable.decoded(r, a), rf.Portable.decoded(r, b)
+        r.decoded(a)  # first call: eager
+        assert not cache.graphs
+        first = r.decoded(a)  # captures
+        assert len(cache.graphs) == 1
+        second = r.decoded(b)  # replay with new data; `first` must not change
+    for got, want in ((first, want_a), (second, want_b)):
+        for x, y in zip(got, want, strict=True):
+            torch.testing.assert_close(x, y, rtol=0, atol=0)
+    assert first[0].data_ptr() != second[0].data_ptr()
+    model.release_graphs()
+    assert not cache.graphs
+    off = pose.load("retinaface-mobilenet0.25", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner.graphs.cache is None

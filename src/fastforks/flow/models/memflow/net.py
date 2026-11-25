@@ -30,7 +30,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.export_sampling import export_bilinear
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import in_onnx_export
+from fastforks.shared.cuda_softmax import softmax_rows_
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -183,7 +186,7 @@ class CorrBlock:
     def __init__(self, f1: torch.Tensor, f2: torch.Tensor) -> None:
         """Build the pyramid of `f1 . f2 / sqrt(C)`."""
         b, c, h, w = f1.shape
-        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)) / math.sqrt(c)
+        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)).div_(math.sqrt(c))
         corr = corr.reshape(b * h * w, 1, h, w)
         self.pyramid = [corr]
         for _ in range(LEVELS - 1):
@@ -197,11 +200,17 @@ class CorrBlock:
         b, _, h, w = coords.shape
         centre = coords.permute(0, 2, 3, 1).reshape(b * h * w, 1, 1, 2)
         out = []
+        exporting = in_onnx_export()
         for i, corr in enumerate(self.pyramid):
             xy = centre / 2**i + self.delta
             hh, ww = corr.shape[-2:]
             grid = torch.cat([2 * xy[..., :1] / (ww - 1) - 1, 2 * xy[..., 1:] / (hh - 1) - 1], dim=-1)
-            out.append(grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
+            sampled = (
+                export_bilinear(corr, grid, align_corners=True)
+                if exporting
+                else grid_sample(corr, grid, align_corners=True)
+            )
+            out.append(sampled.view(b, h, w, -1))
         return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
 
 
@@ -226,7 +235,7 @@ class MemFlowNet(nn.Module):
         self.att = Attention()
         self.train_avg_length = train_avg_length
 
-    def forward_pair(
+    def forward_pair(  # noqa: PLR0913 - the pair, the iterations and the kernels' options
         self,
         image1: torch.Tensor,
         image2: torch.Tensor,
@@ -234,8 +243,13 @@ class MemFlowNet(nn.Module):
         corr_fn: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor], torch.Tensor]] | None = None,
         *,
         fp16: bool = False,
+        matrix_bytes: int = 0,
     ) -> torch.Tensor:
-        """Flow `[B, 2, H, W]` (float32) from `image1` to `image2` (`[-1, 1]`, H and W multiples of 8)."""
+        """Flow `[B, 2, H, W]` (float32) from `image1` to `image2` (`[-1, 1]`, H and W multiples of 8).
+
+        The readout's query and key are the same in every iteration: up to `matrix_bytes`, the first rows of its softmax
+        matrix are made once and multiplied by each iteration's values; fused attention recomputes the other rows.
+        """
         ub = self.update_block
         with torch.autocast("cuda", torch.float16, enabled=fp16):
             net, inp = self.cnet(image1).split([DIM, DIM], dim=1)
@@ -249,6 +263,12 @@ class MemFlowNet(nn.Module):
         scale = DIM**-0.5 * math.log(h * w, self.train_avg_length)
         # [B, 1, N, C] contiguous: a transposed view sends SDPA to the math path (an N x N matrix, ~4 GB at 1080p)
         q, k = (t.flatten(2).transpose(1, 2)[:, None].contiguous() for t in (q, k))
+        rows = min(q.shape[2], matrix_bytes // (b * q.shape[2] * q.element_size()))
+        matrix = None
+        if rows:
+            kt = k[:, 0].transpose(1, 2)
+            matrix = softmax_rows_(torch.baddbmm(kt.new_empty(()), q[:, 0, :rows], kt, beta=0, alpha=scale), 32 << 20)
+            q = q[:, :, rows:]
         coords0 = coords_grid(b, h, w, image1.device)
         coords1 = coords0
         for _ in range(iters):
@@ -257,7 +277,13 @@ class MemFlowNet(nn.Module):
             with torch.autocast("cuda", torch.float16, enabled=fp16):
                 motion = ub.encoder(flow, corr)
                 v = ub.aggregator.to_v(motion).flatten(2).transpose(1, 2)[:, None].contiguous()
-                readout = F.scaled_dot_product_attention(q, k, v, scale=scale)
+                if matrix is not None:
+                    readout = torch.empty_like(v)
+                    torch.matmul(matrix, v[:, 0], out=readout[:, 0, :rows])
+                    if q.shape[2]:
+                        readout[:, :, rows:] = F.scaled_dot_product_attention(q, k, v, scale=scale)
+                else:
+                    readout = F.scaled_dot_product_attention(q, k, v, scale=scale)
                 readout = readout[:, 0].transpose(1, 2).reshape(motion.shape)
                 net, delta = ub(net, inp, motion, motion + ub.aggregator.gamma * readout)
             coords1 = coords1 + delta.float()

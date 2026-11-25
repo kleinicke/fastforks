@@ -6,8 +6,10 @@
 - encoder: same maths as upstream `ImageEncoderViT.forward`; the attention with the decomposed relative-position bias
   `rel_h[q, kh] + rel_w[q, kw]` runs through SDPA by folding the bias into an augmented dot product
   (`q' = [q * scale, rel_h, rel_w]`, `k' = [k, onehot(kh), onehot(kw)]`, padded to a multiple of 8; `v` zero-padded to
-  the same head dim so the flash kernel takes it), never materialising the N x N attention matrix. The neck's
-  `LayerNorm2d`s run channels-last through `F.layer_norm` (float32 statistics for float16 activations).
+  the same head dim so the flash kernel takes it), never materialising the N x N attention matrix; without flash
+  (Windows) the blocks run SDPA with a chunked dense bias mask instead (`shared.sam_attention`: faster than cuDNN or
+  the efficient backend on the augmented form). The neck's `LayerNorm2d`s run channels-last through `F.layer_norm`
+  (float32 statistics for float16 activations).
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ import torch.nn.functional as F
 from PIL import Image
 
 from fastforks.promptable_segmentation._runner import scale
+from fastforks.shared.sam_attention import attend
 
 from .net.image_encoder import get_rel_pos
 
@@ -89,30 +92,6 @@ def onehot_keys(h: int, w: int, device: torch.device, dtype: torch.dtype) -> tor
     return torch.cat([eye_h.repeat_interleave(w, 0), eye_w.repeat(h, 1)], 1)
 
 
-def augmented(
-    qkv: torch.Tensor, nh: int, rel: tuple[torch.Tensor, torch.Tensor, torch.Tensor], hw: tuple[int, int]
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
-    """Packed qkv `[B, N, 3C]` -> SDPA operands `q', k', v'` `[B, heads, N, Dp]` (to run with `scale=1`), head dim.
-
-    `rel`: the relative-position tables `Rh [h, h, d]`, `Rw [w, w, d]` and `onehot_keys(h, w)`.
-    """
-    rh, rw, onehot = rel
-    b, n, c3 = qkv.shape
-    d = c3 // 3 // nh
-    h, w = hw
-    q, k, v = qkv.view(b, n, 3, nh, d).unbind(2)
-    r_q = q.reshape(b, h, w, nh, d)
-    rel_h = torch.einsum("bhwnc,hkc->bnhwk", r_q, rh).reshape(b, nh, n, h)
-    rel_w = torch.einsum("bhwnc,wkc->bnhwk", r_q, rw).reshape(b, nh, n, w)
-    pad = -(d + h + w) % 8
-    qt = q.transpose(1, 2)
-    zeros = qt.new_zeros(b, nh, n, pad)
-    qa = torch.cat([qt * d**-0.5, rel_h, rel_w, zeros], -1)
-    ka = torch.cat([k.transpose(1, 2), onehot.expand(b, nh, n, h + w), zeros], -1)
-    va = torch.cat([v.transpose(1, 2), qt.new_zeros(b, nh, n, h + w + pad)], -1)
-    return qa, ka, va, d
-
-
 Rel = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
 
@@ -130,8 +109,7 @@ def attention(blk: Any, x: torch.Tensor, rel: Rel) -> torch.Tensor:  # noqa: ANN
     a = blk.attn
     b, h, w, c = x.shape
     qkv = a.qkv(x.reshape(b, h * w, c))
-    qa, ka, va, d = augmented(qkv, a.num_heads, rel, (h, w))
-    o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., :d]
+    o = attend(qkv, a.num_heads, rel, (h, w))
     return a.proj(o.transpose(1, 2).reshape(b, h, w, c))
 
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -29,13 +29,18 @@ from torch import nn
 
 from fastforks._core.half import pure_half
 from fastforks._core.runner import host
+from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
 
 from .net.dpt_temporal import DPTHeadTemporal
+from .net.motion_module.attention import GEGLU, FeedForward
 from .net.motion_module.motion_module import TemporalAttention
 
 if TYPE_CHECKING:
+    from fastforks.depth._api import Clip
     from fastforks.depth._runner import Context
 
 PATCH = 14  # fixed: the DINOv2 ViT-S/14 patch size of the checkpoints
@@ -44,6 +49,8 @@ OVERLAP = 10  # fixed: upstream infer settings
 KEYFRAMES = (0, 12, 24, 25, 26, 27, 28, 29, 30, 31)  # fixed: upstream infer settings
 INTERP_LEN = 8  # fixed: upstream infer settings
 STEP = INFER_LEN - OVERLAP
+DECODE_BATCH = 4  # fixed: the upstream head's decoder micro-batch size
+_OUTPUT_BATCH = 2  # fixed: bound the eager full-resolution output convolution workspace
 ALIGN = OVERLAP - INTERP_LEN  # frames 0 and 1 of a window: keyframes 0 and 12 of the previous one
 MAX_RATIO = 1.78  # fixed: upstream: "process video with ratio smaller than 16:9 due to memory limitation"
 _CONFIGS = {  # fixed: upstream run.py model_configs (per `arch`)
@@ -100,12 +107,61 @@ class SdpaTemporalAttention(TemporalAttention):
         return self.reshape_batch_dim_to_heads(out.flatten(0, 1))
 
 
+def _eager_gpu(x: torch.Tensor) -> bool:
+    return x.device.type in {"cuda", "mps"} and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+    )
+
+
+class _WorkspaceGEGLU(GEGLU):
+    """Reuse the fresh GELU result during eager CUDA / MPS inference (MPS: float16 GELU, no float32 detour)."""
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """Apply the original gate and retain its contiguous output layout."""
+        if not _eager_gpu(hidden_states):
+            return super().forward(hidden_states)
+        projected, gate = self.proj(hidden_states).chunk(2, dim=-1)
+        return F.gelu(gate).mul_(projected)
+
+
+class _ChunkedFeedForward(FeedForward):
+    """MPS: token chunks of a 64 MB inner projection (the whole `[tokens, 8 C]` one fragments the 1 GB heaps)."""
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """`FeedForward.forward`, row blocks into one output on MPS."""
+        x = hidden_states.reshape(-1, hidden_states.shape[-1])
+        rows = max(1, (64 << 20) // (8 * x.shape[-1] * x.element_size()))
+        if x.shape[0] <= rows or not (x.device.type == "mps" and _eager_gpu(x)):
+            return super().forward(hidden_states)
+        out = x.new_empty(x.shape[0], cast("nn.Linear", self.net[-1]).out_features)
+        for i in range(0, x.shape[0], rows):
+            out[i : i + rows] = super().forward(x[i : i + rows])
+        return out.view(*hidden_states.shape[:-1], -1)
+
+
+class _DepthOutput(nn.Sequential):
+    """Bound the full-resolution FP32 convolution workspace to two frames."""
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - match nn.Sequential.forward
+        """Project each frame independently, keeping the decoder's original output order."""
+        project = super().forward
+        if input.shape[0] <= _OUTPUT_BATCH or not _eager_gpu(input):
+            return project(input)
+        return torch.cat([project(frames) for frames in input.split(_OUTPUT_BATCH)])
+
+
 def _cpu_net(ctx: Context) -> Net:
     net = Net(ctx.params.arch)
     net.load_state_dict(ctx.state_dict())
     for m in net.modules():
         if isinstance(m, TemporalAttention):
             m.__class__ = SdpaTemporalAttention
+        elif ctx.dtype == "float16" and isinstance(m, GEGLU):
+            m.__class__ = _WorkspaceGEGLU
+        elif isinstance(m, FeedForward):
+            m.__class__ = _ChunkedFeedForward
+    if ctx.dtype == "float16":
+        net.head.scratch.output_conv2.__class__ = _DepthOutput
     return net.eval()
 
 
@@ -126,11 +182,30 @@ def _scale_shift(p: torch.Tensor, t: torch.Tensor) -> tuple[torch.Tensor, torch.
     return s.float(), b.float()
 
 
+def _blend(
+    out: torch.Tensor, depth: torch.Tensor, reference: list[torch.Tensor], start: int, *, metric: bool
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Align the window and blend the overlap in the upstream operation order."""
+    if metric:
+        factor = torch.ones((), device=depth.device)
+        shift = torch.zeros((), device=depth.device)
+    else:
+        factor, shift = _scale_shift(depth[:ALIGN], torch.stack(reference))
+    for i in range(min(INTERP_LEN, depth.shape[0] - ALIGN)):
+        frame = start + ALIGN + i
+        weight = i / (INTERP_LEN - 1)
+        out[frame] = out[frame] * (1 - weight) + (depth[ALIGN + i] * factor + shift).clamp_min(0) * weight
+    if depth.shape[0] > OVERLAP:
+        out[start + OVERLAP : start + depth.shape[0]] = (depth[OVERLAP:] * factor + shift).clamp_min(0)
+    return factor, shift
+
+
 class _Video(Runner):
     """The windowing / alignment of `infer_video_depth`; subclasses run the encoder and the head."""
 
     batch = 1  # a batch is independent images; `DepthModel.video` passes the whole video
     video = True
+    clip_frames = True  # `video` passes a `Clip`: one window of frames on the device, not the whole video
     Params = Params
     compiled_methods = ("_encode", "_window")  # the networks; the windowing loop stays eager
     net: Net
@@ -140,14 +215,17 @@ class _Video(Runner):
         feats = self.net.pretrained.get_intermediate_layers(x, _LAYERS[self.ctx.params.arch], return_class_token=True)
         return [t for pair in feats for t in pair]
 
-    def _window(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:
-        """Encoder features of the 32 frames of a window -> float32 depth `[32, h, w]` (ReLU)."""
+    def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
+        """Encoder features of the 32 frames of a window -> float32 depth `[valid, h, w]` (ReLU)."""
         pairs = [(feats[i], feats[i + 1]) for i in range(0, len(feats), 2)]
-        d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN)[0]  # [32, 1, h, w]; h, w: multiples of 14
-        return F.relu(d[:, 0]).float()  # upstream resizes to (h, w) first: the same size, an exact copy
+        d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN, return_hidden_states=False)[0]
+        return F.relu(d[:valid, 0]).float()  # upstream resizes to (h, w) first: the same size, an exact copy
 
-    def _video(self, image: torch.Tensor) -> torch.Tensor:
-        """`[L, 3, H, W]` RGB in `[0, 1]` (one video in time order) -> aligned float32 depth `[L, H, W]`."""
+    def _video(self, image: torch.Tensor | Clip) -> torch.Tensor:
+        """`[L, 3, H, W]` RGB in `[0, 1]` (one video in time order) -> aligned float32 depth `[L, H, W]`.
+
+        `image[ids]` is all the loop reads of the frames: a `Clip` converts and moves only those to the device.
+        """
         n, _, hh, ww = image.shape
         h, w = network_size(hh, ww, self.ctx.params.short_side)
         out = torch.empty((n, hh, ww), device=image.device, dtype=torch.float32)
@@ -155,7 +233,11 @@ class _Video(Runner):
         cache: list[torch.Tensor] = []
         ids: list[int] = []
         ref: list[torch.Tensor] = []
-        for start in range(0, n, STEP):
+        # An overlap containing only the alignment anchors yields no new or blended output.
+        end = max(1, n - ALIGN)
+        for start in range(0, end, STEP):
+            valid = min(INFER_LEN, n - start)
+            more = start + STEP < end
             prev, ids = ids, [min(start + i, n - 1) for i in range(INFER_LEN)]  # padded with the last frame
             if prev:
                 ids[:OVERLAP] = [prev[k] for k in KEYFRAMES]
@@ -166,34 +248,35 @@ class _Video(Runner):
                 x = F.interpolate(image[new], (h, w), mode="bicubic", align_corners=False)
                 fresh = self._encode(scale(x, self.ctx.io))
                 pool = [torch.cat((c, f)) for c, f in zip(cache, fresh, strict=True)] if cache else fresh
+                del x, fresh
             pos = {f: k for k, f in enumerate(pool_ids)}
-            sel = torch.tensor([pos[i] for i in ids], device=image.device)
-            d = self._window([t[sel] for t in pool], h, w)
-            keep = torch.tensor([pos[i] for i in uniq], device=image.device)
-            cache_ids, cache = uniq, [t[keep] for t in pool]
-            d = F.interpolate(d[:, None], (hh, ww), mode="bilinear", align_corners=True)[:, 0]
-            if not ref:
-                m = min(INFER_LEN, n)
-                out[:m] = d[:m]
-                ref = [d[0], d[KEYFRAMES[1]]]
-                continue
-            if self.ctx.params.metric:
-                s, b = torch.ones((), device=d.device), torch.zeros((), device=d.device)
+            if ids == pool_ids:
+                window = pool
             else:
-                s, b = _scale_shift(d[:ALIGN], torch.stack(ref))
-            for i in range(INTERP_LEN):  # upstream get_interpolate_frames: weights 0, 1/7, ..., 1
-                f = start + ALIGN + i
-                if f < n:
-                    wt = i / (INTERP_LEN - 1)
-                    out[f] = out[f] * (1 - wt) + (d[ALIGN + i] * s + b).clamp_min(0) * wt
-            m = min(INFER_LEN, n - start)
-            if m > OVERLAP:
-                out[start + OVERLAP : start + m] = (d[OVERLAP:m] * s + b).clamp_min(0)
-            ref = [ref[0], (d[KEYFRAMES[1]] * s + b).clamp_min(0)]
+                sel = device_tensor([pos[i] for i in ids], device=image.device)
+                window = [t[sel] for t in pool]
+            # Only these keyframes can reappear in the next window. The head consumes
+            # the assembled window; release the full encoder pool before it runs.
+            cache_ids = sorted({ids[k] for k in KEYFRAMES}) if more else []
+            keep = device_tensor([pos[i] for i in cache_ids], device=image.device, dtype=torch.long)
+            cache = [t[keep] for t in pool] if cache_ids else []
+            del pool
+            d = self._window(window, h, w, valid)
+            del window
+            d = F.interpolate(d[:, None], (hh, ww), mode="bilinear", align_corners=True)[:, 0]
+            if ref:
+                s, b = _blend(out, d, ref, start, metric=self.ctx.params.metric)
+                if more:
+                    ref[1] = (d[KEYFRAMES[1]] * s + b).clamp_min(0)
+            else:
+                out[:valid] = d
+                if more:
+                    ref = [d[0].clone(), d[KEYFRAMES[1]].clone()]
+            del d
         return out
 
     @host
-    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+    def __call__(self, image: torch.Tensor | Clip, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Relative inverse depth (metric depth for metric checkpoints) of one video (the batch, in time order)."""
         return {_key(self.ctx): self._video(image)}
 
@@ -201,7 +284,8 @@ class _Video(Runner):
 class Portable(_Video):
     """Plain PyTorch with fused SDPA attention (encoder and temporal modules).
 
-    float32, or on CUDA the network in fp16 (no autocast; the last output conv runs in fp32).
+    float32, or the network in fp16 (no autocast; the last output conv runs in fp32), channels-last on CUDA and NCHW
+    on MPS (channels-last ran the head 25 % slower there: 827 ms against 630 ms per 32-frame window at 480x640).
     """
 
     dtypes = ("float32", "float16")
@@ -214,7 +298,9 @@ class Portable(_Video):
         fold_layer_scale(self.net.pretrained)
         self.half = ctx.dtype == "float16"
         if self.half:
-            pure_half(self.net, fp32=[self.net.head.scratch.output_conv2])
+            pure_half(self.net, fp32=[self.net.head.scratch.output_conv2], channels_last=ctx.device.type != "mps")
+            if ctx.device.type != "mps":
+                self.net.head.fastforks_layout = torch.channels_last  # token maps as the convs store them
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:
         return super()._encode(x.half() if self.half else x)
@@ -222,6 +308,54 @@ class Portable(_Video):
     def module(self) -> torch.nn.Module:
         """The network with its windowing: a video `[L, 3, H, W]` in `[0, 1]` -> depth `[L, H, W]`."""
         return Forward(self.net, lambda _net, image: self._video(image))
+
+
+def _temporal(module: nn.Module, frames: torch.Tensor) -> torch.Tensor:
+    """Run a temporal module on one clip and return its refined feature maps."""
+    temporal, _ = module(frames.transpose(0, 1).unsqueeze(0), None, None, None)
+    return temporal[0].transpose(0, 1)
+
+
+def _partial_head(head: DPTHeadTemporal, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
+    """Adapt ByteDance's DPT head to decode only the output prefix of a padded window.
+
+    All four motion modules still see the full 32 frames. Only the operations after
+    the last motion module can drop padded frames without changing the real frames.
+    """
+    ph, pw = h // PATCH, w // PATCH
+    maps = []
+    for i, tokens in enumerate(feats[::2]):
+        x = tokens
+        if head.use_clstoken:
+            readout = feats[2 * i + 1].unsqueeze(1).expand_as(x)
+            x = head.readout_projects[i](torch.cat((x, readout), -1))
+        x = x.transpose(1, 2).reshape(INFER_LEN, x.shape[-1], ph, pw).contiguous(memory_format=head.fastforks_layout)
+        maps.append(head.resize_layers[i](head.projects[i](x)))
+
+    low, mid, high, coarse = maps
+    del maps
+    scratch = head.scratch
+    low = scratch.layer1_rn(low)
+    mid = scratch.layer2_rn(mid)
+    high = scratch.layer3_rn(_temporal(head.motion_modules[0], high))
+    coarse = scratch.layer4_rn(_temporal(head.motion_modules[1], coarse))
+    path = scratch.refinenet4(coarse, size=high.shape[2:])
+    del coarse
+    path = _temporal(head.motion_modules[2], path)
+    path = scratch.refinenet3(path, high, size=mid.shape[2:])
+    del high
+    path = _temporal(head.motion_modules[3], path)
+
+    result = []
+    for start in range(0, valid, DECODE_BATCH):
+        section = slice(start, min(start + DECODE_BATCH, valid))
+        x = scratch.refinenet2(path[section], mid[section], size=low.shape[2:])
+        x = scratch.refinenet1(x, low[section])
+        x = F.interpolate(scratch.output_conv1(x), (h, w), mode="bilinear", align_corners=True)
+        with torch.autocast("cuda", enabled=False):
+            depth = scratch.output_conv2(x.float()).to(x.dtype)
+        result.append(F.relu(depth[:, 0]).float())
+    return result[0] if len(result) == 1 else torch.cat(result)
 
 
 class Kernels(_Video):
@@ -237,6 +371,18 @@ class Kernels(_Video):
         self.net = _cpu_net(ctx).to(ctx.device)
         use_fast_vit(self.net.pretrained)
         pure_half(self.net.head, fp32=[self.net.head.scratch.output_conv2])
+        self.net.head.fastforks_layout = torch.channels_last  # token maps as the convs store them
+
+    def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
+        """Use the shortened per-frame decoder for the last, possibly padded window."""
+        if valid == INFER_LEN:
+            return super()._window(feats, h, w, valid)
+        return _partial_head(self.net.head, feats, h, w, valid)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_window")),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_window")),
+}

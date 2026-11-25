@@ -46,6 +46,15 @@ date = "2026-11-02"
 mean_px = 0.01523
 p99_px = 0.05073
 
+[validated."s2m2-l@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@4ca15fd645fe:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "a012e141cff3e22c"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.01547
+p99_px = 0.0505
+
 [validated."s2m2-m@1"]
 kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
 symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
@@ -54,6 +63,15 @@ torch = "2.14.1+cu130"
 date = "2026-11-02"
 mean_px = 0.00618
 p99_px = 0.02223
+
+[validated."s2m2-m@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@4ca15fd645fe:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "a012e141cff3e22c"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00655
+p99_px = 0.02384
 
 [validated."s2m2-s@1"]
 kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
@@ -64,6 +82,15 @@ date = "2026-11-02"
 mean_px = 0.00973
 p99_px = 0.03415
 
+[validated."s2m2-s@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@4ca15fd645fe:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "a012e141cff3e22c"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00915
+p99_px = 0.0319
+
 [validated."s2m2-xl@1"]
 kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
 symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
@@ -72,3 +99,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-02"
 mean_px = 0.01853
 p99_px = 0.0624
+
+[validated."s2m2-xl@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@4ca15fd645fe:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "a012e141cff3e22c"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.01851
+p99_px = 0.06097

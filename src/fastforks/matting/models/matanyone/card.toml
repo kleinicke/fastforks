@@ -3,7 +3,10 @@ name = "MatAnyone"
 summary = "MatAnyone (Yang et al., NTU S-Lab, CVPR 2025): video matting of one object from a mask on the first frame. A Cutie-style memory network (ResNet-50 frame encoder, ResNet-18 mask encoder, object transformer) reads the alpha and features of earlier frames with consistent memory propagation: each region updates its memory only where the alpha changes. Takes a video and the first-frame mask (`video`); a single image is a one-frame video."
 tier = "experimental"
 outputs = ["alpha"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+limitations = [
+  "`torch.compile` compiles the image encoder, mask encoder and tensor decoder. It runs the recurrent memory and video loop eagerly. Each new input shape has a compilation cost.",
+]
 
 [upstream]
 repo = "https://github.com/pq-yang/MatAnyone"
@@ -21,6 +24,7 @@ evidence = "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf4760
 input = "imagenet"  # the network normalises itself (pixel_mean / pixel_std buffers); frames are padded to a multiple of 16 (centred) inside each step
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated one-image calls
 warmup = { default = 10, min = 0, aliases = ["n_warmup"] }  # copies of frame 0 run first (process_video n_warmup; the authors' 512 x 288 eval: 1)
 dilate = { default = 10, min = 0, aliases = ["r_dilate"] }  # the first-frame mask is dilated by this kernel side, then eroded (the authors' 512 x 288 eval: 4)
 erode = { default = 10, min = 0, aliases = ["r_erode"] }  # erosion kernel side after the dilation (the authors' 512 x 288 eval: 4)
@@ -28,10 +32,10 @@ erode = { default = 10, min = 0, aliases = ["r_erode"] }  # erosion kernel side 
 [modes.portable]
 cuda_dtype = "float16"  # CUDA fp16 autocast over fp32 weights, as upstream
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only"
+kernels = ["image_normalize"]
 
 [[papers]]
 title = "MatAnyone: Stable Video Matting with Consistent Memory Propagation"

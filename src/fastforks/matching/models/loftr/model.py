@@ -19,8 +19,10 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import dual_softmax
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared import cnn_kernels
+from fastforks.shared import cnn_kernels, mlx_wrap
 from fastforks.shared.cnn_kernels import conv_ep
 
 from .net.loftr import BasicBlock, LoFTR, ResNetFPN_8_2
@@ -72,7 +74,7 @@ class Matcher(nn.Module):
         g = (image * self.gray).sum(1, keepdim=True)
         if (rh, rw) != (h, w):
             g = F.interpolate(g, size=(rh, rw), mode="bilinear", align_corners=False)
-        return g.to(self.loftr.backbone.conv1.weight.dtype), torch.tensor([w / rw, h / rh], device=image.device)
+        return g.to(self.gray.dtype), device_tensor([w / rw, h / rh], device=image.device)
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's matches (batch 1)."""
@@ -148,16 +150,22 @@ def _block_forward(self: BasicBlock, x: torch.Tensor) -> torch.Tensor:
 
 def _fpn_forward(self: ResNetFPN_8_2, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """`ResNetFPN_8_2.forward` with the stem conv + BN + ReLU fused."""
-    x0 = conv_ep(self.conv1, x, *_affine(self.conv1), cnn_kernels.ACT["relu"])
-    x1 = self.layer1(x0)
-    x2 = self.layer2(x1)
-    x3 = self.layer3(x2)
-    x3_out = self.layer3_outconv(x3)
-    x3_out_2x = F.interpolate(x3_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-    x2_out = self.layer2_outconv2(self.layer2_outconv(x2) + x3_out_2x)
-    x2_out_2x = F.interpolate(x2_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-    x1_out = self.layer1_outconv2(self.layer1_outconv(x1) + x2_out_2x)
-    return x3_out, x1_out
+    return self._pyramid(conv_ep(self.conv1, x, *_affine(self.conv1), cnn_kernels.ACT["relu"]))
+
+
+def _coarse_matches(
+    self: LoFTR, feat0: torch.Tensor, feat1: torch.Tensor, hw0: tuple[int, int], hw1: tuple[int, int]
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Use the upstream first maximum per row, testing borders only after mutual selection."""
+    scale = feat0.shape[-1] ** 0.5
+    logits = ((feat0[0].float() / scale) @ (feat1[0].float() / scale).mT).div_(self.temperature)
+    p = dual_softmax.normalize_(logits)
+    scores, cols = p.max(1)
+    keep = (scores > self.thr) & (scores == p.amax(0)[cols])
+    if self.border_rm:
+        keep &= self._inside(hw0, p.device) & self._inside(hw1, p.device)[cols]
+    rows = torch.where(keep)[0]
+    return rows, cols[rows], scores[rows]
 
 
 class Kernels(Portable):
@@ -174,6 +182,14 @@ class Kernels(Portable):
             if isinstance(m, BasicBlock):
                 override(m, _block_forward)
         override(bb, _fpn_forward)
+        override(self.net.loftr, _coarse_matches, "coarse_matches")
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    # float16: the backbone's ragged 3x3 convs (196 channels) padded into MLX's Winograd, as in float32; unpadded
+    # they run on the GEMM path and the backbone is slower than in float32 (854 vs 509 ms at 768 x 1024). The
+    # golden error is the same either way (outdoor mean 0.0023).
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse"), half_wino_pad=True),
+}

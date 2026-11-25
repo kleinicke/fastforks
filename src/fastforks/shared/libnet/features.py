@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import cublas_gemms, fp16_accumulate, graph_sized
 from fastforks._optimize import optimize, transformer
 from fastforks.features._runner import Forward, Runner
@@ -55,6 +56,7 @@ class Params:
     arch: str  # `timm.create_model` name with the pretrained tag
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
     fp32_accumulate: bool  # kernels: every GEMM through cuBLAS with fp32 accumulation (option)
+    stream: bool = False
 
 
 class _Walk:
@@ -78,7 +80,9 @@ class _Walk:
         Cached for the `_TABLES` most recently used grids. The cache alone owns a table: whoever keeps its address
         beyond the call (a captured CUDA graph) must keep the returned tuple.
         """
-        cache = not torch.compiler.is_compiling() and torch.is_inference_mode_enabled()  # not in traces / autograd
+        cache = (
+            not (torch.compiler.is_compiling() or torch.compiler.is_exporting()) and torch.is_inference_mode_enabled()
+        )  # not in traces / exports / autograd
         key = (h, w, dtype, device)
         if cache:
             with self._lock:
@@ -94,7 +98,8 @@ class _Walk:
             pos = p.to(dtype)
         rope = None
         if self.rope32 is not None:
-            self.rope32.to(device)
+            if not torch.compiler.is_exporting():  # under export `.to` would store fake tensors in the module
+                self.rope32.to(device)
             rope = self.rope32.get_embed(shape=(h, w))
         out = (pos, rope)
         if cache:
@@ -153,13 +158,23 @@ class _TimmFeatures(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network (CPU, float32), keep its float32 tables, optimise it for `ctx.mode` on `ctx.device`."""
         super().__init__(ctx)
+        self.stream = getattr(ctx.params, "stream", False)
+        if self.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires a CUDA device for host-to-device block transfers"
+            raise OptionsError(msg)
         net = self.network(ctx)
-        self.walk = self.walker(net)
         self.hidden_size, self.num_layers = net.embed_dim, len(net.blocks)
         self.num_prefix_tokens = net.num_prefix_tokens
         self.num_register_tokens = getattr(net, "num_reg_tokens", 0)
         mode = self.optimize_mode or ctx.mode
-        self.fast: FastModel = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
+        self.walk = self.walker(net)
+        self.fast: FastModel
+        if self.stream:
+            from .streamed_vit import streamed_vit  # noqa: PLC0415
+
+            self.fast = streamed_vit(net, ctx)
+        else:
+            self.fast = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
         self.net: Any = self.fast.net
         self.gemm: Callable[[], contextlib.AbstractContextManager] = contextlib.nullcontext  # GEMM precision
         if ctx.device.type == "cuda":  # the fp32 weights stay cached otherwise
@@ -189,9 +204,17 @@ class _TimmFeatures(Runner):
 
     def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         last, pooled, hs = self._forward(image, layers)
-        out = {"last_hidden_state": last.float(), "pooler_output": pooled.float()}
+        last = last.float()
+        out = {"last_hidden_state": last, "pooler_output": pooled.float()}
         if layers:
-            out["hidden_states"] = torch.stack([h.float() for h in hs], 1)
+            if image.is_cuda:
+                # Copy and cast once into the final layout.
+                hidden = last.new_empty((last.shape[0], len(hs), *hs[0].shape[1:]))
+                for i, state in enumerate(hs):
+                    hidden[:, i].copy_(state)
+                out["hidden_states"] = hidden
+            else:
+                out["hidden_states"] = torch.stack([h.float() for h in hs], 1)
         return out
 
     def module(self) -> torch.nn.Module:
@@ -199,6 +222,9 @@ class _TimmFeatures(Runner):
 
         Without the fp16-accumulate switch (a process-global cuBLAS flag that tracing cannot capture).
         """
+        if self.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
 
         def fn(_net: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
             net = self.net
@@ -239,7 +265,9 @@ class Kernels(_TimmFeatures):
         # every GEMM through cuBLAS with fp32 accumulation (the portable precision inside the CUDA graphs)
         self.gemm = cublas_gemms if ctx.params.fp32_accumulate else fp16_accumulate
         self.patch: int = self.net.patch_embed.patch_size[0]
-        self.graphs: GraphCache | None = GraphCache(self._captured, graphs=_GRAPHS)  # None: no graphs (tests)
+        self.graphs: GraphCache | None = (
+            None if self.stream else GraphCache(self._captured, graphs=_GRAPHS)
+        )  # None: no graphs (tests)
 
     def _small(self, image: torch.Tensor) -> bool:
         """Whether the call is small enough for a graph: `_GRAPH_WORK` activations over the patch tokens."""

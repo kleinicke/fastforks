@@ -18,6 +18,8 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks._core.upload import device_tensor
+from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
 from .net.tapir import SIZE, TAPIR, PIPsConvBlock
@@ -51,7 +53,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
-    scale = torch.tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
+    scale = device_tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     hires, lowres = [], []
     with region:
@@ -62,14 +64,16 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
             a, b = net.frame_features(video * 2 - 1)
             hires.append(a)
             lowres.append(b)
+            del a, b, video
         q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(torch.cat(hires), torch.cat(lowres), q)
         del hires, lowres  # the per-chunk copies
+        pyramid = net.pyramid(f)
         points, vis = [], []
         for s in range(0, q.shape[1], QUERY_CHUNK):
             c = slice(s, s + QUERY_CHUNK)
             fc = f._replace(query_hires=f.query_hires[:, c], query_lowres=f.query_lowres[:, c])
-            p, occ, expd = net.track(fc, q[:, c])
+            p, occ, expd = net.track(fc, q[:, c], pyramid=pyramid)
             points.append(p[0])
             vis.append(((1 - occ.float().sigmoid()) * (1 - expd.float().sigmoid()))[0])
     tracks = torch.cat(points).float().transpose(0, 1) / scale - 0.5
@@ -166,4 +170,4 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

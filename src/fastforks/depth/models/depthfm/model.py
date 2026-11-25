@@ -24,18 +24,22 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, config_globals
+from fastforks._core.mps import release
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 from fastforks.shared.sd2 import LATENT_SCALE, Noise, SD2Net, old_attention_names
 from fastforks.shared.sd2.net.fast import Fast
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from fastforks.depth._runner import Context
 
 _MULTIPLE = 64  # fixed: upstream `resize_max_res` rounds both sides to multiples of 64
+_DECODE_PIXELS = 2 * 1024 * 1024
 _DIFFUSION_STEPS = 1000  # fixed: upstream `q_sample(n_diffusion_timesteps=1000)`
 _HEADS = (8, 8, 8, 8)  # fixed: the checkpoint's `ldm_hparams` (num_heads 8 at every level)
 _RESNET = {  # fixed: LDM `ResBlock` -> diffusers `ResnetBlock2D` names
@@ -102,8 +106,12 @@ def build(ctx: Context) -> tuple[SD2Net, float]:
     """The checkpoint's UNet and empty-prompt embedding (file 0) and the VAE (file 1); also sqrt(alpha_bar)."""
     ckpt = cast("dict[str, object]", ctx.state_dict(0, strip="", extra={**NUMPY_ARRAYS, **config_globals()}))
     text = cast("torch.Tensor", ckpt["empty_text_embedding"])
-    with torch.device(ctx.device):
-        net = SD2Net(text.shape[1], heads=_HEADS)
+    # Allocate the checkpoint destination directly in inference precision. A float32 skeleton converted to float16
+    # on the device left 3.1 GiB in the MPS driver pool for good (5.3 instead of 2.2 GiB after loading).
+    dtype = torch.float16 if ctx.mode == "kernels" else ctx.torch_dtype
+    with torch.device("meta"):
+        net = SD2Net(text.shape[1], heads=_HEADS).to(dtype=dtype)
+    net.to_empty(device=ctx.device)
     unet = cast("dict[str, torch.Tensor]", ckpt["state_dict"])
     net.unet.load_state_dict(ldm_unet_keys(unet))
     net.vae.load_state_dict({old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
@@ -138,9 +146,24 @@ def times(steps: int) -> list[float]:
 def finish(d: torch.Tensor, size: tuple[int, ...]) -> torch.Tensor:
     """Decoded `[E, 3, h, w]` -> depth `[1, H, W]` in `[0, 1]` (float32)."""
     d = d.float().mean(dim=1, keepdim=True).mean(dim=0, keepdim=True).exp()
-    lo, hi = d.amin(), d.amax()
+    # ONNX's amin/amax lowering needs explicit axes, including for a global reduction.
+    axes = (0, 1, 2, 3)
+    lo, hi = d.amin(dim=axes), d.amax(dim=axes)
     d = (d - lo) / (hi - lo)
     return F.interpolate(d, size, mode="bilinear", align_corners=False, antialias=True)[:, 0].clip(0, 1)
+
+
+def _decode_ensemble(decode: Callable[[torch.Tensor], torch.Tensor], latent: torch.Tensor) -> torch.Tensor:
+    # The VAE decodes ensemble members independently. Bound the full-resolution activation size in eager runs (CUDA,
+    # MPS, and the MLX port, whose latent sits on the CPU): at 1024x1472 four members at once need ~12 GiB of decoder
+    # activations. Traced graphs keep one batch.
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.compiler.is_exporting()
+    if not capture and not torch.is_grad_enabled():
+        pixels = 64 * latent.shape[-2] * latent.shape[-1]  # VAE upscales each spatial axis by eight
+        batch = max(1, _DECODE_PIXELS // pixels)
+        if latent.shape[0] > batch:
+            return torch.cat([decode(part) for part in latent.split(batch, dim=0)])
+    return decode(latent)
 
 
 class Portable(Runner):
@@ -162,15 +185,18 @@ class Portable(Runner):
         p, net, dt = self.ctx.params, self.net, self.dtype
         x = prepare(image, p.long_side).to(dt)
         z = net.vae.encode_mean(x).float() * LATENT_SCALE
+        release(z)  # MPS: the next stage cannot reuse this one's cached buffers (5 GiB after the encoder)
         (noise,) = self.noise(torch.Size((p.ensemble, *z.shape[1:])), z.device, torch.float32)
         y = math.sqrt(self.alpha_bar) * z + math.sqrt(1 - self.alpha_bar) * noise
         cond = z.to(dt).expand(p.ensemble, -1, -1, -1)
         text = net.empty_text.to(dt).expand(p.ensemble, -1, -1)
         grid = times(p.steps)
         for t, t1 in itertools.pairwise(grid):
-            v = net.unet(torch.cat([y.to(dt), cond], dim=1), torch.tensor(t, device=z.device), text)
+            v = net.unet(torch.cat([y.to(dt), cond], dim=1), device_tensor(t, device=z.device), text)
             y = y + (t1 - t) * v.float()
-        return finish(net.vae.decode((y / LATENT_SCALE).to(dt)), image.shape[-2:])
+        release(z)
+        decoded = _decode_ensemble(net.vae.decode, (y / LATENT_SCALE).to(dt))
+        return finish(decoded, image.shape[-2:])
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Affine-invariant depth of one image."""
@@ -211,7 +237,13 @@ class Kernels(Runner):
         cond = z.half().expand(p.ensemble, -1, -1, -1)
         for t, t1 in itertools.pairwise(grid):
             y = y + (t1 - t) * f.unet_forward(torch.cat([y.half(), cond], dim=1), t).float()
-        return {"depth": finish(f.decode(self.net.vae, (y / LATENT_SCALE).half()), image.shape[-2:])}
+        decoded = _decode_ensemble(lambda latent: f.decode(self.net.vae, latent), (y / LATENT_SCALE).half())
+        return {"depth": finish(decoded, image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+}

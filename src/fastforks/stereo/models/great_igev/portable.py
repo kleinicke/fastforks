@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from fastforks.shared.igev_blocks.net.submodule import context_upsample
 
 from .net.geometry import FastGeoEncodingVolume
@@ -56,11 +57,8 @@ def forward_fast(net: GREATStereo, left: torch.Tensor, right: torch.Tensor, iter
 
     match_left, match_right, volume, disp, stem_2x = encode(net, im1, im2)
     del im2
-    # the kernels runner on Apple MPS sets `geo_volume` (the lookups as Metal kernels)
-    geo_fn = getattr(net, "geo_volume", FastGeoEncodingVolume)(
-        match_left, match_right, volume, radius=a.corr_radius, num_levels=a.corr_levels, out_dtype=dt
-    )
-    del volume, match_left, match_right
+    # MPS: let the context encoder reuse the cost volume's temporaries (fp32 994x1482: 12.4 -> 11.8 GB peak, steadier)
+    fence(disp)
 
     cnet_list = net.cnet(im1, num_layers=a.n_gru_layers)
     del im1
@@ -69,6 +67,13 @@ def forward_fast(net: GREATStereo, left: torch.Tensor, right: torch.Tensor, iter
     del cnet_list
     zqr: Any = net.context_zqr_convs
     inp_list = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp_list, zqr, strict=True)]
+
+    # Build the larger lookup pyramid once the context encoder's temporary maps are free.
+    # The kernels runner on Apple MPS supplies its own lookup implementation.
+    geo_fn = getattr(net, "geo_volume", FastGeoEncodingVolume)(
+        match_left, match_right, volume, radius=a.corr_radius, num_levels=a.corr_levels, out_dtype=dt
+    )
+    del volume, match_left, match_right
 
     b, _, h, w = disp.shape
     disp_h = torch.empty((b, 1, h, w), device=disp.device, dtype=dt, memory_format=mf)
@@ -79,8 +84,10 @@ def forward_fast(net: GREATStereo, left: torch.Tensor, right: torch.Tensor, iter
         net_list, mask_feat_4, delta_disp = net.update_block(
             net_list, inp_list, geo_feat, disp_h, compute_mask=itr == iters - 1
         )  # 3 GRU levels: iter16 / iter08 on (the defaults)
+        del geo_feat
         disp = disp + delta_disp.float()
 
+    del geo_fn, inp_list, net_list, disp_h
     xspx = net.spx_2_gru(mask_feat_4, stem_2x)
     spx_pred = F.softmax(net.spx_gru(xspx).float(), 1)
     return context_upsample(disp * 4.0, spx_pred).unsqueeze(1)

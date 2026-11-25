@@ -148,6 +148,7 @@ cli fastforks stereo run: right
 def fastforks._core.cards.ModelCard.contract(self) -> 'Contract'
 def fastforks._core.cards.ModelCard.kernel_libs_on(self, device: 'torch.device') -> 'tuple[str, ...]'
 def fastforks._core.cards.ModelCard.kernels_dtype_on(self, device: 'torch.device') -> 'Dtype'
+def fastforks._core.cards.ModelCard.mlx_dtypes(self, mode: 'Mode') -> 'tuple[Dtype, ...]'
 def fastforks._core.cards.ModelCard.option_bounds(self, name: 'str') -> 'str'
 def fastforks._core.cards.ModelCard.status(self, variant: 'Variant') -> 'Status'
 def fastforks._core.cards.ModelCard.variant_licence(self, variant: 'Variant') -> 'Licence'
@@ -164,6 +165,7 @@ def fastforks._core.model.Model.export_tensorrt(self, path: 'str | Path', height
 def fastforks._core.model.Model.module(self) -> 'torch.nn.Module'
 def fastforks._core.model.Model.release_graphs(self) -> 'None'
 def fastforks._core.model.Model.size_range(self) -> 'SizeRange'
+def fastforks._core.model.Model.warmup(self, sizes: 'Sequence[tuple[int, int]]', *, views: 'int' = 8) -> 'Self'
 def fastforks._core.outputs.MapOutputs.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None) -> 'None'
 def fastforks._core.outputs.NumpyOutputs.cpu(self) -> 'Self'
 def fastforks._core.outputs.NumpyOutputs.numpy(self) -> 'dict[str, Any]'
@@ -171,6 +173,7 @@ def fastforks._core.outputs.NumpyOutputs.to(self, device: 'str | torch.device') 
 def fastforks._core.sizes.SizeRange.describe(self, *, tested: 'bool' = True) -> 'str'
 def fastforks._core.sizes.SizeRange.example(self) -> 'tuple[int, int]'
 def fastforks._optimize.FastModel.forward(self, x: 'torch.Tensor | None' = None, *args: 'object', **kwargs: 'object') -> 'object'
+def fastforks._optimize.FastModel.forward_native(self, x: 'torch.Tensor | None' = None, *args: 'object', **kwargs: 'object') -> 'Any'
 def fastforks._optimize.FastModel.load_state_dict(self, state_dict: 'Mapping[str, Any]', strict: 'bool' = True, assign: 'bool' = False) -> 'Any'
 def fastforks._optimize.FastModel.traceable(self) -> 'FastModel'
 def fastforks._optimize.FastModel.train(self, mode: 'bool' = True) -> 'FastModel'
@@ -200,7 +203,7 @@ def fastforks.detection._tracks.ByteTracker.update(self, detections: 'Any') -> '
 def fastforks.detection.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.detection.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.detection._api.DetectionModel
 def fastforks.detection.model_card(model: 'str') -> 'ModelCard'
-def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
+def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, batch_size: 'int' = 1, **tracker: 'float') -> 'list[ObjectTracks]'
 def fastforks.edges._api.EdgesModel.__call__(self, image: 'ImageLike') -> 'EdgesResult'
 def fastforks.edges.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.edges.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.edges._api.EdgesModel
@@ -273,6 +276,7 @@ def fastforks.pose.model_card(model: 'str') -> 'ModelCard'
 def fastforks.promptable_segmentation.ConceptModelId(*args, **kwargs)
 def fastforks.promptable_segmentation.InContextModelId(*args, **kwargs)
 def fastforks.promptable_segmentation._api.ConceptSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None, multimask_output: 'bool' = True, text: 'str | None' = None, input_boxes_labels: 'PromptLike | None' = None, score_threshold: 'float | None' = None, threshold: 'float | None' = None) -> 'ConceptSegmentationResult'
+def fastforks.promptable_segmentation._api.ConceptSegmentationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.promptable_segmentation._api.InContextSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, reference_images: 'ImageLike | ImageEmbeddings | Sequence[ImageLike]', reference_masks: 'PromptLike | Sequence[PromptLike]') -> 'InContextSegmentationResult'
 def fastforks.promptable_segmentation._api.PromptableSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None, multimask_output: 'bool' = True, text: 'str | None' = None, input_boxes_labels: 'PromptLike | None' = None, score_threshold: 'float | None' = None, threshold: 'float | None' = None) -> 'PromptableSegmentationResult | ConceptSegmentationResult'
 def fastforks.promptable_segmentation._api.PromptableSegmentationModel.get_image_embeddings(self, image: 'ImageLike') -> 'ImageEmbeddings'
@@ -350,14 +354,16 @@ def fastforks.tracking.list_models(filter: 'str | Sequence[str]' = '*', *, exclu
 def fastforks.tracking.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.tracking._api.TrackingModel
 def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
 def fastforks.volume._api.VolumeEncoder.__call__(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeFeatures'
+def fastforks.volume._api.VolumeEncoder.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.volume._api.VolumeInteractive.__call__(self, volume: 'np.ndarray | torch.Tensor', *, point: 'Sequence[float] | None' = None, box: 'Sequence[Sequence[float]] | None' = None, scribble: 'np.ndarray | torch.Tensor | None' = None, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeInteractive.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.volume._api.VolumeInteractive.session(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeSession'
 def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'
 def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
 def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
 def fastforks.volume._api.VolumeResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.volume._api.VolumeSession.add_box(self, box: 'Sequence[Sequence[float]]', *, positive: 'bool' = True) -> 'VolumeMask'
-def fastforks.volume._api.VolumeSession.add_point(self, zyx: 'Sequence[float]', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.add_point(self, point: 'Sequence[float] | None' = None, *, positive: 'bool' = True, zyx: 'Sequence[float] | None' = None) -> 'VolumeMask'
 def fastforks.volume._api.VolumeSession.add_scribble(self, mask: 'np.ndarray | torch.Tensor', *, positive: 'bool' = True) -> 'VolumeMask'
 def fastforks.volume._api.VolumeSession.reset(self) -> 'None'
 def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
@@ -370,9 +376,11 @@ field fastforks._core.cards.ModelCard.family: str
 field fastforks._core.cards.ModelCard.io: Io
 field fastforks._core.cards.ModelCard.kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.kernels_dtype: Dtype
+field fastforks._core.cards.ModelCard.kernels_mlx_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.licence: Licence
 field fastforks._core.cards.ModelCard.licence_notes: tuple[str, ...]
 field fastforks._core.cards.ModelCard.limitations: tuple[str, ...]
+field fastforks._core.cards.ModelCard.mlx_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.modes: tuple[Mode, ...]
 field fastforks._core.cards.ModelCard.mps_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.mps_kernels_dtype: Dtype | None
@@ -385,12 +393,14 @@ field fastforks._core.cards.ModelCard.option_choices: Mapping[str, tuple[Any, ..
 field fastforks._core.cards.ModelCard.option_effect: Mapping[str, OptionEffect]
 field fastforks._core.cards.ModelCard.option_max: Mapping[str, float]
 field fastforks._core.cards.ModelCard.option_min: Mapping[str, float]
+field fastforks._core.cards.ModelCard.option_renamed: frozenset[str]
 field fastforks._core.cards.ModelCard.options: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.output_info: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.outputs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.papers: tuple[Paper, ...]
 field fastforks._core.cards.ModelCard.params: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.portable_cuda_dtype: Dtype
+field fastforks._core.cards.ModelCard.portable_mlx_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.portable_mps_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.summary: str
 field fastforks._core.cards.ModelCard.task: str
@@ -825,8 +835,11 @@ name fastforks.volume.VolumeResult = class fastforks.volume._api.VolumeResult
 name fastforks.volume.VolumeSession = class fastforks.volume._api.VolumeSession
 option calibration.anycalib.cuda_graphs
 option calibration.geocalib.cuda_graphs
+option depth.any2full.cuda_graphs
 option depth.any2full.short_side
 option depth.depth_anything_3.long_side aliases process_res
+option depth.depth_anything_3.stream
+option depth.depth_anything_v2.cuda_graphs
 option depth.depth_anything_v2.short_side aliases input_size
 option depth.depthfm.ensemble aliases ensemble_size
 option depth.depthfm.long_side aliases processing_res
@@ -848,8 +861,11 @@ option depth.marigold_v2.stream
 option depth.midas.input_size
 option depth.moge.normals
 option depth.moge.resolution_level
+option depth.omni_dc.cuda_graphs
 option depth.pointdit.steps
+option depth.pointdit.stream
 option depth.pointdit.tokens
+option depth.prompt_depth_anything.cuda_graphs
 option depth.prompt_depth_anything.max_size
 option depth.stablenormal.long_side aliases processing_res
 option depth.stablenormal.seed
@@ -859,6 +875,7 @@ option depth.unik3d.resolution_level
 option depth.video_depth_anything.short_side aliases input_size
 option depth.zoedepth.flip
 option depth.zoedepth.pad_input
+option detection.detr.cuda_graphs
 option detection.detr.max_detections
 option detection.detr.score_threshold
 option detection.dfine.cuda_graphs
@@ -889,45 +906,65 @@ option edges.anyline.short_side aliases detect_resolution,resolution
 option edges.hed.safe
 option edges.hed.short_side aliases detect_resolution,resolution
 option edges.lineart.short_side aliases detect_resolution,resolution
+option edges.lineart_anime.cuda_graphs
 option edges.lineart_anime.short_side aliases detect_resolution,resolution
+option edges.mlsd.cuda_graphs
 option edges.mlsd.short_side aliases detect_resolution,resolution
 option edges.mlsd.thr_d
 option edges.mlsd.thr_v
 option edges.pidinet.apply_filter
 option edges.pidinet.safe
 option edges.pidinet.short_side aliases detect_resolution,resolution
+option edges.teed.cuda_graphs
 option edges.teed.safe_steps
 option edges.teed.short_side aliases detect_resolution,resolution
 option features.c_radio.fp16_accumulate
 option features.c_radio.fp32_accumulate
+option features.c_radio.stream
 option features.clip.fp16_accumulate
 option features.clip.fp32_accumulate
+option features.clip.stream
 option features.dinov2.fp16_accumulate
+option features.dinov2.stream
 option features.dinov3.fp16_accumulate
+option features.dinov3.stream
 option features.perception_encoder.fp16_accumulate
 option features.perception_encoder.fp32_accumulate
+option features.perception_encoder.stream
 option features.siglip2.fp16_accumulate
 option features.siglip2.fp32_accumulate
+option features.siglip2.stream
 option features.tipsv2.fp16_accumulate
+option features.tipsv2.stream
+option flow.flowformer.cuda_graphs
 option flow.flowformer.iters
 option flow.flowseek.iters
+option flow.gmflow.cuda_graphs
 option flow.megaflow.iters
+option flow.memflow.cuda_graphs
 option flow.memflow.iters
 option flow.memfof.iters
+option flow.neuflow_v2.cuda_graphs
 option flow.neuflow_v2.iters
+option flow.raft.cuda_graphs
 option flow.raft.iters
+option flow.recover.cuda_graphs
 option flow.recover.iters
 option flow.sea_raft.iters
+option flow.waft.cuda_graphs
 option flow.waft.iters
 option interpolation.ema_vfi.cuda_graphs
 option interpolation.ema_vfi.tta
 option interpolation.film.cuda_graphs
+option interpolation.gimm_vfi.cuda_graphs
 option interpolation.rife.cuda_graphs
 option matching.dedode.max_keypoints
 option matching.dedode.size
+option matching.flexglue.cuda_graphs
 option matching.flexglue.long_side
 option matching.flexglue.max_keypoints
 option matching.flexglue.size
+option matching.lightglue.cuda_graphs
 option matching.lightglue.long_side
 option matching.lightglue.max_keypoints
 option matching.loftr.long_side
@@ -941,43 +978,81 @@ option matching.romav2.fine_size
 option matching.romav2.keep_descriptors
 option matching.xfeat.long_side
 option matching.xfeat.max_keypoints
+option matting.ben2.cuda_graphs
+option matting.matanyone.cuda_graphs
 option matting.matanyone.dilate aliases r_dilate
 option matting.matanyone.erode aliases r_erode
 option matting.matanyone.warmup aliases n_warmup
+option matting.u2net.cuda_graphs
+option matting.vitmatte.cuda_graphs
 option multiview.anysplat.long_side
 option multiview.anysplat.voxel_size
+option multiview.depthsplat.cuda_graphs
 option multiview.depthsplat.long_side
 option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames
+option multiview.lingbot_map.stream
 option multiview.lingbot_map.window
 option multiview.mapanything.long_side aliases resolution
+option multiview.mapanything.stream
+option multiview.mvsanywhere.cuda_graphs
 option multiview.mvsanywhere.long_side
 option multiview.mvsanywhere.refinement_steps
 option multiview.mvsplat.long_side
+option multiview.patchmatchnet.cuda_graphs
 option multiview.pi3.pixel_limit
+option multiview.pi3.stream
+option multiview.resplat.iters aliases refine
 option multiview.resplat.long_side
-option multiview.resplat.refine
 option multiview.vggt.long_side
+option multiview.vggt.stream
 option multiview.vggt_omega.area_side aliases resolution
+option multiview.vggt_omega.stream
 option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
 option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
+option pose.hrnet.cuda_graphs
 option pose.hrnet.flip_test
+option pose.retinaface.cuda_graphs
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold
+option pose.rtmo.cuda_graphs
 option pose.rtmo.score_threshold
 option pose.rtmpose.flip_test
 option pose.vitpose.fp32_accumulate
+option pose.vitpose.stream
+option pose.yunet.cuda_graphs
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
+option promptable_segmentation.efficientvit_sam.cuda_graphs
+option promptable_segmentation.mobile_sam.cuda_graphs
+option promptable_segmentation.sam.cuda_graphs
+option promptable_segmentation.sam2.cuda_graphs
+option promptable_segmentation.sam2.cuda_graphs_encoder
 option promptable_segmentation.sam2.samurai
+option promptable_segmentation.sam3.cuda_graphs
+option promptable_segmentation.sam3.stream
+option restoration.codeformer.cuda_graphs
 option restoration.codeformer.fidelity aliases fidelity_weight
+option restoration.gfpgan.cuda_graphs
 option restoration.lama.cuda_graphs
+option restoration.nafnet.cuda_graphs
+option restoration.realesrgan.cuda_graphs
+option restoration.restormer.cuda_graphs
+option restoration.seedvr2.keep
 option restoration.seedvr2.quant
 option restoration.seedvr2.seed
 option restoration.seedvr2.stream
+option retrieval.boq.stream
+option retrieval.megaloc.stream
+option segmentation.sapiens.stream
+option stereo.aanet.cuda_graphs
+option stereo.bridgedepth.cuda_graphs
 option stereo.c_foundationstereo.iters
+option stereo.cas_gwcnet.cuda_graphs
+option stereo.cfnet.cuda_graphs
 option stereo.coex.cuda_graphs
+option stereo.crestereo.cuda_graphs
 option stereo.crestereo.iters
 option stereo.defom_stereo.iters
 option stereo.defom_stereo.scale_iters
@@ -986,20 +1061,31 @@ option stereo.fast_acvnet.cuda_graphs
 option stereo.foundationstereo.iters
 option stereo.great_igev.cuda_graphs
 option stereo.great_igev.iters
+option stereo.gwcnet.cuda_graphs
 option stereo.hitnet.cuda_graphs
 option stereo.igev_plusplus.cuda_graphs
 option stereo.igev_plusplus.iters
+option stereo.igev_stereo.cuda_graphs
 option stereo.igev_stereo.iters
 option stereo.las2.cuda_graphs
+option stereo.mocha_stereo.cuda_graphs
 option stereo.mocha_stereo.iters
 option stereo.monster.iters
 option stereo.monster_plusplus.iters
+option stereo.nmrf.cuda_graphs
+option stereo.psmnet.cuda_graphs
 option stereo.raft_stereo.iters
 option stereo.rt_monster_plusplus.cuda_graphs
+option stereo.s2m2.cuda_graphs
+option stereo.selective_igev.cuda_graphs
 option stereo.selective_igev.iters
+option stereo.waft_stereo.cuda_graphs
 option tracking.alltracker.iters
+option tracking.tapnext.cuda_graphs
 option tracking.track_on.memory
 option tracking.track_on.support_grid
+option volume.nnfoundation.stream
+option volume.totalsegmentator.stream
 property fastforks._core.cards.ModelCard.extras -> tuple[str, ...]
 property fastforks._core.cards.ModelCard.module -> str
 property fastforks._core.cards.ModelCard.requires -> tuple[str, ...]

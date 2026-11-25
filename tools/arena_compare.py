@@ -80,7 +80,7 @@ def main() -> None:
     os.environ.setdefault("FASTFORKS_NONCOMMERCIAL", "1")
     from fastforks._core import registry  # noqa: PLC0415
 
-    with Path(a.out).open("a") as f:
+    with Path(a.out).open("a", encoding="utf-8") as f:
         for ref in a.refs:
             for mode in a.mode:
                 row: dict[str, Any] = {"ref": ref, "mode": mode}

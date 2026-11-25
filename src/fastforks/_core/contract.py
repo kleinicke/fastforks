@@ -24,7 +24,7 @@ from fastforks._core.tasks import spec
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from fastforks._core.cards import ModelCard, Variant
+    from fastforks._core.cards import Mode, ModelCard, Variant
 
 OPENCV_PIXELS = "opencv"
 """Pixel centres at integer coordinates: the image centre is `((W - 1) / 2, (H - 1) / 2)` (OpenCV, COLMAP - 0.5)."""
@@ -70,8 +70,9 @@ class Contract:
         modes: Mode -> device -> `{"implemented": dtypes, "validated": dtypes}` plus the mode's kernel libraries;
             validated = checked against the reference outputs (CPU float32, the card's CUDA and MPS dtypes);
             implemented = what `load(dtype=)` accepts there. Kernels run in one dtype per device and a card lists a
-            device only where that dtype is validated, so for `kernels` both are equal. Mode-specific inputs (if they
-            differ) as `"inputs"`.
+            device only where that dtype is validated, so for `kernels` both are equal. Apple MLX (`"mlx"`) is the
+            exception: implemented = the card's MLX dtypes, validated = those with a passing run on the reference Mac
+            (`apple_mlx.json`), in either mode. Mode-specific inputs (if they differ) as `"inputs"`.
         export: What `export_onnx` / `fastforks export` produce (portable only): `inputs` of the graph, `inside` /
             `outside` (the stages in and out of the graph), `dynamic` (height / width can be dynamic) and
             `fixed_reason` (why not), `default_size` (`None`: a size is required).
@@ -126,7 +127,7 @@ def resolve(card: ModelCard) -> Contract:
         camera=_freeze(_camera(card.task)),
         options=_freeze({k: _option(card, k) for k in card.options}),
         call=_freeze(_call(card)),
-        modes=_freeze({m: _mode(card, m, uses[m] if uses[m] != first else None) for m in card.modes}),
+        modes=_freeze({m: _mode(card, m, uses[m] if uses[m] != first else None, v.ref) for m in card.modes}),
         export=_freeze(_export(card, v, first)),
     )
 
@@ -184,7 +185,16 @@ def _option(card: ModelCard, name: str) -> dict[str, Any]:
     }
 
 
-def _mode(card: ModelCard, mode: str, inputs: Mapping[str, Any] | None) -> dict[str, Any]:
+def _mlx(card: ModelCard, mode: Mode, ref: str) -> dict[str, tuple[str, ...]]:
+    """The MLX port's dtypes of `mode`: declared by the card, and validated by a passing survey run of `ref`."""
+    from fastforks._core.model import apple_mlx_passed  # noqa: PLC0415 - model imports cards
+
+    declared = card.mlx_dtypes(mode)
+    passed = apple_mlx_passed(ref, mode)
+    return {"implemented": declared, "validated": tuple(d for d in declared if d in passed)}
+
+
+def _mode(card: ModelCard, mode: Mode, inputs: Mapping[str, Any] | None, ref: str) -> dict[str, Any]:
     from fastforks._core.model import runner_class  # noqa: PLC0415 - model imports cards
 
     extra = {} if inputs is None else {"inputs": inputs}
@@ -195,6 +205,9 @@ def _mode(card: ModelCard, mode: str, inputs: Mapping[str, Any] | None) -> dict[
             md = card.mps_kernels_dtype or kd
             out["mps"] = {"implemented": (md,), "validated": (md,)}
             out["mps_kernel_libs"] = card.mps_kernel_libs
+        if card.mlx_kernel_libs:
+            out["mlx"] = _mlx(card, mode, ref)
+            out["mlx_kernel_libs"] = card.mlx_kernel_libs
         return out | extra
     cuda = tuple(sorted({"float32", *runner_class(card, "portable").dtypes}))
     out = {
@@ -203,6 +216,8 @@ def _mode(card: ModelCard, mode: str, inputs: Mapping[str, Any] | None) -> dict[
     }
     mps_dtypes = tuple(dict.fromkeys(("float32", *card.portable_mps_dtypes)))
     out["mps"] = {"implemented": mps_dtypes, "validated": card.portable_mps_dtypes}
+    if card.portable_mlx_dtypes:
+        out["mlx"] = _mlx(card, mode, ref)
     return out | extra
 
 

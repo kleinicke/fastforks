@@ -7,6 +7,7 @@ from typing import Callable, List
 
 import numpy as np
 import torch
+from ..small_einsum import einsum  # fastforks: broadcast products, not per-pixel bmm
 
 logger = logging.getLogger(__name__)
 
@@ -199,9 +200,11 @@ class SphericalManifold:
         sigma = torch.sum(x[..., :-1] ** 2, -1)
         xpiv = x[..., -1]
         norm = torch.norm(x, dim=-1)
-        if torch.any(sigma < 1e-7):
-            sigma = torch.where(sigma < 1e-7, sigma + 1e-7, sigma)
+        small = sigma < 1e-7
+        # fastforks: the check reads the device (a sync per call); log only when debugging
+        if not torch.compiler.is_compiling() and logger.isEnabledFor(logging.DEBUG) and torch.any(small):
             logger.warning("sigma < 1e-7")
+        sigma = torch.where(small, sigma + 1e-7, sigma)
 
         vpiv = torch.where(xpiv < 0, xpiv - norm, -sigma / (xpiv + norm))
         beta = 2 * vpiv**2 / (sigma + vpiv**2)
@@ -220,14 +223,14 @@ class SphericalManifold:
         Returns:
             torch.Tensor: Transformed vector of shape [..., n].
         """
-        return y - v * (beta * torch.einsum("...i,...i->...", v, y))[..., None]
+        return y - v * (beta * einsum("...i,...i->...", v, y))[..., None]
 
     @classmethod
     def J_plus(cls, x: torch.Tensor) -> torch.Tensor:
         """Plus operator Jacobian."""
         v, beta = cls.householder_vector(x)
-        H = -torch.einsum("..., ...k, ...l->...kl", beta, v, v)
-        H = H + torch.eye(H.shape[-1]).to(H)
+        H = -einsum("..., ...k, ...l->...kl", beta, v, v)
+        H = H + torch.eye(H.shape[-1], dtype=H.dtype, device=H.device)  # fastforks: made on the device, no upload
         return H[..., :-1]  # J
 
     @classmethod
@@ -272,10 +275,9 @@ def J_vecnorm(vec: torch.Tensor) -> torch.Tensor:
     D = vec.shape[-1]
     norm_x = torch.norm(vec, dim=-1, keepdim=True).unsqueeze(-1)  # (..., 1, 1)
 
-    if (norm_x == 0).any():
-        norm_x = norm_x + 1e-6
+    norm_x = torch.where((norm_x == 0).any(), norm_x + 1e-6, norm_x)
 
-    xxT = torch.einsum("...i,...j->...ij", vec, vec)  # (..., D, D)
+    xxT = einsum("...i,...j->...ij", vec, vec)  # (..., D, D)
     identity = torch.eye(D, device=vec.device, dtype=vec.dtype)  # (D, D)
 
     return identity / norm_x - (xxT / norm_x**3)  # (..., D, D)

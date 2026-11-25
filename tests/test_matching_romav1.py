@@ -76,3 +76,16 @@ def test_soft_argmax_of_a_peak_is_its_anchor() -> None:
     cls[0, 5] = 30.0  # anchor (x 1, y 1) of the 4 x 4 grid: (-0.25, -0.25)
     flow = cls_to_flow_refine(cls)
     torch.testing.assert_close(flow[0, 0, 0], torch.tensor([-0.25, -0.25]), rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("channels", "radius"), [(256, 2), (512, 3), (512, 7)])
+def test_cuda_refiner_correlation(channels: int, radius: int) -> None:
+    from fastforks.kernels.romav2 import correlate_roma1  # noqa: PLC0415
+
+    left, right = torch.randn(2, 2, channels, 7, 11, device="cuda", dtype=torch.float16)
+    warp = torch.rand(2, 7, 11, 2, device="cuda") * 3 - 1.5
+    with torch.autocast("cuda", dtype=torch.float16):
+        expected = local_correlation(left, right, radius, warp)
+        actual = correlate_roma1(left, right, radius, warp)
+    torch.testing.assert_close(actual, expected, rtol=3e-5, atol=1e-5)

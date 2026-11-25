@@ -2,10 +2,13 @@ schema = 2
 name = "nnFoundation"
 summary = "nnFoundation (Harsy et al. 2026): DKFZ's self-supervised 3D radiology foundation encoders, pre-trained with nnssl on 2.1 M CT, MRI and PET volumes. `nnfoundation-cnn` is the ResEnc-L U-Net encoder (6 stages, 32-320 channels, strides 1-32), `nnfoundation-vit` the Primus ViT (40 layers, width 1056, 8³ patch tokens, fixed 192³ input). Gives the encoder feature maps of a z-score normalised volume for fine-tuning or frozen-feature use; the MAE decoder is not included."
 tier = "experimental"
+uses = ["host_blocks", "mlx_wrap"]
 outputs = ["features"]
 
 limitations = [
+  "CUDA portable and kernels accept stream=True to stage CNN levels or ViT blocks from pinned host memory. On the 192³ nnFoundation ViT reference, peak allocated memory during load and inference on an RTX 5060 Ti fell from 1,665 to 673 MiB in both modes.",
   "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.",
+  "A standalone fixed 192³ FP32 TensorRT ViT engine matched portable FP32 encoder features on eight CT crops. The standalone run took 7.02 s per crop with an estimated 8,452 MiB peak, versus 9.46 s and 2,864 MiB for portable FP32.",
 ]
 
 [upstream]
@@ -23,9 +26,13 @@ evidence = "https://huggingface.co/MIC-DKFZ/nnFoundationCNN/blob/f443c09319988e8
 [params]
 arch = "cnn"
 
+[options]
+stream = { default = false, effect = "speed" }  # stage encoder levels or transformer blocks on CUDA
+
 [modes.portable]
 cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D for the CNN; statistics in float64
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["vol_norm"]  # CNN: portable + InstanceNorm + LeakyReLU as one in-place kernel; ViT: fp16-accumulate GEMMs
@@ -45,14 +52,13 @@ variants = ["nnfoundation-vit"]
 
 [[variants]]
 id = "nnfoundation-cnn"
-planned = { onnx = "the export example does not match the 3-D input layout (channels_last_3d needs rank 5)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "cnn" }
 weights = [{ name = "nnFoundationCNN/checkpoint_final.pth", size = 409579442, sha256 = "ac262d3e8c226c79f9567fddc34d38e011284730ddf2294b5c6c319ce2f22bbd", url = "https://huggingface.co/MIC-DKFZ/nnFoundationCNN/resolve/f443c09319988e833b3d9589bf95909e4443d7b2/checkpoint_final.pth" }]
 
 [[variants]]
 id = "nnfoundation-vit"
-planned = { onnx = "the export example is smaller than the 3-D patch kernel (8x8x8)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "the default FP16 TensorRT engine diverges from portable on real CT crops. The standalone FP32 result uses a separate head-grouped export" }
 revision = 1
 params = { arch = "vit" }
 weights = [{ name = "nnFoundationViT/checkpoint_final.pth", size = 2697595195, sha256 = "022ad18fc38885f6591f1e10c44e98d154019db92ca90f78f796f882013600ac", url = "https://huggingface.co/MIC-DKFZ/nnFoundationViT/resolve/c691f2115140458ec64017712eb8ebbc8dde6ae4/checkpoint_final.pth" }]

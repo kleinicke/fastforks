@@ -29,7 +29,7 @@ def test_no_machine_specific_strings():
         if name in SKIP or name.endswith(SKIP_SUFFIXES) or name.startswith(SKIP_DIRS) or not path.is_file():
             continue
         try:
-            text = path.read_text()
+            text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
         hits += [f"{name}: {m.group(0)}" for m in PATTERN.finditer(text)][:1]

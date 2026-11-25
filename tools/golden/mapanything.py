@@ -60,7 +60,7 @@ def _reference_net(cls: type, snap: Path) -> Any:  # noqa: ANN401 - the referenc
     Its encoder is built without torch-hub weights (as `_from_pretrained`), on the meta device, and filled with the
     checkpoint tensors (assign=True) instead of copying them into initialised parameters.
     """
-    cfg = json.loads((snap / "config.json").read_text())
+    cfg = json.loads((snap / "config.json").read_text(encoding="utf-8"))
     cfg["encoder_config"] = dict(cfg["encoder_config"], torch_hub_pretrained=False)
     with torch.device("meta"):
         net = cls(**cfg)

@@ -3,7 +3,7 @@ name = "RAFT"
 summary = "RAFT (Teed & Deng 2020): all-pairs correlation pyramid at 1/8 resolution and a ConvGRU that refines the flow in 12 iterations, upsampled with a learned convex mask (raft-small: bilinear). torchvision's V2 weights (trained from scratch with its optical-flow reference recipe); the network is ported from torchvision (no torchvision dependency)."
 tier = "stable"
 outputs = ["flow"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/pytorch/vision"
@@ -31,6 +31,7 @@ pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream RAFT Inp
 
 [options]
 iters = { default = 12, min = 1 }  # flow updates (torchvision's num_flow_updates)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [params]
 size = "large"
@@ -38,9 +39,14 @@ size = "large"
 [modes.portable]
 cuda_dtype = "float16"  # autocast for the encoders and the update block; correlation, lookup and upsampling in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft_flow", "cutlass_conv", "cudnn_hacc"]
+# CUDA graphs (kernels): the engine's pass is launch-bound on small inputs; batch x padded H x W <= 1M replays a CUDA
+# graph, captured on a shape's 4th call, at most 2 shapes per model (Windows RTX 5060 Ti, ms: raft-small 544x960
+# 15.2 -> 10.1, 720x1280 20.5 -> 16.2; raft-large 544x960 25.0 -> 23.9). The graph pool stays reserved (raft-large
+# 720x1280: 182 MiB) until `model.release_graphs()`; `cuda_graphs=False` turns it off.
 mps_kernels = ["flow_metal"]  # correlation window lookup without the volume
 
 [[papers]]

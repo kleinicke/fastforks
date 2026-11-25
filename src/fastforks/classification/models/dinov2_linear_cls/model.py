@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks.classification._runner import Runner
 from fastforks.shared import libnet
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class LinearClassifier(torch.nn.Module):
         return self.head(torch.cat([t[:, 0], t[:, 1:].mean(1)], dim=1))
 
 
-def _network(_self: libnet.Portable | libnet.Kernels, ctx: Context) -> torch.nn.Module:
+def _network(ctx: Context) -> LinearClassifier:
     """Backbone at the crop size (timm resamples the 518 px position embedding) + the head (weight file 1)."""
     vit = libnet.build(ctx, num_classes=0, img_size=ctx.io.crop)
     sd = ctx.state_dict(1, strip="")
@@ -39,13 +40,32 @@ def _network(_self: libnet.Portable | libnet.Kernels, ctx: Context) -> torch.nn.
 class Portable(libnet.Portable):
     """Plain PyTorch through `fastforks._optimize`."""
 
-    network = _network
+    network = staticmethod(_network)
 
 
 class Kernels(libnet.Kernels):
     """Our kernels through `fastforks._optimize`."""
 
-    network = _network
+    network = staticmethod(_network)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class Mlx(Runner):
+    """MLX DINOv2-L ImageNet linear probe."""
+
+    Params = libnet.Params
+    batch = None
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert the same verified backbone and head as the portable model."""
+        from fastforks.shared.mlx_vit import DinoLinearProbe  # noqa: PLC0415 - optional MLX dependency
+
+        super().__init__(ctx)
+        net = _network(ctx)
+        self.probe = DinoLinearProbe(net.vit, net.head.weight, net.head.bias, ctx.dtype, image_logits=True)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Return image logits."""
+        return {"logits": self.probe(image)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx}

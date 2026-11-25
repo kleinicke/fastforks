@@ -20,6 +20,7 @@ from fastforks.matting.models.matanyone.net.model.group_modules import MainToGro
 from fastforks.matting.models.matanyone.net.model.utils import resnet
 from fastforks.matting.models.matanyone.net.model.modules import SensoryDeepUpdater, SensoryUpdater_fullscale, DecoderFeatureProcessor, MaskUpsampleBlock
 from fastforks.matting.models.matanyone.net.utils.device import safe_autocast
+from fastforks._core.mlx_cast import to_float32  # fastforks: `.float()` that stays float32 in a float16 MLX replay
 
 class UncertPred(nn.Module):
     def __init__(self, model_cfg: DictConfig):
@@ -336,20 +337,20 @@ class MaskDecoder(nn.Module):
             with safe_autocast(enabled=False):
                 if seg_pass:
                     if last_mask is not None:
-                        res = self.pred_seg(F.relu(p1.flatten(start_dim=0, end_dim=1).float()))
+                        res = self.pred_seg(F.relu(to_float32(p1.flatten(start_dim=0, end_dim=1))))  # fastforks: to_float32 for .float()
                         if sigmoid_residual:
                             res = (torch.sigmoid(res) - 0.5) * 2  # regularization: (-1, 1) change on last mask
                         logits = last_mask + res
                     else:
-                        logits = self.pred_seg(F.relu(p1.flatten(start_dim=0, end_dim=1).float()))
+                        logits = self.pred_seg(F.relu(to_float32(p1.flatten(start_dim=0, end_dim=1))))  # fastforks: to_float32 for .float()
                 else:
                     if last_mask is not None:
-                        res = self.pred_mat(F.relu(p1.flatten(start_dim=0, end_dim=1).float()))
+                        res = self.pred_mat(F.relu(to_float32(p1.flatten(start_dim=0, end_dim=1))))  # fastforks: to_float32 for .float()
                         if sigmoid_residual:
                             res = (torch.sigmoid(res) - 0.5) * 2  # regularization: (-1, 1) change on last mask
                         logits = last_mask + res
                     else:
-                        logits = self.pred_mat(F.relu(p1.flatten(start_dim=0, end_dim=1).float()))
+                        logits = self.pred_mat(F.relu(to_float32(p1.flatten(start_dim=0, end_dim=1))))  # fastforks: to_float32 for .float()
             ## SensoryUpdater_fullscale
             if update_sensory:
                 p1 = torch.cat(

@@ -16,6 +16,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.checkpoint import check_foldable_batchnorm
+
 # (in, out, blocks, identity shortcut in the blocks); the last stage also has the SPP bottleneck
 STAGES = (
     (64, 128, 3, True),
@@ -168,6 +170,7 @@ def fold_bn(sd: dict[str, torch.Tensor], eps: float = BN_EPS) -> dict[str, torch
             continue
         if k.endswith(".conv.weight"):
             p = k[: -len(".conv.weight")]
+            check_foldable_batchnorm(v, sd, f"{p}.bn")
             std = (sd[f"{p}.bn.running_var"].double() + eps).sqrt()
             g = sd[f"{p}.bn.weight"].double() / std
             out[k] = (v.double() * g.view(-1, 1, 1, 1)).float()

@@ -173,23 +173,26 @@ def test_runnable_counts_local_noncommercial_weights(tmp_path: Path, monkeypatch
         monkeypatch.delenv(env, raising=False)
     for env in ("FASTFORKS_CACHE", "HF_HUB_CACHE", "TORCH_HOME"):
         monkeypatch.setenv(env, str(tmp_path / env))
-    found = next(
-        (card, v)
-        for task in registry.TASKS
-        for card, v in registry.cards(task).values()
-        if registry.nc_weights_blocked(card, v)
-        and not registry.missing(card)
-        and v.weights
-        and all(w.size and w.member is None for w in v.weights)
+    # the smallest such variant: NTFS allocates a truncated file in full (the first one found wrote 1.4 GB per run)
+    _, card, v = min(
+        (
+            (sum(w.size for w in v.weights), card, v)
+            for task in registry.TASKS
+            for card, v in registry.cards(task).values()
+            if registry.nc_weights_blocked(card, v)
+            and not registry.missing(card)
+            and v.weights
+            and all(w.size and w.member is None for w in v.weights)
+        ),
+        key=lambda t: t[0],
     )
-    card, v = found
     assert registry.needs_nc_download(card, v)
     assert v.id not in registry.list_models([card.task], runnable=True)
     root = tmp_path / "weights"
     (root / card.family).mkdir(parents=True)
     for w in v.weights:
         with (root / card.family / w.name).open("wb") as f:
-            f.truncate(w.size)  # sparse: size only (runnable does not hash)
+            f.truncate(w.size)  # size only (runnable does not hash)
     monkeypatch.setenv(registry.WEIGHTS_PATH_ENV, str(root))
     assert not registry.needs_nc_download(card, v)
     assert v.id in registry.list_models([card.task], runnable=True)

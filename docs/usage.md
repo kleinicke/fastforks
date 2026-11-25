@@ -13,7 +13,8 @@ libraries; its extras add the rest. `fastforks-core[nc]` adds the models with no
 FoundationStereo, MonSter, CoEx, ...; see [licences](#licences-and-commercial-use)), `fastforks-core[timm]` /
 `[torchvision]` / `[transformers]` the libraries some families are built on, `fastforks-core[onnx]` ONNX export and
 `fastforks-core[libs]` all of those libraries; `fastforks` is `fastforks-core[nc,libs]`. TensorRT is a separate extra
-(`fastforks-core[tensorrt]`, or `fastforks[tensorrt]`). A model whose library is missing fails in
+(`fastforks-core[tensorrt]`, or `fastforks[tensorrt]`), and so is Apple's MLX (`fastforks-core[mlx]`, Apple silicon
+only; see [MLX](#apple-silicon-mlx)). A model whose library is missing fails in
 `load` with the pip command to run, before any weight is read.
 `fastforks.model_card(id).requires` (or the task's `model_card`) shows what a model needs and
 `list_models(runnable=True)` lists the models whose dependencies are installed and whose non-commercial opt-in is set; it does not check weight access (gated repos), downloads or the offline cache.
@@ -38,6 +39,10 @@ directory.
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
+| `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#what-auto-picks-on-a-mac) |
+| `FASTFORKS_MLX_PLAN_CACHE` | a directory: [MLX](#apple-silicon-mlx) graph ports keep the exported graph and the tuning decisions of each input size there, so the first call of a size in a new process skips them (off by default; see "First call" there) |
+| `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
+| `FASTFORKS_SDPA` | which `scaled_dot_product_attention` backends CUDA calls may use, in priority order: `auto` (default: PyTorch's order where the build has flash, as the Linux wheels do; without flash, as in the Windows wheels, cuDNN, then memory-efficient, then math; logged), `torch` (PyTorch's order everywhere), or a priority list of `flash`, `cudnn`, `efficient`, `math`: `efficient,math,cudnn` is PyTorch's own order without flash (see `fastforks.shared.sdpa`); a call none of the listed backends supports raises. A policy without flash also runs the SAM / HQ-SAM / ViTMatte global attention as SDPA with a dense bias mask (`fastforks.shared.sam_attention`, logged) |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
 | `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
@@ -166,6 +171,8 @@ volumes = {name: round(float((labels == i).sum()) * ml) for i, name in seg.class
 DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastforks-core[dicom]"`) returns the same
 `(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
 spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
+
+The upstream TotalSegmentator aorta report accepts named binary NIfTI masks. The [mask export example](plans/totalsegmentator-coverage.md#using-fastforks-masks-with-the-upstream-report) shows how to supply its general-anatomy inputs from a FastForks CT segmentation.
 
 Detections to a picture and to COCO-style records (`det` as above; one image):
 
@@ -334,17 +341,22 @@ reference code is recorded (the "Parity" rows of the model pages).
 |---|---|---|
 | `"portable"` | CPU, CUDA, Apple silicon ([MPS](#apple-silicon-mps)), other PyTorch devices where the network's ops exist | the original network in plain PyTorch, checked against the reference |
 | `"kernels"` (CUDA) | NVIDIA GPU, compute capability >= 8.0, driver >= 570 | our CUDA kernels, faster than portable ([benchmarks](benchmarks.md) per model); memory is similar, sometimes higher. Raises `BackendUnavailableError` (its subclass `KernelUnavailableError` for a missing GPU or binary) with the reason if it cannot run here; never falls back silently |
-| `"kernels"` (Metal) | Apple silicon, macOS, the families listed under [Apple silicon](#apple-silicon-mps) | Metal kernels, compiled on the device on first use; same error behaviour |
-| `"auto"` (default) | anywhere | `kernels` if it can run and the recorded measurements prefer it for this model, else `portable` (a few plain ViT classifiers gain nothing from kernels); the choice is logged once per load (WARNING if kernels fails on a CUDA device, else INFO) and recorded in `result.backend` |
+| `"kernels"` (Metal) | Apple silicon, macOS, the families listed under [Apple silicon](#apple-silicon-mps) | Metal kernels, compiled on the device on first use; same error behaviour: a family without them raises `BackendUnavailableError` on `device="mps"`, it is never replaced by MLX |
+| either, with `device="mlx"` | Apple silicon, the `mlx` extra, the families with an [MLX port](#apple-silicon-mlx) | the same network through Apple's MLX instead of PyTorch MPS; `kernels` adds Metal kernels run by MLX. A family without a port raises `BackendUnavailableError` |
+| `"auto"` (default) | anywhere | `kernels` if it can run and the recorded measurements prefer it for this model, else `portable` (a few plain ViT classifiers gain nothing from kernels); on `device="mps"` it may also take the model's MLX port ([what auto picks on a Mac](#what-auto-picks-on-a-mac)). The choice is logged once per load (WARNING if kernels fails on a CUDA device, else INFO) and recorded in `result.backend` |
 
-`mode` selects the backend; the result's `result.backend` (and `.mode`) reports which one ran.
+`mode` selects the backend; the result's `result.backend` (and `.mode`) reports which one ran. An explicit
+`"portable"` or `"kernels"` is strict: it runs exactly that on the device you named, or raises. Only `"auto"`
+chooses.
 
 `fastforks bench MODEL` times all of this on your machine (see below).
 
 ## Compute dtype: `dtype`
 
 - `None` (default): the model's tested precision (`fastforks info MODEL`): float16 / bfloat16 on CUDA where the model supports it,
-  float32 on the CPU and on Apple MPS, always reduced precision for `kernels`.
+  float32 on the CPU, always reduced precision for `kernels`. On Apple MPS `mode="auto"` takes float16 where the
+  model is validated in it and it was measured faster or leaner ([below](#what-auto-picks-on-a-mac)); an explicit
+  `mode="portable"` computes in float32.
 - `"float32"`: float32 everywhere, portable only (`kernels` raises `OptionsError`). This is the reference-accurate path:
   the closest to the original implementation, slower and with more memory. CUDA convolutions then use PyTorch's
   default TF32; `torch.backends.cudnn.allow_tf32 = False` makes them full float32 and the output CPU-identical
@@ -488,7 +500,7 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   `<family>/<file name as on the card>` (kernels: `<lib>/<lib>-<hash>-<arch>.fatbin`) are relative symlinks to the blobs,
   so the folder is browsable and has the `FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH` layout (the cache folder
   itself works as either); they are made whenever a file is resolved or downloaded, `fastforks cache link` rebuilds them
-  for everything already cached, and they are skipped where symlinks are not allowed. Copy a cache with a tool that follows
+  for everything already cached, and they are skipped where symlinks are not allowed (Windows without Developer Mode: `cache link` says so). Copy a cache with a tool that follows
   or keeps links (`cp -a`, `rsync -a`), or only `blobs`; a copy of `blobs` alone is not a
   `FASTFORKS_KERNEL_PATH`: that wants the manifest's file names, `<dir>/<lib>/<lib>-<hash>-<arch>.fatbin` (or `.so`;
   `<dir>/<name>` also works), e.g. `kernels/fs/fs-f6f8de2cca1e-sm_80.fatbin` (names: `fastforks/kernels/<lib>/manifest.toml`).
@@ -674,6 +686,7 @@ start calling models.
 | one model, several threads | calls run one at a time (a model is not reentrant) |
 | CUDA calls of different models | one at a time per process (one process-wide lock), so a pipeline of models in threads does not overlap on the GPU: use one process per model |
 | MPS calls of different models | one at a time per process (the same lock: PyTorch's MPS backend is not thread-safe) |
+| MLX calls (`device="mlx"`) | one at a time per process (the same lock); a model may be loaded in one thread and called from others |
 | CPU calls of different models | run in parallel |
 | a model called inside another model's call | allowed (the lock is reentrant) |
 | CUDA streams | calls run on the caller's current stream (`with torch.cuda.stream(s):`), also `TensorRTEngine`; synchronise that stream before reading outputs on another one |
@@ -685,6 +698,47 @@ start calling models.
 than the original code. Set `torch.set_num_threads(n)` before the first call to the cores you really have (in a
 container, `os.cpu_count()` shows the host's). Going from 1 to 8 threads gives about 4x on large networks and 2x on
 small ones. Kernels need CUDA. Tested on x86-64 only; on a Mac, use the GPU (next section).
+
+## Windows
+
+The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). What differs:
+
+- Each kernel launch costs more under the Windows display driver (WDDM), and every host synchronisation empties the
+  launch queue, so the CPU's launches stop overlapping the GPU's work. Models that launch many small kernels run
+  slower than on Linux; large ones run at the same speed. fastforks avoids host syncs inside a call (constants are
+  uploaded through pinned memory, and the value-range check of float images on the GPU is read only when the call
+  ends, so a float image out of `[0, 1]` raises after the call's work was queued), and `mode="auto"` picks the backend
+  from measurements made on Windows where they exist.
+- The host time per operation sets the floor for small inputs. On an RTX 5060 Ti under Windows 11 (torch 2.14), one
+  call costs about 12 µs for an elementwise kernel, 26 µs for a half-precision matrix product and 58 µs for a cuDNN
+  convolution, whatever its size. A DETR-style detector at 640x640 needs about 500 of them: 14 ms on the host
+  against 3-4 ms on the GPU. Kernels mode replays a CUDA graph for small repeated input shapes in the families whose
+  card lists the `cuda_graphs` option, which removes that cost. The graph's memory pool stays reserved until
+  `model.release_graphs()`, and `cuda_graphs=False` turns graphs off. Portable mode runs eagerly, so on Windows it
+  trails Linux by 20-30 % on such models.
+- PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
+- `model.compile()` on CUDA needs Triton, which PyTorch does not install on Windows. Without it the first call raises
+  `TritonMissing` (torch.compile's error), with a note that the model runs eager again; the next calls run eager.
+  The kernels backend needs no compiler.
+- PyTorch's default CUDA allocator keeps freed blocks cached in fixed segments, which the next, differently sized
+  tensors often cannot reuse: many models reserve 1.5-2x their peak allocation. Setting
+  `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before PyTorch initialises CUDA (it applies to the whole process,
+  so fastforks does not set it) lowered the memory reserved by 70 kernels models by 19 % in total on Windows (torch
+  2.14), up to 2.2 GiB for one model (gimm-vfi-r at 1080 x 1920: 7110 -> 5222 MiB, dat-x4: 3072 -> 1686 MiB), with
+  the same outputs and speed (median +0.2 %). ComfyUI uses the `cudaMallocAsync` allocator instead (see
+  [ComfyUI](comfyui.md#memory)).
+- Models that stream their transformer blocks from the host (for example SeedVR2, Marigold v2, SAM 3, VGGT and
+  MapAnything, when streaming) page-lock that memory.
+  Windows page-locks at most about half of the RAM (15.1 GiB of 32 GB); the blocks past that upload from pageable
+  memory without overlapping the computation, which is slower, and the load logs a warning saying how much was
+  page-locked.
+- Out of memory can turn into slow instead of an error: since driver 536.40 the NVIDIA setting "CUDA - Sysmem
+  Fallback Policy" (NVIDIA Control Panel, Manage 3D settings) lets the driver move GPU memory to system RAM when the
+  card is full. A model that just fits then runs several times slower. Set it to "Prefer No Sysmem Fallback" to get
+  the out-of-memory error (and its advice: a smaller tile, input or batch) instead.
+- On the GPU that drives the display, Windows resets the driver when one kernel runs longer than about 2 s (TDR; the
+  `TdrDelay` registry value). A very large input on a slow GPU can reach that; the call then fails with a CUDA error
+  and the screen goes black for a moment. Smaller inputs or tiles avoid it.
 
 ## Apple silicon (MPS)
 
@@ -698,12 +752,14 @@ geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling
 sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Flow, pose and features have
 them too: RAFT and SEA-RAFT (the correlation lookup without the all-pairs volume, float16), RTMPose (the person crops,
 float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and Perception Encoder (the
-blocks' RoPE, float16). They compile on the device in under a second on first use;
+blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32, and MVSplat its plane sweep (warp and channel dot in one kernel) in float32. These kernels compile on the device in under a second on first use;
 `mode="auto"` picks it. Every other family runs `portable`.
 
-- dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
-  `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to
-  2.9x on memory-bound stereo cost volumes (GREAT-IGEV, CoEx, CAS-GwcNet), rarely slower (HITNet, Mask2Former 0.94x).
+- dtype: `mode="portable"` computes in float32 by default. `dtype="float16"` works where the card lists it
+  (`fastforks info MODEL`, row `apple gpu`). It saves memory (up to half) and on an M1 Pro is usually also faster
+  (at least 5 % for 367 of 491 models measured in both, 2.9x on memory-bound stereo cost volumes such as GREAT-IGEV,
+  CoEx and CAS-GwcNet, 9.9x for EMA-VFI), sometimes slower (HITNet, Mask2Former 0.94x). `mode="auto"` takes it
+  where it pays ([below](#what-auto-picks-on-a-mac)); `dtype="float32"` keeps the reference precision.
 - A few small steps run on the CPU or in float32 by design: float64 maths in MoGe and SAM, one adaptive pooling in
   S2M2, Depth Anything 3's bicubic resize.
 - The first call at a new input size takes 0.5-4 s longer (PyTorch compiles the Metal kernels for that shape).
@@ -712,6 +768,144 @@ blocks' RoPE, float16). They compile on the device in under a second on first us
   the system disk, since with a full disk swapping can freeze the machine.
 
 Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb.md).
+
+### What auto picks on a Mac
+
+`device` and `mode` are independent, and an explicit mode never changes the engine:
+
+| Request | What runs |
+|---|---|
+| `device="mps", mode="portable"` | the PyTorch MPS model, in float32 unless you pass a `dtype` |
+| `device="mps", mode="kernels"` | the family's Metal kernels through PyTorch MPS; `BackendUnavailableError` if it has none (the message names `mode="auto"` and, where a port exists, `device="mlx"`) |
+| `device="mlx"` | the family's [MLX port](#apple-silicon-mlx), with `mode` and `dtype` as elsewhere |
+| `device="mps", mode="auto"` (the default) | whichever of these measured best for the model |
+
+- `auto` takes the fastest and leanest measured path of the model: portable MPS in float32 or float16, the Metal
+  kernels, or the MLX port. The table (M1 Pro survey) only holds runs whose golden reference check passed, in a dtype
+  the card validates, so float16 is taken as on CUDA: wherever it is validated and pays. Each step up (float32 ->
+  float16 -> Metal kernels -> MLX) needs at least a 5 % speed advantage, or the same speed (within 5 %) at 10 % or
+  more less peak memory; a faster path that needs over 2 % more memory must repay it in speed (time ratio times
+  memory ratio still 5 % better). The load logs the choice at INFO and `result.backend` reports it; pass `dtype` to
+  constrain it (`dtype="float32"` for the reference precision). **MLX compiles per input shape, so it is
+  promoted only where that first call is cheap**: its first call must take at most one first call plus two warm
+  runs of the MPS path it replaces. That keeps MLX for the models where it also wins speed or memory and whose first
+  call is quick (Depth Pro, with a 26 s compile against a 5 s MPS call, stays on MPS). For models left on MPS, ask for MLX
+  with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
+  Without the `mlx` package, `auto` takes the best PyTorch MPS path the same way.
+
+Inference results, including `video()` and `match_pairs()`, are MPS tensors and `model.device` is `mps`, so tensors
+built on `model.device` combine with them. Reusable image embeddings stay on the runner's device. Stereo `run_many()`
+keeps returning NumPy arrays for path and array inputs. `backend` reports what runs: an
+MLX port that `auto` took has `backend.device == "mlx"`, and `backend.mode` is `"portable"` (plain MLX operations,
+`backend.kernels` empty) or `"kernels"` (with the names of the Metal kernels MLX runs in `backend.kernels`). If that
+port fails at a call (an operation it lacks, or out of memory), the model falls back to PyTorch MPS once, with a
+warning, and `backend` changes with it.
+Set `FASTFORKS_MLX=0` to keep `auto` on PyTorch MPS.
+
+## Apple silicon (MLX)
+
+**Choosing MLX.** `device="mps"` picks MLX for you only where it is measured faster or leaner *and* its first call
+is cheap (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)). To use MLX anywhere else, pass
+`device="mlx"` (any family with a port; `mode="portable"`, or `"kernels"` where the port has kernels): it is often
+leaner, but the first call
+at each input size compiles the network (seconds for large inputs, see "First call" below). Loading with
+`device="mps"` logs at INFO when an MLX port exists. `fastforks info MODEL` lists it as `apple mlx`.
+
+`device="mlx"` runs a model through Apple's [MLX](https://github.com/ml-explore/mlx) instead of PyTorch's MPS
+backend. It is a device, not a mode: `mode` and `dtype` keep their meaning, and the result is the same object with
+the same outputs.
+
+```python
+# pip install "fastforks-core[mlx]"      (Apple silicon, macOS 14+)
+from fastforks import stereo
+
+model = stereo.load("crestereo-eth3d", device="mlx", dtype="float16")  # mode="auto": kernels where the port has them
+disparity = model(left, right).disparity  # CPU tensor, as from any other device
+print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernels mlx ('crestereo_mlx@...:mlx',)
+```
+
+- Families: those with a port (the MLX columns of [Other GPUs](OTHER_GPUS.md); `fastforks info MODEL`, row
+  `apple mlx`): CREStereo, Depth Anything V2 with its fine-tunes, ResNet-18/50/152, MobileNetV2/V3, RegNet,
+  EfficientNet/V2, ConvNeXt/V2 classifiers, ConvNeXt ImageNet-22K and DINOv3 ConvNeXt feature backbones (portable and kernels).
+  The DINOv2 and DINOv3 ViTs, DINOv2 ImageNet classification and ADE20K segmentation heads, TIPSv2 and C-RADIOv3
+  support portable MLX. RoMa v2 dense matching supports portable and kernels modes in float32. Any other family raises
+  `BackendUnavailableError`; nothing falls back to MPS. Without the `mlx` package `load` raises
+  `MissingDependencyError` with the pip command. With `device="mps"`, `mode="auto"` also takes a port on its own
+  where it was measured faster (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)); `mode="portable"` and
+  `mode="kernels"` never do.
+- `mode`: `portable` is the network in plain MLX operations, `kernels` adds Metal kernels that MLX runs
+  (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download) and raises
+  `BackendUnavailableError` for a port without kernels. `auto` takes `kernels` where the port has them at the dtype
+  (logged at INFO).
+- `dtype`: float32 or float16, as the card lists them; other dtypes raise `OptionsError`. Without a `dtype` (and
+  with `mode="auto"`, or the mode it measured fastest in), a model measured on the M1 Pro runs in its fastest passing
+  mode and dtype (often float16, logged at INFO); an unmeasured one in float32. Both are checked
+  against the same goldens and tolerances as the PyTorch GPU backends. In float16 the steps that need it stay in
+  float32 (the flow and the correlation sums, CREStereo's attention, normalisation statistics, position tables, the Winograd
+  transforms).
+- Inputs and outputs: as on every other device. Images are converted, scaled, padded and cropped by the same PyTorch
+  code, on the CPU (`model.device` is `cpu`); the network input goes to MLX in one copy and the outputs come back
+  as float32 CPU tensors in one copy (the memory is unified, so neither crosses a bus). A call has finished when it
+  returns: there is nothing to synchronise before timing or reading. Besides the usual image types an `mx.array` is
+  accepted, laid out like a NumPy image (`HWC` / `BHWC`). `result.backend.device` is `"mlx"`.
+- Weights: the same original checkpoints as everywhere else (same download, `FASTFORKS_WEIGHTS_PATH`,
+  `weights=PATH`). For CREStereo, Depth Anything, the DINO ViT feature backbones and TIPSv2, the first load converts them to the port's layout (convolutions channel-last, batch norms folded,
+  padded channels and Winograd-transformed filters where the port uses them) and stores the result as safetensors in
+  `<cache>/mlx/<task>/<family>/`; later loads read that file and need neither the checkpoint nor its unpickling.
+  The classification and segmentation heads, ConvNeXt backbones, C-RADIOv3 and RoMa v2 convert their verified weights at each load.
+  For ports with a disk cache, a new checkpoint, card revision or layout is a new file; `weights=PATH` files are converted on every load.
+- Memory: MLX keeps freed buffers in a cache that is unbounded by default; fastforks caps it per process
+  (512 MB on a 16 GB Mac, 1/32 of the memory up to 2 GB on larger ones). `fastforks bench MODEL --device mlx` reports
+  MLX's peak of live arrays and that plus the cache.
+- First call: most ports run the network as a graph that is built on the first call of each input size (the network
+  is exported with `torch.export`, translated to `mx` operations, compiled, and on its first replay the large segments
+  are timed once compiled and once eagerly to keep the faster; repeated blocks reuse the first one's decision). That
+  takes from a fraction of a second (hand-written ports such as depth-anything-v2, dinov2) through 1 to 10 s (most
+  detectors, segmenters, matting and depth nets) to about 20 s (depth-pro, swin2sr) on an M1 Pro, a new input size
+  costs most of it again, and the result lives only in the process. Two ways to move it out of the first request:
+  `model.warmup([(1080, 1920), (720, 1280)])` calls the model once per size on synthetic inputs at start-up, and
+  `FASTFORKS_MLX_PLAN_CACHE=<dir>` keeps the exported graph (without weights: the parameters are bound by name on
+  load) and the tuning decisions per model, load options and input size on disk, so a later process skips the export
+  and the timing trials. That removes most of the first call's extra time (rt-monster++ kernels fp16 3.8 -> 0.75 s,
+  mvsanywhere fp16 2.9 -> 0.42 s, fcn-r101 fp16 1.19 -> 0.26 s beyond the warm call); the translation and MLX's own
+  compile still run, and the call that writes an entry costs 0.1 to 0.2 s more than one without the cache. An entry
+  takes tens to hundreds of KB. The cache is keyed by the fastforks, torch and mlx versions
+  and fastforks' source files, so an upgrade starts it afresh; it is never pruned (delete the directory to reset it).
+  Outputs with and without it are bit-identical.
+- Not there: `model.module()`, `model.compile()` and ONNX / TensorRT export are PyTorch features and raise
+  `BackendUnavailableError` on `"mlx"`; the outputs carry no gradients.
+
+When it pays (M1 Pro, 16 GB; [MLX](devices/apple-m1-pro-mlx-16gb.md) against [MPS](devices/apple-m1-pro-16gb.md),
+same inputs and protocol, each against the fastest MPS mode at the same dtype):
+
+| model | float32 | float16 | peak memory |
+|---|---|---|---|
+| CREStereo, `kernels`, 994x1482 | 1.24x faster (4.44 s against 5.50 s) | 1.35x faster (3.06 s against 4.13 s) | equal to 14 % lower |
+| CREStereo, `portable` | slower | slower | 6 to 10 % lower |
+| RoMa v2, `kernels`, 768×1024, default 800/1280 matching sizes | MLX 3.93 s, MPS Metal 3.98 s, portable MPS 5.13 s | — | 4.08 GiB MLX, 6.57 GiB MPS Metal |
+| DINOv2 ViT-S/14, ViT-B/14, 224x224 | 1.1x to 1.3x faster | 1.3x to 1.5x faster | about equal |
+| DINOv2 with registers, all sizes | 1.1x to 2.4x faster | 1.3x to 2.9x faster | float32: 20 to 40 % lower; float16: equal, ViT-g 29 % lower |
+| DINOv2 ViT-L/14, ViT-g/14 | equal | 1.1x faster | float32: 42 % (L), 5 % (g) lower; float16: equal (L), 28 % lower (g) |
+| DINOv3 ViT-S/16, ViT-B/16, 224x224 | 1.3x to 1.6x faster | 1.4x to 1.6x faster | about equal |
+| DINOv3 ViT-L/16, ViT-H+/16 | 1.03x to 1.06x faster | 1.07x to 1.12x faster | float32: 26 to 28 % lower; H+ float16: 25 % lower |
+| Depth Anything V2 and fine-tunes, `kernels`, 994x1482 | 0.89x to 1.08x (S faster, B equal, L slower) | not validated on MPS; 1.2x to 1.35x faster than MPS float32 | float32: S 21 % lower, B / L 15 to 30 % higher; float16: 6 to 40 % lower than MPS float32 |
+
+So MLX is worth choosing for CREStereo in `kernels` mode, for the small and base DINOv2 / DINOv3 backbones, for every
+DINOv2 register variant (PyTorch MPS is slow on those) and for Depth Anything V2 in float16 (which MPS does not
+offer); for the large backbones without registers it is a way to use less memory, not time, Depth Anything V2 in
+float32 is at best equal, and CREStereo's `portable` mode on MLX is there for completeness.
+
+Every per-chip choice of the ports (threadgroup and lane sizes of the Metal kernels, channel padding, Winograd
+convolutions, the cache limit, batching both images, `mx.compile`) is one field of one table,
+`fastforks._core.mlx.TUNING`, keyed by the GPU architecture MLX reports (`applegpu_g13s` = M1 Pro, `g14` = M2,
+`g15` = M3, `g16` = M4, `g17` = M5) with the M1 values as the default, so a port runs on every generation before it
+is tuned there. `fastforks env` prints the row in use. On a new Mac, from a checkout:
+
+```bash
+python tools/mlx_tune.py           # the MLX golden gates, one micro-benchmark per tunable, the MLX speed survey
+python tools/mlx_tune.py bench     # only the micro-benchmarks: prints the TUNING row to add if a value should change
+python tools/mlx_tune.py survey --mps && python tools/mlx_tune.py ratios   # MLX against PyTorch MPS on this Mac
+```
 
 ## torch.compile, torch.export, ONNX and TensorRT
 
@@ -896,12 +1090,12 @@ allocation (GPU buffers only); on the CPU no memory.
 
 | | portable | kernels (CUDA) |
 |---|---|---|
-| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64, glibc >= 2.34, driver >= 570 |
+| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64 (glibc >= 2.34), [Windows](#windows) x64; driver must support the [kernel's CUDA toolkit](OTHER_GPUS.md#what-runs-where) |
 | GPU | CPU, CUDA, MPS (validated); other PyTorch devices untested | NVIDIA sm_80 or newer: RTX 30, 40, 50 series, A100, H100, B200 |
 | RTX 20 / GTX 16 (sm_75) | works | no binary: `auto` uses portable, `mode="kernels"` raises |
 | Python / PyTorch | 3.11-3.14, torch >= 2.8 | same |
 
-The `kernels` column is the CUDA kernels; on Apple silicon the Metal kernels run for some families ([Apple silicon](#apple-silicon-mps)). Kernels were tuned and measured on an RTX 5060 Ti only; see [Other GPUs](OTHER_GPUS.md). Before Ampere, bfloat16 is
+The `kernels` column is the CUDA kernels; on Apple silicon the Metal kernels run for some families ([Apple silicon](#apple-silicon-mps)), and a few families also run through Apple's MLX ([MLX](#apple-silicon-mlx): Apple silicon, the `mlx` extra). Kernels were tuned and measured on an RTX 5060 Ti only; see [Other GPUs](OTHER_GPUS.md). Before Ampere, bfloat16 is
 emulated, so models that use it compute in float32 there.
 
 ## Troubleshooting
@@ -919,3 +1113,22 @@ emulated, so models that use it compute in float32 there.
 - `CUDA out of memory`: use a smaller input, `mode="portable"` (often less memory), or `release_graphs()` on models
   that replay CUDA graphs. `fastforks info MODEL` shows the largest size tested.
 - A model fails in `load` naming a missing package: install the extra it names, for example `fastforks-core[transformers]`.
+
+### SAM 3D Body and Objects
+
+Use `fastforks.sam3d` inside the corresponding Meta environment with your authorized original checkpoint. Each loader returns Meta's inference object, so the upstream options and output types are available. For Body, both the ViT-H and DINOv3 snapshot layouts include `model.ckpt`, `model_config.yaml` and `assets/mhr_model.pt`.
+
+```python
+from fastforks.sam3d import load_body, load_objects
+
+body = load_body(body_snapshot)
+people = body.process_one_image(rgb_image, bboxes=person_boxes)
+faces = body.faces
+
+# In the SAM 3D Objects environment, with Meta's checkout installed
+objects = load_objects(pipeline_yaml, checkout=objects_checkout)
+result = objects(rgb_image, foreground_mask, seed=42)
+mesh = result["glb"]
+```
+
+These adapters run upstream inference. Checkpoint-backed parity and performance measurements are pending for both. See the upstream installation instructions for [Body](https://github.com/facebookresearch/sam-3d-body/blob/main/INSTALL.md) and [Objects](https://github.com/facebookresearch/sam-3d-objects/blob/main/doc/setup.md).

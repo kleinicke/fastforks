@@ -10,6 +10,9 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner
 
 from .net import rewrites
@@ -28,6 +31,7 @@ class Params:
     dim_expansion: int
     use_positivity: bool
     refine_iter: int
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 _UNUSED = ("feature_flow_attn.q_proj.", "feature_flow_attn.k_proj.", "upsample_mask_4x.", "disp_init.layer_norm1.")
@@ -65,31 +69,51 @@ class _S2M2Runner(Runner):
 class Portable(_S2M2Runner):
     """Plain PyTorch (upstream network with our rewrites), autocast to the card's CUDA dtype."""
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 82.5 -> 58.1 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16", "bfloat16")
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
         self.net = _net(ctx)
-        # CUDA: no 1x1-conv-before-upsample commute (3 % slower, 4 % larger there)
-        rewrites.prepare(self.net, upconv=ctx.device.type == "cpu")
-        if ctx.device.type == "cpu":  # oneDNN runs channels_last convolutions faster (S2M2 has no 3-D convs)
+        # CUDA: no 1x1-conv-before-upsample commute (3 % slower, 4 % larger there). Fused optimal-transport
+        # log-sum-exps on the CPU (so the MLX port) and MPS only: CUDA and its exports keep upstream's form.
+        rewrites.prepare(self.net, upconv=ctx.device.type == "cpu", lse=ctx.device.type in ("cpu", "mps"))
+        # channels-last (S2M2 has no 3-D convs): oneDNN runs it faster; on CUDA fp16 cuDNN skips the NCHW<->NHWC
+        # conversions (375x1242 l 315 -> 290 ms, peak 2066 -> 1630 MB RTX 5060 Ti, Windows)
+        if ctx.device.type == "cpu" or (ctx.device.type == "cuda" and ctx.dtype == "float16"):
             self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity, confidence and occlusion of a padded batch."""
         if self.ctx.dtype == "float32":
-            return _maps(*self.net(left, right))
+            return _maps(*self._run(left, right))
         with torch.autocast(self.ctx.device.type, dtype=self.ctx.torch_dtype):
-            return _maps(*self.net(left, right))
+            return _maps(*self._run(left, right))
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """The network's disparity, occlusion and confidence maps (the part `portable_mlx` runs as one graph)."""
+        return self.net(left, right)
 
     def module(self) -> torch.nn.Module:
         """The network; returns the disparity."""
         return Forward(self.net, lambda net, left, right: net(left, right)[0][:, 0])
 
 
+_GRAPH_PIXELS = 600_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242 and 544x960, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(_S2M2Runner):
-    """Our kernels: fp16 with fp16-accumulate convolutions and fused attention / matching kernels."""
+    """Our kernels: fp16 with fp16-accumulate convolutions and fused attention / matching kernels.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the fast forward."""
@@ -98,13 +122,37 @@ class Kernels(_S2M2Runner):
 
         self.net = _net(ctx)
         prepare_kernels(self.net, hacc=True, kernels=True)
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        return _maps(*self.net.forward_fast(left, right, full_outputs=True))  # ty: ignore[call-non-callable] - bound by prepare_kernels
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity, confidence and occlusion of a padded pair."""
-        return _maps(*self.net.forward_fast(left, right, full_outputs=True))  # ty: ignore[call-non-callable] - bound by prepare_kernels
+        return self._graphs(left, right)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_run",)),
+}
 
 
 def image_pad(img: torch.Tensor, factor: int) -> torch.Tensor:

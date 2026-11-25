@@ -20,7 +20,7 @@ def test_card() -> None:
     cards = {v.id: (c, v) for c, v in registry.cards("matching").values() if c.family == "flexglue"}
     assert sorted(cards) == ["aliked-flexglue"]
     card, variant = cards["aliked-flexglue"]
-    assert dict(card.options) == {"max_keypoints": 2048, "long_side": 1024, "size": 512}  # upstream README, conf
+    assert dict(card.options) == {"max_keypoints": 2048, "long_side": 1024, "size": 512, "cuda_graphs": False}
     assert dict(card.params) == {"threshold": 0.1, "max_distance_px": 3.0}  # upstream default_conf
     assert set(card.outputs) == {"keypoints1", "keypoints2", "pairs", "scores"}
     assert [w.name for w in variant.weights] == ["flexglue.pth", "aliked-n16.pth"]

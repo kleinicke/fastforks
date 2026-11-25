@@ -18,10 +18,19 @@ upstream = "https://github.com/Parskatt/RoMaV2@95c9968145c8906b7b59383258e9f73b0
 settings = "CPU float32, upstream RoMaV2.match {'coarse_size': 800, 'fine_size': 1280}, one-directional, no threshold, autocast off, DINOv3 hub code adc254450203739c8149213a7a69d8d905b4fcfa, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."romav2@1"]
-kernels = ["romav2@bb29839cee98:sm_120"]
-symbols = {"romav2" = {"romav2_dw5_bias_relu_bf16" = "a0b98880d0052ed3", "romav2_local_corr_c192_r3" = "2bfabc95bf1bcc0f", "romav2_local_corr_c48_r1" = "b6d51da4caedd9ed"}}
+kernels = ["romav2@8e53c9cfd7d0:sm_120"]
+symbols = {"romav2" = {"roma_local_corr_c256_r2" = "900941c128aeb537", "roma_local_corr_c512_r3" = "19bf27a6ff65d255", "roma_local_corr_c512_r7" = "b0a8bd45e77652c5", "romav2_dw5_bias_relu_bf16" = "918d96fc9b075623", "romav2_local_corr_c192_r3" = "c863a91871ac6f61", "romav2_local_corr_c48_r1" = "c62cb5a669eedbec"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
+date = "2026-11-18"
 mean_px = 0.00573
 p99_px = 0.02077
+
+[validated."romav2@1".windows]
+kernels = ["romav2@8e53c9cfd7d0:sm_120"]
+symbols = {"romav2" = {"roma_local_corr_c256_r2" = "900941c128aeb537", "roma_local_corr_c512_r3" = "19bf27a6ff65d255", "roma_local_corr_c512_r7" = "b0a8bd45e77652c5", "romav2_dw5_bias_relu_bf16" = "918d96fc9b075623", "romav2_local_corr_c192_r3" = "c863a91871ac6f61", "romav2_local_corr_c48_r1" = "c62cb5a669eedbec"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00572
+p99_px = 0.02066

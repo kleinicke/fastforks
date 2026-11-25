@@ -148,7 +148,9 @@ def test_corrupt_cache_blob_falls_through_to_torch_hub(tmp_path, monkeypatch, ca
     blob = files.blob_path(spec.sha256)
     blob.parent.mkdir(parents=True)
     blob.write_bytes(b"paylaod")  # same size, wrong hash
-    hub = tmp_path / "torch_home" / "hub" / "checkpoints" / "w-1234.pth"
+    torch_home = tmp_path / "torch_home"
+    monkeypatch.setenv("TORCH_HOME", str(torch_home))
+    hub = torch_home / "hub" / "checkpoints" / "w-1234.pth"
     hub.parent.mkdir(parents=True)
     hub.write_bytes(b"payload")
     with caplog.at_level(logging.WARNING, logger="fastforks"):
@@ -170,7 +172,7 @@ def test_archive_download_announces_the_archive_size(tmp_path, monkeypatch, capl
 
 def test_cache_variable_naming_a_file(tmp_path, monkeypatch, capsys):  # TM-9
     f = tmp_path / "not_a_dir"
-    f.write_text("x")
+    f.write_text("x", encoding="utf-8")
     for env in (f, f / "sub"):
         monkeypatch.setenv("FASTFORKS_CACHE", str(env))
         with pytest.raises(OptionsError, match=r"FASTFORKS_CACHE=.*is not a directory"):

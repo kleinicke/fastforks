@@ -3,7 +3,7 @@ name = "C-FoundationStereo"
 summary = "NVIDIA's commercially licensed FoundationStereo releases (TAO code): C-FoundationStereo-S (DepthAnything-ViT-S + CNN features, 3D cost-volume filtering with disparity transformer, ConvGRU, 22 iterations), the distilled C-Fast-FoundationStereo (EdgeNeXt features, 8 iterations) and the same network with the research checkpoint (Fast-FoundationStereo)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "depth_anything_v2", "edgenext"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "depth_anything_v2", "edgenext", "mlx_wrap", "sdpa"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
 ]
@@ -46,6 +46,7 @@ iters = { default = 0, min = 0 }  # GRU update iterations; 0 = the variant's def
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "fs", "fs_cutlass", "cfs", "ffs_cutlass"]

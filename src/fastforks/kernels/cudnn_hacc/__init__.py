@@ -2,7 +2,7 @@
 
 PyTorch always asks cuDNN for fp32 accumulation; on GeForce cards that runs the tensor cores at half rate
 (RTX 5060 Ti: ~47 vs ~80 TFLOPS). Here fp16 Conv2d/Conv3d (groups 1, any dilation) run as a cuDNN conv-forward graph
-with HALF compute, channels-last in and out; fp16 ConvTranspose2d/3d (output padding 0, dilation 1) as its data
+with HALF compute, channels-last in and out; fp16 ConvTranspose2d/3d (dilation 1, any output padding) as its data
 gradient; other geometries raise ValueError when their plan is built. The graphs go through cuDNN's backend API by
 ctypes (`_backend`), on the `libcudnn.so.9` PyTorch loaded: no extra package.
 
@@ -70,7 +70,7 @@ BUILD_CALLS = 64  # calls of a geometry without a plan after which its plan is b
 CAPTURE_AFTER = 3  # eager model calls of a shape before models that replay CUDA graphs capture it
 _SEEN_MAX = 4096  # geometries remembered as seen (LRU)
 _PACKS = 4  # variant packs kept per plan
-_X, _W, _Y = 1, 2, 3  # tensor uids of a conv graph
+_X, _W, _Y, _B, _V = 1, 2, 3, 4, 5  # tensor uids of a conv graph (bias, the conv's virtual output before the bias)
 
 
 class _Defer:
@@ -81,24 +81,35 @@ _DEFER = _Defer()
 
 
 class _Plan:
-    """A built plan: the backend plan, its workspace bytes, output shape, name and its last variant packs."""
+    """A built plan: the backend plan, its workspace bytes, output shape, name and its last variant packs.
 
-    __slots__ = ("cfg", "engine", "out_shape", "packs", "plan", "workspace")
+    `bias`: the graph adds the bias (`_backend.op_graph`'s `bias`); the plan then takes its pointer too.
+    """
 
-    def __init__(
-        self, plan: _backend.Desc, workspace: int, out_shape: list[int], cfg: _backend.Desc, engine: int
+    __slots__ = ("bias", "cfg", "engine", "out_shape", "packs", "plan", "workspace")
+
+    def __init__(  # noqa: PLR0913 - the plan and what it was built from
+        self,
+        plan: _backend.Desc,
+        workspace: int,
+        out_shape: list[int],
+        cfg: _backend.Desc,
+        engine: int,
+        *,
+        bias: bool = False,
     ) -> None:
         """`plan` from `_backend.plan` of the engine config `cfg` (engine index `engine`)."""
         self.plan, self.workspace, self.out_shape, self.cfg, self.engine = plan, workspace, out_shape, cfg, engine
-        self.packs: dict[tuple[int, int, int, int], _backend.Desc] = {}
+        self.bias = bias
+        self.packs: dict[tuple[int, ...], _backend.Desc] = {}
 
     @property
     def name(self) -> str:
         """The plan's name as the cuDNN frontend gives it (`eng<index>_k<knob>=<value>...`)."""
         return _backend.name(self.engine, _backend.knobs(self.cfg))
 
-    def run(self, handle: _backend.Handle, pointers: tuple[int, int, int, int]) -> None:
-        """Execute on `(x, w, y, workspace)` device pointers (the caller holds the instance lock)."""
+    def run(self, handle: _backend.Handle, pointers: tuple[int, ...]) -> None:
+        """Execute on `(x, w, y[, b], workspace)` device pointers (the caller holds the instance lock)."""
         vp = self.packs.get(pointers)
         if vp is None:
             vp = self.packs[pointers] = _backend.pack(pointers)
@@ -155,11 +166,19 @@ class CudnnHalfConv:
         dgrad: bool = False,
         dilation: Sequence[int] | None = None,
         y_shape: Sequence[int] | None = None,
+        bias: bool = False,
+        output_padding: Sequence[int] | None = None,
     ) -> _Plan | None:
-        """The half-compute plan of one geometry, None if cuDNN has none."""
+        """The half-compute plan of one geometry, None if cuDNN has none.
+
+        `bias`: the first precompiled conv + bias plan, else the conv's plan (`_Plan.bias` says which).
+        """
+        if bias:
+            base = self._build(x, w, y_stride, padding, stride, dgrad=dgrad, dilation=dilation, y_shape=y_shape)
+            return None if base is None else self._with_bias(base, x, w, padding, stride, dilation)
         dil = list(dilation or [1] * (w.dim() - 2))
-        _check_geometry(x, w, padding, stride, dil, dgrad=dgrad)  # once per geometry (the plan key holds all of it)
-        yshape = _out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dil)
+        _check_geometry(x, w, padding, stride, dil, dgrad=dgrad, output_padding=output_padding)  # once per geometry
+        yshape = _out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dil, output_padding=output_padding)
         if y_shape is not None and list(y_shape) != yshape:
             msg = f"cudnn_hacc conv_into: y is {list(y_shape)}, the conv gives {yshape}"
             raise ValueError(msg)
@@ -199,6 +218,44 @@ class CudnnHalfConv:
             log.debug("cudnn_hacc: no half-compute graph for %s * %s: %s", tuple(x.shape), tuple(w.shape), e)
             return None
         return self._query(g, yshape)
+
+    def _with_bias(  # noqa: PLR0913, PLR0917 - the conv's plan and geometry
+        self,
+        base: _Plan,
+        x: torch.Tensor,
+        w: torch.Tensor,
+        padding: Sequence[int],
+        stride: Sequence[int],
+        dilation: Sequence[int] | None,
+    ) -> _Plan:
+        """The first precompiled conv + bias plan in heuristic order (mode A), else `base` (the conv's plan)."""
+        dil = list(dilation or [1] * (w.dim() - 2))
+        try:
+            g = _backend.op_graph(
+                self.handle,
+                x=(list(x.shape), list(x.stride())),
+                w=(list(w.shape), list(w.stride())),
+                y=(base.out_shape, _cl_stride(base.out_shape)),
+                padding=list(padding),
+                stride=list(stride),
+                dilation=dil,
+                uids=(_X, _W, _Y),
+                dgrad=False,
+                cache=self._descs,
+                bias=(_B, _V),
+            )
+            for cfg in _backend.heuristics(g, _backend.HEUR_A):
+                engine, notes = _backend.engine_info(cfg)
+                if engine in _SKIP_ENGINES or _backend.RUNTIME_COMPILATION in notes:
+                    continue
+                try:
+                    p, ws = _backend.plan(self.handle, cfg)
+                except _backend.CudnnError:
+                    continue
+                return _Plan(p, ws, base.out_shape, cfg, engine, bias=True)
+        except _backend.CudnnError as e:
+            log.debug("cudnn_hacc: no conv + bias graph for %s * %s: %s", tuple(x.shape), tuple(w.shape), e)
+        return base
 
     def _query(self, g: _backend.Desc, yshape: list[int]) -> _Plan | None:
         """The first usable plan in heuristic order (see the module docstring), None if there is none."""
@@ -260,7 +317,9 @@ class CudnnHalfConv:
             self._seen.popitem(last=False)
         return True
 
-    def _execute(self, e: _Plan, x: torch.Tensor, w: torch.Tensor, y: torch.Tensor) -> None:
+    def _execute(
+        self, e: _Plan, x: torch.Tensor, w: torch.Tensor, y: torch.Tensor, b: torch.Tensor | None = None
+    ) -> None:
         stream = current_stream()
         # The workspace comes from the caching allocator per call (under capture: the graph's pool, alive as long as the
         # graph). Steady state reuses the same block, so the variant pack still hits; a workspace cached per stream
@@ -270,7 +329,10 @@ class CudnnHalfConv:
             if stream != self._stream:
                 _backend.set_stream(self.handle, stream)
                 self._stream = stream
-            e.run(self.handle, (x.data_ptr(), w.data_ptr(), y.data_ptr(), ws.data_ptr()))
+            if b is None:
+                e.run(self.handle, (x.data_ptr(), w.data_ptr(), y.data_ptr(), ws.data_ptr()))
+            else:
+                e.run(self.handle, (x.data_ptr(), w.data_ptr(), y.data_ptr(), b.data_ptr(), ws.data_ptr()))
 
     def conv(  # noqa: PLR0913, PLR0917 - the conv geometry
         self,
@@ -280,24 +342,53 @@ class CudnnHalfConv:
         padding: Sequence[int],
         stride: Sequence[int],
         dilation: Sequence[int] | None = None,
+        *,
+        fuse_bias: bool = False,
     ) -> torch.Tensor:
-        """fp16 conv (groups 1) with fp16 accumulation; `x` any layout, `w` channels-last fp16. Returns NHWC."""
+        """fp16 conv (groups 1) with fp16 accumulation; `x` any layout, `w` channels-last fp16. Returns NHWC.
+
+        `fuse_bias` (a model's choice, validated by its goldens): a dense fp16 bias (16-byte aligned) is added in a
+        conv + bias plan (`_backend.op_graph`), one pass over `y` instead of a separate `add_`, where cuDNN has a
+        precompiled one. Its engine is cuDNN's first for that graph, often not the conv plan's: the fp16 sums differ
+        from the unfused call's by fp16 rounding (the plans are faster as well: 9.3 -> 8.3 ms for a 256 -> 256 3x3
+        conv at 307 x 1920, 1.44 -> 0.71 ms for 32 -> 32 at 1088 x 1920 on an RTX 5060 Ti).
+        """
         mf = _memory_format(x.dim())
         x = x.contiguous(memory_format=mf)
         dil = tuple(dilation or (1,) * (w.dim() - 2))
         _check_inputs(x, w)
-        key = ("conv", x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), dil, x.device.index)
-        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dilation=dil))
+        fuse = (
+            fuse_bias
+            and b is not None
+            and b.dtype == torch.float16
+            and b.dim() == 1
+            and b.shape[0] == w.shape[0]
+            and b.is_contiguous()
+            and b.data_ptr() % 16 == 0
+        )
+        geometry = (x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), dil, x.device.index)
+        key = ("conv_bias" if fuse else "conv", *geometry)
+        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dilation=dil, bias=fuse))
         if not isinstance(e, _Plan):
             return _torch_conv(x, w, b, padding, stride, dil).contiguous(memory_format=mf)
         y = torch.empty(e.out_shape, device=x.device, dtype=x.dtype, memory_format=mf)
-        self._execute(e, x, w, y)
-        if b is not None:
+        self._execute(e, x, w, y, b if e.bias else None)
+        if b is not None and not e.bias:
             y.add_(b.view(1, -1, *([1] * (x.dim() - 2))))
         return y
 
-    def deconv(self, x: torch.Tensor, w: torch.Tensor, padding: Sequence[int], stride: Sequence[int]) -> torch.Tensor:
-        """fp16 transposed conv (no bias, groups 1, dilation 1, output padding 0), fp16 accumulation, `w` `[C, K, ...]`.
+    def deconv(
+        self,
+        x: torch.Tensor,
+        w: torch.Tensor,
+        padding: Sequence[int],
+        stride: Sequence[int],
+        output_padding: Sequence[int] | None = None,
+    ) -> torch.Tensor:
+        """fp16 transposed conv (no bias, groups 1, dilation 1), fp16 accumulation, `w` `[C, K, ...]`.
+
+        `output_padding` (each below its stride, default 0) adds output rows at the far end, as in `ConvTranspose`:
+        the data gradient of the convolution that maps the larger output to `x`.
 
         Returns:
             The channels-last output.
@@ -305,11 +396,12 @@ class CudnnHalfConv:
         mf = _memory_format(x.dim())
         x = x.contiguous(memory_format=mf)
         _check_inputs(x, w)
-        key = ("dgrad", x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), x.device.index)
-        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dgrad=True))
+        op = tuple(output_padding or (0,) * (w.dim() - 2))
+        key = ("dgrad", x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), op, x.device.index)
+        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dgrad=True, output_padding=op))
         if not isinstance(e, _Plan):
             deconv = F.conv_transpose2d if x.dim() == 4 else F.conv_transpose3d  # noqa: PLR2004 - NCHW
-            return deconv(x, w, None, stride, padding).contiguous(memory_format=mf)
+            return deconv(x, w, None, stride, padding, op).contiguous(memory_format=mf)
         y = torch.empty(e.out_shape, device=x.device, dtype=x.dtype, memory_format=mf)
         self._execute(e, x, w, y)
         return y
@@ -322,6 +414,13 @@ class CudnnHalfConv:
         """
         _check_inputs(x, w)
         pad, st = (padding, padding), (stride, stride)
+        shape = tuple(_out_shape(x, w, pad, st, dgrad=False))
+        if (y.shape, y.dtype, y.device) != (shape, x.dtype, x.device):
+            msg = (
+                f"cudnn_hacc conv_into destination must be {shape} {x.dtype} on {x.device}, "
+                f"got {tuple(y.shape)} {y.dtype} on {y.device}"
+            )
+            raise ValueError(msg)
         key = ("conv_into", x.shape, w.shape, x.stride(), w.stride(), y.stride(), padding, stride, x.device.index)
         e = self._plan(key, lambda: self._build(x, w, y.stride(), pad, st, y_shape=y.shape))
         if not isinstance(e, _Plan):
@@ -382,15 +481,17 @@ def _out_shape(  # noqa: PLR0913 - the conv geometry
     *,
     dgrad: bool,
     dilation: Sequence[int] | None = None,
+    output_padding: Sequence[int] | None = None,
 ) -> list[int]:
     """`[N, C_out, *spatial]` of a conv (`w` = `[K, C, ...]`) or a transposed conv (`dgrad`, `w` = `[C, K, ...]`)."""
     sp = range(w.dim() - 2)
     d = dilation or [1] * len(sp)
     if dgrad:
+        op = output_padding or [0] * len(sp)
         return [
             x.shape[0],
             w.shape[1],
-            *[(x.shape[2 + i] - 1) * stride[i] - 2 * padding[i] + w.shape[2 + i] for i in sp],
+            *[(x.shape[2 + i] - 1) * stride[i] - 2 * padding[i] + w.shape[2 + i] + op[i] for i in sp],
         ]
     return [
         x.shape[0],
@@ -407,6 +508,7 @@ def _check_geometry(  # noqa: PLR0913 - the conv geometry
     dilation: Sequence[int],
     *,
     dgrad: bool,
+    output_padding: Sequence[int] | None = None,
 ) -> None:
     """Raise for a geometry the graphs do not describe (groups != 1, wrong ranks, an empty output).
 
@@ -421,12 +523,14 @@ def _check_geometry(  # noqa: PLR0913 - the conv geometry
         or any(p < 0 for p in padding)
         or any(s < 1 for s in stride)
         or any(d < 1 for d in dilation)
-        or min(_out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dilation)) < 1
+        or min(_out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dilation, output_padding=output_padding)) < 1
+        or any(not 0 <= o < s for o, s in zip(output_padding or [0] * nd, stride, strict=True))
     )
     if bad:
         msg = (
             f"cudnn_hacc {'deconv' if dgrad else 'conv'}: unsupported geometry x {list(x.shape)} * w {list(w.shape)},"
-            f" padding {list(padding)}, stride {list(stride)}, dilation {list(dilation)} (groups 1 only:"
+            f" padding {list(padding)}, stride {list(stride)}, dilation {list(dilation)},"
+            f" output padding {list(output_padding or [0] * nd)} (groups 1 only:"
             f" x needs {c_in} channels)"
         )
         raise ValueError(msg)
@@ -497,7 +601,8 @@ def _self_test(device: torch.device) -> None:
         if (
             e is not None
             and y is not None
-            and not torch.allclose(y.float(), F.conv2d(x.float(), w.float(), padding=1), atol=0.25)
+            # the reference on the CPU: a first fp32 cuDNN conv would load kernels the model may never use (~30 ms)
+            and not torch.allclose(y.cpu().float(), F.conv2d(x.cpu().float(), w.cpu().float(), padding=1), atol=0.25)
         ):
             e, reason = None, "a 3x3 fp16 conv gave a wrong result"
         if e is None:
@@ -518,9 +623,15 @@ def load(device: torch.device) -> CudnnHalfConv:
     return _instance()
 
 
-def deconv_half_acc(x: torch.Tensor, w: torch.Tensor, padding: Sequence[int], stride: Sequence[int]) -> torch.Tensor:
+def deconv_half_acc(
+    x: torch.Tensor,
+    w: torch.Tensor,
+    padding: Sequence[int],
+    stride: Sequence[int],
+    output_padding: Sequence[int] | None = None,
+) -> torch.Tensor:
     """`CudnnHalfConv.deconv` of the process-wide instance."""
-    return _instance().deconv(x, w, padding, stride)
+    return _instance().deconv(x, w, padding, stride, output_padding)
 
 
 def conv_half_acc(  # noqa: PLR0913, PLR0917 - the conv geometry
@@ -530,6 +641,8 @@ def conv_half_acc(  # noqa: PLR0913, PLR0917 - the conv geometry
     padding: Sequence[int],
     stride: Sequence[int],
     dilation: Sequence[int] | None = None,
+    *,
+    fuse_bias: bool = False,
 ) -> torch.Tensor:
     """`CudnnHalfConv.conv` of the process-wide instance."""
-    return _instance().conv(x, w, b, padding, stride, dilation)
+    return _instance().conv(x, w, b, padding, stride, dilation, fuse_bias=fuse_bias)

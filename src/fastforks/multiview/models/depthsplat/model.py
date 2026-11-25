@@ -35,11 +35,16 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor, to_device
+from fastforks.kernels import depthsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
-from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
+from .net.matching import projected_grid, projected_rays, reference_cost_volume
 from .net.mv_unimatch import MultiViewUniMatch
 
 if TYPE_CHECKING:
@@ -50,6 +55,7 @@ if TYPE_CHECKING:
 MULTIPLE = 16  # fixed: 1/4 features, two UNet downsamplings and the 2 x 2 attention splits
 SH_DEGREE = 2  # fixed: the released config (gaussian_adapter.sh_degree)
 SH = (SH_DEGREE + 1) ** 2  # fixed: SH coefficients per channel
+_PORTABLE_WARP_BYTES = 128 * 1024**2  # upper target for one warped-feature tensor across a depth slice
 RAW_DIM = 1 + 2 + 3 + 4 + 3 * SH  # fixed: opacity, pixel offset, scales, rotation (x y z w), SH
 NEIGHBOURS = 2  # fixed: upstream local_mv_match (cost volume against the nearest cameras when more than 3 views)
 C0 = 0.28209479177387814  # fixed: degree-0 SH constant (upstream RGB2SH)
@@ -61,6 +67,7 @@ class Params:
     """Load options."""
 
     long_side: int  # network long side (both sides rounded to multiples of 16)
+    cuda_graphs: bool  # kernels: replay the whole forward from a CUDA graph per input shape
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -119,10 +126,13 @@ class Net(nn.Module):
             mv_features=res["features_mv"][0],
         )  # fmt: skip
         match_prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
+        del res
         match_prob = F.interpolate(match_prob, size=depth.shape[-2:], mode="nearest")
         img = images[0].to(features.dtype)
         out = self.gaussian_regressor(torch.cat((img, depth[:, None].to(features.dtype), match_prob, features), 1))
-        raw = self.gaussian_head(torch.cat((out, img, features, match_prob), 1))
+        head_inputs = torch.cat((out, img, features, match_prob), 1)
+        del out, img, features
+        raw = self.gaussian_head(head_inputs)
         return depth, match_prob, raw
 
 
@@ -167,11 +177,13 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
 
     `e3nn`: `D_0 = 1`, `D_1 = R` (its degree-1 basis is `x y z`), `D_2 Y_2(s) = Y_2(R s)` for every direction `s`.
     """
-    s, p = _S.to(r), _P.to(r)
+    # cast before the move: MPS has no float64
+    s, p = to_device(_S.to(r.dtype), r.device), to_device(_P.to(r.dtype), r.device)
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
     d[:, 1:4, 1:4] = r
-    d[:, 4:9, 4:9] = _y2((r @ s).transpose(1, 2)).transpose(1, 2) @ p
+    harmonics = _y2((r @ s).transpose(1, 2))  # [V, N, 5]
+    d[:, 4:9, 4:9] = project_harmonics(harmonics, p)
     return d
 
 
@@ -222,24 +234,22 @@ def gaussians(
     dev = raw.device
     ys, xs = ((torch.arange(n, device=dev, dtype=torch.float32) + 0.5) / n for n in (h, w))
     xy = torch.stack(torch.meshgrid(xs, ys, indexing="xy"), -1).reshape(1, h * w, 2)
-    xy = xy + (raw[..., 1:3].sigmoid() - 0.5) / torch.tensor((w, h), dtype=torch.float32, device=dev)
+    xy = xy + (raw[..., 1:3].sigmoid() - 0.5) / device_tensor((w, h), dtype=torch.float32, device=dev)
     scales, rot, sh = raw[..., 3:].split((3, 4, 3 * SH), -1)
     rot = rot / (rot.norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
-    sh = sh.reshape(v, h * w, 3, SH) * mask.to(dev)
+    sh = sh.reshape(v, h * w, 3, SH) * to_device(mask, dev)
     rgb = images.float().permute(0, 2, 3, 1).reshape(v, h * w, 3)
     sh = torch.cat((sh[..., :1] + ((rgb - 0.5) / C0)[..., None], sh[..., 1:]), -1)
     c2w = c2w.float()
-    r = c2w[:, None, :3, :3]
-    rays = (
-        invert(k_norm.float())[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None]
-    )
-    rays = rays[..., 0] / rays[..., 2:, 0]
-    means = c2w[:, None, :3, 3] + (r @ rays[..., None])[..., 0] * depth.float().reshape(v, h * w, 1)
+    # the per-pixel 3 x 3 (9 x 9) products as one GEMM per view (a bmm over pixels runs gemv-like cuBLAS kernels)
+    rays = torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1) @ invert(k_norm.float()).mT
+    rays = rays / rays[..., 2:]
+    means = c2w[:, None, :3, 3] + (rays @ c2w[:, :3, :3].mT) * depth.float().reshape(v, h * w, 1)
     c2w64 = f64(c2w)[:, :3, :3]
-    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot[..., [3, 0, 1, 2]]))
+    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot.roll(1, -1)))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
-    harmonics = sh @ sh_rotation(c2w64).float()[:, None].transpose(-1, -2)
+    harmonics = sh.reshape(v, h * w * 3, SH) @ sh_rotation(c2w64).float().mT
     return {
         "gaussians/means": means.reshape(-1, 3),
         "gaussians/scales": F.softplus(scales - 4.0).clamp(1e-10, 3.0).reshape(-1, 3),
@@ -310,8 +320,48 @@ class _Base(Runner):
         return self.forward(images, intrinsics, cam_to_world, depth_range)
 
 
+def _chunked_cost_volume(  # noqa: PLR0913, PLR0917 - MultiViewUniMatch hook
+    _net: MultiViewUniMatch,
+    ref: torch.Tensor,
+    targets: torch.Tensor,
+    k: torch.Tensor,
+    poses: torch.Tensor,
+    candidates: torch.Tensor,
+    grid_sample_disable_cudnn: bool,  # noqa: FBT001
+) -> torch.Tensor:
+    """Bound portable sampling workspace by slicing the depth axis before warping the target features."""
+    # grid_sample and the subsequent multiply each produce this many bytes per depth plane.
+    bytes_per_plane = targets.numel() * targets.element_size()
+    chunk = max(1, _PORTABLE_WARP_BYTES // bytes_per_plane)
+    reuse_warp = ref.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+    )
+    if chunk >= candidates.shape[1]:
+        return reference_cost_volume(
+            ref, targets, k, poses, candidates, grid_sample_disable_cudnn, reuse_warp=reuse_warp
+        )
+    rays = None
+    if reuse_warp:
+        n = targets.shape[1]
+        camera = k.unsqueeze(1).expand(-1, n, -1, -1).reshape(-1, 3, 3)
+        rays = projected_rays(camera, poses.flatten(0, 1), *targets.shape[-2:])
+    return torch.cat(
+        [
+            reference_cost_volume(
+                ref, targets, k, poses, part, grid_sample_disable_cudnn, rays=rays, reuse_warp=reuse_warp
+            )
+            for part in candidates.split(chunk, dim=1)
+        ],
+        dim=1,
+    )
+
+
 class Portable(_Base):
     """Plain PyTorch: float32 = upstream modules; float16 (CUDA) = fp16 weights under autocast."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        override(self.net.depth_predictor, _chunked_cost_volume, "cost_volume")
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps and Gaussians of `__call__`."""
@@ -319,7 +369,7 @@ class Portable(_Base):
 
 
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride))  # ty: ignore
+    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride), fuse_bias=True)  # ty: ignore
 
 
 def _hacc_convs(module: nn.Module) -> int:
@@ -340,6 +390,26 @@ def _hacc_convs(module: nn.Module) -> int:
     return n
 
 
+def _fused_cost_volume(
+    _net: MultiViewUniMatch,
+    ref: torch.Tensor,
+    targets: torch.Tensor,
+    k: torch.Tensor,
+    poses: torch.Tensor,
+    candidates: torch.Tensor,
+    _grid_sample_disable_cudnn: bool,  # noqa: FBT001
+) -> torch.Tensor:
+    """Sample each selected neighbour at its physical depth candidates without a warped [B, V, C, D, H, W] tensor."""
+    b, neighbors, _, h, w = targets.shape
+    ref = ref.contiguous(memory_format=torch.channels_last)
+    out = ref.new_empty((b, candidates.shape[1], h, w), dtype=torch.float32)
+    for i in range(neighbors):
+        grid = projected_grid(k, poses[:, i], candidates, h, w)
+        target = targets[:, i].contiguous(memory_format=torch.channels_last)
+        depthsplat_corr.accumulate(ref, target, grid, out, i, neighbors)
+    return out
+
+
 class Kernels(_Base):
     """fp16: the `fastbb` DINOv2 (flash attention, fp16-accumulate GEMMs), cuDNN fp16-accumulate convs."""
 
@@ -347,19 +417,41 @@ class Kernels(_Base):
         super().__init__(ctx)
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - kernels only
 
+        depthsplat_corr.load(ctx.device)
+        override(self.net.depth_predictor, _fused_cost_volume, "cost_volume")
         fastbb.load(ctx.device)
         cudnn_hacc.load(ctx.device)
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "DepthSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
+        # about 2000 launches per call: WDDM's per-launch cost made Windows host-bound (wall 102 vs GPU 88 ms)
+        after = cudnn_hacc.capture_after()
+        self.graphs = GraphCache(self._eager, graphs=2, capture_after=after) if ctx.params.cuda_graphs else None
+
+    def _eager(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        with fp16_accumulate():
+            return super().forward(images, intrinsics, cam_to_world, depth_range)
 
     def forward(
         self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
     ) -> dict[str, torch.Tensor]:
-        """`_Base.forward` with fp16-accumulate GEMMs."""
-        with fp16_accumulate():
-            return super().forward(images, intrinsics, cam_to_world, depth_range)
+        """`_Base.forward` with fp16-accumulate GEMMs, replayed from the input shapes' CUDA graph once captured."""
+        inputs = (images, intrinsics, cam_to_world, depth_range)
+        key = tuple((t.device, t.dtype, tuple(t.shape)) for t in inputs)
+        out = self.graphs.run(key, *inputs) if self.graphs is not None else None
+        return self._eager(*inputs) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, fp32_inputs=("k_norm", "c2w", "near", "far")),
+}

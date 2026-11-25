@@ -3,6 +3,7 @@ name = "Real-ESRGAN Compact"
 summary = "Real-ESRGAN Compact (SRVGGNetCompact, Wang et al.): a small VGG-style blind super-resolution network: 3 x 3 convs with PReLU at the input size, one pixel-shuffle to the output size, plus the nearest-upsampled input. `realesr-general-x4v3` is Real-ESRGAN's general x4 model (32 convs, 64 channels, about 1.2 M parameters), trained like Real-ESRGAN on synthetic real-world degradations. `load(path)` reads other Compact checkpoints (any scale, channels and depth)."
 tier = "experimental"
 outputs = ["image"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/Real-ESRGAN"
@@ -29,9 +30,12 @@ num_conv = 32
 [modes.portable]
 cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+mlx_kernels = ["conv_mlx"]  # Winograd F(4,3) 3x3 convolutions
+mlx_dtypes = ["float32", "float16"]
+kernels = ["cudnn_hacc", "sr_ops"]  # fp16-accumulate convolutions, channels-last
 
 [[papers]]
 title = "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"

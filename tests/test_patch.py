@@ -217,6 +217,8 @@ def test_defom_max_encoder_fuses_all_resblocks():
 _EXACT_TYPE = re.compile(
     r"(?<![\w.`])type\([^()]*(?:\([^()]*\))?[^()]*\)\s*(?:is|in|==|!=|not in)\b|\.get\(type\(|\[type\("
 )
+# `type(x) is torch.Tensor`: a plain tensor, not a traced / fake subclass (shape caches); never a module check
+_TENSOR_TYPE = re.compile(r"type\([^()]*(?:\([^()]*\))?[^()]*\)\s+is\s+(?:not\s+)?torch\.Tensor\b")
 
 
 def test_no_exact_type_checks_on_modules():
@@ -227,7 +229,7 @@ def test_no_exact_type_checks_on_modules():
         f"{p.relative_to(src)}:{i}: {line.strip()}"
         for p in sorted(src.rglob("*.py"))
         for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
-        if _EXACT_TYPE.search(line) and "# exact type: not a module" not in line
+        if _EXACT_TYPE.search(line) and "# exact type: not a module" not in line and not _TENSOR_TYPE.search(line)
     ]
     assert not bad, "\n".join(bad)
 

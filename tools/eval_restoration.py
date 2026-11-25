@@ -29,7 +29,7 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,8 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
+
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 TIERS = {  # tier -> (mode, dtype, how, column)
@@ -157,8 +159,8 @@ def main() -> None:
                     torch.cuda.empty_cache()
                 torch.cuda.reset_peak_memory_stats()
                 scores, times, error = [], [], None
-                with ThreadPoolExecutor(4) as pool:  # decode the next images while the GPU runs
-                    for lr, hr in pool.map(read, data):
+                with closing(prefetch(read, data, workers=4)) as images:
+                    for lr, hr in images:
                         x, gt = (torch.from_numpy(f).cuda().permute(2, 0, 1).float() / 255 for f in (lr, hr))
                         torch.cuda.synchronize()
                         t = time.perf_counter()
@@ -188,7 +190,7 @@ def main() -> None:
                     **({} if error is None else {"error": error}),
                 }  # fmt: skip
                 print(json.dumps(row), flush=True)
-                with (a.out / "rows.jsonl").open("a") as f:
+                with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                     f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

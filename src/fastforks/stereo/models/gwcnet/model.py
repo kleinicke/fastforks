@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks._core.layout import nchw
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
+from fastforks.stereo._volume import stacked_volume
 
 from .net.gwcnet import GwcNet
 from .net.submodule import groupwise_correlation
@@ -23,6 +29,7 @@ class Params:
 
     concat_volume: bool
     max_disp: int
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> GwcNet:
@@ -38,10 +45,20 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     alive next to the concatenated one.
     """
     # NCHW features: the group mean over a channels-last product is a strided reduction, 8x slower than contiguous
-    gl, gr = fl["gwc_feature"].contiguous(), fr["gwc_feature"].contiguous()
+    gl, gr = nchw(fl["gwc_feature"]), nchw(fr["gwc_feature"])
     cl, cr = (fl["concat_feature"], fr["concat_feature"]) if net.use_concat_volume else (gl[:, :0], gr[:, :0])
     b, _, h, w = gl.shape
     g, c = net.num_groups, cl.shape[1]
+    if exporting_for_mlx():
+        nc = gl.shape[1]
+
+        def fn(a: torch.Tensor, bb: torch.Tensor) -> torch.Tensor:
+            parts = [groupwise_correlation(a[:, :nc], bb[:, :nc], g)]
+            if c:
+                parts += [a[:, nc:], bb[:, nc:]]
+            return torch.cat(parts, dim=1)
+
+        return stacked_volume(torch.cat((gl, cl), 1), torch.cat((gr, cr), 1), net.maxdisp // 4, fn)
     volume = gl.new_zeros([b, g + 2 * c, net.maxdisp // 4, h, w])
     for i in range(min(net.maxdisp // 4, w)):  # disparities >= width: no overlap, stays zero
         v = volume[:, :, i, :, i:]
@@ -52,10 +69,11 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     return volume
 
 
-def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """Upstream's test forward with the row-chunked regression tail; disparity `[B, H, W]` float32.
 
-    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32.
+    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32. `fused` (kernels):
+    the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -65,10 +83,19 @@ def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     del fl, fr
     cost0 = net.dres0(volume)
     del volume
-    cost0 = net.dres1(cost0) + cost0
-    out3 = net.dres4(net.dres3(net.dres2(cost0)))
+    if fused:
+        from fastforks.shared.cnn_kernels import conv_residual, stereo_hourglass  # noqa: PLC0415 - kernels only
+
+        cost0 = conv_residual(net.dres1, cost0, cost0)
+        for hourglass in (net.dres2, net.dres3, net.dres4):
+            cost0 = stereo_hourglass(hourglass, cost0)
+    else:
+        cost0 = net.dres1(cost0) + cost0
+        for hourglass in (net.dres2, net.dres3, net.dres4):
+            cost0 = hourglass(cost0)
+    logits = net.classif3(cost0)
     del cost0
-    return upsample_softmax_regress(net.classif3(out3), net.maxdisp, left.shape[2], left.shape[3])
+    return upsample_softmax_regress(logits, net.maxdisp, left.shape[2], left.shape[3])
 
 
 class Portable(Runner):
@@ -97,18 +124,38 @@ class Kernels(Runner):
     """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16."""
 
     Params = Params
+    _GRAPH_PIXELS = 384 * 640  # fixed: cap the pool at the measured launch-bound sizes
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
         super().__init__(ctx)
-        from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
+        from fastforks.shared.cnn_kernels import hacc_padded_deconvs, prepare_generic  # noqa: PLC0415 - kernel libraries
 
         self.net = _net(ctx)
         prepare_generic(self.net, ctx.device)
+        hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
+        self._graphs = SmallShapeGraphs(
+            self._disparity,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return forward(self.net, left, right, fused=True)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

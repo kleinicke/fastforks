@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
+from fastforks._core.volume_ops import gwc_warp  # fastforks: one Metal kernel on MLX
+
 
 
 
@@ -168,7 +171,7 @@ def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
     volume = volume.contiguous()
     return volume
 
-def get_warped_feats(x, y, disp_range_samples, ndisp):
+def _sample_right(x, y, disp_range_samples, ndisp):
     bs, channels, height, width = y.size()
 
     mh, mw = torch.meshgrid([torch.arange(0, height, dtype=x.dtype, device=x.device),
@@ -185,29 +188,62 @@ def get_warped_feats(x, y, disp_range_samples, ndisp):
 
     y_warped = F.grid_sample(y, grid.view(bs, ndisp * height, width, 2), mode='bilinear',
                             padding_mode='zeros', align_corners=False).view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)  # fastforks: the default align_corners, explicit (warning)
+    return y_warped, mw < disp_range_samples
 
 
+def get_warped_feats(x, y, disp_range_samples, ndisp):
+    y_warped, mask = _sample_right(x, y, disp_range_samples, ndisp)
     # a littel difference, no zeros filling
     x_warped = x.unsqueeze(2).repeat(1, 1, ndisp, 1, 1) #(B, C, D, H, W)
     x_warped = x_warped.transpose(0, 1) #(C, B, D, H, W)
     #x1 = x2 + d >= d
-    mask = mw < disp_range_samples
     x_warped = torch.where(mask.unsqueeze(0), torch.zeros_like(x_warped), x_warped)
     x_warped = x_warped.transpose(0, 1) #(B, C, D, H, W)
 
     return x_warped, y_warped
     
-def build_gwc_volume_selective(refimg_fea, targetimg_fea, disp_range_samples, ndisps, num_groups):  
-        bs, channels, height, width = refimg_fea.size()
+_SELECTIVE_MASK_BYTES = 64 * 2**20
 
-        x_warped, y_warped = get_warped_feats(refimg_fea, targetimg_fea, disp_range_samples, ndisps) #(B, C, D, H, W)
 
-        assert channels % num_groups == 0
-        channels_per_group = channels // num_groups
-        gwc_raw = (x_warped * y_warped)  #(B, C, D, H, W)
-        gwc_cost = gwc_raw.view([bs, num_groups, channels_per_group, ndisps, height, width]).mean(dim=2)  #(B, 8, ndisps, H, W)   
-
-        return gwc_cost.contiguous()
+def build_gwc_volume_selective(refimg_fea, targetimg_fea, disp_range_samples, ndisps, num_groups):
+    bs, channels, height, width = refimg_fea.shape
+    bytes_per_plane = refimg_fea.numel() * refimg_fea.element_size()
+    if (
+        refimg_fea.is_cuda and bs == 1
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+        and bytes_per_plane * ndisps > _SELECTIVE_MASK_BYTES
+    ):
+        # Retain the full sampling and channel reduction geometries. Apply the masked left features to the
+        # owned right samples a few disparity planes at a time instead of materializing multiple full volumes.
+        gwc_raw, invalid = _sample_right(refimg_fea, targetimg_fea, disp_range_samples, ndisps)
+        step = max(1, _SELECTIVE_MASK_BYTES // bytes_per_plane)
+        for start in range(0, ndisps, step):
+            end = min(start + step, ndisps)
+            left = torch.where(invalid[:, None, start:end], 0, refimg_fea[:, :, None])
+            gwc_raw[:, :, start:end].mul_(left)
+            del left
+    elif refimg_fea.device.type == "mps" and not (torch.is_grad_enabled() or torch.jit.is_tracing()):
+        # fastforks (MPS): sample, mask and reduce a few disparity planes at a time; the full [B, C, D, H, W] volumes
+        # (left repeat, its masked copy, the right samples, their product) cost GBs of 1 GB heaps on MPS
+        cpg = channels // num_groups
+        out = refimg_fea.new_empty(bs, num_groups, ndisps, height, width)
+        step = max(1, _SELECTIVE_MASK_BYTES // bytes_per_plane)
+        for start in range(0, ndisps, step):
+            end = min(start + step, ndisps)
+            raw, invalid = _sample_right(refimg_fea, targetimg_fea, disp_range_samples[:, start:end], end - start)
+            raw.mul_(torch.where(invalid[:, None], 0, refimg_fea[:, :, None]))
+            out[:, :, start:end] = raw.view(bs, num_groups, cpg, end - start, height, width).mean(dim=2)
+            del raw, invalid
+        return out
+    elif exporting_for_mlx():  # fastforks (MLX): sample, mask and reduce in one kernel (no [B, C, D, H, W])
+        return gwc_warp(refimg_fea, targetimg_fea, disp_range_samples, num_groups)
+    else:
+        x_warped, y_warped = get_warped_feats(refimg_fea, targetimg_fea, disp_range_samples, ndisps)
+        gwc_raw = x_warped * y_warped
+    assert channels % num_groups == 0
+    shape = (bs, num_groups, channels // num_groups, ndisps, height, width)
+    return gwc_raw.view(shape).mean(dim=2).contiguous()
 
 
 

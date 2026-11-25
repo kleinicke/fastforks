@@ -167,17 +167,22 @@ class DenseHead(nn.Module):
         return x + pos_embed
 
     def scratch_forward(self, features: list[torch.Tensor]) -> torch.Tensor:
-        layer_1, layer_2, layer_3, layer_4 = features
+        """Consume the feature list from coarse to fine, projecting one scale at a time."""
+        scratch = self.scratch
+        layer = scratch.layer4_rn(features.pop())
+        out = scratch.refinenet4(layer, size=features[2].shape[2:])
+        del layer
 
-        layer_1_rn = self.scratch.layer1_rn(layer_1)
-        layer_2_rn = self.scratch.layer2_rn(layer_2)
-        layer_3_rn = self.scratch.layer3_rn(layer_3)
-        layer_4_rn = self.scratch.layer4_rn(layer_4)
+        layer = scratch.layer3_rn(features.pop())
+        out = scratch.refinenet3(out, layer, size=features[1].shape[2:])
+        del layer
 
-        out = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
-        out = self.scratch.refinenet3(out, layer_3_rn, size=layer_2_rn.shape[2:])
-        out = self.scratch.refinenet2(out, layer_2_rn, size=layer_1_rn.shape[2:])
-        return self.scratch.refinenet1(out, layer_1_rn, size=layer_1_rn.shape[2:])
+        layer = scratch.layer2_rn(features.pop())
+        out = scratch.refinenet2(out, layer, size=features[0].shape[2:])
+        del layer
+
+        layer = scratch.layer1_rn(features.pop())
+        return scratch.refinenet1(out, layer, size=layer.shape[2:])
 
 
 def _make_dense_resize_layer(channels: int, resize_scale: float) -> nn.Module:
@@ -260,7 +265,9 @@ class FeatureFusionBlock(nn.Module):
             self.resConfUnit1 = ResidualConvUnit(features, activation)
         self.resConfUnit2 = ResidualConvUnit(features, activation)
 
-    def forward(self, x: torch.Tensor, residual: torch.Tensor | None = None, size: Tuple[int, int] | None = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, residual: torch.Tensor | None = None, size: Tuple[int, int] | None = None
+    ) -> torch.Tensor:
         output = x
         if self.has_residual:
             if residual is None:

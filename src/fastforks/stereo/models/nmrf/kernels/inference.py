@@ -5,7 +5,9 @@ WindowAttention (MRF inference: 6 x 6 cells x 4 candidates = 144 tokens, refinem
 (`fastbb` `win_rpe_attn`, from our NMRF fork's general path `nmrf/models/fast.py`): logits with the relative-position
 embeddings on q / k / v, mask, online softmax and the output in one pass, fp32 math, straight on the packed qkv
 projection (no cyclic shift, window partition or reverse copies) instead of 3 einsums + 2 matmuls + adds + softmax over
-materialised [windows, heads, T, T] logits.
+materialised [windows, heads, T, T] logits. The feature encoder's instance norms (ResNet backbone, `concatconv` / `gw`
+heads) run on the `fastbb` norm kernels in fp16 channels-last, with the ReLUs and residual adds in the apply pass
+(`fastforks.shared.instance_norm.fuse_nmrf_encoder`; Middlebury-H 195 -> 175 ms).
 """
 
 from collections.abc import Callable
@@ -17,9 +19,10 @@ from torch import nn
 
 from fastforks._core.errors import BackendUnavailableError
 from fastforks.kernels import fastbb
+from fastforks.shared.instance_norm import fuse_nmrf_encoder
 
-from ..net.inference import forward, prepare
-from ..net.nmp import WindowAttention
+from ..net.inference import LN16, forward, prepare
+from ..net.nmp import Mlp, WindowAttention
 
 if TYPE_CHECKING:
     from fastforks._core.metal import MetalLibrary
@@ -88,7 +91,20 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> nn.Module:
     if not _swap(model, make):
         msg = "NMRF kernels: no WindowAttention found"
         raise RuntimeError(msg)
-    return model.to(device)
+    for layer in model.modules():
+        if isinstance(layer, Mlp) and isinstance(layer.act, nn.GELU):
+            layer.bounded_activation = True
+    # fp16 weights: autocast would cast every fp32 conv / linear weight (and LN16 its affine) on each call. A stripe
+    # attention's `get_v` weight also scales a tensor outside its conv (fp32 product there) and stays fp32.
+    keep = {id(m.get_v) for m in model.modules() if isinstance(getattr(m, "get_v", None), nn.Conv2d)}
+    for m in model.modules():
+        if isinstance(m, LN16):
+            m.weight.data, m.bias.data = m.weight.data.half(), m.bias.data.half()
+        elif isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.ConvTranspose2d)) and id(m) not in keep:
+            m.half()
+    model.to(device)
+    fuse_nmrf_encoder(model)
+    return model
 
 
 @torch.no_grad()

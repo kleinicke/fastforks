@@ -5,7 +5,7 @@ tier = "stable"
 outputs = ["logits"]
 uses = ["libnet"]  # fastforks.shared modules this family imports
 limitations = [
-  "No accuracy measurement: the weights' training set (Falconsai's private labelled NSFW images) is not published and no public labelled NSFW test set is part of the evaluation data here; tiers are compared by output parity and speed only.",
+  "The accuracy comparison covers the Sexual category of the official UnsafeBench test split. Falconsai's training set is private, so overlap with the evaluation images is unknown.",
   "The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.",
 ]
 
@@ -35,10 +35,13 @@ library = "timm"
 arch = "vit_base_patch16_224"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]

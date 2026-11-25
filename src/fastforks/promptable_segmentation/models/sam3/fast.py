@@ -2,8 +2,8 @@
 
 - trunk: q / k / v packed into one GEMM, the residual stream kept in window order (9 windows of 24 x 24 tokens)
   between the global layers, RoPE as one in-place complex multiplication (torch), fastbb flash attention (`hh`: fp16
-  scores and accumulation), every GEMM with fp16 accumulation, fc1 + GELU as one cuBLASLt bias + GELU epilogue
-  (tanh GELU, as upstream's perflib; transformers uses the exact one)
+  scores and accumulation), dpt_fused GEMMs with fp16 accumulation, fused residuals and a bias + GELU epilogue
+  (the GELU implementation follows the existing dpt_fused device policy)
 - neck: the transposed and plain convolutions channels-last on `cudnn_hacc` (fp16 accumulation)
 
 Input: the normalised `[1, 3, 1008, 1008]` image; output: the three neck levels in float16 (channels-last).
@@ -18,12 +18,17 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import cudnn_hacc, fastbb
+from fastforks.kernels import cudnn_hacc, fastbb, sam3_fpn, sam3_tracker
+from fastforks.kernels.dpt_fused import DptFused
+from fastforks.shared.host_blocks import HostBlocks
 
 from .net.sam3 import GRID, HEAD, rope_tables
 
 if TYPE_CHECKING:
-    from .net.sam3 import FpnLayer, VisionEncoder, ViTLayer
+    from collections.abc import Iterator
+
+    from .net.sam3 import FpnLayer, PixelDecoder, VisionEncoder, ViTLayer
+    from .net.tracker import RoPEAttention
 
 
 class _Rope:
@@ -52,7 +57,7 @@ def _bias(conv: torch.nn.Conv2d | torch.nn.ConvTranspose2d) -> torch.Tensor:
 class FastEncoder:
     """`VisionEncoder` (trunk + neck) in fp16 with fp16 accumulation, for the 1008 x 1008 input only."""
 
-    def __init__(self, enc: VisionEncoder, device: torch.device) -> None:
+    def __init__(self, enc: VisionEncoder, device: torch.device, *, stream: bool = False) -> None:
         """Convert the CPU float32 encoder to fp16 (packed q / k / v, channels-last convs) on `device`.
 
         Raises:
@@ -68,8 +73,22 @@ class FastEncoder:
         fastbb.load(device)
         cudnn_hacc.load(device)
         self.device, self.dim, self.heads, self.window = device, dim, heads, window
+        self.fused = DptFused(device)
         self.flash = fastbb.Flash64("hh")
-        self.layers = [self._layer(layer, device) for layer in layers]
+        self.layout = [(layer.window, layer.layer_norm1.eps, layer.layer_norm2.eps) for layer in layers]
+        storage = torch.device("cpu") if stream else device
+        self.layers = [self._layer(layer, storage) for layer in layers]
+        self.host: HostBlocks | None = None
+        if stream:
+            # The packed projections feed the native GEMMs directly in both modes.
+            tensors = {f"{i}.{k}": v for i, layer in enumerate(self.layers) for k, v in layer.items()}
+            specs = [{f"{i}.{k}": (v.dtype, v.shape) for k, v in layer.items()} for i, layer in enumerate(self.layers)]
+
+            def fill(name: str, dst: torch.Tensor) -> None:
+                dst.copy_(tensors[name])
+
+            self.host = HostBlocks(specs, fill)
+            self.layers.clear()
         self.patch = vit.embeddings.patch_embeddings.projection.weight.detach().half().to(device)
         self.stride = int(vit.patch)
         self.pos = vit.embeddings.tiled(GRID, GRID).detach().half().to(device)  # [1, 72, 72, C]
@@ -79,21 +98,22 @@ class FastEncoder:
         self.neck = [self._fpn(f, device) for f in cast("list[FpnLayer]", list(enc.neck.fpn_layers))]
 
     @staticmethod
-    def _layer(layer: ViTLayer, device: torch.device) -> dict[str, object]:
+    def _layer(layer: ViTLayer, device: torch.device) -> dict[str, torch.Tensor]:
         a, m = layer.attention, layer.mlp
 
         def h(t: torch.Tensor) -> torch.Tensor:
             return t.detach().half().to(device)
 
         return {
-            "window": layer.window,
-            "ln1": (h(layer.layer_norm1.weight), h(layer.layer_norm1.bias), layer.layer_norm1.eps),
-            "ln2": (h(layer.layer_norm2.weight), h(layer.layer_norm2.bias), layer.layer_norm2.eps),
+            "ln1_w": h(layer.layer_norm1.weight),
+            "ln1_b": h(layer.layer_norm1.bias),
+            "ln2_w": h(layer.layer_norm2.weight),
+            "ln2_b": h(layer.layer_norm2.bias),
             "qkv_w": h(torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])),
             "qkv_b": h(torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias])),
             "o_w": h(a.o_proj.weight),
             "o_b": h(a.o_proj.bias),
-            "fc1_wt": h(m.fc1.weight).t(),  # [C, hidden] view: addmm's mat2
+            "fc1_w": h(m.fc1.weight),
             "fc1_b": h(m.fc1.bias),
             "fc2_w": h(m.fc2.weight),
             "fc2_b": h(m.fc2.bias),
@@ -114,17 +134,28 @@ class FastEncoder:
             ops.append(("conv", w, _bias(conv).half().to(device)))
         return ops
 
-    def _block(self, p: dict, x: torch.Tensor) -> torch.Tensor:
+    def _weights(self) -> Iterator[dict[str, torch.Tensor]]:
+        if self.host is None:
+            yield from self.layers
+        else:
+            for block in self.host.run(self.device):
+                yield {key.split(".", 1)[1]: value for key, value in block.items()}
+
+    def _block(self, p: dict[str, torch.Tensor], x: torch.Tensor, layout: tuple[int, float, float]) -> torch.Tensor:
         """One layer on `[B, N, C]` fp16 (windows: `B` = 9, `N` = 576; global: `B` = 1, `N` = 5184)."""
         b, n, c = x.shape
-        y = F.layer_norm(x, (c,), *p["ln1"])
-        qkv = F.linear(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
-        self.ropes[p["window"]](qkv)
+        window, eps1, eps2 = layout
+        y = F.layer_norm(x, (c,), p["ln1_w"], p["ln1_b"], eps1)
+        qkv = self.fused.gemm(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
+        del y
+        self.ropes[window](qkv)
         o = self.flash(*qkv.unbind(2), HEAD**-0.5).view(b, n, c)
-        x = F.linear(o, p["o_w"], p["o_b"]).add_(x)
-        y = F.layer_norm(x, (c,), *p["ln2"]).view(b * n, c)
-        hid = torch._addmm_activation(p["fc1_b"], y, p["fc1_wt"], use_gelu=True)  # noqa: SLF001 - cuBLASLt GELU epilogue
-        return F.linear(hid, p["fc2_w"], p["fc2_b"]).view(b, n, c).add_(x)
+        del qkv
+        x = self.fused.gemm(o, p["o_w"], p["o_b"], res=x, out=x)
+        del o
+        y = F.layer_norm(x, (c,), p["ln2_w"], p["ln2_b"], eps2).view(b * n, c)
+        hid = self.fused.gemm(y, p["fc1_w"], p["fc1_b"], act=self.fused.gelu)
+        return self.fused.gemm(hid.view(b, n, -1), p["fc2_w"], p["fc2_b"], res=x, out=x)
 
     def trunk(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised `[1, 3, 1008, 1008]` -> `[1, 72, 72, C]` fp16."""
@@ -144,11 +175,11 @@ class FastEncoder:
 
         windowed = False
         x = x.reshape(1, h * w, c)
-        for p in self.layers:
-            if bool(p["window"]) != windowed:
-                x = part(x.view(1, h, w, c)) if p["window"] else unpart(x)
+        for p, layout in zip(self._weights(), self.layout, strict=True):
+            if bool(layout[0]) != windowed:
+                x = part(x.view(1, h, w, c)) if layout[0] else unpart(x)
                 windowed = not windowed
-            x = self._block(p, x)
+            x = self._block(p, x, layout)
         if windowed:
             x = unpart(x)
         return x.view(1, h, w, c)
@@ -170,3 +201,38 @@ class FastEncoder:
         with fp16_accumulate():
             t = self.trunk(image).permute(0, 3, 1, 2)  # NHWC storage = channels-last NCHW
             return [self._level(ops, t) for ops in self.neck]
+
+
+def pixel_decode(decoder: PixelDecoder, feats: list[torch.Tensor]) -> torch.Tensor:
+    """Run the two fine mask stages while keeping each convolution result in its original storage."""
+    x = feats[-1]
+    for conv, norm, skip in zip(decoder.conv_layers, decoder.norms, reversed(feats[:-1]), strict=True):
+        x = conv(sam3_fpn.nearest_add(x, skip))
+        # Retain the reduction layout and fp16 rounding points of group_norm_relu.
+        b, c, h, w = x.shape
+        norm = cast("torch.nn.GroupNorm", norm)
+        g = norm.num_groups
+        if x.is_contiguous():
+            v, m = torch.var_mean(x.view(b, g, -1), dim=2, correction=0)
+        else:
+            v, m = torch.var_mean(x.permute(0, 2, 3, 1).reshape(b, h * w, g, c // g), dim=(1, 3), correction=0)
+        r = torch.rsqrt(v.float() + norm.eps)
+        scale = (norm.weight.float().view(1, g, -1) * r[..., None]).view(b, c)
+        shift = norm.bias.float() - (m.float()[..., None] * scale.view(b, g, -1)).view(b, c)
+        sam3_fpn.affine_relu_(x, scale.half(), shift.half())
+    return x
+
+
+def tracker_attention(  # noqa: PLR0913, PLR0917 - the upstream attention signature
+    self: RoPEAttention,
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    rope: tuple[torch.Tensor, torch.Tensor],
+    num_k_exclude_rope: int = 0,
+) -> torch.Tensor:
+    """Rotate the fresh fp16 projections in place, omitting each object's trailing pointer keys."""
+    q = sam3_tracker.rotate_(self.q_proj(q), rope, q.shape[1])
+    k = sam3_tracker.rotate_(self.k_proj(k), rope, k.shape[1] - num_k_exclude_rope)
+    v = self.v_proj(v)
+    return self.o_proj(F.scaled_dot_product_attention(q[:, None], k[:, None], v[:, None])[:, 0])

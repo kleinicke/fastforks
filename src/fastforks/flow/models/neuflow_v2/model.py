@@ -11,6 +11,8 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import RADIUS, NeuFlow, _grid
 
@@ -26,6 +28,7 @@ class Params:
     """Card `[options]`."""
 
     iters: int  # refinements at 1/8 resolution (upstream `iters_s8`)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 class Portable(Runner):
@@ -33,6 +36,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: 22.1 -> 7.9 ms per pair), not at 720p (30.2 vs 29.7 ms, and 4 GB for 8 pairs)
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -43,6 +50,10 @@ class Portable(Runner):
         self.net.load_state_dict(sd)
         self.net.fp16 = ctx.dtype == "float16"
         self.net.eval().to(ctx.device)
+        if ctx.device.type == "cuda" and self.net.fp16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (1080p portable 84.8 -> 82.1 ms, kernels 71.7 -> 68.8 ms and 652 -> 517 MB; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
@@ -86,8 +97,18 @@ def _kernel_lookup(k: CubinModule, features: torch.Tensor) -> Callable[[torch.Te
     return lookup
 
 
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to 544x960, 720x1280 still gains 6 %
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """The portable fp16 pass with the correlation window computed on the fly (`raft_flow`): no all-pairs volume."""
+    """The portable fp16 pass with the correlation window computed on the fly (`raft_flow`): no all-pairs volume.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
+
+    batch_pixels = _GRAPH_PIXELS  # each chunk of a batch replays a graph
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
@@ -95,10 +116,32 @@ class Kernels(Portable):
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.net.correlate = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
+        self._graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs)
+
+    def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self.net(image1, image2, self.ctx.params.iters)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_OnePair, cache_mb=512),
+}

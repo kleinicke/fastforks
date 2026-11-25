@@ -10,6 +10,8 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
+from fastforks._core.upload import device_tensor  # fastforks
 
 from fastforks.shared.depth_anything_v2 import Block, SdpaAttention
 
@@ -34,8 +36,8 @@ def grid(b: int, h: int, w: int, device: torch.device) -> torch.Tensor:
 
 
 def imagenet(img: torch.Tensor) -> torch.Tensor:
-    mean = torch.tensor(IMAGENET_MEAN, device=img.device).view(1, 3, 1, 1)
-    std = torch.tensor(IMAGENET_STD, device=img.device).view(1, 3, 1, 1)
+    mean = device_tensor(IMAGENET_MEAN, device=img.device).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
+    std = device_tensor(IMAGENET_STD, device=img.device).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
     return (img - mean) / std
 
 
@@ -142,7 +144,7 @@ class GP(nn.Module):
     def kernel(self, x: torch.Tensor, y: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
         """Upstream `CosKernel`: `exp((cos(x, y) - 1) / T)`."""
         c = torch.einsum("bnd,bmd->bnm", x, y) / (x.norm(dim=-1)[..., None] * y.norm(dim=-1)[:, None] + eps)
-        return ((c - 1.0) / torch.tensor(self.temperature, device=c.device)).exp()
+        return ((c - 1.0) / device_tensor(self.temperature, device=c.device)).exp()  # fastforks: no host sync (a pageable upload syncs the host)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         b, _, h1, w1 = x.shape
@@ -153,7 +155,11 @@ class GP(nn.Module):
         k_yy = self.kernel(y, y)
         k_xy = self.kernel(x, y)
         sigma_noise = self.sigma_noise * torch.eye(h2 * w2, device=x.device)[None, :, :]
-        lower = torch.linalg.cholesky(k_yy + sigma_noise)
+        covariance = k_yy + sigma_noise
+        if exporting_for_mlx():  # fastforks: keep the unchecked op for the MLX translator
+            lower = torch.linalg.cholesky_ex(covariance, check_errors=False).L
+        else:
+            lower = torch.linalg.cholesky(covariance)
         mu_x = k_xy @ torch.cholesky_solve(f.reshape(b, h2 * w2, d), lower, upper=False)
         return mu_x.transpose(1, 2).reshape(b, d, h1, w1)
 
@@ -189,6 +195,7 @@ class ConvRefiner(nn.Module):
             if self.local_corr_radius:
                 parts.append(self.correlate(x, y, self.local_corr_radius, warp.permute(0, 2, 3, 1)))
             d = torch.cat(parts, dim=1)
+            del parts, x, x_hat, emb, y
             d = self.hidden_blocks(self.block1(d))
         d = self.out_conv(d.float())
         return d[:, :-1], d[:, -1:]
@@ -224,6 +231,8 @@ class Decoder(nn.Module):
         scale_factor: float,
         flow: torch.Tensor | None = None,
         certainty: torch.Tensor | None = None,
+        *,
+        consume: bool = False,
     ) -> dict[int, tuple[torch.Tensor, torch.Tensor]]:
         """`{scale: (flow [B, 2, h, w], certainty logit [B, 1, h, w])}`; `flow` given: the upsampling pass."""
         upsample = flow is not None
@@ -242,15 +251,20 @@ class Decoder(nn.Module):
             ins = int(scale)
             # upstream: under autocast on CUDA (`get_autocast_params` enables it there whatever it is asked), else
             # float32
-            with autocast(f1[ins], self.amp):
+            if consume:
+                f1_s, f2_s = f1.pop(ins), f2.pop(ins)
+            else:
                 f1_s, f2_s = f1[ins], f2[ins]
+            with autocast(f1_s, self.amp):
                 if self.amp is None:
                     f1_s, f2_s = f1_s.float(), f2_s.float()
                 f1_s, f2_s = self.proj[scale](f1_s), self.proj[scale](f2_s)
             if scale == "16":
                 cls, certainty = self.embedding_decoder(self.gps[scale](f1_s, f2_s), f1_s)
                 flow = cls_to_flow_refine(cls).permute(0, 3, 1, 2)
+                del cls
             delta_flow, delta_certainty = self.conv_refiner[scale](f1_s, f2_s, flow, scale_factor)
+            del f1_s, f2_s
             displacement = ins * torch.stack(
                 (delta_flow[:, 0].float() / (self.refine_init * w), delta_flow[:, 1].float() / (self.refine_init * h)),
                 dim=1,
@@ -291,13 +305,14 @@ class RoMa(nn.Module):
         b_hi: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         hs, ws = a.shape[-2:]
-        out = self.decoder(*self.features(torch.cat((a, b))), scale_factor=math.sqrt(hs * ws) / TRAIN_RES)
+        out = self.decoder(*self.features(torch.cat((a, b))), scale_factor=math.sqrt(hs * ws) / TRAIN_RES, consume=True)
         low_res_certainty = out[16][1]
         flow, certainty = out[1]
+        del out
         if a_hi is not None and b_hi is not None:
             hs, ws = a_hi.shape[-2:]
             f1, f2 = self.features(torch.cat((a_hi, b_hi)), upsample=True)
-            flow, certainty = self.decoder(f1, f2, math.sqrt(hs * ws) / TRAIN_RES, flow, certainty)[1]
+            flow, certainty = self.decoder(f1, f2, math.sqrt(hs * ws) / TRAIN_RES, flow, certainty, consume=True)[1]
         low = F.interpolate(low_res_certainty, size=(hs, ws), align_corners=False, mode="bilinear")
         certainty = (certainty - 0.5 * low * (low < 0)).sigmoid()[:, 0]  # upstream attenuate_cert
         certainty = certainty.masked_fill((flow.abs() > 1).any(dim=1), 0)

@@ -26,10 +26,16 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.qk_affine import cached_qk_affine
 
 from .net.layers.pos_embed import RoPE2D
 from .net.pi3 import Pi3
@@ -46,6 +52,7 @@ class Params:
     """Load options."""
 
     pixel_limit: int  # network pixel budget (upstream PIXEL_LIMIT)
+    stream: bool = False  # stage the alternating frame/global decoder blocks from the host
 
 
 def network_size(h: int, w: int, pixel_limit: int) -> tuple[int, int]:
@@ -62,9 +69,12 @@ def network_size(h: int, w: int, pixel_limit: int) -> tuple[int, int]:
 
 
 def _net(ctx: Context) -> Pi3:
+    if ctx.params.stream and (ctx.device.type != "cuda" or ctx.dtype != "float16"):
+        msg = "Pi3 decoder streaming requires CUDA and float16"
+        raise OptionsError(msg)
     net = Pi3()
     net.load_state_dict(ctx.state_dict(), strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    return net.eval().requires_grad_(requires_grad=False)
 
 
 def outputs(pred: dict[str, torch.Tensor], hn: int, wn: int, h0: int, w0: int) -> dict[str, torch.Tensor]:
@@ -146,9 +156,10 @@ def _rope_forward(self: nn.Module, tokens: torch.Tensor, positions: torch.Tensor
     d = tokens.size(3) // 2
     cos, sin = rope.get_cos_sin(d, tokens.size(-2) + 1, tokens.device, tokens.dtype)
     y, x = tokens.chunk(2, dim=-1)
-    return torch.cat(
+    out = torch.cat(
         (rope.apply_rope1d(y, positions[:, :, 0], cos, sin), rope.apply_rope1d(x, positions[:, :, 1], cos, sin)), -1
     )
+    return to_run_dtype(out, tokens.dtype)  # the MLX twin's float32 tables would lift a float16 attention to float32
 
 
 @functools.cache
@@ -170,6 +181,13 @@ def _sdpa_forward(self: Any, x: torch.Tensor, attn_bias: torch.Tensor | None = N
     return self.proj(o.transpose(1, 2).reshape(b, n, c))
 
 
+def _staged_block(
+    block: nn.Module, x: torch.Tensor, tab: tuple[torch.Tensor, torch.Tensor], runner: _Fast
+) -> torch.Tensor:
+    """Apply the selected attention backend to the decoder weights staged for this block."""
+    return runner.block(block, x, tab)
+
+
 class _Fast(_Base):
     """fp16 encoder + decoder with fused q/k-norm + RoPE, fp32 patch and camera heads (see the module docstring)."""
 
@@ -187,10 +205,16 @@ class _Fast(_Base):
         for b in net.encoder.blocks:
             override(b.attn, _sdpa_forward)
         if ctx.dtype == "float32":
+            net.to(ctx.device)
             return
         for m in (net.encoder, net.decoder, net.point_decoder, net.conf_decoder, net.camera_decoder):
             m.half()
         net.register_token.data = net.register_token.data.half()
+        if ctx.params.stream:
+            for block in net.decoder:
+                override(block, _staged_block)
+            net.decoder = StreamedModuleList(net.decoder, ctx.device)
+        net.to(ctx.device)
 
     def patch_tokens(self, x: torch.Tensor) -> torch.Tensor:
         """DINOv2 patch tokens `[B*S, P, C]` of normalised images."""
@@ -203,13 +227,7 @@ class _Fast(_Base):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored AttentionRope
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, N, 1, 1, 64]` of positions `[B, N, 2]`: cos and sign-folded sin."""
@@ -219,7 +237,7 @@ class _Fast(_Base):
         f = torch.cat([f, f], -1)
         cc, sc = f.cos(), f.sin()
         cos = torch.cat([F.embedding(pos[..., 0], cc), F.embedding(pos[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
         sin = torch.cat([F.embedding(pos[..., 0], sc), F.embedding(pos[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
@@ -232,16 +250,20 @@ class _Fast(_Base):
         cos, sin = tab
         qk = F.linear(xn, a.qkv.weight[: 2 * c], a.qkv.bias[: 2 * c])  # contiguous q|k: no copy for group_norm
         v = F.linear(xn, a.qkv.weight[2 * c :], a.qkv.bias[2 * c :]).view(bsz, n, nh, d)
+        del xn
         if isinstance(a.q_norm, nn.LayerNorm):
             nrm = F.group_norm(qk.view(bsz * n, 2 * nh, d), 2 * nh, None, None, a.q_norm.eps).view(bsz, n, 2, nh, d)
             w, bb = self.qk_affine(a)
             qk = torch.addcmul(torch.addcmul(bb * cos, _swap(bb), sin), nrm, w * cos)
             qk = qk.addcmul_(_swap(nrm), _swap(w) * sin)
+            del nrm
         else:  # the head decoders: RoPE only
             qk = qk.view(bsz, n, 2, nh, d)
             qk = torch.addcmul(qk * cos, _swap(qk), sin)
         o = F.linear(self.attention(qk[:, :, 0], qk[:, :, 1], v, a.scale), a.proj.weight, a.proj.bias)
+        del qk, v
         x = torch.addcmul(x, o, blk.ls1.gamma) if hasattr(blk.ls1, "gamma") else x + o
+        del o
         m = blk.mlp
         o = F.linear(F.gelu(F.linear(blk.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
         if hasattr(blk.ls2, "gamma"):
@@ -263,9 +285,11 @@ class _Fast(_Base):
         with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc):
             xn = ((x - net.image_mean[None]) / net.image_std[None]).view(b * s, 3, hn, wn).to(self.dt)
             pt = self.patch_tokens(xn)
+            del xn
             c = pt.shape[-1]
             reg = net.register_token.expand(b, s, -1, -1).reshape(b * s, -1, c)
             hidden = torch.cat([reg, pt.to(self.dt)], 1)
+            del pt, reg
             p = hidden.shape[1]
             pos = net.position_getter(b * s, hp, wp, x.device) + 1
             pos = torch.cat([torch.zeros(b * s, net.patch_start_idx, 2, device=x.device, dtype=pos.dtype), pos], 1)
@@ -274,22 +298,31 @@ class _Fast(_Base):
             last: list[torch.Tensor] = []
             nd = len(net.decoder)
             for i, blk in enumerate(net.decoder):
-                if i % 2 == 0:
-                    hidden = self.block(blk, hidden.view(b * s, p, c), tf)
-                else:
-                    hidden = self.block(blk, hidden.view(b, s * p, c), tg)
+                features, tab = (hidden.view(b * s, p, c), tf) if i % 2 == 0 else (hidden.view(b, s * p, c), tg)
+                hidden = blk(features, tab, self) if self.ctx.params.stream else self.block(blk, features, tab)
+                del features
                 if i + 1 in (nd - 1, nd):
                     last.append(hidden.view(b * s, p, c))  # blocks never write their input in place
             hidden = torch.cat(last, -1)
-            point_h = self.head(net.point_decoder, hidden, tf)
-            conf_h = self.head(net.conf_decoder, hidden, tf)
-            cam_h = self.head(net.camera_decoder, hidden, tf)
+            del last
             psi = net.patch_start_idx
+            point_h = self.head(net.point_decoder, hidden, tf)
+            conf_h = cam_h = None
+            if torch.compiler.is_compiling():
+                # Keep the original operator order when capturing the graph.
+                conf_h = self.head(net.conf_decoder, hidden, tf)
+                cam_h = self.head(net.camera_decoder, hidden, tf)
             lp = net.point_head([point_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
+            del point_h
             xy, z = lp.split([2, 1], dim=-1)
             z = torch.exp(z)
             local = torch.cat([xy * z, z], dim=-1)
+            if conf_h is None:
+                conf_h = self.head(net.conf_decoder, hidden, tf)
             conf = net.conf_head([conf_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
+            del conf_h
+            if cam_h is None:
+                cam_h = self.head(net.camera_decoder, hidden, tf)
             poses = net.camera_head(cam_h[:, psi:].float(), hp, wp).reshape(b, s, 4, 4)
             pts = torch.einsum("bnij,bnhwj->bnhwi", poses[..., :3, :3], local) + poses[..., None, None, :3, 3]
         return {"points": pts, "local_points": local, "conf": conf, "camera_poses": poses}
@@ -313,6 +346,9 @@ class Portable(_Fast):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident Pi3 weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
@@ -355,8 +391,7 @@ class Kernels(_Fast):
             block_chunks=0,
             init_values=1.0,
         )
-        sd = {k: v.float() for k, v in enc.state_dict().items()}
-        vit.load_state_dict(sd, strict=False)  # Pi3 deleted the mask token
+        vit.half().load_state_dict(enc.state_dict(), strict=False)  # Pi3 deleted the mask token
         self.encoder = _Encoder(vit.to(ctx.device).eval(), "hh", None)
         self.net.encoder = nn.Identity().eval()  # the fast copy owns the weights now
 
@@ -371,4 +406,12 @@ class Kernels(_Fast):
         return self.flash(q, k, v, scale).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Upstream(Portable):
+    """The upstream network in any dtype (the MLX graph replaces `net` whole)."""
+
+    def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Upstream `Pi3.forward`."""
+        return self.net(x)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(_Upstream)}

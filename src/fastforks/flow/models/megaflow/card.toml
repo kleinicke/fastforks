@@ -3,7 +3,7 @@ name = "MegaFlow"
 summary = "MegaFlow (Zhang, Wang, Pollefeys, Xu, ECCV 2026): zero-shot large-displacement optical flow from a video transformer. The frames are resized to width 952 for a DINOv2 ViT-L/14 + 24 alternating frame / global attention blocks (VGGT's aggregator); a DPT head fuses four of its layers with a ResNet34 CNN into 128-channel features, a global softmax correlation gives the initial flow, and RAFT-style updates on 9 x 9 local correlations of the CNN's 1/4 features refine it (convex 4x upsampling). The authors' released megaflow-flow weights; the network is ported from cvg/megaflow. A pair runs as upstream's two-frame clip. Paper: state-of-the-art zero-shot results on Sintel, KITTI and Spring."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT-L of the kernels path)
+uses = ["depth_anything_v2", "mlx_wrap", "qk_affine"]  # fastforks.shared modules this family imports (the DINOv2 ViT-L of the kernels path)
 limitations = ["Pairs only: upstream's multi-frame clips (temporal attention across more than two frames) and its point-tracking and chairs-things checkpoints are not exposed."]
 
 [upstream]
@@ -31,6 +31,7 @@ iters = { default = 8, min = 1 }  # refinement updates (upstream README and demo
 [modes.portable]
 cuda_dtype = "float16"  # pure fp16 network (aggregator, head, CNN, update block); global and local correlation sampling and the flow in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc", "raft_flow"]  # flash attention + fast DINOv2, fp16-accumulate convs, the correlation windows on the fly

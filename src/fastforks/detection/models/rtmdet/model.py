@@ -20,7 +20,9 @@ object at the right or bottom border can reach into the padding.
 
 Portable runs the network in float16 on CUDA (channels-last), scores and boxes in float32. Kernels runs the whole
 network through `fastforks._optimize` (fused conv + SiLU / residual / concat kernels, fp16, channels-last) and replays
-normalisation, network and box decoding from one CUDA graph (the input is always `size x size`).
+normalisation, network and box decoding from one CUDA graph per batch size (the input is always `size x size`; one
+image and one batch size are kept). The resize to the canvas replays from a graph of its own per input shape (two
+kept), captured when a shape comes a second time.
 """
 
 from __future__ import annotations
@@ -35,10 +37,12 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -96,10 +100,10 @@ def fit(h: int, w: int, size: int) -> tuple[int, int]:
 
 
 def canvas(image: torch.Tensor, size: int) -> tuple[torch.Tensor, tuple[float, float]]:
-    """`[1, 3, H, W]` RGB in [0, 1] or uint8 -> the padded uint8 `[1, 3, size, size]` canvas, (x, y) factors."""
+    """`[B, 3, H, W]` RGB in [0, 1] or uint8 -> the padded uint8 `[B, 3, size, size]` canvas, (x, y) factors."""
     h, w = image.shape[-2:]
     nh, nw = fit(h, w, size)
-    x = image.new_full((1, 3, size, size), int(PAD), dtype=torch.uint8)  # exact: the levels are integers
+    x = image.new_full((image.shape[0], 3, size, size), int(PAD), dtype=torch.uint8)  # exact: the levels are integers
     x[..., :nh, :nw] = cv2_linear(image, nh, nw, 1.0 if image.dtype == torch.uint8 else 255.0)
     return x, (nw / w, nh / h)
 
@@ -110,6 +114,8 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     uint8_input = True
+    batch = None  # `detect_batch`: a batch of images in one network call (candidates and NMS per image)
+    compiled_methods = ("__call__", "detect_batch")
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
@@ -138,9 +144,8 @@ class Portable(Runner):
         return decode(self.run((x - self.mean) / self.std), *grid, exp_on_reg=self.ctx.params.exp_on_reg)
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Logits `[N, classes]` and boxes `[N, 4]` of the canvas."""
-        logits, boxes = self.predict(x, self.grid)
-        return logits[0], boxes[0]
+        """Logits `[B, N, classes]` and boxes `[B, N, 4]` of the canvases."""
+        return self.predict(x, self.grid)
 
     def candidates(self, logits: torch.Tensor, score_threshold: float) -> tuple[torch.Tensor, ...]:
         """Cell, label and score of every class score at or above the threshold (cells ascending)."""
@@ -150,9 +155,24 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """The reference's test pipeline and box postprocessing on one image."""
-        p: Params = self.ctx.params
-        x, (sx, sy) = canvas(image, p.size)
+        return self.detect_batch(image, score_threshold)[0]
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` on each image of `[B, 3, H, W]`, the network run once on the batch."""
+        x, factors = self.fit_canvas(images)
         logits, boxes = self._forward(x)
+        return [self._finish(logits[i], boxes[i], factors, score_threshold) for i in range(len(boxes))]
+
+    def fit_canvas(self, images: torch.Tensor) -> tuple[torch.Tensor, tuple[float, float]]:
+        """The padded canvases of `[B, 3, H, W]` images and the (x, y) resize factors (see `canvas`)."""
+        return canvas(images, self.ctx.params.size)
+
+    def _finish(
+        self, logits: torch.Tensor, boxes: torch.Tensor, factors: tuple[float, float], score_threshold: float
+    ) -> dict[str, torch.Tensor]:
+        """Candidates, box scaling, NMS and the best `max_detections` of one image's cells."""
+        p: Params = self.ctx.params
+        sx, sy = factors
         cell, label, score = self.candidates(logits, score_threshold)
         if cell.numel() > p.nms_pre:  # only then can a level hold more than `nms_pre`
             parts = []
@@ -161,8 +181,9 @@ class Portable(Runner):
                 parts.append(m[score[m].topk(p.nms_pre).indices] if m.numel() > p.nms_pre else m)
             sel = torch.cat(parts)
             cell, label, score = cell[sel], label[sel], score[sel]
-        out = boxes[cell].clamp_(0, p.size) / boxes.new_tensor([sx, sy, sx, sy])
-        ok = (out[:, 2] > out[:, 0]) & (out[:, 3] > out[:, 1])  # the reference's `min_bbox_size = 0`
+        out = boxes[cell].clamp_(0, p.size) / device_tensor([sx, sy, sx, sy], device=boxes.device, dtype=boxes.dtype)
+        # the reference's `min_bbox_size = 0`, as indices: one host sync for the three outputs and the size check
+        ok = ((out[:, 2] > out[:, 0]) & (out[:, 3] > out[:, 1])).nonzero()[:, 0]
         out, label, score = out[ok], label[ok], score[ok]
         if out.numel():
             keep = classwise_nms(out, label, score, p.nms_iou)[: p.max_detections]
@@ -197,27 +218,44 @@ class Kernels(Portable):
         """The portable network, then its optimized copy and the graph cache."""
         super().__init__(ctx)
         self.net = optimize(copy.deepcopy(self.net.float()), mode="kernels", device=ctx.device, family="cnn")
-        self.graphs = GraphCache(self._eager, graphs=1) if ctx.params.cuda_graphs else None
+        self.graphs = GraphCache(self._eager, graphs=2) if ctx.params.cuda_graphs else None  # one image + one batch
+        # the resize to the canvas, a graph of its own per input shape: about 40 small launches; images of varying
+        # sizes still replay the network graph, which only depends on the batch size
+        self.canvases = GraphCache(self._canvas, graphs=2) if ctx.params.cuda_graphs else None
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The head maps of a normalised float32 input (the optimized network converts dtype and layout itself)."""
         return self.net(x)
 
+    def _canvas(self, images: torch.Tensor) -> torch.Tensor:
+        return canvas(images, self.ctx.params.size)[0]
+
+    def fit_canvas(self, images: torch.Tensor) -> tuple[torch.Tensor, tuple[float, float]]:
+        """The canvases from the input shape's graph once it is captured, else eagerly (and the factors)."""
+        key = (images.device, images.dtype, tuple(images.shape))
+        x = self.canvases.run(key, images) if self.canvases is not None else None
+        if x is None:
+            return canvas(images, self.ctx.params.size)
+        (h, w), size = images.shape[-2:], self.ctx.params.size
+        nh, nw = fit(h, w, size)
+        return x, (nw / w, nh / h)
+
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
-        """Logits and boxes of the canvas as one float32 `[N, classes + 4]` tensor (one graph output)."""
+        """Logits and boxes of the canvases as one float32 `[B, N, classes + 4]` tensor (one graph output)."""
         logits, boxes = self.predict(x, self.grid)
-        return torch.cat((logits[0], boxes[0]), -1)
+        return torch.cat((logits, boxes), -1)
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         out = self.graphs.run((x.device, tuple(x.shape)), x) if self.graphs is not None else None
         if out is None:
             out = self._eager(x)
-        return out[:, :-4], out[:, -4:]
+        return out[..., :-4], out[..., -4:]
 
     def release_graphs(self) -> None:
-        """Free the CUDA graph and its memory pool."""
-        if self.graphs is not None:
-            self.graphs.release()
+        """Free the CUDA graphs and their memory pools."""
+        for cache in (self.graphs, self.canvases):
+            if cache is not None:
+                cache.release()
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
@@ -236,4 +274,8 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, **logs, **scalars}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

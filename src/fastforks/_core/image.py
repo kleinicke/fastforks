@@ -1,8 +1,9 @@
 """Input images -> float32 RGB tensors `[B, 3, H, W]` in `[0, 1]`.
 
 Accepted: file paths, encoded image bytes (`bytes`, `bytearray`, `io.BytesIO`: a PNG / JPEG / ... file's content, e.g.
-an upload; decoded like a path), PIL images, numpy arrays (channel-last: `HW`, `HWC`, `BHWC`) and torch tensors
-(channel-first: `HW`, `CHW`, `BCHW`). Integer images are scaled by their dtype's maximum (uint8: 255, uint16: 65535);
+an upload; decoded like a path), PIL images, numpy arrays (channel-last: `HW`, `HWC`, `BHWC`), MLX arrays (`mx.array`,
+channel-last like numpy; copied to the host once) and torch tensors (channel-first: `HW`, `CHW`, `BCHW`). Integer
+images are scaled by their dtype's maximum (uint8: 255, uint16: 65535);
 floating-point images must already be in `[0, 1]`. One channel is replicated to RGB, a fourth (alpha) channel is
 dropped. numpy arrays and PIL images are RGB (convert OpenCV's BGR first). Files are read as stored: the EXIF
 orientation tag of a JPEG is not applied (apply `PIL.ImageOps.exif_transpose` and pass the image if the photo should
@@ -56,6 +57,8 @@ _UINT16_BITS, _UINT16_MAX = 16, 65535
 _EXIF_ORIENTATION = 0x0112
 _TIFF_BITS, _TIFF_SAMPLES = 258, 277  # BitsPerSample, SamplesPerPixel
 _CHECKED: ContextVar[bool] = ContextVar("fastforks_images_checked", default=False)  # see `checked_ranges`
+_DEFERRED: ContextVar[list | None] = ContextVar("fastforks_images_deferred", default=None)  # `deferred_ranges`
+_LATE: ContextVar[list | None] = ContextVar("fastforks_images_late", default=None)  # `late_ranges`
 _LOSSLESS_FIX = (
     "load it with tifffile or cv2.imread(path, cv2.IMREAD_UNCHANGED) (then BGR->RGB) and pass the numpy array"
     " (HWC, uint16 or float in [0, 1])"
@@ -79,6 +82,8 @@ def _as_tensor(img: ImageLike) -> torch.Tensor:
     shape = tuple(getattr(img, "shape", ()))  # as the caller passed it, for the error messages
     if isinstance(img, Image.Image):
         img = _pil_image(img)
+    if type(img).__module__.partition(".")[0] == "mlx":  # an `mx.array`, without importing mlx: laid out as numpy
+        img = np.array(img)
     if isinstance(img, np.ndarray):
         t = _from_numpy(img)
     elif isinstance(img, torch.Tensor):
@@ -387,20 +392,96 @@ def checked_ranges() -> Generator[None]:
         _CHECKED.reset(token)
 
 
+@contextlib.contextmanager
+def deferred_ranges() -> Generator[None]:
+    """Internal: inside, float value-range checks are collected and run once on leaving (one host sync in all).
+
+    For per-frame video decoding: one check per frame would wait for the device once per frame. An out-of-range frame
+    then raises (naming its values) after the block's work, not before it; a block left by an exception checks nothing.
+    """
+    pending: list[tuple[torch.Tensor, torch.Tensor]] = []
+    token = _DEFERRED.set(pending)
+    try:
+        yield
+    finally:
+        _DEFERRED.reset(token)
+    _check_ranges(pending)
+
+
+@contextlib.contextmanager
+def late_ranges() -> Generator[None]:
+    """Internal: inside, the float value-range checks of CUDA images are read once on leaving, without a host sync.
+
+    Every model `__call__` runs inside (`Model.__init_subclass__`). The check's `[min, max]` goes to pinned host memory
+    behind a CUDA event, so the host launches the network without waiting for the device; on leaving it waits only for
+    that event (stream-ordered before the network, so usually done). An out-of-range image then raises after the
+    call's work was queued; when the call itself fails, an out-of-range image is reported instead (chained), as the
+    likelier cause.
+    """
+    pending: list[tuple[torch.cuda.Event, torch.Tensor]] = []
+    token = _LATE.set(pending)
+    try:
+        yield
+    except Exception as e:
+        err = None
+        with contextlib.suppress(Exception):  # the original error stands if the check cannot be read (a CUDA fault)
+            err = _late_error(pending)
+        if err is not None:
+            raise err from e
+        raise
+    finally:
+        _LATE.reset(token)
+    err = _late_error(pending)
+    if err is not None:
+        raise err
+
+
+def _late_error(pending: Sequence[tuple[torch.cuda.Event, torch.Tensor]]) -> InputError | None:
+    """The error of the first out-of-range image among the queued checks of `late_ranges`, or `None`."""
+    for event, host in pending:
+        event.synchronize()
+        for lo, hi in host.tolist():
+            if not (lo >= 0 and hi <= 1):  # also NaN (every comparison with NaN is False)
+                return _range_error(lo, hi)
+    return None
+
+
+def _range_error(lo: float, hi: float) -> InputError:
+    return InputError(
+        f"float images must be finite and in [0, 1], got [{lo:.9g}, {hi:.9g}]"
+        " (divide 0..255 images by 255; clamp(0, 1) values that overshoot, e.g. after bicubic resizing)"
+    )
+
+
 def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) -> None:
     """Raise `InputError` for the first float image whose `[min, max]` (`bounds`) is not finite and in `[0, 1]`."""
     given = [b for b in bounds if b is not None]
     if not given:
         return
+    pending = _DEFERRED.get()
+    if pending is not None:
+        pending.extend(given)
+        return
+    late = _LATE.get()
+    device = given[0][0].device
+    if (
+        late is not None
+        and device.type == "cuda"
+        and all(lo.device == device for lo, _ in given)
+        and not torch.compiler.is_compiling()
+    ):
+        stats = torch.stack([torch.stack(b) for b in given])  # [n, 2]: min, max
+        host = torch.empty(stats.shape, dtype=stats.dtype, pin_memory=True)
+        host.copy_(stats, non_blocking=True)
+        event = torch.cuda.Event()
+        event.record(torch.cuda.current_stream(device))
+        late.append((event, host))
+        return
     ok = [(lo >= 0) & (hi <= 1) for lo, hi in given]  # also rejects NaN (every comparison with NaN is False)
     if bool(ok[0] if len(ok) == 1 else torch.stack(ok).all()):  # one host sync
         return
     lo, hi = next(b for b, good in zip(given, ok, strict=True) if not bool(good))
-    msg = (
-        f"float images must be finite and in [0, 1], got [{lo.item():.9g}, {hi.item():.9g}]"
-        " (divide 0..255 images by 255; clamp(0, 1) values that overshoot, e.g. after bicubic resizing)"
-    )
-    raise InputError(msg)
+    raise _range_error(lo.item(), hi.item())
 
 
 def _to_rgb(
@@ -418,18 +499,19 @@ def _to_rgb(
     if c == _RGBA:
         t = t[:, :_RGB]
     bounds = None
+    lazy = t.device.type != "mps"  # an unawaited copy off MPS reads the host tensor before its values arrive
     if t.is_floating_point():
-        t = t.to(device, torch.float32, non_blocking=True)
+        t = t.to(device, torch.float32, non_blocking=lazy)
         if not _CHECKED.get():
             bounds = t.aminmax()
     elif keep_uint8 and t.dtype == torch.uint8:
-        t = t.to(device, non_blocking=True)
+        t = t.to(device, non_blocking=lazy)
     else:
         scale = _INT_MAX.get(t.dtype)
         if scale is None:
             msg = f"unsupported image dtype {t.dtype} (use uint8, uint16 or float in [0, 1])"
             raise InputError(msg)
-        t = t.to(device, non_blocking=True).to(torch.float32).div_(scale)
+        t = t.to(device, non_blocking=lazy).to(torch.float32).div_(scale)
     if t.shape[1] == 1:
         t = t.expand(-1, _RGB, -1, -1)
     return t.contiguous(), c, bounds

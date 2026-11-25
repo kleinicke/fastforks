@@ -1,0 +1,783 @@
+{
+ "last_node_id": 16,
+ "last_link_id": 14,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "Note",
+   "pos": [
+    0,
+    -260
+   ],
+   "size": [
+    520,
+    200
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {},
+   "widgets_values": [
+    "Background removal: five matting/saliency models. The IMAGE output is the cut-out (RGBA)."
+   ]
+  },
+  {
+   "id": 2,
+   "type": "LoadImage",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    300,
+    340
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      1,
+      3,
+      5,
+      7,
+      9,
+      11,
+      13
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "widgets_values": [
+    "example.png",
+    "image"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "FastforksRemoveBackground",
+   "pos": [
+    380,
+    0
+   ],
+   "size": [
+    330,
+    230
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "trimap",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "rgba",
+     "type": "IMAGE",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "birefnet-lite (auto)",
+   "widgets_values": [
+    "birefnet-lite",
+    "auto",
+    "auto",
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "type": "PreviewImage",
+   "pos": [
+    740,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 5,
+   "type": "FastforksRemoveBackground",
+   "pos": [
+    380,
+    380
+   ],
+   "size": [
+    330,
+    230
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3
+    },
+    {
+     "name": "trimap",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "rgba",
+     "type": "IMAGE",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "isnet-general-use (auto)",
+   "widgets_values": [
+    "isnet-general-use",
+    "auto",
+    "auto",
+    1
+   ]
+  },
+  {
+   "id": 6,
+   "type": "PreviewImage",
+   "pos": [
+    740,
+    380
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 7,
+   "type": "FastforksRemoveBackground",
+   "pos": [
+    380,
+    760
+   ],
+   "size": [
+    330,
+    230
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 5
+    },
+    {
+     "name": "trimap",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "rgba",
+     "type": "IMAGE",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "inspyrenet-fast (auto)",
+   "widgets_values": [
+    "inspyrenet-fast",
+    "auto",
+    "auto",
+    1
+   ]
+  },
+  {
+   "id": 8,
+   "type": "PreviewImage",
+   "pos": [
+    740,
+    760
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 9,
+   "type": "FastforksRemoveBackground",
+   "pos": [
+    380,
+    1140
+   ],
+   "size": [
+    330,
+    230
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "name": "trimap",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "rgba",
+     "type": "IMAGE",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "u2net (auto)",
+   "widgets_values": [
+    "u2net",
+    "auto",
+    "auto",
+    1
+   ]
+  },
+  {
+   "id": 10,
+   "type": "PreviewImage",
+   "pos": [
+    740,
+    1140
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 11,
+   "type": "FastforksRemoveBackground",
+   "pos": [
+    380,
+    1520
+   ],
+   "size": [
+    330,
+    230
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 9
+    },
+    {
+     "name": "trimap",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "rgba",
+     "type": "IMAGE",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "ben2 (auto)",
+   "widgets_values": [
+    "ben2",
+    "auto",
+    "auto",
+    1
+   ]
+  },
+  {
+   "id": 12,
+   "type": "PreviewImage",
+   "pos": [
+    740,
+    1520
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 13,
+   "type": "RMBG",
+   "pos": [
+    1160,
+    0
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "MASK_IMAGE",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {},
+   "title": "ComfyUI-RMBG: INSPYRENET",
+   "widgets_values": [
+    "INSPYRENET",
+    1.0,
+    1024,
+    0,
+    0,
+    false,
+    false,
+    false,
+    "Alpha",
+    "#222222"
+   ]
+  },
+  {
+   "id": 14,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 15,
+   "type": "RMBG",
+   "pos": [
+    1160,
+    380
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "MASK_IMAGE",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {},
+   "title": "ComfyUI-RMBG: BEN2",
+   "widgets_values": [
+    "BEN2",
+    1.0,
+    1024,
+    0,
+    0,
+    false,
+    false,
+    false,
+    "Alpha",
+    "#222222"
+   ]
+  },
+  {
+   "id": 16,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    380
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  }
+ ],
+ "links": [
+  [
+   1,
+   2,
+   0,
+   3,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   3,
+   0,
+   4,
+   0,
+   "IMAGE"
+  ],
+  [
+   3,
+   2,
+   0,
+   5,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   5,
+   0,
+   6,
+   0,
+   "IMAGE"
+  ],
+  [
+   5,
+   2,
+   0,
+   7,
+   0,
+   "IMAGE"
+  ],
+  [
+   6,
+   7,
+   0,
+   8,
+   0,
+   "IMAGE"
+  ],
+  [
+   7,
+   2,
+   0,
+   9,
+   0,
+   "IMAGE"
+  ],
+  [
+   8,
+   9,
+   0,
+   10,
+   0,
+   "IMAGE"
+  ],
+  [
+   9,
+   2,
+   0,
+   11,
+   0,
+   "IMAGE"
+  ],
+  [
+   10,
+   11,
+   0,
+   12,
+   0,
+   "IMAGE"
+  ],
+  [
+   11,
+   2,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ],
+  [
+   12,
+   13,
+   0,
+   14,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   2,
+   0,
+   15,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   15,
+   0,
+   16,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

@@ -17,6 +17,8 @@ import torch.nn.functional as F
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, use_sdpa_attention
 
@@ -42,6 +44,7 @@ class Params:
 
     arch: str  # "vits" or "vitl"
     max_size: int  # longest network side, rounded down to a multiple of 14
+    cuda_graphs: bool
 
 
 def network_size(h: int, w: int, max_size: int) -> tuple[int, int]:
@@ -135,6 +138,7 @@ class Kernels(Runner):
     batch = None
     Params = Params
     prompt_depth = "required"
+    _GRAPH_PIXELS = 384 * 576  # fixed: cap both the processed image and prompt (ViT-S)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network on the CPU, convert it, move it to the device."""
@@ -144,6 +148,23 @@ class Kernels(Runner):
         self.vit = FusedViT(net.pretrained, ctx.device, k, "hh")
         self.head = PromptFusedHead(net.depth_head, ctx.device, k)
         self.layers = net.layers
+        self._graphs = SmallShapeGraphs(
+            self._predict,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs and ctx.params.arch == "vits",
+            capture_after=2,
+            size=self._graph_pixels,
+            one_shape=True,
+        )
+
+    def _graph_pixels(self, image: torch.Tensor, prompt: torch.Tensor) -> int:
+        return max(image.numel() // image.shape[1], prompt.numel())
+
+    def _predict(self, image: torch.Tensor, prompt: torch.Tensor) -> torch.Tensor:
+        h, w = image.shape[-2:]
+        # The caller has resized the image. The only shape-owned tables read here are the ViT's own.
+        feats = self.vit.features(image, (h, w), self.layers)
+        return self.head(feats, h // PATCH, w // PATCH, prompt)
 
     def __call__(  # ty: ignore[invalid-method-override]
         self,
@@ -155,9 +176,17 @@ class Kernels(Runner):
         size = network_size(*image.shape[-2:], self.ctx.params.max_size)
         lo, span = _range(prompt_depth)
         with torch.autocast("cuda", enabled=False):
-            feats = self.vit.features(_resize(image, size), size, self.layers)  # the resize is the identity here
-            d = self.head(feats, size[0] // PATCH, size[1] // PATCH, (prompt_depth - lo) / span)
+            d = self._graphs(_resize(image, size), (prompt_depth - lo) / span)
         return {"depth": _restore(d * span[:, 0] + lo[:, 0], image.shape[-2:])}
 
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

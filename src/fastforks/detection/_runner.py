@@ -14,8 +14,9 @@ class Portable(Runner):
 ```
 
 Detectors resize, normalise and pad the image themselves (each family has its own resize rule, e.g. shortest edge
-800), and map boxes and masks back to the input size. The core converts images, runs a batch one image at a time,
-checks shapes, locks the model and guards the device.
+800), and map boxes and masks back to the input size. The core converts images, checks shapes, locks the model and
+guards the device. A batch runs one image at a time, unless the runner sets `batch` to `None` (or a chunk size) and
+implements `detect_batch`, which detects in several images of the same size with one network call.
 
 Portable runners also implement `module()`: the dense part of the network (backbone + feature pyramid) as an
 `nn.Module`; proposal selection, NMS and mask pasting are data-dependent and stay outside.
@@ -24,21 +25,19 @@ Portable runners also implement `module()`: the dense part of the network (backb
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING
+
+import torch
 
 from fastforks._core import runner as core
 from fastforks._core.runner import Context, Forward, NoParams
 
-if TYPE_CHECKING:
-    import torch
-
-__all__ = ["Context", "Forward", "NoParams", "Runner"]
+__all__ = ["Context", "Forward", "NoParams", "Runner", "split_kept"]
 
 
 class Runner(core.Runner):
     """One backend of an object detection family."""
 
-    batch = 1
+    batch = 1  # images per `detect_batch` call (None: any number); 1: the core calls `__call__` per image
     open_vocabulary = False  # True: `__call__` also takes `text` (class names; labels index into them)
 
     @abc.abstractmethod
@@ -57,3 +56,18 @@ class Runner(core.Runner):
             input pixels), `scores` `[N]`, `labels` `[N]` int64 (index into the card's label set), `masks`
             `[N, H, W]` bool (mask families).
         """
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` for every image of `images` `[B, 3, H, W]`; runners with `batch != 1` batch the network call."""
+        return [self(images[i : i + 1], score_threshold) for i in range(images.shape[0])]
+
+
+def split_kept(keep: torch.Tensor, max_detections: int, **outputs: torch.Tensor) -> list[dict[str, torch.Tensor]]:
+    """Per image of `keep` `[B, Q]` (bool), the rows of `outputs` `[B, Q, ...]` it keeps, at most `max_detections`.
+
+    The rows stay in query order. One host sync reads the kept positions (two for a batch: the counts per image).
+    """
+    nz = keep.nonzero()  # [K, 2]
+    b = keep.shape[0]
+    rows = [nz[:, 1]] if b == 1 else nz[:, 1].split(torch.bincount(nz[:, 0], minlength=b).tolist())
+    return [{k: v[b][r[:max_detections]] for k, v in outputs.items()} for b, r in enumerate(rows)]

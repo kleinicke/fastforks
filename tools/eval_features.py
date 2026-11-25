@@ -136,7 +136,7 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:  # noqa: C901,
         pooled: Any = timm.create_model(full.split("@")[0], pretrained=True, num_classes=0).cuda().eval()
         net = feat = pooled  # head norm of the mean stage-4 map (`forward_head(pre_logits=True)`)
 
-    elif "arch" in {**card.params, **variant.params}:  # CLIP / SigLIP 2 / Perception Encoder: timm by name
+    elif card.family in {"clip", "siglip2", "perception_encoder"}:  # timm by name
         import timm  # noqa: PLC0415
 
         from fastforks._core import registry  # noqa: PLC0415
@@ -214,6 +214,21 @@ def _part(stem: Path, s0: int, chunk: int, n: int) -> Path:
     return Path(f"{stem}__{s0:05d}-{min(s0 + chunk, n):05d}.npz")
 
 
+def _score_parts(  # noqa: PLR0913 - data, split and scoring options
+    parts: list[Any], labels: torch.Tensor, ntr: int, k: int, *, weighted: bool, device: str
+) -> float:
+    """Score complete cached chunks only when every output is finite."""
+    nonfinite = sum(int(p["nonfinite"]) for p in parts)
+    values = np.concatenate([p["feat"] for p in parts])
+    if nonfinite or not np.isfinite(values).all():
+        msg = f"non-finite features in cached chunks (reported {nonfinite} images)"
+        raise ValueError(msg)
+    feats = torch.from_numpy(values).float().to(device)
+    feats = torch.nn.functional.normalize(feats, dim=1)
+    lab = labels.to(device)
+    return knn(feats[:ntr], lab[:ntr], feats[ntr:], lab[ntr:], k, weighted=weighted)
+
+
 def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resumable chunk loop
     """Tier mode: chunks of features per model / tier, then one kNN record each; 3 = budget hit."""
     t0 = time.perf_counter()
@@ -226,7 +241,11 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
         msg = f"cache {a.cache} has {len(imgs)} images, expected {len(tr) + len(te)}"
         raise SystemExit(msg)
     jl = out / "features.jsonl"
-    done = {(r["model"], r["tier"]) for r in map(json.loads, jl.read_text().splitlines())} if jl.exists() else set()
+    done = (
+        {(r["model"], r["tier"]) for r in map(json.loads, jl.read_text(encoding="utf-8").splitlines())}
+        if jl.exists()
+        else set()
+    )
     for ref in a.models.split(","):
         for tier in a.tiers.split(","):
             if (ref, tier) in done:
@@ -276,23 +295,22 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
                                    "k": a.k, "weighted": a.weighted}  # fmt: skip
             if err is None:
                 parts = [np.load(_part(stem, s0, a.chunk, len(imgs))) for s0 in range(0, len(imgs), a.chunk)]
-                feats = torch.from_numpy(np.concatenate([p["feat"] for p in parts])).float().cuda()
-                feats = torch.nn.functional.normalize(feats.nan_to_num(), dim=1)
-                ntr = len(tr)
-                lab = labels.cuda()
-                top1 = knn(feats[:ntr], lab[:ntr], feats[ntr:], lab[ntr:], a.k, weighted=bool(a.weighted))
                 meta = json.loads(str(parts[0]["meta"]))
                 rec |= meta | {
-                    "top1": round(top1, 3),
                     "img_s": round(sum(int(p["n"]) for p in parts) / sum(float(p["t_run"]) for p in parts), 1),
                     "alloc_mb": max(int(p["alloc"]) for p in parts), "res_mb": max(int(p["res"]) for p in parts),
                     "nonfinite": sum(int(p["nonfinite"]) for p in parts),
                 }  # fmt: skip
+                try:
+                    top1 = _score_parts(parts, labels, len(tr), a.k, weighted=bool(a.weighted), device="cuda")
+                    rec["top1"] = round(top1, 3)
+                except ValueError as e:
+                    rec["error"] = str(e)
             else:
                 rec["error"] = err
             rec |= {"gpu": torch.cuda.get_device_name(), "torch": torch.__version__, "commit": _commit(),
                     "date": time.strftime("%F %H:%M"), "command": " ".join(["python", *sys.argv])}  # fmt: skip
-            with jl.open("a") as fo:
+            with jl.open("a", encoding="utf-8") as fo:
                 fo.write(json.dumps(rec) + "\n")
             print(json.dumps(rec), flush=True)
     return 0
@@ -384,7 +402,7 @@ def main() -> None:  # noqa: PLR0915
         rec["command"] = " ".join(["python", *sys.argv])
         print(json.dumps(rec), flush=True)
         if a.out:
-            with Path(a.out).open("a") as f:
+            with Path(a.out).open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
 
 

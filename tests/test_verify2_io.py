@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import types
 
 import numpy as np
@@ -15,6 +16,7 @@ from fastforks import InputError
 from fastforks._core.image import to_rgb_batch
 from fastforks.stereo import geometry as g
 from fastforks.stereo.pipeline import run_many
+from test_files import SYMLINKS
 
 
 def _images(d, *names):
@@ -25,6 +27,7 @@ def _images(d, *names):
 
 class _Fake:
     device = torch.device("cpu")
+    _device = device
     variant, backend, options = types.SimpleNamespace(ref="fake@1"), "portable", {}
 
     def __call__(self, left, right):  # noqa: ARG002
@@ -36,7 +39,13 @@ def test_output_may_not_overwrite_an_input(tmp_path):  # T16-B1
     _images(tmp_path / "L", "a.png")
     _images(tmp_path / "R", "a.png")
     link = tmp_path / "link"
-    link.symlink_to(tmp_path / "L")
+    if SYMLINKS:
+        link.symlink_to(tmp_path / "L")
+    else:  # Windows without the symlink privilege: a junction is another name for the directory too
+        assert os.name == "nt"
+        import _winapi  # noqa: PLC0415 - Windows only
+
+        _winapi.CreateJunction(str(tmp_path / "L"), str(link))
     for out in (tmp_path / "L", link):
         with pytest.raises(InputError, match="overwrite the input"):
             run_many(None, str(tmp_path / "L"), str(tmp_path / "R"), save_to=out, save_format=".png")  # type: ignore[arg-type]
@@ -83,13 +92,13 @@ def test_truncated_and_oversized_images_are_input_errors(monkeypatch):  # IM-1
 
 
 def test_colmap_images_txt_alternates_image_and_observation_lines(tmp_path):  # VIK-01
-    (tmp_path / "cameras.txt").write_text("# c\n1 PINHOLE 64 48 50 50 32 24\n")
+    (tmp_path / "cameras.txt").write_text("# c\n1 PINHOLE 64 48 50 50 32 24\n", encoding="utf-8")
     (tmp_path / "images.txt").write_text(
         "# images\n"
         "1 1 0 0 0 -1000 -2000 -3000 1 l.png\n"
         "0 1 0 0 0 -1 0 0 1 10 10 -1\n"  # an observation row that looks like an image line
         "2 1 0 0 0 -1100 -2000 -3000 1 r.png\n"
-        "\n"  # an empty observation line
+        "\n"  # an empty observation line, encoding="utf-8"
     )
     rig = g.read_calib(tmp_path, "colmap", unit="mm")
     assert rig.baseline == pytest.approx(0.1)
@@ -97,8 +106,8 @@ def test_colmap_images_txt_alternates_image_and_observation_lines(tmp_path):  # 
 
 @pytest.mark.parametrize("bad", [0, -1.0, float("nan"), float("inf"), "km", True])
 def test_unit_accepts_positive_numbers_only(tmp_path, bad):  # VIK-02
-    (tmp_path / "cameras.txt").write_text("1 PINHOLE 64 48 50 50 32 24\n")
-    (tmp_path / "images.txt").write_text("1 1 0 0 0 0 0 0 1 l.png\n\n2 1 0 0 0 -100 0 0 1 r.png\n\n")
+    (tmp_path / "cameras.txt").write_text("1 PINHOLE 64 48 50 50 32 24\n", encoding="utf-8")
+    (tmp_path / "images.txt").write_text("1 1 0 0 0 0 0 0 1 l.png\n\n2 1 0 0 0 -100 0 0 1 r.png\n\n", encoding="utf-8")
     assert g.read_calib(tmp_path, "colmap", unit=0.001).baseline == pytest.approx(0.1)
     with pytest.raises(InputError, match="unit must be"):
         g.read_calib(tmp_path, "colmap", unit=bad)

@@ -39,6 +39,10 @@ class GMAUpdateBlock(nn.Module):
 
     def forward(self, net, inp, corr, flow, attention):
         motion_features = self.encoder(flow, corr)
+        return self.refine_motion(net, inp, motion_features, attention)
+
+    def refine_motion(self, net, inp, motion_features, attention):
+        """Refine with encoded motion after the correlation windows can be released."""
         motion_features_global = self.aggregator(attention, motion_features)
         inp = torch.cat([inp, motion_features, motion_features_global], dim=1)
         for blk in self.refine:

@@ -2,6 +2,7 @@
 
     python tools/select_tests.py BASE [HEAD] [--json]      # the files of `git diff --name-only BASE..HEAD`
     python tools/select_tests.py --files PATH ... [--json]
+    python tools/select_tests.py BASE [HEAD] --golden-nodeids {cpu,gpu}
 
 A changed file selects every family whose static import closure holds it. The closure of a family starts from its own
 modules (`src/fastforks/<task>/models/<family>/**/*.py`), its card's kernel libraries (`[modes.kernels] kernels`) and
@@ -13,15 +14,25 @@ asks for (`kernel_libs`, a task's save path), and the harness seeds drop kernel 
 that loads its submodules with `pkgutil.iter_modules` (the task specs) imports all of them. A file that is not a module
 (kernel source, manifest, card.toml, golden.toml, a JSON table) belongs to its package; a deleted one to its nearest
 existing package, except the ref tables of _core (`REF_TABLES`: auto_portable.json, sizes.json): with a git range they
-select the families whose refs occur in their changed lines. tests/test_golden.py itself selects every family;
-`GATE_TOOLS` (this file and the gate's timing tools) only the fast tier. pyproject.toml / uv.lock select every family
-and flag `release` (dependencies changed: run the release suite). Everything else (docs, tools, other tests) selects no
-family.
+select the families whose refs occur in their changed lines. A git range limited to existing golden reference records
+selects those revisions when the manifest's shared settings are unchanged. Changing tests/test_golden.py selects every
+family. Changing a `GATE_TOOLS` file selects the fast tier. pyproject.toml / uv.lock select every family
+and flag `release` (dependencies changed: use the broad gate). When both git snapshots are available, an edit limited
+to the local package version in either file leaves the dependency selection unchanged. Edits limited to a card's
+summary and limitations select card and documentation checks. Everything else (docs, tools, other tests) selects
+no family.
 
-Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
-files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
-non-Python test data or the dependencies changed. GPU: per family its golden refs, as a `-k` expression for
-tests/test_golden.py (`[<ref without @rev>` matches the parameter ids of test_gpu and test_gpu_module).
+An empty change set selects no tests. Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches
+no family module, the family-specific files of the selected families and every test file whose closure holds a changed
+file. Changes limited to existing evaluation tools and their tests omit unrelated fast-tier tests. All of tests/ run
+when conftest.py,
+non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
+and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
+golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
+revisions and distinguish similarly named families. These IDs can be passed to pytest using an argument file.
+
+For edits limited to existing model implementation files, `--affected-fast` keeps import-linked tests and tests
+that name the affected models. The exact golden selection is the same as in the standard selection.
 """
 
 from __future__ import annotations
@@ -38,15 +49,25 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
+    from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ("tests/test_golden.py", "tools/speed_check.py")  # their direct imports seed every family's closure
 GATE_TOOLS = frozenset({"tools/select_tests.py", "tools/speed_check.py", "tools/merge_check.py"})
 DEPENDENCIES = frozenset({"pyproject.toml", "uv.lock"})
+TOP_LEVEL_DOCS = frozenset({"README.md", "CONTRIBUTING.md"})
+BENCHMARK_DOCS = frozenset({"docs/benchmarks.md", "docs/overview.md"})
+GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
+MODEL_CARD = re.compile(r"src/fastforks/[^/]+/models/[^/]+/card[.]toml")
+CARD_TEXT_FIELDS = frozenset({"summary", "limitations"})
+CARD_TEXT_CHECKS = frozenset({"tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"})
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
+EVALUATION_FILES = re.compile(
+    r"(?:(?:tools/(?:_prefetch|eval_[^/]+)|tests/test_eval_[^/]+)\.py|tools/bsds_correspond\.cc)"
+)
 PATH_ORDER = ("tests", "tools")  # pytest `pythonpath`: top-level modules of tests/ shadow tools/
 
 
@@ -63,6 +84,20 @@ class Selection:
         """The family's `-k` expression for tests/test_golden.py."""
         refs = sorted({r.split("@")[0] for r in self.families[family]["refs"]})
         return "test_gpu and (" + " or ".join(f"[{r}" for r in refs) + ")"
+
+    def golden_nodeids(self, device: Literal["cpu", "gpu"]) -> list[str]:
+        """Exact test_golden.py item IDs for the selected families and revisions."""
+        items = set()
+        for family in self.families.values():
+            for ref in family["refs"]:
+                if device == "cpu":
+                    cases = [f"test_cpu_portable[{ref}]", f"test_kernels_validated[{ref}]"]
+                else:
+                    cases = [f"test_gpu[{ref}-{mode}]" for mode in ("portable", "kernels")]
+                    if family["task"] == "classification":
+                        cases.append(f"test_gpu_module[{ref}]")
+                items.update(f"tests/test_golden.py::{case}" for case in cases)
+        return sorted(items)
 
     def as_dict(self) -> dict:
         """JSON form (tools/merge_check.py reads it)."""
@@ -98,7 +133,7 @@ class Graph:
         path = self.root / file
         if not path.is_file():
             return set()
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         me = self.name.get(file, "")
         pkg = me if file.endswith("__init__.py") else me.rpartition(".")[0]
         lazy = not file.startswith(FRAMEWORK) or file.startswith(LAZY_OK) or "/models/" in file
@@ -142,10 +177,10 @@ class Graph:
 def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     """Absolute module names `tree` imports (`from a import b`: `a` and `a.b`); `pkg`: the file's package."""
     names: set[str] = set()
-    for node in _runtime_nodes(tree, lazy=lazy):
+    for node in _runtime_imports(tree, lazy=lazy):
         if isinstance(node, ast.Import):
             names |= {a.name for a in node.names}
-        elif isinstance(node, ast.ImportFrom):
+        else:
             base = node.module or ""
             if node.level:
                 up = pkg.split(".")[: len(pkg.split(".")) - node.level + 1]
@@ -154,20 +189,18 @@ def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     return names
 
 
-def _runtime_nodes(tree: ast.AST, *, lazy: bool) -> list[ast.AST]:
-    """Every node except the bodies of `if TYPE_CHECKING:` blocks (and of functions unless `lazy`)."""
-    out: list[ast.AST] = []
+def _runtime_imports(tree: ast.AST, *, lazy: bool) -> Iterator[ast.Import | ast.ImportFrom]:
+    """Walk statement bodies that can contain imports, skipping type-checking branches."""
+    containers = (ast.stmt, ast.ExceptHandler, ast.match_case)
     todo = [tree]
     while todo:
         node = todo.pop()
-        out.append(node)
-        if isinstance(node, ast.If) and _is_type_checking(node.test):
-            todo += node.orelse
-            continue
-        if not lazy and isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
-            continue
-        todo += ast.iter_child_nodes(node)
-    return out
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            yield node
+        elif isinstance(node, ast.If) and _is_type_checking(node.test):
+            todo.extend(node.orelse)
+        elif lazy or not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            todo.extend(child for child in ast.iter_child_nodes(node) if isinstance(child, containers))
 
 
 def _is_type_checking(test: ast.expr) -> bool:
@@ -180,9 +213,9 @@ def families(root: Path) -> dict[str, dict]:
     """Per family {"task", "dir", "refs", "kernel_libs", "uses"} from the card.toml / golden.toml files."""
     out = {}
     for card in sorted((root / "src" / "fastforks").glob("*/models/*/card.toml")):
-        c = tomllib.loads(card.read_text())
+        c = tomllib.loads(card.read_text(encoding="utf-8"))
         g = card.with_name("golden.toml")
-        refs = sorted(tomllib.loads(g.read_text()).get("refs", {})) if g.is_file() else []
+        refs = sorted(tomllib.loads(g.read_text(encoding="utf-8")).get("refs", {})) if g.is_file() else []
         out[card.parent.name] = {
             "task": card.parents[2].name,
             "dir": card.parent.relative_to(root).as_posix(),
@@ -226,40 +259,105 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
     return {name: bool(found & {r.split("@")[0] for r in f["refs"]}) for name, f in fams.items()}
 
 
-def select(changed: list[str], root: Path = ROOT, diff: Callable[[str], str] | None = None) -> Selection:
-    """The selection of `changed` files; `diff(file)` (the file's unified diff) narrows the ref tables."""
+def _fast_checks(
+    graph: Graph, sel: Selection, fams: dict[str, dict], owned: set[str], *, affected_fast: bool
+) -> list[str]:
+    """Find tests linked to the selected files and families, optionally skipping generic tests."""
+    root, changed = graph.root, set(sel.changed)
+    if "tools/bsds_correspond.cc" in changed:
+        owned = owned | {"tools/eval_edges.py"}
+    evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
+    family_dirs = tuple(f["dir"] + "/" for f in fams.values())
+    selected_dirs = tuple(fams[name]["dir"] + "/" for name in sel.families)
+    affected_refs = None
+    if (
+        affected_fast
+        and sel.families
+        and all(c in graph.name and c.startswith(family_dirs) and not c.endswith("/__init__.py") for c in changed)
+    ):
+        names = set(sel.families) | {ref.split("@")[0] for f in sel.families.values() for ref in f["refs"]}
+        alternatives = "|".join(re.escape(name) for name in sorted(names))
+        affected_refs = re.compile(rf"(?<![\w-])(?:{alternatives})(?![\w-])")
+    include_generic = not evaluation_only and affected_refs is None
+    checks = []
+    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
+        cl = graph.closure({test})
+        if (
+            test in changed
+            or cl & owned
+            or any(f.startswith(selected_dirs) for f in cl)
+            or (include_generic and not any(f.startswith(family_dirs) for f in cl))
+            or (affected_refs and affected_refs.search((root / test).read_text(encoding="utf-8")))
+        ):
+            checks.append(test)
+    return checks
+
+
+def select(  # noqa: PLR0913 - the source snapshots and local selection mode are independent
+    changed: list[str],
+    root: Path = ROOT,
+    diff: Callable[[str], str] | None = None,
+    *,
+    metadata_only: frozenset[str] = frozenset(),
+    fixture_refs: dict[str, tuple[str, ...]] | None = None,
+    affected_fast: bool = False,
+) -> Selection:
+    """Select affected variants, using tracked metadata where the caller has both git snapshots."""
+    card_text = {path for path in metadata_only if MODEL_CARD.fullmatch(path)}
+    card_checks = CARD_TEXT_CHECKS if card_text else frozenset()
+    if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") or path in card_text for path in changed):
+        checks = set(card_checks)
+        if changed:
+            checks.add("tests/test_docs.py")
+        if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
+            checks.update(("tests/test_site_data.py", "tests/test_speed_floor.py"))
+        if "docs/stereo_geometry.md" in changed:
+            checks.add("tests/test_geometry_example.py")
+        return Selection(changed=sorted(changed), fast=sorted(path for path in checks if (root / path).is_file()))
     graph = Graph(root)
     fams = families(root)
     closures = family_closures(graph, fams)
-    sel = Selection(changed=sorted(changed), release=bool(DEPENDENCIES & set(changed)))
+    dependencies = DEPENDENCIES.intersection(changed) - metadata_only
+    sel = Selection(changed=sorted(changed), release=bool(dependencies))
+    fixtures = fixture_refs or {}
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
-    owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables}
+    owners = {
+        c: graph.owner(c)
+        for c in changed
+        if c not in GATE_TOOLS and c not in tables and c not in fixtures and c not in card_text
+    }
     for name, cl in closures.items():
-        why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in DEPENDENCIES))
+        family = fams[name]
+        why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in dependencies))
         why += sorted(c for c, hit in tables.items() if hit[name])
+        manifest = f"{family['dir']}/golden.toml"
+        refs = family["refs"] if why else list(fixtures.get(manifest, ()))
+        if fixtures.get(manifest):
+            why.append(manifest)
         if why:
-            sel.families[name] = {"task": fams[name]["task"], "refs": fams[name]["refs"], "why": why}
+            sel.families[name] = {"task": family["task"], "refs": refs, "why": why}
     full = sel.release or any(
         c == "tests/conftest.py" or (c.startswith("tests/") and not c.endswith(".py")) for c in changed
     )
     if full:
         sel.fast = ["tests"]
         return sel
-    family_dirs = {name: f["dir"] + "/" for name, f in fams.items()}
-    owned = set(owners.values())
-    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
-        cl = graph.closure({test})
-        reached = {n for n, d in family_dirs.items() if any(f.startswith(d) for f in cl)}
-        if not reached or reached & set(sel.families) or cl & owned or test in changed:
-            sel.fast.append(test)
+    checks = set(_fast_checks(graph, sel, fams, set(owners.values()), affected_fast=affected_fast))
+    sel.fast = sorted(checks | {path for path in card_checks if (root / path).is_file()})
     return sel
 
 
-def git_changed(base: str, head: str, root: Path = ROOT) -> list[str]:
+def git_changed(base: str, head: str, root: Path = ROOT, *, from_merge_base: bool = False) -> list[str]:
+    """Return both paths for a move. Use the merge base for pull-request fixture selection."""
+    # A cross-family move affects both the deleted module and its new owner.
+    dots = "..." if from_merge_base else ".."
     r = subprocess.run(
-        ["git", "-C", str(root), "diff", "--name-only", f"{base}..{head}"], capture_output=True, text=True, check=True
+        ["git", "-C", str(root), "diff", "--no-renames", "--name-only", "-z", f"{base}{dots}{head}"],
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    return [line for line in r.stdout.splitlines() if line]
+    return [path for path in r.stdout.split("\0") if path]
 
 
 def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
@@ -272,17 +370,135 @@ def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
     return diff
 
 
+def configuration_without_local_version(path: str, text: str) -> dict[str, object] | None:
+    """Parse package configuration and drop the version of the editable FastForks project."""
+    try:
+        doc = tomllib.loads(text)
+        if path == "uv.lock":
+            packages = [
+                p for p in doc["package"] if p.get("name") == "fastforks-core" and p.get("source") == {"editable": "."}
+            ]
+            if len(packages) != 1:
+                return None
+            project = packages[0]
+        else:
+            project = doc["project"]
+            if project.get("name") != "fastforks-core":
+                return None
+        if not isinstance(project.get("version"), str):
+            return None
+        del project["version"]
+    except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
+        return None
+    return doc
+
+
+def same_lock_dependencies(old: str, new: str) -> bool:
+    """Whether two lockfiles match without the editable project's version."""
+    reference = configuration_without_local_version("uv.lock", old)
+    return reference is not None and reference == configuration_without_local_version("uv.lock", new)
+
+
+def same_project_configuration(old: str, new: str) -> bool:
+    """Whether two project configurations match without the project's version."""
+    reference = configuration_without_local_version("pyproject.toml", old)
+    return reference is not None and reference == configuration_without_local_version("pyproject.toml", new)
+
+
+def _git_snapshots(base: str, head: str, path: str, root: Path) -> list[str] | None:
+    snapshots = [
+        subprocess.run(["git", "-C", str(root), "show", f"{rev}:{path}"], capture_output=True, text=True, check=False)
+        for rev in (base, head)
+    ]
+    return [s.stdout for s in snapshots] if all(s.returncode == 0 for s in snapshots) else None
+
+
+def split_golden_manifest(text: str) -> tuple[dict[str, object], dict[str, object]] | None:
+    """Split a golden manifest into its shared settings and its per-revision fixture records."""
+    try:
+        common = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    refs = common.pop("refs", None)
+    if not isinstance(refs, dict) or any(not isinstance(record, dict) for record in refs.values()):
+        return None
+    return common, refs
+
+
+def _changed_fixture_refs(old: str, new: str) -> tuple[str, ...] | None:
+    """Isolate changes to existing reference records while the rest of the manifest matches."""
+    before, after = split_golden_manifest(old), split_golden_manifest(new)
+    if before is None or after is None:
+        return None
+    shared_before, previous = before
+    shared_after, current = after
+    if shared_before != shared_after or previous.keys() != current.keys():
+        return None
+    return tuple(sorted(ref for ref, data in current.items() if data != previous[ref]))
+
+
+def git_fixture_refs(base: str, head: str, paths: list[str], root: Path = ROOT) -> dict[str, tuple[str, ...]]:
+    """Return the affected revisions for manifests changed only in their existing reference records."""
+    fixtures = {}
+    for path in paths:
+        if GOLDEN_MANIFEST.fullmatch(path) and (snapshots := _git_snapshots(base, head, path, root)):
+            refs = _changed_fixture_refs(*snapshots)
+            if refs is not None:
+                fixtures[path] = refs
+    return fixtures
+
+
+def _same_card_runtime(old: str, new: str) -> bool:
+    try:
+        before, after = tomllib.loads(old), tomllib.loads(new)
+    except tomllib.TOMLDecodeError:
+        return False
+    # The representation distinguishes TOML booleans, integers, and floats.
+    return repr({k: v for k, v in before.items() if k not in CARD_TEXT_FIELDS}) == repr(
+        {k: v for k, v in after.items() if k not in CARD_TEXT_FIELDS}
+    )
+
+
+def git_metadata_only(base: str, head: str, paths: list[str], root: Path = ROOT) -> frozenset[str]:
+    """Identify version-only and model-card prose edits using both tracked snapshots."""
+    unchanged = set()
+    for path, compare in (("pyproject.toml", same_project_configuration), ("uv.lock", same_lock_dependencies)):
+        if path not in paths:
+            continue
+        if (snapshots := _git_snapshots(base, head, path, root)) and compare(*snapshots):
+            unchanged.add(path)
+    for path in paths:
+        if (
+            MODEL_CARD.fullmatch(path)
+            and (snapshots := _git_snapshots(base, head, path, root))
+            and _same_card_runtime(*snapshots)
+        ):
+            unchanged.add(path)
+    return frozenset(unchanged)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("base", nargs="?")
     ap.add_argument("head", nargs="?", default="HEAD")
     ap.add_argument("--files", nargs="*", help="changed paths instead of a git range")
-    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--affected-fast", action="store_true", help="scope fast tests for model implementation edits")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--golden-nodeids", choices=("cpu", "gpu"), help="print exact pytest item IDs for the device")
     a = ap.parse_args(argv)
     if a.files is None and not a.base:
         ap.error("give BASE [HEAD] or --files")
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
-    sel = select(files, diff=diff)
+    metadata_only = git_metadata_only(a.base, a.head, files) if a.files is None else frozenset()
+    fixture_refs = git_fixture_refs(a.base, a.head, files) if a.files is None else None
+    sel = select(
+        files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs, affected_fast=a.affected_fast
+    )
+    if a.golden_nodeids:
+        for item in sel.golden_nodeids(a.golden_nodeids):
+            print(item)
+        return 0
     if a.json:
         print(json.dumps(sel.as_dict(), indent=1))
         return 0

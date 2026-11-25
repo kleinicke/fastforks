@@ -13,10 +13,62 @@ Checks (all must pass before a commit; CI runs all but the GPU tests):
 ```
 uv run ruff format && uv run ruff check && uv run ty check
 uv run pytest -m "not gpu"     # CPU: the fast tests (unit, policy, card, docs)
-uv run pytest -m "not gpu" --slow   # also the slow ones (> 1 s: golden parity, exports, batch): before a release
+uv run pytest -m "not gpu" --slow   # comprehensive slow suite, for periodic checks or broad dependency changes
 uv run pytest -m gpu           # GPU parity of portable and kernels (needs a CUDA GPU)
-uv run pytest -m "not gpu" --slow -o junit_family=legacy --junitxml=j.xml && uv run python tools/coverage_report.py j.xml   # which test kinds ran per family
+uv run pytest -m "not gpu" --slow -o junit_family=legacy --junitxml=j.xml && uv run python tools/coverage_report.py j.xml   # full-suite family coverage
 ```
+
+For a normal release, compare the candidate with the last verified release.
+Version-only edits to the local package in `pyproject.toml` and `uv.lock` keep the selection scoped to the affected models.
+
+```
+uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --json > selection.json
+uv run python tools/merge_check.py estimate selection.json
+```
+
+For a correctness-only CUDA check, run the exact selected revisions. Reuse the same results file to resume, including
+after updates limited to unrelated model families, other revisions' fixture records, documentation, benchmark data
+or the local package version. The receipt includes the selected revision's fixture, shared fixture settings, the
+model families it imports, and the common test and source files.
+
+```
+uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl
+```
+
+Add `--batch-size 4` to share Python and CUDA startup across a small group of golden checks. The checks run
+sequentially in one worker. If a worker fails, the remaining checks retry in individual fresh processes. Pass the
+shared workstation's GPU-lock command through `--prefix` to hold it for each group. Timed release runs still start
+a fresh worker for every model and mode.
+
+To run just the selected CPU goldens and kernel-manifest checks, give pytest the exact item IDs in an argument file:
+
+```
+uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --golden-nodeids cpu > cpu-goldens.args
+if test -s cpu-goldens.args; then uv run pytest -m "not gpu" --slow @cpu-goldens.args; fi
+```
+
+Use `--golden-nodeids gpu` to collect the corresponding CUDA items, including the classification module checks.
+A tracked change to existing golden fixture records selects the affected revisions when shared manifest settings match.
+Recheck previously failed item IDs explicitly with the corresponding CPU or GPU marker.
+
+Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
+for the listed families and any previously failing cases. Skip the fast test invocation when the `fast` list is empty.
+For local changes limited to existing model implementation files, add `--affected-fast` to `tools/select_tests.py`.
+It selects import-linked fast tests and tests that name the affected models, while preserving the exact CPU and CUDA
+golden lists. Shared code, fixture and dependency changes use the standard checks.
+
+`tools/merge_check.py run selection.json --out rows.jsonl`
+combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared
+machines. Add `--no-core` to the estimate and run commands to skip the optional runner-only timing. The full API
+latency and peak memory are still compared with the speed floor.
+
+Inspect its skips and failures: a missing golden is not evidence of a pass. Shared-code changes can select
+many families, and a true dependency change sets `release: true` and requires the broader checks. This selector is a
+conservative aid, not proof that every dynamic dependency has been found; include tests for effects known from review.
+
+Documentation-only changes select the docs tests. Edits to generated model or benchmark pages and their data also
+select the site-data and speed-floor checks. Changes to the stereo geometry guide include its executable example check.
+Edits limited to existing model-card summaries and limitations select card, docs and site-data checks.
 
 Golden-parity tests need the golden outputs: `python tools/fetch_goldens.py --all DIR` and
 `FASTFORKS_GOLDEN_PATH=DIR`. Local weights can be used without downloading via `FASTFORKS_WEIGHTS_PATH`, kernel

@@ -5,7 +5,7 @@ import api_snapshot
 
 def test_api_matches_snapshot():
     current = api_snapshot.snapshot()
-    committed = api_snapshot.SNAPSHOT.read_text()
+    committed = api_snapshot.SNAPSHOT.read_text(encoding="utf-8")
     if current != committed:
         old, new = set(committed.splitlines()), set(current.splitlines())
         diff = [f"- {x}" for x in sorted(old - new)] + [f"+ {x}" for x in sorted(new - old)]

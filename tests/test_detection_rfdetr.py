@@ -11,7 +11,7 @@ from fastforks.shared.rfdetr.net.models.postprocess import PostProcess
 
 def _runner(monkeypatch, max_detections=100, *, masks=False):
     runner = object.__new__(Portable)
-    runner.ctx = SimpleNamespace(params=SimpleNamespace(max_detections=max_detections))
+    runner.ctx = SimpleNamespace(params=SimpleNamespace(max_detections=max_detections, segmentation_head=masks))
     runner.postprocess = PostProcess(num_select=3)
     runner.ids = class_map(91)
     logits = torch.full((1, 3, 91), -9.0)
@@ -56,3 +56,16 @@ def test_no_detection_keeps_shapes(monkeypatch, masks):
     assert got["labels"].shape == (0,)
     if masks:
         assert got["masks"].shape == (0, 100, 200)
+
+
+def test_a_batch_runs_the_network_once(monkeypatch):
+    runner = _runner(monkeypatch)
+    one = runner._raw(None)
+    raw = {k: torch.cat([v, v]) for k, v in one.items()}
+    raw["pred_logits"][1, 2, 13] = -9.0  # the second image loses the stop sign
+    calls = []
+    monkeypatch.setattr(runner, "_raw", lambda image: calls.append(image.shape) or raw)
+    got = runner.detect_batch(torch.zeros(2, 3, 100, 200), 0.5)
+    assert calls == [(2, 3, 100, 200)]
+    assert [g["labels"].tolist() for g in got] == [[0, 11], [0]]
+    torch.testing.assert_close(got[1]["boxes"], torch.tensor([[0.0, 0.0, 200.0, 100.0]]))

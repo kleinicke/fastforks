@@ -7,8 +7,8 @@ exact at N_max and N_max + 1 for six shapes, fp32 and fp16, cuDNN 9.24; 65535 is
 lookup has ~500k rows. `grid_sample` runs those calls on PyTorch's native kernel (as fast as cuDNN at these sizes)
 and every other call through `F.grid_sample` unchanged, so the result at sizes cuDNN takes is bit-identical.
 `torch.compile` needs the switch too (its fake-tensor trace of `F.grid_sample` fails on the same batches; the size
-check is a shape guard); exported graphs keep `F.grid_sample` (ONNX / TensorRT GridSample has no such limit, and a
-check on a dynamic dimension would constrain it).
+check is a shape guard). CUDA exports always use the native operator: cuDNN's sampler cannot be decomposed for
+ONNX with dynamic shapes, and a check on a dynamic dimension would constrain it.
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ import torch.nn.functional as F
 from fastforks._core.tracing import in_onnx_export
 
 _GRID_Y_MAX = 65535
+MPS_INPUT_BYTES = 512 << 20
+"""Input bytes from which an eager MPS `grid_sample` runs in batch blocks of this size (the rows are independent)."""
 _NCHW = 4
 
 
@@ -37,15 +39,21 @@ def grid_sample(
     padding_mode: str = "zeros",
     align_corners: bool | None = None,
 ) -> torch.Tensor:
-    """`F.grid_sample` (options by keyword), on the native kernel where cuDNN would refuse the batch size."""
+    """`F.grid_sample` (options by keyword), using the native operator for CUDA exports and oversized batches."""
     if (
         align_corners
         and mode == "bilinear"
         and padding_mode == "zeros"
         and input.is_cuda
         and input.dim() == _NCHW
-        and not (torch.compiler.is_exporting() or torch.jit.is_tracing() or in_onnx_export())
-        and input.shape[0] > cudnn_max_rows(input.shape[1], grid.shape[1], grid.shape[2])
+        and (
+            torch.compiler.is_exporting()
+            or in_onnx_export()
+            or (
+                not torch.jit.is_tracing()
+                and input.shape[0] > cudnn_max_rows(input.shape[1], grid.shape[1], grid.shape[2])
+            )
+        )
     ):
         # the direct call skips autocast's fp32 cast of grid_sample; do it here
         if torch.is_autocast_enabled(input.device.type):
@@ -53,4 +61,17 @@ def grid_sample(
         return torch.grid_sampler_2d(
             input, grid.to(input.dtype), interpolation_mode=0, padding_mode=0, align_corners=True
         )  # bilinear, zeros
+    if (
+        input.device.type == "mps"
+        and input.shape[0] == grid.shape[0] > 1
+        and input.numel() * input.element_size() > MPS_INPUT_BYTES
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or torch.jit.is_tracing())
+    ):
+        # One MPS call over an all-pairs correlation volume (RAFT at 1080p: 4 GiB) ran out of memory; blocks do not
+        step = max(1, MPS_INPUT_BYTES // (input[0].numel() * input.element_size()))
+        blocks = zip(input.split(step), grid.split(step), strict=True)
+        return torch.cat(
+            [F.grid_sample(x, g, mode=mode, padding_mode=padding_mode, align_corners=align_corners) for x, g in blocks]
+        )
     return F.grid_sample(input, grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)

@@ -3,7 +3,7 @@ name = "CoEx"
 summary = "CoEx (Bangunharcana et al. 2021): MobileNetV2 features, an attention-weighted correlation volume, 3-D aggregation with guided cost excitation, top-2 soft-argmax and superpixel upsampling (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "SceneFlow-only weights: zero-shot output on real images is poor, so this is mainly a latency reference.",
   "The original code's KITTI weights (in its git repository) are not included.",
@@ -37,6 +37,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA gra
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]

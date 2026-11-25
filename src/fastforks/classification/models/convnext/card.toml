@@ -35,10 +35,13 @@ interpolation = "bicubic"
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["cnn_mlx"]
+mlx_dtypes = ["float32", "float16"]
 # Own runner (model.py), measured on an RTX 5060 Ti against the generic `_optimize` ConvNeXt path (what ConvNeXt V2
 # gets: fused GEMMs with the LayerScale folded into the second one, fvm depthwise conv, one CUDA graph):
 #   kept: fvm_seg LayerNorm (0-4 % at batch 1, 7-13 % at batch 8), fused stem / downsampling convolutions (1-2 %),

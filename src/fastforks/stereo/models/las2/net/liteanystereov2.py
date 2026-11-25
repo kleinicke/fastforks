@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from .aggregation_fasternet import Aggregation
 from .fnet import FASTERNET_T0_MODEL, FeatureNetFasterNet
 from .submodule import (
@@ -151,10 +152,11 @@ class LiteAnyStereoV2(nn.Module):
         right = self.normalize_image(right)
 
         features_left = self.fnet(left)
+
         features_right = self.fnet(right)
         # fastforks: the kernels runner on Apple MPS sets `correlation_volume` (one Metal kernel)
         cost_volume = getattr(self, "correlation_volume", build_correlation_volume)(features_left[0], features_right[0], max_disp // 4)
-        cv = self.cost_agg(cost_volume, features_left)
+        cv = fence(self.cost_agg(cost_volume, features_left))
 
         prob = F.softmax(cv, dim=1)
         disp = disparity_regression(prob, max_disp // 4)

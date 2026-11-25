@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 import re
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -24,12 +25,14 @@ from torch import nn
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import DepthAnythingV2, fold_layer_scale, use_sdpa_attention
 
 from .fused import FusedHead, FusedViT
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
+    from typing import Any
 
     from fastforks.depth._runner import Context
 
@@ -49,6 +52,7 @@ class Params:
     short_side: int  # lower bound of both resized sides
     max_depth: float  # metric head: sigmoid * max_depth (metres); 0: relative inverse depth (ReLU head)
     layout: str  # checkpoint keys: "dav2" (upstream DepthAnythingV2) or "dam" (Distill-Any-Depth's DepthAnything)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for repeated input shapes
 
 
 def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
@@ -147,11 +151,20 @@ class Portable(Runner):
 _KERNELS_ATTN = {"vitb": "fh"}
 
 
+# CUDA graphs (kernels): the ~120-launch pass is launch-bound on Windows at the default short side; the network size,
+# not the image's, sets the cost and the graph pool. ViT-S, ms: network 518x518 5.2 -> 3.1, 518x770 5.2 -> 4.7 (the GPU
+# time), 728x728 7.0 -> 6.6, 728x1082 10.9 -> 10.6: above ~640k pixels a graph only costs memory
+_GRAPH_PIXELS = 640_000  # fixed: batch x network H x W; the default short side up to a 2.4:1 aspect ratio, 728x728
+_GRAPH_IMAGE_PIXELS = 2048 * 2048  # fixed: batch x image H x W; a graph keeps a copy of the image and the output map
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
     """dpt_fused kernels: fused-epilogue CUTLASS GEMMs / convs (fp16 accumulation), flash attention, NHWC fp16 head.
 
     The input resize + normalisation, the patch embedding and the position embedding are fused too; the 1-channel
-    output conv runs in fp32. Weights are converted on the CPU, so the GPU holds only the fp16 network.
+    output conv runs in fp32. Weights are converted on the CPU, so the GPU holds only the fp16 network. A repeated
+    input shape up to `_GRAPH_PIXELS` network pixels replays a CUDA graph (`fastforks.shared.cuda_graphs`).
     """
 
     batch = None
@@ -165,14 +178,77 @@ class Kernels(Runner):
         self.vit = FusedViT(net.pretrained, ctx.device, k, _KERNELS_ATTN.get(ctx.params.arch, "hh"))
         self.head = FusedHead(net.depth_head, ctx.device, k)
         self.layers = net.intermediate_layer_idx[net.encoder]
+        self._graphs = SmallShapeGraphs(
+            self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs, size=self._size
+        )
+
+    def _size(self, image: torch.Tensor, *_tables: torch.Tensor) -> int:
+        """The graph size of a call: batch x network H x W (images above `_GRAPH_IMAGE_PIXELS`: too large)."""
+        b, _, hh, ww = image.shape
+        if b * hh * ww > _GRAPH_IMAGE_PIXELS:
+            return sys.maxsize
+        h, w = network_size(hh, ww, self.ctx.params.short_side)
+        return b * h * w
+
+    def _run(self, image: torch.Tensor, pos: torch.Tensor, cls: torch.Tensor) -> torch.Tensor:
+        """The output map of `image` with the position tables of its grid (graph inputs: they outlive the cache)."""
+        h, w = network_size(*image.shape[-2:], self.ctx.params.short_side)
+        with torch.autocast("cuda", enabled=False):
+            feats = self.vit.features(image, (h, w), self.layers, (pos, cls))
+            d = self.head(feats, h // PATCH, w // PATCH)
+        return _scaled(self.ctx, _restore(d, image.shape[-2:]))
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
         h, w = network_size(*image.shape[-2:], self.ctx.params.short_side)
-        with torch.autocast("cuda", enabled=False):
-            feats = self.vit.features(image, (h, w), self.layers)
-            d = self.head(feats, h // PATCH, w // PATCH)
+        pos, cls = self.vit._pos_tables(h // PATCH, w // PATCH)  # noqa: SLF001 - the fused ViT's own tables
+        return {_key(self.ctx): self._graphs(image, pos, cls)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): encoder and head in MLX array operations, float32 or fp16 (fp32 output conv)."""
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+        from fastforks.shared.depth_anything_v2 import mlx_net  # noqa: PLC0415
+
+        p32 = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_state_dict(ctx)))
+        self.engine = mlx_net.Engine(
+            p32, ctx.params.arch, ctx.dtype, sigmoid=ctx.params.max_depth > 0, up=self._resize() or mlx_net.resize
+        )
+
+    def _resize(self) -> Callable[..., Any] | None:
+        """The head's bilinear resize, if not MLX's own operations."""
+        return None
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
+        d = self.engine(_prepare(self.ctx, image))
         return {_key(self.ctx): _scaled(self.ctx, _restore(d, image.shape[-2:]))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxKernels(MlxPortable):
+    """Apple MLX: as `MlxPortable`, with the head's bilinear resizes as one Metal kernel run by MLX (`dpt_mlx`)."""
+
+    def _resize(self) -> Callable[..., Any] | None:
+        """The `dpt_mlx` resize kernel."""
+        from fastforks.kernels.dpt_mlx import ops  # noqa: PLC0415 - needs the mlx extra
+
+        return ops.resize
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxKernels,
+}

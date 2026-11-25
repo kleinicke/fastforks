@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -56,6 +57,18 @@ def test_closed_stdout_exits_1_quietly():
     finally:
         os.close(w)
     assert (p.returncode, p.stderr) == (1, b"")
+
+
+@pytest.mark.parametrize("errors", ["strict", "surrogateescape"])
+def test_list_into_a_cp1252_pipe(monkeypatch, errors):
+    """Windows writes a pipe or file in cp1252: a summary's character it lacks prints as `?`, not a crash."""
+    raw = io.BytesIO()
+    out = io.TextIOWrapper(raw, encoding="cp1252", errors=errors)
+    monkeypatch.setattr(sys, "stdout", out)
+    assert any("π" in card.summary for card, _ in registry.cards("multiview").values())  # pi3
+    assert cli.main(["list", "--task", "multiview"]) == 0
+    out.flush()
+    assert b"?" in raw.getvalue()
 
 
 @pytest.mark.gpu
@@ -564,7 +577,7 @@ def test_export_output_creates_parent_and_reports_os_errors(tmp_path, capsys):
     assert cli.main(["export", "no-such-model", "--format", "onnx", "-o", str(out)]) == 1  # fails after the mkdir
     assert out.parent.is_dir()
     assert "fastforks: error:" in capsys.readouterr().err
-    (tmp_path / "file").write_text("x")
+    (tmp_path / "file").write_text("x", encoding="utf-8")
     assert cli.main(["export", "hitnet-eth3d", "--format", "onnx", "-o", str(tmp_path / "file" / "f.onnx")]) == 1
     assert "fastforks: error: cannot write" in capsys.readouterr().err
 
@@ -621,3 +634,35 @@ def test_stereo_run_size_reads_calibration_without_image_size(monkeypatch, capsy
     assert seen["focal"] == 650
     assert cli.main(["stereo", "run", left, right, "--model", "x", "--out", "o", "--size", "720x1280"]) == 1
     assert "pass --rig" in capsys.readouterr().err
+
+
+def test_download_progress_printer(monkeypatch, capsys):
+    clock = iter([100.0, 100.1, 111.0, 112.0])
+    monkeypatch.setattr(cli.time, "monotonic", lambda: next(clock))
+    report = cli._progress_printer(tty=False)
+    report("https://h/a/w.bin", 4 << 20, 16 << 20)  # printed
+    report("https://h/a/w.bin", 8 << 20, 16 << 20)  # throttled
+    report("https://h/a/w.bin", 12 << 20, 16 << 20)  # printed after 10 s
+    report("https://h/a/w.bin", 16 << 20, 16 << 20)  # done: no line in a log
+    assert capsys.readouterr().err.splitlines() == ["  w.bin: 25 % of 16 MB", "  w.bin: 75 % of 16 MB"]
+    clock = iter([100.0, 100.1, 100.2])
+    tty = cli._progress_printer(tty=True)
+    tty("https://h/k.so", 1 << 20, None)
+    tty("https://h/k.so", 2 << 20, None)  # throttled
+    tty("https://h/k.so", 3 << 20, 3 << 20)  # done always prints and ends the line
+    assert capsys.readouterr().err == "\r  k.so: 1 MB\r  k.so: 100 % of 3 MB\n"
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_cache_link_says_why_cached_files_were_not_linked(monkeypatch, capsys, tmp_path, platform):
+    blob = tmp_path / "blob"
+    blob.write_bytes(b"x")
+    monkeypatch.setattr(cli, "link_view", lambda *_a: False)  # every link fails (no symlink permission)
+    monkeypatch.setattr(cli, "blob_path", lambda _sha: blob)  # and every listed file is cached
+    monkeypatch.setattr(cli.sys, "platform", platform)
+    assert cli.main(["cache", "link"]) == 0
+    out = capsys.readouterr()
+    assert out.out.startswith("0 files linked")
+    assert ("Developer Mode" in out.err) == (platform == "win32")
+    assert "cached files" in out.err
+    assert "the cache works without the view" in out.err

@@ -172,7 +172,7 @@ def main() -> None:
     for k in ("profile_kernels_no_streams", "profile_portable"):
         print(k, json.dumps(r[k]["families_ms"]), r[k]["total_ms"])
     if a.out:
-        with open(a.out, "w") as f:  # noqa: PTH123
+        with open(a.out, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(r, f, indent=1)
 
 

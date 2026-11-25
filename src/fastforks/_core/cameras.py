@@ -1,7 +1,7 @@
 """Checks of the camera matrices models take: pinhole intrinsics `[..., 3, 3]`, camera-to-world poses `[..., 4, 4]`.
 
-`valid` builds one 0-d bool on the matrices' own device (numpy / list inputs: the CPU, so no GPU work); the caller
-reads it with the one host sync it already had for the finiteness check. `problem` explains a failure (slow path).
+`valid` builds one 0-d bool on the matrices' own device; the task APIs pass a host copy of device matrices (one
+copy and sync instead of ~20 tiny kernels and a sync). `problem` explains a failure (slow path).
 """
 
 from __future__ import annotations

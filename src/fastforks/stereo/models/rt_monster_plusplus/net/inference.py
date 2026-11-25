@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.monster_fit import fit as _fit
 
@@ -96,15 +97,19 @@ def _up2(self, disp, mask_feat, stem, i):
         return context_upsample_2x(disp.float() * 2., spx).unsqueeze(1)
 
 
+def _selective(left, right, samples, depth, groups):
+    return build_gwc_volume_selective(_nchw32(left), _nchw32(right), samples, depth, groups)
+
+
 @torch.no_grad()
-def forward_fast(self, image1, image2):
+def forward_fast(self, image1, image2, selective=_selective):
     """Test-mode forward after `prepare` (see the module docstring); returns the disparity [B, 1, H, W] (fp32)."""
     mf = torch.channels_last if self.inf_cl else torch.contiguous_format
     with torch.autocast(image1.device.type, dtype=torch.float16, enabled=self.inf_half):
-        return _forward(self, image1.contiguous(memory_format=mf), image2.contiguous(memory_format=mf))
+        return _forward(self, image1.contiguous(memory_format=mf), image2.contiguous(memory_format=mf), selective)
 
 
-def _forward(self, image1, image2):
+def _forward(self, image1, image2, selective):
     dev = image1.device.type
     depth_mono, features_mono_left, features_mono_right = self.infer_mono(image1, image2)
     depth_mono = depth_mono.float()
@@ -113,11 +118,13 @@ def _forward(self, image1, image2):
     size = (image1.shape[-2], image1.shape[-1])
     disp_mono_list = [F.interpolate(depth_mono, size=tuple(x // s for x in size), mode='bilinear', align_corners=False)
                       for s in (16, 8, 4)]
+    del depth_mono
 
     features_left = self.feat_transfer(features_mono_left)
     features_right = self.feat_transfer(features_mono_right)
     image = torch.cat([image1, image2], 0)
     stem_2x = self.stem_2(image)
+    del image, image1, image2, features_mono_right
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
@@ -133,6 +140,8 @@ def _forward(self, image1, image2):
     net_list = [torch.tanh(x[0]) for x in cnet_list]
     inp_list = [torch.relu(x[1]) for x in cnet_list]  # (upstream applies relu twice: idempotent)
     inp_list = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp_list, self.context_zqr_convs)]
+    del cnet_list, features_mono_left
+    fence(net_list[0])
 
     disp_next = mask_feat = disp = None
     for i in range(3):
@@ -153,18 +162,19 @@ def _forward(self, image1, image2):
                 drs = get_cur_disp_range_samples(cur_disp=disp_next.squeeze(1), ndisp=self.ndisps[i - 1],
                                                  disp_interval_pixel=self.disp_interval_pixel[i - 1],
                                                  shape=[match_left.shape[0], match_left.shape[2], match_left.shape[3]])
-                gwc_volume = build_gwc_volume_selective(_nchw32(match_left), _nchw32(match_right), drs,
-                                                        self.ndisps[i - 1], 8)
+                gwc_volume = selective(match_left, match_right, drs, self.ndisps[i - 1], 8)
+                del drs
             gwc_volume = self.corr_stem(gwc_volume.to(match_left.dtype))
             gwc_volume = self.corr_feature_att_list[i](gwc_volume, feat_left)
-            geo_encoding_volume = self.cost_agg[i](gwc_volume)
+            geo_encoding_volume = fence(self.cost_agg[i](gwc_volume))
             cur_disp = disp_next
         del gwc_volume
         with _f32(dev):
             geo_fn = Combined_Geo_Encoding_Volume(match_left.float(), match_right.float(), geo_encoding_volume.float(),
                                                   radius=self.args.corr_radius[i])
         b, c, h, w = match_left.shape
-        coords = torch.arange(w, device=match_left.device, dtype=torch.float32).reshape(1, 1, w, 1).repeat(b, h, 1, 1)
+        coords = torch.arange(w, device=match_left.device, dtype=torch.float32).reshape(1, 1, w, 1).expand(b, h, w, 1)
+        del match_left, match_right, geo_encoding_volume
         nd = self.ndisps[i - 1] if i > 0 else None
         disp = cur_disp.float()
         for itr in range(iters_list[i]):
@@ -182,9 +192,14 @@ def _forward(self, image1, image2):
                 net_list, mask_feat, delta_disp = self.update_block_mix_stereo(
                     net_list, inp_list, flaw_stereo, disp, geo_feat, flaw_mono, disp_mono_list[i], geo_feat_mono,
                     iter16=False, iter08=False)
+                del flaw_mono, flaw_stereo, geo_feat_mono, fr, fl
             else:
                 net_list, mask_feat, delta_disp = self.update_block_list[i](net_list, inp_list, geo_feat, disp,
                                                                             disp_mono_list[i], **kw)
             disp = disp + delta_disp.float()
+            del geo_feat, delta_disp
+        del geo_fn, feat_left, feat_right
         disp_next = _up2(self, disp, mask_feat, stem_x_list[i + 1], i) if i < 2 else None
+        fence(disp)  # MPS: the scale's temporaries become reusable (fewer 1 GB heaps)
+    del net_list, inp_list
     return _up4(self, disp, mask_feat, stem_2x)

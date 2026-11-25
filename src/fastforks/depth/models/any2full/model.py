@@ -11,6 +11,7 @@ depth to [1e-6, 1e3]) and resampled to the input size (bilinear, align_corners).
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -23,6 +24,8 @@ from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import PATCH, Any2FullNet, PromptBranch
@@ -49,6 +52,7 @@ class Params:
 
     arch: str  # "vits", "vitb" or "vitl"
     short_side: int  # upstream resize_lower_size: the shorter network side is at least this
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for repeated input shapes
 
 
 def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
@@ -146,12 +150,21 @@ def _linears(seq: torch.nn.Module) -> tuple[torch.nn.Linear, torch.nn.Linear]:
     return cast("torch.nn.Linear", seq.get_submodule("0")), cast("torch.nn.Linear", seq.get_submodule("2"))
 
 
+# CUDA graphs (kernels): ViT, prompt branches, the depth embedding's hole filling (13 + 6 + 2 conv steps) and the fit
+# are launch-bound on Windows at the default short side. ViT-S, ms, image 480x640 15.4 -> 7.1, 994x1482 15.5 -> 8.3,
+# 1080x1920 15.7 -> 10.4 (+450-480 MiB reserved); the network size sets the cost and the graph pool.
+_GRAPH_PIXELS = 640_000  # fixed: batch x network H x W, as Depth Anything V2's kernels graph (default short side)
+_GRAPH_IMAGE_PIXELS = 2048 * 2048  # fixed: batch x image H x W; a graph keeps copies of the image, depth and output
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
     """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation), flash attention, the NHWC fp16 DPT head.
 
     The ViT and head are Depth Anything V2's (`depth_anything_v2.fused`); the prompt branches and the feature fusion
     MLPs are fused-epilogue GEMMs, their attention SDPA (the first one masked). The depth embedding is the portable
-    float32 module; the input resize is PyTorch (so the kernels' patch resize is the identity).
+    float32 module; the input resize is PyTorch (so the kernels' patch resize is the identity). A repeated input shape
+    up to `_GRAPH_PIXELS` network pixels replays a CUDA graph (`fastforks.shared.cuda_graphs`).
     """
 
     batch = None
@@ -177,6 +190,17 @@ class Kernels(Runner):
         self.prompt_norm = net.prompt_norm
         self.fusion = [_linears(s) for s in net.fusion]
         self.scale = [_linears(s) for s in net.scale]
+        self._graphs = SmallShapeGraphs(
+            self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs, size=self._size
+        )
+
+    def _size(self, image: torch.Tensor, *_rest: torch.Tensor) -> int:
+        """The graph size of a call: batch x network H x W (images above `_GRAPH_IMAGE_PIXELS`: too large)."""
+        b, _, hh, ww = image.shape
+        if b * hh * ww > _GRAPH_IMAGE_PIXELS:
+            return sys.maxsize
+        h, w = network_size(hh, ww, self.ctx.params.short_side)
+        return b * h * w
 
     def _mlp(self, lin: tuple[torch.nn.Linear, torch.nn.Linear], x: torch.Tensor) -> torch.Tensor:
         """`Linear, GELU, Linear` as two GEMMs (GELU in the first one's epilogue)."""
@@ -203,11 +227,19 @@ class Kernels(Runner):
         prompt_depth: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
         """Metric depth `[B, H, W]` of a batch and its sparse depth maps `[B, 1, h, w]` (0 / NaN: missing)."""
+        h, w = network_size(*image.shape[-2:], self.ctx.params.short_side)
+        pos, cls = self.vit._pos_tables(h // PATCH, w // PATCH)  # noqa: SLF001 - the fused ViT's own tables
+        return {"depth": self._graphs(image, prompt_depth, pos, cls)}
+
+    def _run(
+        self, image: torch.Tensor, prompt_depth: torch.Tensor, pos: torch.Tensor, cls: torch.Tensor
+    ) -> torch.Tensor:
+        """The depth of `image` with the position tables of its grid (graph inputs: they outlive the cache)."""
         vit, layers = self.vit, self.layers
         x, disp, dn = prepare(image, prompt_depth, self.ctx.params.short_side)
         size = (x.shape[-2], x.shape[-1])
         with torch.autocast("cuda", enabled=False):
-            t = vit.embed_tokens(x.float(), size)  # identity resize: exact
+            t = vit.embed_tokens(x.float(), size, (pos, cls))  # identity resize: exact
             feats, pres = [], []
             for i in range(max(layers) + 1):
                 if i in layers[1:]:
@@ -226,7 +258,16 @@ class Kernels(Runner):
                 feats[j + 1] = f.addcmul_(s, feats[j + 1]).add_(feats[j + 1])
                 mask = None
             pred = self.head(feats, size[0] // PATCH, size[1] // PATCH)[:, None]
-        return {"depth": finish(pred, disp, image.shape[-2:])}
+        return finish(pred, disp, image.shape[-2:])
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

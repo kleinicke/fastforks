@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import to_device  # fastforks
 
 
 def coords_grid(b, h, w, homogeneous=False, device=None):
@@ -17,7 +18,7 @@ def coords_grid(b, h, w, homogeneous=False, device=None):
     grid = grid[None].repeat(b, 1, 1, 1)  # [B, 2, H, W] or [B, 3, H, W]
 
     if device is not None:
-        grid = grid.to(device)
+        grid = to_device(grid, device)  # fastforks: to_device (a pageable upload syncs the host)
 
     return grid
 
@@ -35,7 +36,7 @@ def generate_window_grid(h_min, h_max, w_min, w_max, len_h, len_w, device=None):
 
 def normalize_coords(coords, h, w):
     # coords: [B, H, W, 2]
-    c = torch.Tensor([(w - 1) / 2., (h - 1) / 2.]).float().to(coords.device)
+    c = to_device(torch.Tensor([(w - 1) / 2., (h - 1) / 2.]).float(), coords.device)  # fastforks: to_device (graph-capturable)
     return (coords - c) / c  # [-1, 1]
 
 
@@ -67,7 +68,7 @@ def flow_warp(feature, flow, mask=False, padding_mode='zeros'):
     b, c, h, w = feature.size()
     assert flow.size(1) == 2
 
-    grid = coords_grid(b, h, w).to(flow.device) + flow  # [B, 2, H, W]
+    grid = coords_grid(b, h, w, device=flow.device) + flow  # [B, 2, H, W]  # fastforks: uploaded without a sync
 
     return bilinear_sample(feature, grid, padding_mode=padding_mode,
                            return_mask=mask)

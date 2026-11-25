@@ -32,6 +32,8 @@ from __future__ import annotations
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.mlx_cast import to_float32  # fastforks: float32 islands that survive a float16 MLX replay
+from fastforks._core.upload import device_tensor  # fastforks
 
 DIM = 128  # flow / context feature channels (upstream dim = hdim)
 CORR_LEVELS, CORR_RADIUS = 5, 4
@@ -241,6 +243,12 @@ def _head(dim: int, out: int, k: int) -> nn.Sequential:
     return nn.Sequential(nn.Conv2d(dim, 2 * dim, 3, padding=1), nn.ReLU(), nn.Conv2d(2 * dim, out, k, padding=k // 2))
 
 
+def scale_xy(xy: torch.Tensor, sx: float, sy: float) -> torch.Tensor:  # fastforks
+    """`xy * (sx, sy)` over the last axis with Python-float factors: a float16 MLX replay keeps them exact (a factor
+    tensor would be a float16 constant there, up to 0.25 px off at 512 px)."""
+    return torch.cat((xy[..., :1] * sx, xy[..., 1:] * sy), -1)
+
+
 class CorrPyramid:
     """All-pairs correlation of one anchor frame against `S` frames, area-pooled over 5 levels; windowed lookups."""
 
@@ -249,11 +257,12 @@ class CorrPyramid:
         c, h, w = fmap1.shape
         a = fmap1.reshape(c, h * w).T
         self.levels = []
-        for _ in range(CORR_LEVELS):
+        for level in range(CORR_LEVELS):
             s, _, h2, w2 = fmap2.shape
             corr = (a @ fmap2.reshape(s, c, h2 * w2)) / torch.tensor(float(c)).sqrt()  # as upstream: divide after
             self.levels.append(corr.reshape(s * h * w, 1, h2, w2))
-            fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="area")
+            if level + 1 < CORR_LEVELS:
+                fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="area")
         r = torch.linspace(-CORR_RADIUS, CORR_RADIUS, 2 * CORR_RADIUS + 1, device=fmap1.device)
         self.delta = torch.stack(torch.meshgrid(r, r, indexing="ij"), -1)  # (dy, dx) added to (x, y), as upstream
 
@@ -265,8 +274,8 @@ class CorrPyramid:
         for i, corr in enumerate(self.levels):
             h2, w2 = corr.shape[-2:]
             xy = centre / 2**i + self.delta
-            scale = torch.tensor((2 / max(w2 - 1, 1), 2 / max(h2 - 1, 1)), device=xy.device)
-            g = F.grid_sample(corr, (xy * scale - 1).to(corr.dtype), align_corners=True, padding_mode="border")
+            grid = scale_xy(xy, 2 / max(w2 - 1, 1), 2 / max(h2 - 1, 1)) - 1
+            g = F.grid_sample(corr, grid.to(corr.dtype), align_corners=True, padding_mode="border")
             out.append(g.view(s, h, w, -1))
         return torch.cat(out, -1).permute(0, 3, 1, 2).float()
 
@@ -291,8 +300,12 @@ class AllTracker(nn.Module):
 
     def encode(self, images: torch.Tensor) -> torch.Tensor:
         """`[N, C, H/8, W/8]` features of `[N, 3, H, W]` images in `[0, 1]` (H, W multiples of 8)."""
-        mean = images.new_tensor(MEAN).view(1, 3, 1, 1)
-        std = images.new_tensor(STD).view(1, 3, 1, 1)
+        mean = device_tensor(MEAN, device=images.device, dtype=images.dtype).view(
+            1, 3, 1, 1
+        )  # fastforks: no host sync (a pageable upload syncs the host)
+        std = device_tensor(STD, device=images.device, dtype=images.dtype).view(
+            1, 3, 1, 1
+        )  # fastforks: no host sync (a pageable upload syncs the host)
         x = (images - mean) / std
         return self.fnet(x) if self.tiny else self.dot_conv(self.cnn(x))
 
@@ -320,15 +333,19 @@ class AllTracker(nn.Module):
             torch.arange(w, device=anchor.device, dtype=torch.float32),
             indexing="ij",
         )
-        coords1 = torch.stack((xs, ys))[None]  # the flow state stays float32
+        coords1 = to_float32(torch.stack((xs, ys))[None])  # the flow state stays float32
+        flows8, visconfs8 = to_float32(flows8), to_float32(visconfs8)
         f1 = anchor[None].expand(s, -1, -1, -1)
         flowfeat, ctxfeat = (f1, f1) if self.tiny else f1.split(DIM, 1)
         ctxfeat = ctxfeat + self.time_embed(s).to(ctxfeat.dtype)[:, :, None, None]
-        for _ in range(iters):
+        for step in range(iters):
             corr = corr_fn(coords1 + flows8).to(anchor.dtype)
+            if step + 1 == iters:
+                del corr_fn
             flowfeat = self.update_block(flowfeat, ctxfeat, visconfs8, corr, flows8, s)
-            flows8 = flows8 + self.flow_head(flowfeat)
-            visconfs8 = visconfs8 + self.visconf_head(flowfeat)
+            del corr
+            flows8 = flows8 + to_float32(self.flow_head(flowfeat))
+            visconfs8 = visconfs8 + to_float32(self.visconf_head(flowfeat))
         return flows8, visconfs8, 0.25 * self.upsample_weight(flowfeat)
 
 

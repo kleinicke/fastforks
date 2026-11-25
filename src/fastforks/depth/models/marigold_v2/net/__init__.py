@@ -11,12 +11,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-from safetensors import safe_open
 from torch import nn
 
 from .dit import Block, Transformer, block_keys
 from .nf4 import BF, NF4Linear, pair_lut
-from fastforks.shared.host_blocks import HostBlocks
+from fastforks._core.checkpoint import SafetensorsReader
+from fastforks.shared.host_blocks import READERS, HostBlocks
 from .vae import VAE2D
 
 if TYPE_CHECKING:
@@ -60,14 +60,25 @@ class Net(nn.Module):
 
     def forward(self, x: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         """Log depth (affine-invariant) in `[-1, 1]`, bf16, at the network size."""
+        return self.forward_with_vae(x, noise, encode=self.vae.encode, decode=self.vae.decode)
+
+    def forward_with_vae(
+        self,
+        x: torch.Tensor,
+        noise: torch.Tensor,
+        *,
+        encode: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        decode: Callable[[torch.Tensor], torch.Tensor],
+    ) -> torch.Tensor:
+        """Run the streamed transformer between the supplied VAE encoder and decoder."""
         self.lut()
-        lat = self.vae.encode(x, noise)
+        lat = encode(x, noise)
         b, c, h, w = lat.shape
         hp, wp = h // PATCH, w // PATCH
         packed = lat.view(b, c, hp, PATCH, wp, PATCH).permute(0, 2, 4, 1, 3, 5).reshape(b, hp * wp, c * PATCH * PATCH)
         pred = self.dit(packed, hp, wp)
         pred = pred.view(b, hp, wp, c, PATCH, PATCH).permute(0, 3, 1, 4, 2, 5).reshape(b, c, h, w)
-        return self.vae.decode(lat - pred).mean(dim=1, keepdim=True)
+        return decode(lat - pred).mean(dim=1, keepdim=True)
 
 
 def _block_index(k: str) -> int | None:
@@ -75,11 +86,12 @@ def _block_index(k: str) -> int | None:
 
 
 def _host_blocks(
-    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], get: Callable[[str], torch.Tensor]
+    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], fill: Callable[[str, torch.Tensor], object],
+    *, workers: int = 1,
 ) -> HostBlocks:
     n = 1 + max(i for k in keys if (i := _block_index(k)) is not None)
     specs = [{k: meta[k] for k in block_keys(keys, i)} for i in range(n)]
-    return HostBlocks(specs, lambda k, dst: dst.copy_(get(k)))
+    return HostBlocks(specs, fill, workers=workers)
 
 
 def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str, torch.Tensor], HostBlocks | None]:
@@ -88,24 +100,18 @@ def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str
         host = None
         if stream:
             keys = list(t)
-            host = _host_blocks(keys, {k: (v.dtype, v.shape) for k, v in t.items()}, t.__getitem__)
+            host = _host_blocks(keys, {k: (v.dtype, v.shape) for k, v in t.items()}, lambda k, dst: dst.copy_(t[k]))
         rest = {k: v.to(device) for k, v in t.items() if not (stream and _block_index(k) is not None)}
         return rest, host
     path = ctx.weights()[0]
-    with safe_open(path, "pt", device="cpu" if stream else str(device)) as f:
-        keys = list(f.keys())
+    with SafetensorsReader(path) as f:  # plain reads: no copy-on-write mapping of the whole file (Windows commit)
+        keys = f.keys()
         t = {k: f.get_tensor(k).to(device) for k in keys if not (stream and _block_index(k) is not None)}
         if not stream:
             return t, None
-        meta = {}
-        for k in keys:
-            if _block_index(k) is not None:
-                sl = f.get_slice(k)
-                meta[k] = (_DTYPES[sl.get_dtype()], torch.Size(sl.get_shape()))
-        return t, _host_blocks(keys, meta, f.get_tensor)
+        meta = {k: (f.dtype(k), f.shape(k)) for k in keys if _block_index(k) is not None}
+        return t, _host_blocks(keys, meta, f.read_into, workers=READERS)  # straight into the host block buffer
 
-
-_DTYPES = {"U8": torch.uint8, "BF16": torch.bfloat16, "F32": torch.float32, "F16": torch.float16}
 
 
 def load(ctx: Context, *, stream: bool, fused: bool = False, exact_mask: bool = False) -> Net:

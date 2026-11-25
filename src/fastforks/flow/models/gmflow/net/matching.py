@@ -16,7 +16,7 @@ def global_correlation_softmax(feature0, feature1,
     correlation = torch.matmul(feature0, feature1).view(b, h, w, h, w) / (c ** 0.5)  # [B, H, W, H, W]
 
     # flow from softmax
-    init_grid = coords_grid(b, h, w).to(correlation.device)  # [B, 2, H, W]
+    init_grid = coords_grid(b, h, w, device=correlation.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     grid = init_grid.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     correlation = correlation.view(b, h * w, h * w)  # [B, H*W, H*W]
@@ -37,11 +37,37 @@ def global_correlation_softmax(feature0, feature1,
     return flow, prob
 
 
+# fastforks: limit the CUDA / MPS grid_sample workspace. At 1080p the unchunked
+# scale-2 lookup allocates more than 5 GiB for the sampled candidate features alone.
+_LOCAL_SAMPLE_BYTES = 256 * 1024 * 1024
+
+
+def _local_correlation(feature0, feature1, coords, padding_mode):
+    b, c, h, w = feature0.shape
+    queries = feature0.permute(0, 2, 3, 1).reshape(b, h * w, 1, c)
+
+    def dot(query, grid):
+        sampled = grid_sample(feature1, grid, padding_mode=padding_mode, align_corners=True)
+        return torch.matmul(query, sampled.permute(0, 2, 1, 3)).squeeze(-2)
+
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    if feature0.device.type in ("cuda", "mps") and not capture and not torch.is_grad_enabled():
+        step = max(1, _LOCAL_SAMPLE_BYTES // (b * c * coords.shape[2] * feature1.element_size()))
+        if h * w > step:
+            chunks = [
+                dot(queries[:, start:start + step], coords[:, start:start + step])
+                for start in range(0, h * w, step)
+            ]
+            return torch.cat(chunks, dim=1) / (c ** 0.5)
+
+    return dot(queries, coords) / (c ** 0.5)
+
+
 def local_correlation_softmax(feature0, feature1, local_radius,
                               padding_mode='zeros',
                               ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     local_h = 2 * local_radius + 1
@@ -63,12 +89,7 @@ def local_correlation_softmax(feature0, feature1, local_radius,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    window_feature = grid_sample(feature1, sample_coords_norm,
-                                   padding_mode=padding_mode, align_corners=True
-                                   ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)^2]
-    feature0_view = feature0.permute(0, 2, 3, 1).view(b, h * w, 1, c)  # [B, H*W, 1, C]
-
-    corr = torch.matmul(feature0_view, window_feature).view(b, h * w, -1) / (c ** 0.5)  # [B, H*W, (2R+1)^2]
+    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode)
 
     # mask invalid locations
     corr[~valid] = -1e9
@@ -91,7 +112,7 @@ def local_correlation_with_flow(feature0, feature1,
                                 dilation=1,
                                 ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     local_h = 2 * local_radius + 1
@@ -112,12 +133,7 @@ def local_correlation_with_flow(feature0, feature1,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    window_feature = grid_sample(feature1, sample_coords_norm,
-                                   padding_mode=padding_mode, align_corners=True
-                                   ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)^2]
-    feature0_view = feature0.permute(0, 2, 3, 1).view(b, h * w, 1, c)  # [B, H*W, 1, C]
-
-    corr = torch.matmul(feature0_view, window_feature).view(b, h * w, -1) / (c ** 0.5)  # [B, H*W, (2R+1)^2]
+    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode)
 
     corr = corr.view(b, h, w, -1).permute(0, 3, 1, 2).contiguous()  # [B, (2R+1)^2, H, W]
 
@@ -155,7 +171,7 @@ def global_correlation_softmax_stereo(feature0, feature1,
 def local_correlation_softmax_stereo(feature0, feature1, local_radius,
                                      ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1).contiguous()  # [B, H*W, 2]
 
     local_h = 1

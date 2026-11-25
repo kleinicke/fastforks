@@ -17,7 +17,7 @@ median of the round medians, peaks = max over the first and the timed calls. Eac
 process (`cold`): `torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until
 the model is on the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak
 (`peak_first_*_mb`; `first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each
-row also records the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short
+row also records the task runner's time on the tensors the full call passed it (`core_ms`, when captured) and a short
 profile of the full call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels,
 host syncs per call, top kernels). `export` turns the library rows into floor rows (the fields of
 docs/data/speed.jsonl).
@@ -73,6 +73,16 @@ from _data import DATA
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+
+def _scene_path(root: Path, relative: str) -> Path:
+    """Resolve a speed-floor image in flat and task-organized data roots."""
+    direct = root / relative
+    if direct.is_file():
+        return direct
+    grouped = root / "stereo" / relative
+    return grouped if grouped.is_file() else direct
+
+
 ROOT = Path(__file__).resolve().parents[1]
 FLOOR = ROOT / "docs" / "data" / "speed.jsonl"
 ALLOW = ROOT / "docs" / "data" / "speed_allowlist.json"
@@ -82,8 +92,8 @@ COMPILE_DATA = ROOT / "docs" / "data" / "speed_compile.jsonl"
 WARMUP, RUNS, ROUNDS = 3, 5, 3
 TOL_MS, TOL_MB, TOL_MB_ABS, TOL_STATIC = 0.05, 0.05, 8, 0.03
 SCENES = {  # floor scene prefix -> left image (right: image_3 / im1; flow: the next frame _11), under $FASTFORKS_DATA
-    "KITTI": DATA / "KITTI/training/image_2/000000_10.png",
-    "Middlebury": DATA / "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png",
+    "KITTI": _scene_path(DATA, "KITTI/training/image_2/000000_10.png"),
+    "Middlebury": _scene_path(DATA, "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png"),
 }
 VIEWS = {"mapanything-apache": 9, "patchmatchnet": 5}  # multi-view scenes of the floor (other models: 8 views)
 SWAPPED = {"patchmatchnet"}  # floor input label is WxH
@@ -125,12 +135,16 @@ def scene_of(r: dict[str, Any]) -> str:
 
 
 def floor_rows() -> list[dict[str, Any]]:
-    return [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in FLOOR.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [row for row in rows if row.get("regression_floor", True)]
 
 
 def _px(label: str) -> int:
-    h, _, w = label.partition("x")
-    return int(h) * int(w)
+    """Elements of an input label `HxW` (volumes: `DxHxW`)."""
+    n = 1
+    for side in label.split("x"):
+        n *= int(side)
+    return n
 
 
 def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[str, Any]]:
@@ -139,9 +153,10 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     `compile` / `tensorrt` jobs are the refs of the floor's portable rows, with their standard input only.
     """
     out: dict[tuple[str, str], dict[str, Any]] = {}
-    only, want = _floor_refs(only), set(modes)
+    rows = floor_rows()
+    only, want = _floor_refs(only, rows=rows), set(modes)
     read = (want - set(NEW_MODES)) | ({"portable"} if want & set(NEW_MODES) else set())
-    for r in floor_rows():
+    for r in rows:
         if r["mode"] not in read or (only and r["ref"] not in only):
             continue
         j = out.setdefault((r["ref"], r["mode"]), {"ref": r["ref"], "task": r["task"], "mode": r["mode"], "inputs": []})
@@ -163,19 +178,20 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     return found
 
 
-def _floor_refs(names: Iterable[str]) -> set[str]:
+def _floor_refs(names: Iterable[str], *, rows: list[dict[str, Any]] | None = None) -> set[str]:
     """Floor refs of `--only` names: a floor ref as is, a model id (`geocalib`) as its variant's ref; else an error.
 
     An unknown name used to select no job, so `run` ended without a row or a message.
     """
-    refs = {r["ref"] for r in floor_rows()}
+    refs = {r["ref"] for r in (floor_rows() if rows is None else rows)}
     out = set()
     for name in names:
         if name not in refs:
             from fastforks._core.registry import resolve_any  # noqa: PLC0415 - only for a name that is no floor ref
 
             try:
-                name = resolve_any(name)[1].ref  # noqa: PLW2901
+                variant = resolve_any(name)[1]
+                name = variant.ref if variant.ref in refs else variant.id  # noqa: PLW2901 - floor rows may omit revision
             except Exception as e:  # noqa: BLE001 - any lookup failure is the same user error
                 msg = f"--only {name}: no floor rows and no model of that id ({e})"
                 raise SystemExit(msg) from None
@@ -366,6 +382,21 @@ def _src_files() -> list[str]:
     return sorted(out)
 
 
+def _tracking_scope(task: str, args: tuple[Any, ...], *, exported: bool = False) -> dict[str, int | str]:
+    """Record the actual tracking clip and the fixed export's comparison size."""
+    if task != "tracking":
+        return {}
+    video, queries = args
+    frames, points = int(video.shape[0]), int(queries.shape[0])
+    scope: dict[str, int | str] = {"frames": frames, "queries": points}
+    if exported:
+        height, width = video.shape[-2:]
+        scope.update(
+            comparison_input=f"{frames}x{height}x{width}", backend_part=f"{frames} frames with {points} queries"
+        )
+    return scope
+
+
 def _lib_job(
     spec: dict[str, Any],
 ) -> tuple[dict[str, Any], list[tuple[str, Callable[[], Any], Callable[[], Any] | None]]]:
@@ -398,7 +429,7 @@ def _lib_job(
         def full(*, prepare: bool = False, i: Callable[[], Any] = inputs) -> Any:  # noqa: ANN401
             a, k = i()
             if prepare:
-                return None
+                return _tracking_scope(spec["task"], a)
             with torch.inference_mode():
                 return m(*a, **k)
 
@@ -419,7 +450,10 @@ def _lib_job(
             with torch.inference_mode():
                 return fn(*ca, **ck)
 
-        calls.append((inp["label"], full, core))
+        # Interactive volumes call session methods on the runner; those methods invoke the network on the original
+        # runner instance, not this proxy. Replaying a session method would mutate its state, so omit the core timing.
+        interactive = spec["task"] == "volume" and isinstance(m, task.VolumeInteractive)
+        calls.append((inp["label"], full, None if interactive else core))
     info["_model"] = m
     return info, calls
 
@@ -444,11 +478,11 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
                 from fastforks._core import kernels  # noqa: PLC0415
 
                 kernels.reset_fallbacks()
-            if core is not None:
-                full(prepare=True)  # this input only (lib side)
+            if spec["side"] == "lib":
+                row |= full(prepare=True) or {}  # this input only (lib side)
             row |= measure(full)
             if core is not None:
-                row["core_ms"] = core_ms(core)
+                row |= {"core_skipped": True} if spec.get("no_core") else {"core_ms": core_ms(core)}
                 core(release=True)
             if spec["side"] == "lib" and (fb := kernels.fallbacks()):
                 row["fallbacks"] = {f"{a}:{b}": v for (a, b), v in fb.items()}
@@ -489,6 +523,11 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     """
     import torch  # noqa: PLC0415
 
+    if model.card.family == "clipseg":
+        # The engine starts after image resize and takes a separately prepared text embedding.
+        height, width = model.size_range().export_size
+        return 1, height, width
+
     seen: list[torch.Size] = []
 
     def hook(_mod: Any, args: tuple[Any, ...]) -> None:  # noqa: ANN401
@@ -514,6 +553,53 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     return n, h, w
 
 
+def trt_output_diagnostics(model: Any, inputs: tuple[Any, ...], actual: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN401
+    """Record per-output error against eager; task-level accuracy still determines whether it is acceptable."""
+    import torch  # noqa: PLC0415
+
+    from fastforks._core.export import flat_outputs, output_names  # noqa: PLC0415
+
+    module = model.module()
+    with torch.inference_mode():
+        expected = module(*inputs)
+    names = output_names(model, module, expected)
+    if set(names) != set(actual):
+        msg = f"TensorRT output names {sorted(actual)} differ from eager {sorted(names)}"
+        raise ValueError(msg)
+    result = {}
+    for name, want in zip(names, flat_outputs(expected), strict=True):
+        got = actual[name]
+        if want.shape != got.shape:
+            msg = f"TensorRT output {name} shape {tuple(got.shape)} differs from eager {tuple(want.shape)}"
+            raise ValueError(msg)
+        if not want.numel():
+            result[name] = {"elements": 0}
+            continue
+        if not want.is_floating_point():
+            unequal = (got != want).sum().item()
+            result[name] = {"unequal": unequal, "elements": want.numel()}
+            continue
+        w, g = want.float(), got.float()
+        bad = (~torch.isfinite(g) & torch.isfinite(w)).sum().item()
+        if bad:
+            msg = f"TensorRT output {name} has {bad} nonfinite values where eager is finite"
+            raise ValueError(msg)
+        if ((~torch.isfinite(w)) & ~((w == g) | (torch.isnan(w) & torch.isnan(g)))).any():
+            msg = f"TensorRT output {name} does not match eager's nonfinite values"
+            raise ValueError(msg)
+        finite = torch.isfinite(w) & torch.isfinite(g)
+        if not finite.any():
+            msg = f"TensorRT output {name} has no finite values to compare"
+            raise ValueError(msg)
+        diff = (g[finite] - w[finite]).abs()
+        result[name] = {
+            "max_abs": diff.max().item(),
+            "mean_abs": diff.mean().item(),
+            "ref_max_abs": w[finite].abs().max().item(),
+        }
+    return {"status": "recorded; task accuracy not yet validated", "outputs": result}
+
+
 def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: list[Any], out: Path) -> None:  # noqa: ANN401
     """`tensorrt` mode: ONNX export and fp16 engine build of the portable model at the input, then the engine's timing.
 
@@ -537,6 +623,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
         if n > 1:
             row["views"] = n
         inputs = model.example_inputs(h, w, batch=n)
+        row.update(_tracking_scope(spec["task"], inputs, exported=True))
         with tempfile.TemporaryDirectory(prefix="ff-trt-") as tmp:
             t0 = time.perf_counter()
             onnx = model.export_onnx(Path(tmp) / "model.onnx", h, w, batch=n)
@@ -555,8 +642,11 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
             for k in ("alloc", "reserved"):
                 row[f"torch_peak_{k}_mb"] = row[f"peak_{k}_mb"]
                 row[f"peak_{k}_mb"] += row["device_mb"]
-            if all_nan(engine.run(*inputs)) is not None:
+            outputs = engine.run(*inputs)
+            if all_nan(outputs) is not None:
                 _fail(row, spec, "wrong output: an engine output is all NaN")
+            else:
+                row["numeric_check"] = trt_output_diagnostics(model, inputs, outputs)
             # start with an already built engine: load the engine file + the first call (cold = onnx export + build)
             del engine
             gc.collect()
@@ -706,7 +796,7 @@ def worker(spec: dict[str, Any]) -> int:
         "torch": torch.__version__,
         "date": time.strftime("%F"),
         "protocol": f"first call, {WARMUP} warm-up, peak reset, median of {ROUNDS} rounds x median of {RUNS}",
-        "cold": True,  # one fresh process per (ref, side, mode): the load is the first in its process
+        "cold": not spec.get("warm_worker", False),  # grouped golden-only workers may reuse a process
         "torch_import_s": round(torch_import_s, 2),
         "cuda_init_s": round(cuda_init_s, 2),
     }
@@ -744,7 +834,7 @@ def worker(spec: dict[str, Any]) -> int:
 
 
 def _append(out: Path, row: dict[str, Any]) -> None:
-    with out.open("a") as f:
+    with out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     print(
         json.dumps({k: v for k, v in row.items() if k not in ("files", "profile", "kernels", "ops")})[:300], flush=True
@@ -765,14 +855,16 @@ def _plugin(path: str) -> Any:  # noqa: ANN401 - a module
 def read_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def _done(rows: list[dict[str, Any]], side: str, job: dict[str, Any], fork_key: str = "") -> bool:
-    """All inputs of the job measured on the current code (lib) / with the same fork key (fork)."""
+    """All inputs have the requested measurements on the current code or fork key."""
     got = set()
     for r in rows:
         if r.get("side") != side or r["ref"] != job["ref"] or r["mode"] != job["mode"] or "error" in r:
+            continue
+        if r.get("core_skipped") and not job.get("no_core"):
             continue
         if side == "lib" and r.get("code_hash", "")[:16] != files_hash(r.get("files", [])):
             continue
@@ -806,7 +898,7 @@ def _warm_start(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env
         return
     rows = read_rows(a.out)
     rows[-1]["compile_warm_s"] = got[0]["first_call_s"]
-    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
 
 
 def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str]) -> None:
@@ -836,7 +928,7 @@ def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: di
         rows, cold = read_rows(a.out), next(iter(read_rows(Path(a.cold_from))[::-1]), {})
         if cold.get("compile_s") and "fails" not in cold:
             rows[-1] |= {"compile_warm_s": rows[-1].get("compile_s"), "compile_s": cold["compile_s"]}
-            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     if rc == 0 or len(read_rows(a.out)) != before:
         return
     row = {
@@ -873,7 +965,7 @@ def run(a: argparse.Namespace) -> int:
         for side in sides:
             fk = forks.get((job["ref"], job["mode"]), {})
             key = str(fk.get("key", ""))
-            if not a.force and _done(rows, side, job, key):
+            if not a.force and _done(rows, side, job | {"no_core": a.no_core}, key):
                 continue
             spec = {
                 **job,
@@ -882,6 +974,7 @@ def run(a: argparse.Namespace) -> int:
                 "commit": commit,
                 "forks": a.forks,
                 "no_profile": a.no_profile or job["mode"] in NEW_MODES,
+                "no_core": a.no_core,
                 "trace": a.trace_diff,
             }
             spec["fork_key"] = key
@@ -956,7 +1049,7 @@ def static_violations() -> list[tuple[str, str]]:
 
 
 def static() -> int:
-    allow = json.loads(ALLOW.read_text()) if ALLOW.exists() else {}
+    allow = json.loads(ALLOW.read_text(encoding="utf-8")) if ALLOW.exists() else {}
     bad = [(k, m) for k, m in static_violations() if k not in allow]
     for k, m in bad:
         print("VIOLATION", k, m)
@@ -970,7 +1063,7 @@ def static() -> int:
 FLOOR_KEYS = (
     "ref", "task", "mode", "input", "scene", "ms", "ms_min", "runs", "noise", "peak_alloc_mb", "peak_reserved_mb",
     "peak_first_alloc_mb", "peak_first_reserved_mb", "import_s", "load_s", "first_call_s", "cold", "backend",
-    "protocol", "gpu", "torch", "date", "commit",
+    "protocol", "gpu", "torch", "date", "commit", "frames", "queries", "comparison_input", "backend_part",
 )  # fmt: skip
 
 
@@ -1118,6 +1211,7 @@ def main() -> int:
     p.add_argument("--forks", default="")
     p.add_argument("--force", action="store_true", help="measure again even if the code did not change")
     p.add_argument("--no-profile", action="store_true")
+    p.add_argument("--no-core", action="store_true", help="skip the optional runner-only timing")
     p.add_argument(
         "--warm-start", action="store_true", help="compile: a second start on the filled caches (compile_warm_s)"
     )

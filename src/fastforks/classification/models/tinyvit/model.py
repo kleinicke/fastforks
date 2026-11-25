@@ -160,4 +160,4 @@ class Kernels(Runner):
             return {"logits": self._graphs(image)}
 
 
-RUNNERS = {"portable": libnet.Portable, "kernels": Kernels}
+RUNNERS = {"portable": libnet.Portable, "kernels": Kernels, "portable_mlx": libnet.Mlx, "kernels_mlx": libnet.Mlx}

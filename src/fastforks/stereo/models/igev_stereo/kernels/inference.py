@@ -34,7 +34,8 @@ from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, conv_fused, cutlass, epilogue, fuse_ok, fused_cfg
 from fastforks.shared.igev_blocks.net import extractor, submodule
-from fastforks.shared.igev_blocks.net.submodule import build_gwc_volume_fast, context_upsample, disparity_regression
+from fastforks.shared.igev_blocks.net.submodule import context_upsample, disparity_regression
+from fastforks.stereo._volume import gwc_volume_blocks
 
 _TAIL = 3  # cutlass_conv affine act 3: relu(res + relu(conv * s + t))
 STRIP_PIXELS = 2 * 2**20  # context-encoder full-res stage processed in row strips of about this many pixels
@@ -296,7 +297,7 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     del stem_4x
     match_left = self.desc(self.conv(features_left[0]))
 
-    gwc_volume = build_gwc_volume_fast(match_left, match_right, D, 8, True)
+    gwc_volume = gwc_volume_blocks(match_left, match_right, D, 8)
     gwc_volume = self.corr_stem(gwc_volume)
     gwc_volume = self.corr_feature_att(gwc_volume, features_left[0])
     geo_encoding_volume = self.cost_agg(gwc_volume, features_left)

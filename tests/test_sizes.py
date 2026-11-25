@@ -45,6 +45,17 @@ def test_tested_max_and_not_measured():
 
 # refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
 UNMEASURED: dict[str, str] = {  # ref: why it has no tested size
+    **dict.fromkeys(
+        [
+            "totalsegmentator-total-6mm",
+            "totalsegmentator-v3-total",
+            "totalsegmentator-v3-total-3mm",
+            "totalsegmentator-v3-total-6mm",
+            "totalsegmentator-v3-total-small",
+            "totalsegmentator-v3-total-small-3mm",
+        ],
+        "added on the Mac; tools/bench_sizes.py needs the CUDA box",
+    ),
 }
 
 

@@ -6,8 +6,8 @@ the same call). Each transformer block's LayerNorm runs over the channel dimensi
 into the 1 x 1 conv after it (`qkv`, `project_in`; WithBias: `F.layer_norm` over a channels-last view, BiasFree: the
 input divided by its channel standard deviation, no mean subtraction, as upstream). The transposed (channel) attention
 normalises q and k in float32 (upstream: `F.normalize` in the input dtype, which can overflow in float16 on large
-images), multiplies q by the head's temperature and runs the `[c, c]` softmax in float32. On CUDA the network runs
-channels-last.
+images), multiplies q by the head's temperature and runs the `[c, c]` softmax in float32. On CUDA and MPS the network
+runs channels-last.
 """
 
 from __future__ import annotations
@@ -20,9 +20,12 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import Restormer
 from .net.restormer_arch import Attention, FeedForward, TransformerBlock, WithBias_LayerNorm
@@ -48,15 +51,7 @@ class Params:
     norm: str  # "WithBias" or "BiasFree" (real denoising)
     key: str  # checkpoint key ("params")
     multiple: int  # 8: the test scripts' reflect padding
-
-
-def _norm(m: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
-    """`LayerNorm` over the channels without the affine (folded into the next conv)."""
-    if m.with_bias:
-        y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
-        return y.contiguous() if x.device.type == "cpu" else y  # a channels-last view makes the CPU convs slow (9x)
-    var = x.float().var(1, keepdim=True, unbiased=False)
-    return x * torch.rsqrt(var + _EPS).to(x.dtype)
+    cuda_graphs: bool
 
 
 def _gram(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
@@ -78,17 +73,74 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     `project_out` weight is multiplied in, so the output is one GEMM `v (W A)^T` straight into channels-last tokens.
     """
     b, c, h, w = x.shape
-    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
-    q, k, v = t.split(c, -1)
-    f32 = torch.float32
-    nq = torch.linalg.vector_norm(q, dim=1, dtype=f32).clamp_min(1e-12)
-    nk = torch.linalg.vector_norm(k, dim=1, dtype=f32).clamp_min(1e-12)
+    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)  # a view in either memory format
+    ch = t.mT  # [B, 3 C, H W]
+    qk = ch[:, : 2 * c]
+    if qk.device.type == "mps" and qk.dtype != torch.float32:  # no float32-output half GEMM: one float32 copy, cast
+        qk = t[..., : 2 * c].float().mT if t.is_contiguous() else qk.float()  # in the stored order
+    if qk.device.type == "mps":  # its norm kernel over the pixel axis of the channels-last tokens is 3x slower
+        n = qk.square().sum(-1).sqrt()
+    else:
+        n = torch.linalg.vector_norm(qk, dim=-1, dtype=torch.float32)
+    nq, nk = n.clamp_min(1e-12).split(c, -1)
+    q, k = qk.mT.split(c, -1)
     scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
     block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
     proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
     g = _gram(q, k) * (scale / nq)[:, :, None] / nk[:, None, :] + block
-    mat = (proj @ g.softmax(-1)).to(v.dtype)  # [B, C out, C in]
-    return (v @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]
+    return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+# The attention statistics and the GDFN gate as single ops of the MLX export (`.mlx_ops` lowers them to Metal kernels
+# of `fastforks.kernels.graph_mlx`). A custom op's body only runs when the exported program is executed in PyTorch.
+@torch.library.custom_op("fastforks::restormer_token_gram", mutates_args=())
+def token_gram_op(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Of `[B, N, 3 C]` tokens (q | k | v): float32 `q^T k` `[B, C, C]` and the squared q / k norms `[B, 2 C]`."""
+    qk = t[..., : 2 * c].float()
+    return torch.bmm(qk[..., :c].mT, qk[..., c:]), qk.square().sum(1)
+
+
+@token_gram_op.register_fake
+def _(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
+    b = t.shape[0]
+    return t.new_empty((b, c, c), dtype=torch.float32), t.new_empty((b, 2 * c), dtype=torch.float32)
+
+
+@torch.library.custom_op("fastforks::restormer_dw_gate", mutates_args=())
+def dw_gate_op(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    """`gelu(d1) * d2` of the halves of the bias-free 3 x 3 depthwise conv of `x` `[B, 2 C, H, W]`: `[B, C, H, W]`."""
+    d1, d2 = F.conv2d(x, weight.to(x.dtype), padding=1, groups=x.shape[1]).chunk(2, 1)
+    return F.gelu(d1) * d2
+
+
+@dw_gate_op.register_fake
+def _(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
+    b, c2, h, w = x.shape
+    return x.new_empty((b, c2 // 2, h, w))
+
+
+def _mlx_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
+    """`_attention` for the MLX export: `q^T k` and the norms are one op on the stored tokens.
+
+    The graph form (float32 copies of q and k, a GEMM, a norm over the pixel axis of the transposed view) took 37 of
+    the 125 ms of a 96-channel block at 512 x 512 on an M1 Pro.
+    """
+    b, c, h, w = x.shape
+    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
+    gram, sq = token_gram_op(t, c)
+    nq, nk = sq.sqrt().clamp_min(1e-12).split(c, -1)
+    scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
+    block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
+    proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
+    g = gram * (scale / nq)[:, :, None] / nk[:, None, :] + block
+    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]; .to: a no-op in the float32 twin
+    return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+def _fold_mlx_attention(m: Attention, device: torch.device | str) -> None:
+    _fold_attention(m, device)
+    override(m, _mlx_attention)
 
 
 def _fold_attention(m: Attention, device: torch.device | str) -> None:
@@ -104,14 +156,45 @@ def _fold_attention(m: Attention, device: torch.device | str) -> None:
     m.block = torch.zeros(c, c).masked_fill_(ids[:, None] != ids[None, :], float("-inf")).to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].float().to(device)
     del m.temperature, m.project_out
+    override(m, _attention)
+
+
+def _head_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
+    """Form only the per-head channel products, then fold the head projections into one value GEMM.
+
+    Iterate over images so the token views of interleaved Q/K/V remain strided views even for B > 1.
+    """
+    b, c, h, w = x.shape
+    heads, width = m.num_heads, c // m.num_heads
+    tokens = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
+    norms = torch.linalg.vector_norm(tokens[..., : 2 * c], dim=1, dtype=torch.float32).clamp_min_(1e-12)
+    temperature: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
+    proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
+    matrices = []
+    for values, norm in zip(tokens.unbind(), norms.unbind(), strict=True):
+        q, k, _ = values.view(h * w, 3, heads, width).permute(1, 2, 0, 3).unbind()
+        nq, nk = norm.view(2, heads, width).unbind()
+        gram = _gram(q, k) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)
+        matrices.append(torch.bmm(gram.softmax(-1).mT, proj).reshape(c, c))
+    mat = to_run_dtype(matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices), tokens.dtype)
+    return torch.bmm(tokens[..., 2 * c :], mat).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+def _fold_head_attention(m: Attention, device: torch.device | str) -> None:
+    heads = m.num_heads
+    c = m.project_out.in_channels
+    m.scale = m.temperature.detach().view(heads, 1).float().to(device)
+    m.proj = m.project_out.weight.detach()[:, :, 0, 0].T.reshape(heads, c // heads, c).float().contiguous().to(device)
+    del m.temperature, m.project_out
+    override(m, _head_attention)
 
 
 def _block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
     """`TransformerBlock.forward` with the norms' affine folded into `qkv` / `project_in`."""
-    if x.is_cuda:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
+    if not x.is_cpu:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
         x = x.contiguous(memory_format=torch.channels_last)
-    x = x + m.attn(_norm(m.norm1, x))
-    return x + m.ffn(_norm(m.norm2, x))
+    x = x + m.attn(m.norm1(x))
+    return x + m.ffn(m.norm2(x))
 
 
 def _pad_ffn(m: FeedForward) -> None:
@@ -152,7 +235,7 @@ def _pad_ffn(m: FeedForward) -> None:
             m.project_out.bias.copy_(pout.bias)
 
 
-def _split_ffn(m: FeedForward) -> None:
+def _split_ffn(m: FeedForward, _device: torch.device | str) -> None:
     """Split `project_in` and the depthwise conv into their x1 / x2 halves (`_ffn`)."""
     pin, dw = m.project_in, m.dwconv
     half = dw.out_channels // 2
@@ -170,6 +253,7 @@ def _split_ffn(m: FeedForward) -> None:
         setattr(m, f"in{i}", part(pin, pin.in_channels, sl))
         setattr(m, f"dw{i}", part(dw, half, sl, groups=half))
     del m.project_in, m.dwconv
+    override(m, _ffn)
 
 
 def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
@@ -179,6 +263,32 @@ def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
     """
     g = F.gelu(m.dw1(m.in1(x)))  # ty: ignore[call-non-callable]
     return m.project_out(g.mul_(m.dw2(m.in2(x))))  # ty: ignore[call-non-callable]
+
+
+def _mlx_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
+    """`FeedForward.forward` for the MLX export: the depthwise conv, the gelu and the product are one op."""
+    return m.project_out(dw_gate_op(m.project_in(x), m.dwconv.weight))
+
+
+def _mlx_gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
+    if m.dwconv.bias is not None:
+        msg = "the MLX gate kernel has no depthwise bias (upstream's models are bias-free)"
+        raise NotImplementedError(msg)
+    override(m, _mlx_ffn)
+
+
+def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
+    """Pack the depthwise filters before casting the network. dwgate reads fp32 weights in kernel-position order."""
+    dw = m.dwconv
+    m.gate_weight = dw.weight.detach().reshape(dw.out_channels, 9).T.contiguous().to(_device)
+    m.gate_bias = None if dw.bias is None else dw.bias.detach().to(_device)  # ty: ignore[invalid-assignment]
+    del m.dwconv
+    override(m, _fused_ffn)
+
+
+def _fused_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
+    gated = fastbb.dwgate(m.project_in(x).permute(0, 2, 3, 1), m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
+    return m.project_out(gated.permute(0, 3, 1, 2))
 
 
 def _fold_norm(norm: torch.nn.Module, conv: torch.nn.Conv2d) -> torch.nn.Module:
@@ -200,12 +310,68 @@ class _Norm(torch.nn.Module):
         super().__init__()
         self.with_bias = with_bias
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Normalize the channels after folding the affine into the next convolution."""
+        if self.with_bias:
+            y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
+            return y.contiguous() if x.device.type == "cpu" else y  # channels-last slows the CPU convolutions
+        var = x.float().var(1, keepdim=True, unbiased=False)
+        return x * torch.rsqrt(var + _EPS).to(x.dtype)
+
+
+class _CudaNorm(_Norm):
+    """Read and write the channels-last activation in one CUDA pass."""
+
+    def __init__(self, norm: _Norm, unit_weight: torch.Tensor) -> None:
+        super().__init__(with_bias=norm.with_bias)
+        self.register_buffer("unit_weight", unit_weight, persistent=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Normalize a half-precision activation with the affine already folded."""
+        tokens = x.permute(0, 2, 3, 1).contiguous()
+        weight = self.get_buffer("unit_weight")
+        return fastbb.ln_lastdim(tokens, weight, None, _EPS, bias_free=not self.with_bias).permute(0, 3, 1, 2)
+
+
+def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
+    """Release each eager CUDA encoder feature after its last decoder use."""
+    if not image.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return net(image)
+
+    first = net.patch_embed(image)
+    level1 = net.encoder_level1(first)
+    if not net.dual_pixel_task:
+        first = None
+    level2 = net.encoder_level2(net.down1_2(level1))
+    level3 = net.encoder_level3(net.down2_3(level2))
+    x = net.latent(net.down3_4(level3))
+
+    x = torch.cat((net.up4_3(x), level3), dim=1)
+    del level3
+    x = net.decoder_level3(net.reduce_chan_level3(x))
+    x = torch.cat((net.up3_2(x), level2), dim=1)
+    del level2
+    x = net.decoder_level2(net.reduce_chan_level2(x))
+    x = torch.cat((net.up2_1(x), level1), dim=1)
+    del level1
+    x = net.refinement(net.decoder_level1(x))
+    if first is not None:
+        return net.output(x + net.skip_conv(first))
+    return net.output(x).add_(image)
+
 
 class Portable(Runner):
-    """Plain PyTorch in the card's dtype, channels-last on CUDA."""
+    """Plain PyTorch in the card's dtype, channels-last on CUDA and MPS.
+
+    MPS: channels-last with the stream kept channels-last after each PixelShuffle (`_block`); restormer-deblur
+    float16 1.48 -> 0.99 s (survey). NCHW with the WithBias norm output made contiguous gave 1.36 s, and 1.95 s in
+    float32.
+    """
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params
+    _prepare_attention = staticmethod(_fold_attention)
+    _prepare_ffn = staticmethod(_split_ffn)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, fold the norms."""
@@ -221,12 +387,10 @@ class Portable(Runner):
                 m.norm1 = _fold_norm(m.norm1, m.attn.qkv)  # ty: ignore[invalid-assignment]
                 m.norm2 = _fold_norm(m.norm2, m.ffn.project_in)  # ty: ignore[invalid-assignment]
                 override(m, _block)
-                override(m.attn, _attention)
-                _fold_attention(m.attn, ctx.device)
+                self._prepare_attention(m.attn, ctx.device)
                 _pad_ffn(m.ffn)
-                _split_ffn(m.ffn)
-                override(m.ffn, _ffn)
-        self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
+                self._prepare_ffn(m.ffn, ctx.device)
+        self.fmt = torch.contiguous_format if torch.device(ctx.device).type == "cpu" else torch.channels_last
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
@@ -238,7 +402,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        return {"image": _restore(self.net, x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
@@ -256,22 +421,68 @@ class Kernels(Portable):
     The attention GEMMs keep float32 accumulation (the `q^T k` sums run over all pixels).
     """
 
+    _prepare_attention = staticmethod(_fold_head_attention)
+    _prepare_ffn = staticmethod(_gate_ffn)
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    _GRAPH_PIXELS = 192 * 256  # fixed: cap the graph pool at launch-bound patch sizes
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fastbb.load(ctx.device)
+        unit_weights: dict[int, torch.Tensor] = {}
         for m in self.net.modules():
             if is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
+            elif isinstance(m, TransformerBlock):
+                channels = m.attn.qkv.in_channels
+                if channels % 8 or channels > fastbb.LN_MAX_C:
+                    continue  # arbitrary-width checkpoint variants use the generic channel normalization
+                if channels not in unit_weights:
+                    unit_weights[channels] = torch.ones(channels, device=ctx.device, dtype=torch.float32)
+                for name in ("norm1", "norm2"):
+                    m.register_module(name, _CudaNorm(getattr(m, name), unit_weights[channels]))
+        self._graphs = SmallShapeGraphs(
+            self._restore_image,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _restore_image(self, image: torch.Tensor) -> torch.Tensor:
+        return _restore(self.net, image)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(torch.float16).contiguous(memory_format=self.fmt))}
+        x = image.to(torch.float16).contiguous(memory_format=self.fmt)
+        return {"image": self._graphs(x)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Mlx(Portable):
+    """Portable for the MLX port: the attention statistics and the GDFN gate export as single ops (`mlx_ops`)."""
+
+    _prepare_attention = staticmethod(_fold_mlx_attention)
+    _prepare_ffn = staticmethod(_mlx_gate_ffn)
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; `mlx_ops` lowers its two ops to Metal kernels."""
+        super().__init__(ctx)
+        from . import mlx_ops  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    # 134-268 MB activations at 512 x 512: at the default 128 MB buffer cache every one is a fresh zero-filled
+    # allocation (M1 Pro, deblur fp16 warm: 1062 ms; 512 MB 858, 1024 MB 732, 2048 MB 699)
+    "portable_mlx": mlx_wrap.port(_Mlx, cache_mb=1024),
+}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:

@@ -36,6 +36,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.seginfer import (
     eomt_windows,
     mask_semantic,
@@ -131,14 +132,17 @@ class _Net(torch.nn.Module):
 
     def _cos_sin(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         key = (x.shape[-2], x.shape[-1])
-        if key not in self._rope:
-            if len(self._rope) >= _ROPE_SIZES:
-                del self._rope[next(iter(self._rope))]
+        found = self._rope.get(key)
+        if found is None:
             assert self.rope is not None  # noqa: S101 - DINOv3 only
             cos, sin = self.rope(x[:1].float())
             dt = self.model.layernorm.weight.dtype
-            self._rope[key] = (cos.to(dt)[None, :, None], sin.to(dt)[None, :, None])
-        return self._rope[key]
+            found = (cos.to(dt)[None, :, None], sin.to(dt)[None, :, None])
+            if type(found[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
+                if len(self._rope) >= _ROPE_SIZES:
+                    del self._rope[next(iter(self._rope))]
+                self._rope[key] = found
+        return found
 
     def _block(self, layer: _Hf, x: torch.Tensor, cs: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
         b, n, c = x.shape
@@ -223,8 +227,11 @@ class Portable(Runner):
         crops = torch.cat([x[..., y : y + s, z : z + s] for y, z in wins])
         with _fp16_accumulate(enabled=self.kernels and x.is_cuda and self.ctx.torch_dtype == torch.float16):
             masks, classes = self.net(crops)
-        # fp16 on CUDA from the product on (its dtype) to the labels: no float32 window or image-size scores
-        logits = mask_semantic(resize(masks, crops.shape[-2:]), classes, None)
+        # The resized query logits and accumulated scores are disposable during CUDA inference.
+        inplace = x.is_cuda and torch.is_inference_mode_enabled() and not torch.compiler.is_compiling()
+        masks = resize(masks, crops.shape[-2:])
+        logits = mask_semantic(masks, classes, None, inplace=inplace)
+        del masks, classes, x, crops
         if len(wins) == 1 and (rh, rw) == (s, s):
             return logits
         out = logits.new_zeros((1, logits.shape[1], rh, rw))
@@ -232,7 +239,7 @@ class Portable(Runner):
         for (y, z), lg in zip(wins, logits, strict=True):
             out[..., y : y + s, z : z + s] += lg
             count[..., y : y + s, z : z + s] += 1
-        return out / count
+        return out.div_(count) if inplace else out / count
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
         h, w = image.shape[-2:]  # `resize` to the image size (no-op at equal size), fused by `seg_up` in kernels
@@ -259,4 +266,9 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

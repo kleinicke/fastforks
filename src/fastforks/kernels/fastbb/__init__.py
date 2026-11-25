@@ -103,6 +103,11 @@ class Flash64:
         self.probe -= 1
         o = self._run(self.variant, q, k, v, scale)
         defer_check(o, self._widen, self._refund)
+        # The check is queued first on the same stream, so it sees the original output. Keep a provisional
+        # overflow from breaking data-dependent operations before checked() can retry the whole model call.
+        # The widest variant must preserve non-finite inputs when no further fallback is possible.
+        if self.variant != "ff":
+            o.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
         return o
 
     def _refund(self) -> None:

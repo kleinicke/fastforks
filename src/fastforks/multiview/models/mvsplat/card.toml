@@ -2,11 +2,15 @@ schema = 2
 name = "MVSplat"
 summary = "MVSplat (Chen et al. 2024): feed-forward 3D Gaussian splatting and depth from posed, calibrated images. A UniMatch CNN and multi-view swin transformer feed a plane-sweep cost volume (all other views), refined by 2D U-Nets with cross-view attention into every view's depth; a Gaussian head predicts one Gaussian per pixel (opacity, scale, rotation, degree-4 SH) in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
 tier = "experimental"
-uses = ["group_norm"]  # fastforks.shared modules this family imports
+uses = ["group_norm", "mlx_wrap"]  # fastforks.shared modules this family imports
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 licence_notes = [
   "Only the RealEstate10K checkpoint is shipped (MIT code and weights); the ACID checkpoint has the same architecture.",
+]
+
+limitations = [
+  "TensorRT was evaluated at 336 x 518 with eight calibrated views. The benchmark exports ONNX and builds the engine in separate processes. On five DTU scenes, the largest change in held-out view PSNR was 0.080 dB. The lowest PSNR between portable and TensorRT renders was 25.94 dB.",
 ]
 
 [output]
@@ -34,9 +38,14 @@ long_side = { default = 256, min = 16 }  # network long side (the checkpoint was
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]
+kernels = ["cudnn_hacc", "mvsplat_corr"]
+mps_kernels = ["mvsplat_metal"]  # the plane sweep (bilinear warp + channel dot) in one Metal kernel, no warped chunks
+mps_dtype = "float32"  # MPS portable float32 is faster than float16 here; the kernel costs the same in both
+mlx_kernels = ["conv_mlx"]  # Winograd F(4,3) 3x3 convolutions (float16; float32 runs as portable)
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "MVSplat: Efficient 3D Gaussian Splatting from Sparse Multi-View Images"
@@ -46,6 +55,5 @@ venue = "ECCV 2024"
 
 [[variants]]
 id = "mvsplat-re10k"
-planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "re10k.ckpt", size = 48019233, sha256 = "83d0d9eaa753fa4a1f925288dc1f90b8c3297fad0ab0f6ed1f11a1c5946da25a", url = "https://drive.usercontent.google.com/download?id=1Y5OAJN9AX5yMjkbyxag5OnwacdjPnl-N&export=download&confirm=t" }]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import platform
 
 import pytest
 import torch
@@ -268,10 +269,11 @@ def test_cpu_conv_net_runs_channels_last_with_identical_output():
         want = copy.deepcopy(m)(x)
         fast = optimize(m, mode="portable", device="cpu")
         got = fast(x)
-    assert fast.report["channels_last"] is True
+    expected = platform.machine().lower() in {"x86_64", "amd64"}
+    assert fast.report["channels_last"] is expected
     convs = [c for c in fast.net.modules() if isinstance(c, nn.Conv2d)]
     assert convs
-    assert all(c.weight.is_contiguous(memory_format=torch.channels_last) for c in convs)
+    assert all(c.weight.is_contiguous(memory_format=torch.channels_last) is expected for c in convs)
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)
 
 
@@ -319,6 +321,8 @@ def test_patch_device_resolved_like_load(monkeypatch: pytest.MonkeyPatch):
         patch(_tiny(), device="cuda")
     with pytest.raises(OptionsError, match="invalid device"):
         patch(_tiny(), device="gpu0")
+    with pytest.raises(OptionsError, match=r"patch uses a PyTorch device.*fastforks\.load.*device='mlx'"):
+        patch(_tiny(), device="MLX")
 
 
 # --- MIRA-R3-01: no fold into a conv that has a second use --------------------------------------------------------
@@ -419,6 +423,17 @@ def test_kernel_passes_leave_a_conv_with_a_second_use_alone(second_use):
     assert gm.stem.weight.shape[1] == (3 if second_use else 8)
 
 
+@pytest.mark.slow
+def test_dropout_removal_recompiles_without_layer_scale() -> None:
+    """A changed FX graph must remain traceable even when no LayerScale was folded."""
+    model = nn.Sequential(nn.Conv2d(3, 4, 1), nn.Dropout(), nn.ReLU()).eval()
+    graph = fx.symbolic_trace(model)
+    x = torch.randn(1, 3, 8, 8)
+    assert cnn.fold_layer_scale(graph) == 0
+    torch.testing.assert_close(graph(x), model(x))
+    assert torch._dynamo.explain(graph)(x).graph_break_count == 0
+
+
 class _DeviceCache(nn.Module):
     """Conv + BN whose forward caches a derived tensor per device, as timm's attention bias tables do."""
 
@@ -468,3 +483,26 @@ def test_convnext_layer_scale_fold_adds_no_weight_copy():
     )
     assert sum(seen.values()) == own  # no buffer owns storage a parameter does not
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)
+
+
+class _ConvDropout(nn.Module):
+    """Conv + Dropout (eval: identity) + no LayerScale: the fold pass changes the graph but folds nothing."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv = nn.Conv2d(3, 8, 3, padding=1)
+        self.drop = nn.Dropout(0.1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.drop(self.conv(x)) + 1
+
+
+def test_fold_layer_scale_recompiles_after_dropping_dropouts():
+    """Without a fold the dropped Dropout still left `gm.code` / `_lineno_map` stale: dynamo indexed the node metas
+    by the old line map (torch 2.14: IndexError in `_maybe_preserve_original_meta`; ShViT, EfficientFormer, ...)."""
+    gm = fx.symbolic_trace(_ConvDropout().eval())
+    assert cnn.fold_layer_scale(gm) == 0
+    assert "drop" not in gm.code
+    assert max(i for i in gm._lineno_map.values() if i is not None) < len(gm.graph.nodes)
+    x = torch.randn(1, 3, 8, 8)
+    assert torch._dynamo.explain(gm)(x).graph_break_count == 0

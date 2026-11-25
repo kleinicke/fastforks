@@ -21,7 +21,7 @@ T = np.array([-0.3, 0.004, 0.002])
 
 
 def _example() -> str:
-    section = DOC.read_text().split("## End-to-end example", 1)[1]
+    section = DOC.read_text(encoding="utf-8").split("## End-to-end example", 1)[1]
     return re.search(r"```python\n(.*?)```", section, re.DOTALL).group(1)
 
 
@@ -50,7 +50,7 @@ def _write_calib(path: Path, cams: list[g.Camera]) -> None:
         k = [[cam.fx, 0, cam.cx], [0, cam.fy, cam.cy], [0, 0, 1]]
         lines += [f"S_0{i}: {fmt((cam.width, cam.height))}", f"K_0{i}: {fmt(k)}", f"D_0{i}: {fmt(DIST[i - 2])}"]
         lines += [f"R_0{i}: {fmt(rot)}", f"T_0{i}: {fmt(t)}"]
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def test_docs_end_to_end_example(tmp_path, monkeypatch):

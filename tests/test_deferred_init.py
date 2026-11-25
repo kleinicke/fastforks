@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import threading
+import types
 
 import pytest
 import torch
 
-from fastforks._core.deferred_init import deferred_init
+from fastforks._core.deferred_init import deferred_init, deferred_library_inits
 
 
 class _Net(torch.nn.Module):
@@ -40,6 +41,23 @@ def test_loaded_tensors_skip_the_fill(monkeypatch: pytest.MonkeyPatch) -> None:
     assert torch.nn.init.kaiming_uniform_ is not original  # the test's patch is restored, not torch's
     monkeypatch.undo()
     assert torch.nn.init.kaiming_uniform_ is original
+
+
+def test_a_block_inside_inference_mode_still_defers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ComfyUI loads models inside `torch.inference_mode()`: the build still skips the fill of loaded tensors."""
+    calls = []
+    original = torch.nn.init.kaiming_uniform_
+    monkeypatch.setattr(torch.nn.init, "kaiming_uniform_", lambda t, *a, **k: calls.append(t) or original(t, *a, **k))
+    sd = _reference().state_dict()
+    calls.clear()
+    with torch.inference_mode(), deferred_init():
+        net = _Net()
+        net.load_state_dict(sd)
+    assert not calls
+    for k, v in net.state_dict().items():
+        assert torch.equal(v, sd[k]), k
+    with torch.inference_mode():
+        assert net.lin(torch.rand(2, 8)).shape == (2, 4)
 
 
 def test_unloaded_tensors_are_initialised() -> None:
@@ -176,3 +194,37 @@ def test_deterministic_inits_survive_a_cast() -> None:
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA GPU")
 def test_deterministic_inits_survive_a_move_to_the_gpu() -> None:
     _cast_keeps_deterministic_inits("cuda", torch.half)
+
+
+def _library() -> types.ModuleType:
+    """A stand-in for a library module that imported its own initialiser by name (timm's `trunc_normal_`)."""
+    lib = types.ModuleType("lib")
+
+    def shifted_normal_(t: torch.Tensor, mean: float = 0.0) -> torch.Tensor:
+        with torch.no_grad():
+            return t.normal_().add_(mean)  # a random fill, then an in-place shift (timm's trunc_normal_tf_)
+
+    lib.shifted_normal_ = shifted_normal_
+    return lib
+
+
+def test_library_inits_are_deferred_and_restored() -> None:
+    lib = _library()
+    original = lib.shifted_normal_
+    loaded, unloaded = torch.empty(64), torch.empty(64)
+    with deferred_init():
+        with deferred_library_inits([lib], ("shifted_normal_", "absent_")):
+            assert lib.shifted_normal_ is not original
+            lib.shifted_normal_(loaded, mean=5.0)
+            lib.shifted_normal_(unloaded, mean=5.0)
+        assert lib.shifted_normal_ is original
+        loaded.copy_(torch.arange(64.0))  # what a checkpoint load does
+    assert torch.equal(loaded, torch.arange(64.0))
+    assert 3 < float(unloaded.mean()) < 7  # the whole initialiser ran at the end, its shift included
+
+
+def test_library_inits_outside_a_block_run_at_once() -> None:
+    lib = _library()
+    original = lib.shifted_normal_
+    with deferred_library_inits([lib], ("shifted_normal_",)):
+        assert lib.shifted_normal_ is original

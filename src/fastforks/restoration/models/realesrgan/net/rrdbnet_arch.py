@@ -36,7 +36,10 @@ class ResidualDenseBlock(nn.Module):
         x2 = self.lrelu(self.conv2(torch.cat((x, x1), 1)))
         x3 = self.lrelu(self.conv3(torch.cat((x, x1, x2), 1)))
         x4 = self.lrelu(self.conv4(torch.cat((x, x1, x2, x3), 1)))
-        x5 = self.conv5(torch.cat((x, x1, x2, x3, x4), 1))
+        dense = torch.cat((x, x1, x2, x3, x4), 1)
+        del x1, x2, x3, x4
+        x5 = self.conv5(dense)
+        del dense
         # Empirically, we use 0.2 to scale the residual for better performance
         return x5 * 0.2 + x
 

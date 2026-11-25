@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
+from .mlx import MlxSEARAFT
 from .net import MEDIUM, SEARAFT, SMALL
 
 if TYPE_CHECKING:
@@ -136,4 +138,28 @@ class MetalKernels(Portable):
         return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+class _Mlx(Portable):
+    """The network the MLX port exports: `MlxSEARAFT` (`mlx.py`), without the correlation volume."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; regroup it for MLX."""
+        super().__init__(ctx)
+        self.net = MlxSEARAFT(cast("SEARAFT", self.net))  # `Portable`'s network
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    # The encoders' layer2 128 -> 128 convs run in float32: in MLX's half Winograd they are 9 % faster at 1080 x 1920
+    # (1029 -> 936 ms) but put sea-raft-s-spring's golden over its tolerance (mean 0.0023 against 0.002).
+    # The motion encoder's 256 -> 126 goes into MLX's Winograd as 128 outputs (float16 1080 x 1920: 7.7 -> 3.0 ms).
+    # Buffer cache: the Spring variants run at half resolution, where 1024 MB put the footprint above MPS kernels'
+    # (sea-raft-m-spring float16: 1024 MB 267 ms / 2032 MB, 512 MB 279 / 1485, 256 MB 285 / 1222; MPS 340 / 1621).
+    "portable_mlx": mlx_wrap.port(
+        _Mlx,
+        cache_mb={"sea-raft-m-spring": 512, "sea-raft-s-spring": 512, "": 1024},
+        half_wino_f32=((128, 128),),
+        half_wino_pad=((256, 126),),
+    ),
+}

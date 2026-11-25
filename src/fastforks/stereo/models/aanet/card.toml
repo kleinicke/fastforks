@@ -3,7 +3,7 @@ name = "AANet"
 summary = "AANet (Xu and Zhang 2020): sparse deformable-sampling cost aggregation within and across scales on a 2-D correlation pyramid, without 3-D convolutions."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "deform_conv"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "deform_conv", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the SceneFlow checkpoints of AANet and AANet+ are included; the original code's KITTI fine-tunes are not.",
   "At 375x1242 AANet is launch-bound: portable is about as fast as the original code. At 994x1482 portable is faster but allocates more memory.",
@@ -27,9 +27,13 @@ pad = { multiple = 48, mode = "top_right", fill = "zero" }  # normalized images,
 [params]
 max_disp = 192  # cost-volume depth at full resolution
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["deform_conv", "igev", "cutlass_conv", "cudnn_hacc"]
@@ -41,6 +45,12 @@ mps_kernels = ["stereo_metal"]
 # sampling + mask + conv + BN/ReLU, no column buffer). Mean ms per pair, kernels vs portable (kernels before deform_conv): AANet
 # Midd-H 100.3 vs 144.1 (147.0), ETH3D 39.8 vs 56.7 (88.1); AANet+ Midd-H 93.8 vs 243.9 (208.0), ETH3D 71.2 vs 88.4
 # (79.8); AANet+ Midd-H peak allocated 778 vs 5312 MB.
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2 shapes per
+# model (Windows AANet KITTI 43-60 -> 28 ms). The graph pool stays reserved (KITTI 770 vs 272 MiB eager) until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (720x1280
+# 60.4 vs 57.9 ms with a graph, for 1.5 vs 0.5 GB reserved). The kernels refinement warps on a pixel grid made on the
+# device (upstream's `meshgrid` builds it with a CPU `arange`, a host copy no graph can capture): the same numbers
 
 # Upstream also links KITTI 2012 / 2015 fine-tuned weights of both networks and the StereoNet / GC-Net / PSMNet / GA-Net
 # variants with adaptive aggregation (MODEL_ZOO.md): not added (not available locally). The network code supports them.

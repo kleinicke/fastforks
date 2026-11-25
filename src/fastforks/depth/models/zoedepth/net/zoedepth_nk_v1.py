@@ -243,7 +243,7 @@ class ZoeDepthNK(nn.Module):  # fastforks: = (DepthModel)
             b_embedding, last.shape[-2:], mode='bilinear', align_corners=True)
 
         clb = self.conditional_log_binomial[bin_conf_name]
-        x = clb(last, b_embedding)
+        x = clb(last, b_embedding, tiled=True)
 
         # Now depth value is Sum px * cx , where cx are bin_centers from the last bin tensor
         # print(x.shape, b_centers.shape)

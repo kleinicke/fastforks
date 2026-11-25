@@ -21,6 +21,9 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.bisenet.net import BiSeNet
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cnn_kernels import prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -94,11 +97,14 @@ class Portable(Runner):
         self.fmt = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
         self.net = self.net.to(memory_format=self.fmt)
 
+    def _network(self, x: torch.Tensor) -> torch.Tensor:
+        return _main_head(self.net, x)
+
     def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
         """Logits at the network size (NCHW) and the resize step to the image size."""
         size = target_size(*image.shape[-2:], self.ctx.params.resize)
         x = scale(resize(image, size, pil=True), self.ctx.io).contiguous(memory_format=self.fmt)
-        s = _main_head(self.net, x.to(next(self.net.parameters()).dtype)).contiguous()
+        s = self._network(x.to(next(self.net.parameters()).dtype)).contiguous()
         return s, ((image.shape[-2], image.shape[-1]),)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -114,4 +120,59 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["logits"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Run the convolution blocks with fused CUDA kernels."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the convolution blocks for inference."""
+        super().__init__(ctx)
+        prepare_generic(self.net, ctx.device)
+        self.graphs = SmallShapeGraphs(super()._network, pixels=2**20)
+
+    def _network(self, x: torch.Tensor) -> torch.Tensor:
+        return self.graphs(x)
+
+    def release_graphs(self) -> None:
+        """Release captured CUDA graphs and their activation buffers."""
+        self.graphs.release()
+
+
+class _Head(torch.nn.Module):
+    """The main head of a BiSeNet as one module (what the MLX graph exports)."""
+
+    def __init__(self, net: BiSeNet) -> None:
+        super().__init__()
+        self.net = net
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return _main_head(self.net, x)
+
+
+def _mlx(portable: type[Portable]) -> type[Portable]:
+    base = mlx_wrap.port(portable, attrs=())
+
+    class Mlx(base):  # ty: ignore[unsupported-base]
+        """Apple MLX: the main head runs through the exported-graph translation."""
+
+        def __init__(self, ctx: Context) -> None:
+            """Wrap the head."""
+            super().__init__(ctx)
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
+            self._head = MlxModule(_Head(self.net), ctx.dtype, kernels=ctx.mode == "kernels")
+
+        def _network(self, x: torch.Tensor) -> torch.Tensor:
+            return self._head(x)
+
+    Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
+    return Mlx
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _mlx(Portable),
+    "kernels_mlx": _mlx(Portable),
+}

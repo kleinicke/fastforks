@@ -3,8 +3,12 @@ name = "FlowFormer Small"
 summary = "FlowFormer Small (ECCV 2022): convolutional features, a latent cost-memory transformer and recurrent flow decoding. The authors' Small checkpoints, with plain float32 inference."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["libnet"]
-limitations = ["Only the Small architecture is included.", "No custom kernels backend: the time is in cuDNN TF32 convolutions and the float32 aggregation matmul, and lowering precision changes EPE.", "Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.", "Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs."]
+uses = ["cuda_graphs", "libnet", "cuda_softmax", "mlx_wrap"]
+limitations = [
+  "Only the Small architecture is included.",
+  "Default CUDA inference uses the validated float32 precision. The optional float16 portable path requires separate accuracy validation.",
+  "Full-frame cost memory grows quadratically with input area. The measured Small Chairs checkpoint uses less than 9 GiB of reserved CUDA memory at 1080p float32 in both native modes on the RTX 5060 Ti.",
+]
 
 [upstream]
 repo = "https://github.com/drinkingcoder/FlowFormer-Official"
@@ -57,15 +61,17 @@ use_mlp = false
 vertical_conv = false
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
 iters = { default = 32, min = 1 }
 
 [modes.portable]
 cuda_dtype = "float32"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped."
+kernels = ["flow_upsample"]
+dtype = "float32"
 
 [[papers]]
 title = "FlowFormer: A Transformer Architecture for Optical Flow"

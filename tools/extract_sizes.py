@@ -25,11 +25,11 @@ OUT = Path(__file__).resolve().parents[1] / "src" / "fastforks" / "_core" / "siz
 
 def main() -> None:
     """Update the JSON file from the given logs."""
-    old = json.loads(OUT.read_text())
+    old = json.loads(OUT.read_text(encoding="utf-8"))
     refs = {v.ref for task in registry.TASKS for _, v in registry.cards(task).values()}
     best: dict[str, list[int]] = {k: v for k, v in old["max"].items() if k in refs}
     new: dict[str, list[int]] = {}
-    for line in Path(sys.argv[1]).read_text().splitlines():
+    for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         if r.get("status") != "ok" or r["mode"] != "portable":
             continue
@@ -40,11 +40,13 @@ def main() -> None:
             new[ref] = [h, w, r["alloc_mib"], r["reserved_mib"]]
     best.update(new)
     if len(sys.argv) < 3:  # noqa: PLR2004 - no min-size log: keep the probed minimums
-        OUT.write_text(json.dumps({"min": old["min"], "max": best}, sort_keys=True, separators=(",", ":")) + "\n")
+        OUT.write_text(
+            json.dumps({"min": old["min"], "max": best}, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
+        )
         print(f"{len(new)} max updated -> {OUT}")
         return
     probed = {}
-    for line in Path(sys.argv[2]).read_text().splitlines():
+    for line in Path(sys.argv[2]).read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         if r.get("min"):
             probed[(r["task"], r["card"])] = r["min"]
@@ -54,7 +56,9 @@ def main() -> None:
             if (task, card.name) in probed:
                 smallest[variant.ref] = probed[(task, card.name)]
     smallest.update(VARIANT_MIN)
-    OUT.write_text(json.dumps({"min": smallest, "max": best}, sort_keys=True, separators=(",", ":")) + "\n")
+    OUT.write_text(
+        json.dumps({"min": smallest, "max": best}, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
     print(f"{len(best)} max, {len(smallest)} min -> {OUT}")
 
 

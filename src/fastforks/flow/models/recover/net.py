@@ -27,6 +27,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.upload import device_tensor
+
 FACTOR = 8  # fixed: the context encoders downsample by 8
 DIM = 128  # fixed: hidden state and context channels (upstream args.dim)
 CORR = 4 * 9 * 9  # fixed: upstream's correlation channels (4 levels, radius 4), all zero at inference
@@ -295,8 +298,8 @@ class BasicMotionEncoder(nn.Module):
         cor = F.relu(self.convc2(cor))
         wc = self.conv.weight[:, : cor.shape[1]]
         small = F.conv2d(cor, wc, self.conv.bias, padding=1)
-        iy = torch.tensor([0, 1] + [2] * (h - 4) + [3, 4], device=small.device)
-        ix = torch.tensor([0, 1] + [2] * (w - 4) + [3, 4], device=small.device)
+        iy = device_tensor([0, 1] + [2] * (h - 4) + [3, 4], device=small.device)
+        ix = device_tensor([0, 1] + [2] * (w - 4) + [3, 4], device=small.device)
         return small.index_select(2, iy).index_select(3, ix)
 
     def forward(self, flow: torch.Tensor, corr_term: torch.Tensor) -> torch.Tensor:
@@ -357,15 +360,22 @@ class ReCoVEr(nn.Module):
         head, out = self.flow_head[0], cast("nn.Conv2d", self.flow_head[2])
         return F.conv2d(F.relu(head(net)), out.weight[:2], cast("torch.Tensor", out.bias)[:2], padding=1)
 
+    @staticmethod
+    def pair(image1: torch.Tensor, image2: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+        """The six-channel input of the context encoder."""
+        return torch.cat([image1, image2], dim=1).to(dtype)
+
+    upsample = staticmethod(_upsample)
+
     def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`; runs in the dtype of the weights."""
         dt = self.init_conv.weight.dtype
-        x = torch.cat([image1, image2], dim=1).to(dt)
+        x = self.pair(image1, image2, dt)
         net, context = self.init_conv(self.cnet(x)).split(DIM, dim=1)
-        flow = self.delta(net).float()
+        flow = to_float32(self.delta(net))
         corr_term = self.update_block.encoder.corr_term(*net.shape[-2:])
         for _ in range(iters):
-            net = self.update_block(net, context, corr_term, flow.to(dt))
-            flow = flow + self.delta(net).float()
+            net = self.update_block(net, context, corr_term, to_run_dtype(flow, dt))
+            flow = flow + to_float32(self.delta(net))
         mask = 0.25 * self.upsample_weight(net)
-        return _upsample(flow, mask.float())
+        return self.upsample(flow, to_float32(mask))

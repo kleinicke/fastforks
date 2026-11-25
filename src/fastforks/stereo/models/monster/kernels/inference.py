@@ -16,7 +16,7 @@ of 32):
   - fp32 disparity states, convex upsampling only where the result is used
 
 Explicit PyTorch ops (not fallbacks; the kernel libraries have no such kernel): the group-wise correlation volume
-(`build_gwc_volume_fast`, the fork used an `igev` kernel this build does not ship) and REMP's LeakyReLU(0.2) after
+(`gwc_volume_blocks` GEMMs, the fork used an `igev` kernel this build does not ship) and REMP's LeakyReLU(0.2) after
 the conv epilogue (the fork fused it as epilogue activation `leaky02`). Dilated convs run as PyTorch fp16 convs
 (cuDNN's fp16-accumulate graphs do not support dilation), as in the fork.
 """
@@ -33,13 +33,24 @@ from fastforks._core.patch import base_type, override
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
-from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, conv_fused, cutlass, epilogue, fused_cfg
+from fastforks.shared.cnn_kernels import (
+    ACT,
+    CL,
+    bn_affine,
+    conv_ep,
+    conv_ep_into,
+    conv_fused,
+    cutlass,
+    epilogue,
+    fused_cfg,
+)
 from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.stereo._volume import gwc_volume_blocks
 
 from ..net import submodule
 from ..net.inference import warp
 from ..net.monster import compute_scale_shift
-from ..net.submodule import build_gwc_volume_fast, context_upsample, disparity_regression
+from ..net.submodule import context_upsample, disparity_regression
 
 
 def _h16(x: torch.Tensor) -> torch.Tensor:
@@ -153,7 +164,7 @@ def _motion_fill_fused(enc: nn.Module, disp: torch.Tensor, corr: torch.Tensor) -
     d = conv_ep(enc.convd1, disp, act=ACT["relu"])
     cd = torch.empty((1, 128, hh, ww), device=cor.device, dtype=cor.dtype, memory_format=CL)
     for m, x, c0 in ((enc.convc2, cor, 0), (enc.convd2, d, 64)):
-        cd[:, c0 : c0 + 64].copy_(conv_ep(m, x, act=ACT["relu"]))
+        conv_ep_into(m, x, cd, c0, act=ACT["relu"])
     del cor, d
 
     def fill(bufs: list[torch.Tensor], c0: int) -> None:
@@ -168,25 +179,26 @@ def _motion_fill_fused(enc: nn.Module, disp: torch.Tensor, corr: torch.Tensor) -
 def _mix_fill(
     enc: nn.Module, d_own: torch.Tensor, c_own: torch.Tensor, d_oth: torch.Tensor, c_oth: torch.Tensor
 ) -> tuple[str, torch.Tensor, int]:
-    """BasicMotionEncoder_mix2 on the [corr | flaw | 0] buffers; the conv / conv_mono outputs and both disparities
-    written straight into the GRU's [h | x] / [r*h | x] buffers (no cats)."""
+    """BasicMotionEncoder_mix2 on the [corr | flaw | 0] buffers; the conv / conv_mono outputs (63 channels + the zero
+    pad) and both disparities written straight into the GRU's [h | x] / [r*h | x] buffers (no cats)."""
     R = ACT["relu"]
     _, _, hh, ww = d_own.shape
-    outs = []
+    ins = []
     for c1, c2, dd1, dd2, cv, corr, d in (
         (enc.convc1, enc.convc2, enc.convd1, enc.convd2, enc.conv, c_own, d_own),
         (enc.convc1_mono, enc.convc2_mono, enc.convd1_mono, enc.convd2_mono, enc.conv_mono, c_oth, d_oth),
     ):
         cd = torch.empty((1, 128, hh, ww), device=d.device, dtype=d.dtype, memory_format=CL)
-        cd[:, :64].copy_(conv_ep(c2, conv_ep(c1, corr, act=R), act=R))
-        cd[:, 64:].copy_(conv_ep(dd2, conv_ep(dd1, d, act=R), act=R))
-        outs.append((conv_ep(cv, cd, act=R, keep_pad=True), d))
+        conv_ep_into(c2, conv_ep(c1, corr, act=R), cd, 0, act=R)
+        conv_ep_into(dd2, conv_ep(dd1, d, act=R), cd, 64, act=R)
+        ins.append((cv, cd, d))
 
     def fill(bufs: list[torch.Tensor], c0: int) -> None:
-        for b in bufs:
-            for j, (o, d) in enumerate(outs):
-                b[:, c0 + 64 * j : c0 + 64 * j + 63].copy_(o[:, :63])
-                b[:, c0 + 64 * j + 63 : c0 + 64 * j + 64].copy_(d)
+        for j, (cv, cd, d) in enumerate(ins):
+            o = slice(c0 + 64 * j, c0 + 64 * j + 64)
+            conv_ep_into(cv, cd, bufs[0], o.start, act=R)
+            bufs[0][:, o.stop - 1 : o.stop].copy_(d)
+            bufs[1][:, o].copy_(bufs[0][:, o])
 
     return ("fill", fill, 128)
 
@@ -236,7 +248,7 @@ def _corr_flaw(
             memory_format=CL
         )
     buf[:, :g].copy_(geo)
-    buf[:, g : g + fl0f.shape[1]].copy_(warp(fr0f, disp) - fl0f)
+    torch.sub(warp(fr0f, disp), fl0f, out=buf[:, g : g + fl0f.shape[1]])
     return buf
 
 
@@ -286,11 +298,15 @@ def remp_fast(
     x = rem2 = _c2x(u.conv2b, x, rem2)
     x = rem3 = _c2x(u.conv3b, x, rem3)
     x = _c2x(u.conv4b, x, rem4)
+    del rem4
     x = _c2x(u.deconv4b, x, rem3)
+    del rem3
     x = _c2x(u.deconv3b, x, rem2)
+    del rem2
     x = _c2x(u.deconv2b, x, rem1)
+    del rem1
     x = _c2x(u.deconv1b, x, rem0)
-    del rem0, rem1, rem2, rem3, rem4
+    del rem0
     low = R.LFE(x.float().mean((2, 3), keepdim=True).half())  # AP + LFE (1 x 1)
     l0, l1, l2 = R.LMC[0], R.LMC[1], R.LMC[3]  # conv, conv + ReLU, conv + sigmoid
     motif = conv_ep(l2, conv_ep(l1, conv_ep(l0, x), act=relu), act=ACT["sigmoid"])
@@ -319,17 +335,18 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     features_right = self.feat_transfer(fmr)
     del fmr
     fr0 = torch.cat((features_right[0], self.stem_4(self.stem_2(i2))), 1)
-    del features_right
+    del features_right, i2
     match_right = self.desc(self.conv(fr0))
     features_left = self.feat_transfer(fml)
     stem_2x = self.stem_2(i1)
+    del i1
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
     features_left[0] = torch.cat((features_left[0], stem_4x), 1)
     match_left = self.desc(self.conv(features_left[0]))
 
-    gwc_volume = build_gwc_volume_fast(match_left, match_right, D, 8, True)
+    gwc_volume = gwc_volume_blocks(match_left, match_right, D, 8)
     gwc_volume = self.corr_stem(gwc_volume)
     gwc_volume = self.corr_feature_att(gwc_volume, features_left[0])
     geo_encoding_volume = self.cost_agg(gwc_volume, features_left)
@@ -382,14 +399,19 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
                 self.update_block_mix_mono, net_mono, ctx_mm, dm_h, cm, disp_h, cs, last
             )
             disp_mono_4x = disp_mono_4x + delta_mono.float()
+            del delta_mono
         disp = disp + delta_disp.float()
+        del geo_feat, delta_disp
 
-    def up(dl: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        xspx = self.spx_2_gru(mask, stem_2x)
+    del geo_fn, fl0f, fr0f, net_list, net_mono, ctx, ctx_ms, ctx_mm, cs, cm, init_disp, disp_h, dm_h
+
+    def up(dl: torch.Tensor, mask: torch.Tensor, stem: torch.Tensor) -> torch.Tensor:
+        xspx = self.spx_2_gru(mask, stem)
         return context_upsample(dl * 4.0, F.softmax(self.spx_gru(xspx).float(), 1)).unsqueeze(1)
 
-    disp_up = up(disp, mask_feat_4)
-    disp_mono_up = up(disp_mono_4x, mask_mono)
+    disp_up = up(disp, mask_feat_4, stem_2x)
+    disp_mono_up = up(disp_mono_4x, mask_mono, stem_2x)
+    del stem_2x, mask_feat_4, mask_mono
     return disp_up + remp_fast(self.REMP, disp_mono_up, disp_up, im1, im2)
 
 

@@ -89,6 +89,23 @@ extern "C" __global__ void __launch_bounds__(256)
     local_corr_body<48, 1>(f0, f1, warp, out, b, h, w, scale);
 }
 
+// Original RoMa uses larger windows at strides 16, 8 and 4.
+extern "C" __global__ void __launch_bounds__(256)
+    roma_local_corr_c512_r7(const float* f0, const float* f1, const float* warp, float* out, int b, int h, int w,
+                           float scale) {
+    local_corr_body<512, 7>(f0, f1, warp, out, b, h, w, scale);
+}
+extern "C" __global__ void __launch_bounds__(256)
+    roma_local_corr_c512_r3(const float* f0, const float* f1, const float* warp, float* out, int b, int h, int w,
+                           float scale) {
+    local_corr_body<512, 3>(f0, f1, warp, out, b, h, w, scale);
+}
+extern "C" __global__ void __launch_bounds__(256)
+    roma_local_corr_c256_r2(const float* f0, const float* f1, const float* warp, float* out, int b, int h, int w,
+                           float scale) {
+    local_corr_body<256, 2>(f0, f1, warp, out, b, h, w, scale);
+}
+
 // Refiner blocks: depthwise 5x5 conv (padding 2, zeros outside) + bias + ReLU of a channels-last bf16 map, one pass
 // instead of cuDNN's conv, the bias add and the ReLU. Rounding as those three ops: fp32 sum over (ky, kx) in row-major
 // order, rounded to bf16 (the conv's output), + bias in fp32, rounded to bf16, ReLU.

@@ -16,7 +16,10 @@ class InterpolateSparse2d(nn.Module):
 
     def normgrid(self, x, H, W):
         """ Normalize coords to [-1,1]. """
-        return 2. * (x/(torch.tensor([W-1, H-1], device = x.device, dtype = x.dtype))) - 1.
+        # fastforks: the divisor filled on the device (torch.tensor uploads, which syncs; same values)
+        scale = torch.full((2,), W-1, device = x.device, dtype = x.dtype)
+        scale[1:].fill_(H-1)  # fastforks: not scale[1] = H-1, which uploads the scalar
+        return 2. * (x/scale) - 1.
 
     def forward(self, x, pos, H, W):
         """

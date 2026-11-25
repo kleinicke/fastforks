@@ -17,7 +17,7 @@ stereo / depth rows were replaced: they predate this repository's history and th
 | `ref`, `task`, `dataset`, `n` | model id, task, dataset key (below), images / pairs / instances evaluated |
 | `tier` | how the model ran: `upstream` (the authors' code, fp32), `upstream16` (the authors' own precision option, else `torch.autocast` float16), `upstreamac` (autocast float16 also where the authors have an option), `upstreamhalf` (`.half()` on the authors' modules and inputs), `portable32` (fastforks portable, float32), `portable`, `kernels` (card default dtype) |
 | `column` | the docs column the row fills: `original fp32`, `original fp16`, `portable`, `kernels`; `null` = a tier the docs do not show (`portable32`, `upstreamhalf`, `upstreamac` of earlier runs) |
-| `mode` | `upstream` (original fp32), `upstream-fp16` (the chosen fp16 original), `portable-fp32`, `portable`, `kernels`; unchosen fp16 variants keep their tier name. One row per `mode` and `dataset` |
+| `mode` | `upstream` (original fp32), `upstream-fp16` (the chosen fp16 original), `portable-fp32`, `portable`, `kernels`; unchosen fp16 variants keep their tier name |
 | `dtype`, `how`, `note` | precision, how it was obtained (`fp32`, `authors flag`, `autocast`, `half`), details |
 | `selection` | on the `original fp16` rows: why this variant (below) |
 | `metrics` | the task's metrics (below); stereo / depth / flow rows also carry them flat (`bad`, `epe`, `rel_absrel`, `rel_d1`, `fl_all`) |
@@ -39,6 +39,12 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   noise comes from a seeded CPU generator in fastforks and a CUDA generator upstream (different noise draws).
 - Classification: `top1`, `top5` (%), ImageNet-1k val, a seeded random subset of 5000 images (seed 0), each model's
   own preprocessing.
+- Sexual NSFW classification: all 211 images in the official UnsafeBench Sexual test category, with 150 unsafe and 61
+  safe labels. FalconsAI uses its default top-1 prediction. Balanced accuracy averages the unsafe and safe recall.
+  [UnsafeBench dataset](https://huggingface.co/datasets/yiting/UnsafeBench).
+- Edges: boundary ODS, OIS and AP (%) on all 200 BSDS500 test images or the first 75 by filename. Scores use Berkeley
+  correspondence at 0.0075 of the image diagonal, without thinning, across 99 thresholds. AnyLine uses its
+  1280-pixel detect short side. Its reference retains the original Lanczos resize and uses the authors' float layer blend.
 - Segmentation: `miou`, `aacc` (%), ADE20K val, every 4th image (500), single scale at the card's size. Sapiens
   (Goliath body parts, no ADE20K classes): COCO val2017 persons instead (the images of the detection subset with a
   non-crowd person), `person_iou` = IoU of "any body part" against the union of the person masks (crowd regions
@@ -137,9 +143,12 @@ timed calls, `peak_first_*` of the first call alone.
 Rows of `tools/speed_check.py run --modes compile tensorrt` (`side` = `lib`): `mode` `compile` (portable +
 `torch.compile`, `compile_s` = cold first call) or `tensorrt` (fp16 engine: `onnx_export_s`, `engine_build_s`,
 `engine_mb`, `device_mb` = engine device memory, `torch_peak_alloc_mb` / `torch_peak_reserved_mb` = torch-side peaks (`peak_alloc_mb` / `peak_reserved_mb` = device_mb + these; rows before 2026-11-12 hold the torch-side peak in `peak_*` and have no `torch_peak_*`), `net_input` where the engine input differs from `input`). A row with
-`fails` records why the mode does not build. The latest row per model id and mode counts. `engine_dtype` =
+`fails` records the observed failure or a documented input constraint. The latest row per model id, mode and input
+size counts. `engine_dtype` =
 `float32` marks an fp32 engine (the portable model loaded with `dtype="float32"`), recorded where the fp16 engine
 misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error against the golden, relative mean / p99).
+`backend_part` describes a timed call that accelerates selected stages or uses an isolated benchmark setup.
+`export_and_build_s` records the combined setup time when it was measured through the public TensorRT exporter.
 
 Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-like extra that the docs tables do not
 show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,
@@ -158,13 +167,14 @@ its steps, each timed on its own with the device synchronised before and after: 
 as notes under the speed rows and adds crop + rest to the TensorRT engine time (which covers the network only) as an
 estimated full call; the docs tables do not show them.
 
-## Non-default options: `speed_options.jsonl`
+## Load option measurements: `speed_options.jsonl`
 
-Speed and peak memory of a model loaded with a non-default option (`options`, e.g. `{"long_side": 1008}` of Depth
+Speed and peak memory of a model loaded with a specific option (`options`, e.g. `{"long_side": 1008}` of Depth
 Anything 3; the original runs with the same `process_res`). Rows as in `speed_compile.jsonl` (`side` = `lib`: modes
 `portable`, `kernels`, `compile`, `tensorrt`; `side` = `upstream`: `upstream-default` = fp32, `upstream` = the
-authors' autocast), same protocol, `net_input` = the network resolution where recorded. The docs tables do not show
-these rows.
+authors' autocast), same protocol, `net_input` = the network resolution where recorded. The model pages show paired weight-streaming rows with explicit `stream=false` and
+`stream=true` values. The resident controls for the November 14 comparisons come from the original survey in
+`56bdbcaa^:docs/data/speed.jsonl`, measured before these families switched to streaming by default.
 
 ## Resolution experiments: `experiments_resolution.jsonl`
 
@@ -216,7 +226,9 @@ one row per run; every row says where its numbers came from.
 `devices.toml` lists the measured devices (slug = vendor + model + memory, e.g. `rx-7900-xtx-24gb`; fields described
 in the file). Exactly one is the reference (`reference = true`, the RTX 5060 Ti): its rows are `speed.jsonl` above, its
 tables `docs/benchmarks.md`, and only its rows are a regression floor (`tests/test_speed_floor.py`,
-`tools/speed_check.py`, `tools/merge_check.py`). Every other device is a survey: rows in `speed/<slug>.jsonl`, a
+`tools/speed_check.py`, `tools/merge_check.py`). Supplemental comparisons with a different input or precision
+from the standard benchmark can set `regression_floor: false` on that row and still appear in the tables.
+Every other device is a survey: rows in `speed/<slug>.jsonl`, a
 generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check. A device with
 `hidden = true` keeps its rows (still checked) but gets no page, nav entry or column until the flag is removed.
 
@@ -229,7 +241,10 @@ A survey row has the keys of `speed.jsonl` plus:
 | `dtype` | `float32`, `bfloat16` or `float16`: every row names its compute dtype |
 | `status` | `ok`, `unsupported` (the card does not offer this mode / dtype on the backend), `failed` (it ran and raised; `error`), `oom` |
 | `protocol_id` | the timing protocol class; cross-device tables compare only equal ids. `warm-median`: median of warm, synchronised calls after warm-up |
-| `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS, unified memory). Kinds are never compared |
+| `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS and MLX, unified memory). Kinds are never compared |
+| `load_s`, `first_call_s` | the load call and the first call at the input (s): on MLX the first call exports, translates and tunes the graph (see docs/plans/mlx-sweep.md, cold start) |
+| `load_peak_footprint_mb` | optional: the process's peak footprint after the load, before the first call (MiB) |
+| `second_shape_s`, `second_shape_input` | optional: one first call at a second, synthetic input size (3/4 of `input`, multiple of 32), after the timed calls: what a new image size costs a running model |
 | `golden` | optional: `pass`, `fail` or `skip`, the golden check (`tests/test_golden.py::test_gpu`) of the same loaded model on this device; `golden_mean` / `golden_p99` (error), `golden_msg` (why skipped), `golden_error`. A `fail` row keeps its time but is never a table's fastest |
 
 An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `note` or `error`. `ref`, `mode`,
@@ -238,7 +253,10 @@ An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `
 Adding a device:
 
 1. On the device: `uv run python tools/speed_survey.py detect` prints a `devices.toml` entry for its GPU; paste it
-   (`backend` = `cuda`, `rocm` or `mps`; `match` = the GPU name the tools record; edit the slug if you like).
+   (`backend` = `cuda`, `rocm`, `mps` or `mlx`; `match` = the GPU name the tools record; edit the slug if you
+   like). A Mac gets two entries, one per backend: `detect` prints the PyTorch MPS one, `detect --mlx` the Apple MLX
+   one (`load(..., device="mlx")`; slug `...-mlx-...`). They are separate devices because the same ref, mode and dtype
+   exists on both, and the two pages side by side are the comparison.
 2. Add `docs/devices/<slug>.md` to the Benchmarks section of `mkdocs.yml` (`gen_docs.py` refuses a page missing there).
 3. `... speed_survey.py list --device <slug>` shows the jobs (`*` = cross-device subset); `... prepare --device
    <slug>` downloads their weights (and on CUDA the kernel binaries for this GPU) and checks them; `... run --device
@@ -251,9 +269,15 @@ Adding a device:
 
 On CUDA / ROCm the worker is `tools/merge_check.py`'s, i.e. the floor's own (`tools/speed_check.py`: first call, 3
 warm-up, peak reset, median of 3 rounds x 5), so a survey time and the reference time of the same input are measured
-the same way. MPS has its own worker (4 warm-up, median of 5; process footprint). Rows record the environment
-(`gpu`, `torch`; on NVIDIA `arch`, `cuda`, `driver`, `power_limit`, `clocks`, `throttle_reasons`; on a Mac `gpu_cores`
-and `os`, as the chip name does not say how many GPU cores it has).
+the same way. MPS has its own worker (4 warm-up, median of 5; process footprint), which also measures MLX. Rows
+record the environment (`gpu`, `torch`; on NVIDIA `arch`, `cuda`, `driver`, `power_limit`, `clocks`,
+`throttle_reasons`; on a Mac `gpu_cores` and `os`, as the chip name does not say how many GPU cores it has; on an MLX
+device also `mlx`).
+
+An MLX device lists only the families with an MLX port (card `[modes.portable] mlx_dtypes`), in each mode and dtype
+the card declares there; a port without MLX kernels gets one `unsupported` kernels row. `python tools/mlx_tune.py`
+runs the MLX golden gates, the micro-benchmarks of the MLX tunables and this survey on the Mac it is started on
+(`survey --mps` also re-measures the same refs through PyTorch MPS; `ratios` prints MLX against MPS per ref).
 
 On a Mac (Apple silicon only; an Intel Mac is refused): the MPS allocator is capped at the recommended working set
 (about 75 % of RAM), so a model that needs more is an `oom` row instead of swapping, and before each job the run waits

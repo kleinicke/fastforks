@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_detect_cuda, to_input
+from fastforks.shared import mlx_wrap
 
 from .net import PiDiNet, nets
 
@@ -73,6 +74,7 @@ def convert(sd: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
 class Portable(Runner):
     """The converted network in plain PyTorch, float32 or float16 (channels-last on CUDA)."""
 
+    _detect = staticmethod(to_detect)
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -88,7 +90,7 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Soft edge map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.short_side).flip(1) / 255  # upstream feeds BGR
+        x = self._detect(image, self.ctx.params.short_side).flip(1) / 255  # upstream feeds BGR
         if self.cl:
             x = x.contiguous(memory_format=torch.channels_last)
         edge = self.net(x.to(self.dtype))[-1][:, 0].float()
@@ -103,4 +105,17 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Use fused OpenCV-compatible edge preprocessing on CUDA."""
+
+    module = Runner.module
+
+    _detect = staticmethod(to_detect_cuda)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

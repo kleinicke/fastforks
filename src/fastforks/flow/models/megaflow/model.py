@@ -30,8 +30,11 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.qk_affine import cached_qk_affine
 
 from .net.megaflow import MegaFlow, slice_expand_and_flatten
 from .net.model_utils import create_uv_grid, position_grid_to_embed, upsample_flow_with_mask
@@ -103,7 +106,7 @@ def global_flow(f0: torch.Tensor, f1: torch.Tensor) -> torch.Tensor:
     q = f0.flatten(2).transpose(1, 2).float()[:, None]
     k = f1.flatten(2).transpose(1, 2).float()[:, None]
     g = _grid(1, h, w, f0.device)[0].flatten(1).t()  # [HW, 2]
-    g = g - torch.tensor([(w - 1) / 2, (h - 1) / 2], device=g.device)
+    g = g - device_tensor([(w - 1) / 2, (h - 1) / 2], device=g.device)
     v = F.pad(g, (0, 6))[None, None].expand(b, 1, -1, -1)
     o = F.scaled_dot_product_attention(q, k, v)[:, 0, :, :2]  # default scale 1 / sqrt(C), as upstream
     return (o - g).transpose(1, 2).reshape(b, 2, h, w)
@@ -124,7 +127,7 @@ def local_corr(f0: torch.Tensor, f1: torch.Tensor, flow: torch.Tensor) -> torch.
     """
     b, c, h, w = f0.shape
     xy = (_grid(b, h, w, flow.device) + flow.float()).flatten(2).transpose(1, 2)  # [B, HW, 2]
-    norm = torch.tensor([2 / (w - 1), 2 / (h - 1)], device=flow.device)
+    norm = device_tensor([2 / (w - 1), 2 / (h - 1)], device=flow.device)
     win = _window(flow.device)
     f1f = f1.float()
     a = f0.flatten(2).transpose(1, 2)  # [B, HW, C]
@@ -133,6 +136,7 @@ def local_corr(f0: torch.Tensor, f1: torch.Tensor, flow: torch.Tensor) -> torch.
         g = (xy[:, s : s + CHUNK, None] + win) * norm - 1  # [B, m, 81, 2]
         wf = grid_sample(f1f, g, padding_mode="zeros", align_corners=True)  # [B, C, m, 81]
         out.append((torch.einsum("bcmk,bmc->bmk", wf, a[:, s : s + CHUNK].float()) / math.sqrt(c)).to(f0.dtype))
+        del wf
     return torch.cat(out, 1).view(b, h, w, -1).permute(0, 3, 1, 2)
 
 
@@ -193,13 +197,7 @@ class _Fast(Runner):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""
@@ -207,7 +205,7 @@ class _Fast(Runner):
         cc, sc = rope._compute_frequency_components(32, p + 1, pos.device, torch.float16)  # noqa: SLF001 - pos <= p
         q = pos.view(b, s * p, 2)
         cos = torch.cat([F.embedding(q[..., 0], cc), F.embedding(q[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=torch.float16).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=torch.float16).repeat(2)
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
@@ -244,7 +242,8 @@ class _Fast(Runner):
         out: list[torch.Tensor | None] = [None] * len(net.frame_blocks)
         for i in range(max(LAYERS) + 1):
             tokens = self.block(net.frame_blocks[i], tokens.view(b * s, p, c), tf)
-            fr = tokens.view(b, s, p, c).clone() if i in LAYERS else None
+            # The global block produces new tokens, so the frame view stays valid until concatenation.
+            fr = tokens.view(b, s, p, c) if i in LAYERS else None
             tokens = self.block(net.global_blocks[i], tokens.view(b, s * p, c), tg)
             if fr is not None:
                 out[i] = torch.cat([fr, tokens.view(b, s, p, c)], -1)
@@ -262,6 +261,7 @@ class _Fast(Runner):
         u: Any = self.net.refine
         mf = u.encoder(flow.half(), corr)
         inp = torch.cat([inp, mf], 1)
+        del mf
         for blk, ta in zip(u.refine, u.temporal_attn_refine, strict=True):
             h = _temporal(ta, blk(torch.cat([h, inp], 1)))
         return h, u.flow_head(h), 0.25 * u.mask(h) if last else None
@@ -273,23 +273,26 @@ class _Fast(Runner):
         x = torch.stack([image1, image2], 1).flatten(0, 1)  # [B*2, 3, H, W]: frames of a batch item adjacent
         rh = round(h * WIDTH / w / PATCH) * PATCH  # upstream fix_width
         xr = F.interpolate(x, (rh, WIDTH), mode="bilinear", align_corners=True)
+        # Run the full-size CNN before retaining the transformer's intermediate tokens.
+        cnn = net.backbone(x.half().contiguous(memory_format=torch.channels_last))
+        del x
         with self.accumulate():
             toks = self.aggregate(xr.half(), b)
-        cnn = net.backbone(x.half().contiguous(memory_format=torch.channels_last))
         feats = net.flow_head(
             toks, images=xr.view(b, 2, 3, rh, WIDTH), patch_start_idx=net.patch_start_idx, cnn_features=cnn
         )
-        del toks
+        del xr, toks
         f0 = feats[:, 0]
         hf, wf = f0.shape[-2:]
         flow = global_flow(f0, feats[:, 1])
         h4, w4 = h // UP, w // UP
         flow = F.interpolate(flow, (h4, w4), mode="bilinear", align_corners=True)
-        flow = flow * torch.tensor([w4 / wf, h4 / hf], device=flow.device).view(1, 2, 1, 1)
+        flow = flow * device_tensor([w4 / wf, h4 / hf], device=flow.device).view(1, 2, 1, 1)
         ref = F.interpolate(f0, (h4, w4), mode="bilinear", align_corners=True)
         hid, inp = net.refine_proj(ref).chunk(2, 1)
         c = cnn[-1].view(b, 2, *cnn[-1].shape[1:])
         corr_fn = self.correlate(c[:, 0], c[:, 1])
+        del feats, f0, ref, cnn, c
         mask = None
         for i in range(iters):
             hid, delta, mask = self.update(hid, inp, corr_fn(flow), flow, last=i == iters - 1)
@@ -297,6 +300,7 @@ class _Fast(Runner):
         if mask is None:
             msg = "MegaFlow: iters must be >= 1"
             raise ValueError(msg)
+        del hid, inp, corr_fn
         return upsample_flow_with_mask(flow, mask.float(), upsample_factor=UP)
 
     def accumulate(self) -> contextlib.AbstractContextManager[None]:
@@ -455,4 +459,8 @@ class Kernels(_Fast):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

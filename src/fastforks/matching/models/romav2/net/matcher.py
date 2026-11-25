@@ -166,17 +166,10 @@ class Matcher(nn.Module):
         )
 
         if bidirectional:
-            attn_BA_logits, attn_BA, match_emb_BA = _compute_match_embeddings(
-                f_A=f_mv_B,
-                f_B=f_mv_A,
-                pos_emb_grid=pos_emb_grid,
-                temp=self.temp,
-                B=B,
-                H_A=H_B,
-                W_A=W_B,
-                H_B=H_A,
-                W_B=W_A,
-            )
+            # FastForks: cosine similarity is symmetric. Reuse the transpose before the reverse row softmax.
+            attn_BA_logits = attn_AB_logits.permute(0, 3, 4, 1, 2)
+            attn_BA = attn_BA_logits.reshape(B, H_B * W_B, H_A * W_A).softmax(dim=-1).reshape_as(attn_BA_logits)
+            match_emb_BA = torch.einsum("bhwij,bijd->bhwd", attn_BA, pos_emb_grid)
             warp_BA, confidence_BA = _compute_head_preds(
                 f_list_A=f_list_B,
                 match_emb_AB=match_emb_BA,

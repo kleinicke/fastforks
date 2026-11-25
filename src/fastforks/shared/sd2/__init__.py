@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks._core.model import eager_in_compile
+
 from .net.clip_text import CLIPTextTransformer
 from .net.unet import UNet2DConditionModel
 from .net.vae import AutoencoderKL
@@ -59,8 +61,12 @@ def load_net(ctx: Context, prompt: list[int] = EMPTY_PROMPT, **unet: Any) -> SD2
     with torch.no_grad():
         embed = text.eval()(torch.tensor([prompt]))
     del text
-    with torch.device(ctx.device):
-        net = SD2Net(len(prompt), **unet)
+    # Allocate the checkpoint destination directly in inference precision. An FP32 CUDA
+    # skeleton temporarily doubles the weight footprint of half-precision inference.
+    dtype = torch.float16 if ctx.mode == "kernels" else ctx.torch_dtype
+    with torch.device("meta"):
+        net = SD2Net(len(prompt), **unet).to(dtype=dtype)
+    net.to_empty(device=ctx.device)
     net.unet.load_state_dict(ctx.state_dict(0, strip=""))
     net.vae.load_state_dict({old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
     net.empty_text.copy_(embed)
@@ -88,7 +94,7 @@ class Noise:
             self.key = key
         return self.z
 
-    @torch.compiler.disable
+    @eager_in_compile
     def _draw(self, shape: torch.Size, device: torch.device, dtype: torch.dtype) -> tuple[torch.Tensor, ...]:
         with torch.inference_mode(mode=False):
             g = torch.Generator().manual_seed(self.seed)

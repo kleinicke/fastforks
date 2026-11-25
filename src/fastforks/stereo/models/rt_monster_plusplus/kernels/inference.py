@@ -14,6 +14,7 @@ import torch
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks.kernels import monster_gwc
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
@@ -54,4 +55,4 @@ def prepare_kernels(model: Monster, device: torch.device) -> Monster:
 
 def forward_kernels(model: Monster, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """The portable test-mode forward; returns the disparity [B, H, W] (fp32)."""
-    return forward_fast(model, left, right)[:, 0]
+    return forward_fast(model, left, right, selective=monster_gwc.volume)[:, 0]

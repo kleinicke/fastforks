@@ -113,7 +113,7 @@ class GroupAttnRPEContext(nn.Module):
         _h, _w = Hp // self.ws, Wp // self.ws
         padded_N = Hp*Wp
 
-        coords = coords_grid(B, Hp, Wp).to(x.device) 
+        coords = coords_grid(B, Hp, Wp, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C_qk)
         coords_enc = coords_enc.reshape(B, Hp, Wp, C_qk)
@@ -189,7 +189,7 @@ class GroupAttnRPE(nn.Module):
         _h, _w = Hp // self.ws, Wp // self.ws
         padded_N = Hp*Wp
 
-        coords = coords_grid(B, Hp, Wp).to(x.device) 
+        coords = coords_grid(B, Hp, Wp, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)
         coords_enc = coords_enc.reshape(B, Hp, Wp, C)
@@ -281,7 +281,7 @@ class LocallyGroupedAttnRPEContext(nn.Module):
         v = self.v(x).reshape(
             B, _h * _w, self.ws * self.ws, 1, self.num_heads, C // self.num_heads).permute(3, 0, 1, 4, 2, 5)[0]
 
-        coords = coords_grid(B, self.ws, self.ws).to(x.device) 
+        coords = coords_grid(B, self.ws, self.ws, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C_qk).view(B, self.ws, self.ws, C_qk)   
         # coords_enc:   B, ws, ws, C
@@ -356,7 +356,7 @@ class GlobalSubSampleAttnRPEContext(nn.Module):
         x = x.view(B, -1, C)
         x_qk = x_qk.view(B, -1, C_qk)
 
-        coords = coords_grid(B, *padded_size).to(x.device) 
+        coords = coords_grid(B, *padded_size, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C_qk)   
         # coords_enc:   B, Hp*Wp, C
@@ -371,7 +371,7 @@ class GlobalSubSampleAttnRPEContext(nn.Module):
             x = self.norm(x)
             x_qk = self.norm(x_qk)
 
-        coords = coords_grid(B, padded_size[0] // self.sr_ratio, padded_size[1] // self.sr_ratio).to(x.device) 
+        coords = coords_grid(B, padded_size[0] // self.sr_ratio, padded_size[1] // self.sr_ratio, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1) * self.sr_ratio
         # align the coordinate of local and global
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)
@@ -430,7 +430,7 @@ class LocallyGroupedAttnRPE(nn.Module):
         v = self.v(x).reshape(
             B, _h * _w, self.ws * self.ws, 1, self.num_heads, C // self.num_heads).permute(3, 0, 1, 4, 2, 5)[0]
 
-        coords = coords_grid(B, self.ws, self.ws).to(x.device) 
+        coords = coords_grid(B, self.ws, self.ws, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C).view(B, self.ws, self.ws, C)   
         # coords_enc:   B, ws, ws, C
@@ -493,7 +493,7 @@ class GlobalSubSampleAttnRPE(nn.Module):
         padded_N = Hp*Wp
         x = x.view(B, -1, C)
 
-        coords = coords_grid(B, *padded_size).to(x.device) 
+        coords = coords_grid(B, *padded_size, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)   
         # coords_enc:   B, Hp*Wp, C
@@ -505,18 +505,39 @@ class GlobalSubSampleAttnRPE(nn.Module):
             x = self.sr(x).reshape(B, C, -1).permute(0, 2, 1)
             x = self.norm(x)
 
-        coords = coords_grid(B, padded_size[0] // self.sr_ratio, padded_size[1] // self.sr_ratio).to(x.device) 
+        coords = coords_grid(B, padded_size[0] // self.sr_ratio, padded_size[1] // self.sr_ratio, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1) * self.sr_ratio
         # align the coordinate of local and global
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)
         k = self.k(x + coords_enc).reshape(B, (padded_size[0] // self.sr_ratio)*(padded_size[1] // self.sr_ratio), self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
         v = self.v(x).reshape(B, (padded_size[0] // self.sr_ratio)*(padded_size[1] // self.sr_ratio), self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
-
-        x = (attn @ v).transpose(1, 2).reshape(B, Hp, Wp, C)
+        matrix_bytes = padded_N * k.shape[-2] * q.element_size()
+        if getattr(self, "_sdpa", False):  # fastforks (kernels): fused attention, no score matrices
+            attended = F.scaled_dot_product_attention(q, k, v, scale=self.scale)
+        elif (
+            q.device.type in ("cuda", "mps")  # fastforks: MPS as CUDA (1080 x 1920: 8 GiB of scores)
+            and B * self.num_heads * matrix_bytes >= 128 * 1024**2
+            and not self.training
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        ):
+            # Keep each head's full queries and keys, with a bounded number of score matrices live at once.
+            group_size = max(1, 128 * 1024**2 // matrix_bytes)
+            q_flat, k_flat, v_flat = (t.flatten(0, 1) for t in (q, k, v))
+            result = torch.empty_like(q_flat, memory_format=torch.contiguous_format)
+            for start in range(0, q_flat.shape[0], group_size):
+                stop = start + group_size
+                scores = torch.bmm(q_flat[start:stop], k_flat[start:stop].transpose(-2, -1)).mul_(self.scale)
+                weights = scores.softmax(dim=-1)
+                del scores
+                result[start:stop].copy_(torch.bmm(weights, v_flat[start:stop]))
+                del weights
+            attended = result.view_as(q)
+        else:
+            attn = (q @ k.transpose(-2, -1)) * self.scale
+            attn = self.attn_drop(attn.softmax(dim=-1))
+            attended = attn @ v
+        x = attended.transpose(1, 2).reshape(B, Hp, Wp, C)
         if pad_r > 0 or pad_b > 0:
             x = x[:, :H, :W, :].contiguous()
 
@@ -555,7 +576,7 @@ class CrossGlobalSubSampleAttnRPE(nn.Module):
 
     def forward(self, x, tgt, size: Size_):
         B, N, C = x.shape
-        coords = coords_grid(B, *size).to(x.device) 
+        coords = coords_grid(B, *size, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1)
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)   
         # coords_enc:   B, H*W, C
@@ -566,7 +587,7 @@ class CrossGlobalSubSampleAttnRPE(nn.Module):
             tgt = tgt.permute(0, 2, 1).reshape(B, C, *size)
             tgt = self.sr(tgt).reshape(B, C, -1).permute(0, 2, 1)
             tgt = self.norm(tgt)
-        coords = coords_grid(B, size[0] // self.sr_ratio, size[1] // self.sr_ratio).to(x.device) 
+        coords = coords_grid(B, size[0] // self.sr_ratio, size[1] // self.sr_ratio, device=x.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         coords = coords.view(B, 2, -1).permute(0, 2, 1) * self.sr_ratio
         # align the coordinate of local and global
         coords_enc = LinearPositionEmbeddingSine(coords, dim=C)

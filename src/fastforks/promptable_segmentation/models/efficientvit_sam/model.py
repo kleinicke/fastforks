@@ -19,9 +19,12 @@ import torch.nn.functional as F
 from torch import fx
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache, SmallShapeGraphs
 
 from .fast import Trunk, decode, prepare, preprocess_shape, tensor_eps, wide_points
 from .net.backbone import EfficientViTLargeBackbone
@@ -42,6 +45,9 @@ TOKENS = 64  # fixed: SAM's image embedding side
 # 24.7 -> 24.2 ms (GPU-bound from there on, where a graph only holds memory)
 GRAPH_PROMPTS = 4  # fixed: measured, see above
 GRAPHS = 4  # fixed: prompt layouts with a graph at a time (points, a box, both, with a mask)
+# RTX 5060 Ti, Windows, l0 (512 px encoder input) at 1024 x 1024 with one point: 6.03 -> 4.75 ms with the encoder in a
+# CUDA graph, bit-identical; the xl variants (1024 px input) are not measured and stay eager
+ENCODER_GRAPH_PIXELS = 512 * 512  # fixed: graph cache policy (encoder inputs up to this size), not architecture
 NORM_EPS = 1e-6  # fixed: upstream `sam_model_zoo.create_efficientvit_sam_model` (`set_norm_eps(model, 1e-6)`)
 
 # upstream `efficientvit_sam_*` (models/efficientvit/sam.py) and `efficientvit_backbone_l*`: backbone and neck arguments
@@ -70,6 +76,7 @@ class Params:
     image_size: int  # SAM's prompt frame (longest image side for prompt coordinates and mask upsampling)
     arch: str  # key of `ARCHS`
     input_size: int  # encoder input side (longest image side, padded to a square)
+    cuda_graphs: bool  # kernels: replay CUDA graphs of the image encoder and the prompt decode (option)
 
 
 class Sam(torch.nn.Module):
@@ -143,9 +150,15 @@ class _Sam(Runner):
         x = prepare(image, self.ctx.io, self.ctx.params.input_size, exact=exact)
         return self.norm(trunk(x))
 
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        # the MLX runners export this: the norm's mean and variance over 256 channels stay float32 in a float16 replay
+        # (in float16: xl0 pred_masks mean |diff| 0.022 of the golden's median against 0.0045, limit 0.0081)
+        return self.norm(to_float32(self.trunk(x)))
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
-        return {"image_embeddings": self._encode(self.trunk, image, exact=image.device.type == "cpu")}
+        x = prepare(image, self.ctx.io, self.ctx.params.input_size, exact=image.device.type == "cpu")
+        return {"image_embeddings": self._enc(x)}
 
     def predict(  # noqa: PLR0913 - one argument per prompt kind
         self,
@@ -163,7 +176,7 @@ class _Sam(Runner):
         nh, nw = preprocess_shape(h, w, s)
         dev = self.ctx.device
         f64 = torch.device("cpu") if dev.type == "mps" else dev  # MPS has no float64
-        xy = torch.tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
+        xy = device_tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
         pts = None if points is None or labels is None else ((points.to(f64).double() * xy).float().to(dev), labels)
         box = None if boxes is None else (boxes.view(-1, 2, 2).to(f64).double() * xy).float().view(-1, 4).to(dev)
         low, iou = self._decode(features["image_embeddings"], pts, box, masks)
@@ -200,9 +213,14 @@ class Portable(_Sam):
     dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:
-        """As `_Sam`; the attention epsilons as tensors, which the ONNX export keeps (`fast.tensor_eps`)."""
+        """As `_Sam`; the attention epsilons as tensors, which the ONNX export keeps (`fast.tensor_eps`).
+
+        Not on the twin of an MLX runner: a float16 replay stores a tensor constant in float16, where 1e-15 is 0
+        (0 / 0 wherever a ReLU'd query is all zero); the Python float stays a float32 scalar there.
+        """
         super().__init__(ctx)
-        tensor_eps(self.trunk.net, ctx.device)
+        if mlx_wrap.twin_dtype() is None:
+            tensor_eps(self.trunk.net, ctx.device)
 
     def module(self) -> torch.nn.Module:
         """The image encoder only (no prompt side): `[1, 3, H, W]` in `[0, 1]` -> `image_embeddings` `[1, 256, 64, 64]`.
@@ -232,7 +250,14 @@ class Kernels(_Sam):
             msg = "the kernels image encoder is not a traced graph"
             raise TypeError(msg)
         self.trunk.report["points"] = wide_points(net)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS)
+        self.cache = (
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+        )
+        self.encoder = SmallShapeGraphs(super()._enc, pixels=ENCODER_GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
+
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        """`_Sam._enc` from a CUDA graph up to `ENCODER_GRAPH_PIXELS` (one input size per variant: one graph)."""
+        return self.encoder(x)
 
     def _decode(
         self,
@@ -246,7 +271,7 @@ class Kernels(_Sam):
         if not given or len(given[0]) > GRAPH_PROMPTS:
             return super()._decode(embedding, points, boxes, masks)
         key = (len(given[0]), points[0].shape[1] if points else 0, boxes is not None, masks is not None)
-        out = self.cache.run(key, embedding, *given)
+        out = None if self.cache is None else self.cache.run(key, embedding, *given)
         return super()._decode(embedding, points, boxes, masks) if out is None else out
 
     def _graph_forward(self, embedding: torch.Tensor, *given: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -257,8 +282,14 @@ class Kernels(_Sam):
         return decode(pe, dec, embedding, points=points, labels=labels, boxes=boxes, masks=masks)
 
     def release_graphs(self) -> None:
-        """Free the prompt-decode CUDA graphs and their memory pool (they are captured again when needed)."""
-        self.cache.release()
+        """Free the encoder and prompt-decode CUDA graphs and their memory pools (captured again when needed)."""
+        self.encoder.release()
+        if self.cache is not None:
+            self.cache.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="trunk", compile=False),
+}

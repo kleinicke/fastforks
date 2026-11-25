@@ -6,8 +6,11 @@ to the image size (bilinear) and min-max normalised per image (upstream then rou
 
 `portable`: upstream's modules in plain PyTorch, fp32 or fp16 weights and activations (the authors run fp16 autocast
 on CUDA), SDPA attention (Swin windows and the decoder's cross-attention). `kernels`: fp16 channels-last; every conv
-runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue and the InstanceNorms as one pass
-each (`shared.cnn_kernels`).
+runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue, the GEMMs accumulate in fp16 and the
+InstanceNorms run as one pass each (`shared.cnn_kernels`); the two nearest 2x upsamplings and the convs after them
+run as stride-2 transposed convs (`up_deconv`); the fixed-size network replays a CUDA graph (one or two images per
+call) when `cuda_graphs` is enabled. It is opt-in because the modest replay benefit at 1024x1024 comes with a
+larger reserved memory footprint.
 """
 
 from __future__ import annotations
@@ -18,8 +21,11 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import fp16_accumulate
 from fastforks.matting._runner import Forward, Runner, scale
-from fastforks.shared.cnn_kernels import CL, prepare_generic
+from fastforks.shared import mlx_wrap, swin_v1
+from fastforks.shared.cnn_kernels import CL, prepare_generic, up_deconv
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net.ben2 import BEN_Base
 
@@ -33,9 +39,11 @@ class Params:
 
     Attributes:
         size: Network input side (square).
+        cuda_graphs: Replay the fixed-size network in CUDA kernels mode.
     """
 
     size: int
+    cuda_graphs: bool
 
 
 def _cpu_net(ctx: Context) -> BEN_Base:
@@ -44,6 +52,9 @@ def _cpu_net(ctx: Context) -> BEN_Base:
     return net.eval()
 
 
+# the Swin windows (144 tokens, a bias mask) on the memory-efficient kernel, the decoder's attention on the runner's
+# cuDNN-first order (1080p, RTX 5060 Ti, Windows: windows 9.3 -> 7.6 ms; the decoder on memory-efficient 8.9 -> 22 ms)
+_SWIN_SDPA = "efficient,cudnn,math"
 _TINY = 1e-8  # fixed: our floor of the normalisation divisors (constant image / map: not 0 / 0)
 
 
@@ -84,18 +95,34 @@ class Portable(_Matting):
 
 
 class Kernels(_Matting):
-    """fp16 channels-last network, cuDNN fp16-accumulate convs, InstanceNorm kernels."""
+    """fp16 channels-last network, cuDNN fp16-accumulate convs and GEMMs, InstanceNorm kernels, a CUDA graph."""
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and convert its convs and norms."""
         super().__init__(ctx)
         net = _cpu_net(ctx).to(ctx.device)
+        # the two nearest 2x + conv stages as transposed convs (1024 input, RTX 5060 Ti: 88.2 -> 81.7 ms)
+        net.up_deconv1, net.up_deconv2 = up_deconv(net.upsample1[0]), up_deconv(net.upsample2[0])
         prepare_generic(net, ctx.device)  # no BatchNorm to fuse: convs + InstanceNorms
+        swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16
         self.net = net
+        self.graphs = SmallShapeGraphs(self._eager, pixels=2**21, enabled=ctx.params.cuda_graphs)
 
-    def _net(self, x: torch.Tensor) -> torch.Tensor:
+    def _eager(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x.contiguous(memory_format=CL))
 
+    def _net(self, x: torch.Tensor) -> torch.Tensor:
+        with fp16_accumulate():  # the Swin and decoder GEMMs (1080p 102 -> 96 ms, golden error unchanged)
+            return self.graphs(x)
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        self.graphs.release()
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

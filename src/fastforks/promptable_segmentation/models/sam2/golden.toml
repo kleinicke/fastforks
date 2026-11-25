@@ -44,8 +44,15 @@ upstream = "https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e
 settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point); SAM2VideoPredictor on the synth clip (point; box; mask), scipy connected components; samurai_: https://github.com/yangchris11/samurai@76ba195984892b0d1e3db5d9c9f90bb62175680a configs/samurai, 20-frame clip, box; torch 2.14.1+cu130"
 gpu_mean = 0.0037
 gpu_p99 = 0.015
-gpu_extra = [["box_iou_scores", 0.0036, 0.0036], ["box_pred_masks", 0.0035, 0.012], ["iou_scores", 0.0081, 0.013], ["samurai_box_object_score_logits", 0.0033, 0.0081], ["samurai_box_pred_masks", 0.0073, 0.029], ["video_box_object_score_logits", 0.026, 0.066], ["video_box_pred_masks", 0.23, 0.66], ["video_mask_object_score_logits", 0.0016, 0.0029], ["video_mask_pred_masks", 0.0081, 0.034], ["video_object_score_logits", 0.0023, 0.0038], ["video_pred_masks", 0.0071, 0.03]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# iou_scores mean / p99: flash 0.0027 / 0.0041, efficient 0.011 / 0.022, cudnn 0.015 / 0.026, math 0.011 / 0.021;
+# video_object_score_logits mean / p99: flash 0.0015 / 0.0025, efficient 0.0019 / 0.0028, cudnn 0.0016 / 0.0028, math 0.0015 / 0.0027; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_extra = [["box_iou_scores", 0.0036, 0.0036], ["box_pred_masks", 0.0035, 0.012], ["iou_scores", 0.02, 0.034], ["samurai_box_object_score_logits", 0.0033, 0.0081], ["samurai_box_pred_masks", 0.0073, 0.029], ["video_box_object_score_logits", 0.026, 0.066], ["video_box_pred_masks", 0.23, 0.66], ["video_mask_object_score_logits", 0.0016, 0.0029], ["video_mask_pred_masks", 0.0081, 0.034], ["video_object_score_logits", 0.0024, 0.0038], ["video_pred_masks", 0.0071, 0.03]]
 cpu_extra = [["video_pred_masks", 0.0081], ["video_box_pred_masks", 0.0083], ["video_mask_pred_masks", 0.018], ["samurai_box_pred_masks", 0.0083]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# kernels pred_masks mean / p99: flash 0.0012 / 0.0043, efficient 0.003 / 0.014, cudnn 0.0039 / 0.02, math 0.0039 / 0.018; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_kernels = 0.0049
+gpu_p99_kernels = 0.025
 
 [validated."sam2.1-hiera-base-plus@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
@@ -56,6 +63,15 @@ date = "2026-11-13"
 mean_px = 0.00245
 p99_px = 0.00842
 
+[validated."sam2.1-hiera-base-plus@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00206
+p99_px = 0.00557
+
 [validated."sam2.1-hiera-large@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
@@ -64,6 +80,15 @@ torch = "2.14.1+cu130"
 date = "2026-11-13"
 mean_px = 0.01872
 p99_px = 0.08865
+
+[validated."sam2.1-hiera-large@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.03052
+p99_px = 0.12733
 
 [validated."sam2.1-hiera-small@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
@@ -74,6 +99,15 @@ date = "2026-11-13"
 mean_px = 0.00539
 p99_px = 0.01677
 
+[validated."sam2.1-hiera-small@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00729
+p99_px = 0.02048
+
 [validated."sam2.1-hiera-tiny@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
@@ -82,3 +116,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-13"
 mean_px = 0.00122
 p99_px = 0.00428
+
+[validated."sam2.1-hiera-tiny@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-21"
+mean_px = 0.00391
+p99_px = 0.01961

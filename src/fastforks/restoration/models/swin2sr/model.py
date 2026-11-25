@@ -28,11 +28,13 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
+from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, shift_mask, window_attention
+from fastforks.shared import mlx_wrap
+from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, patch_unembed, shift_mask, window_attention
 
 from .net import Swin2SR
-from .net.network_swin2sr import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
+from .net.network_swin2sr import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -146,6 +148,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params
+    strip_nearest_reconstruction = True
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, precompute the position biases, pad the heads, cache the masks per size."""
@@ -157,6 +160,7 @@ class Portable(Runner):
                 upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, img_range=1.0,
                 depths=list(p.depths), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
                 upsampler=p.upsampler, resi_connection=p.resi_connection,
+                strip_nearest_reconstruction=self.strip_nearest_reconstruction,
             )  # fmt: skip
         load_strict(self.net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint")
         for m in self.net.modules():
@@ -170,12 +174,18 @@ class Portable(Runner):
         for m in self.net.modules():
             if isinstance(m, PatchEmbed):
                 override(m, _patch_embed)
+            elif isinstance(m, PatchUnEmbed):
+                override(m, patch_unembed)
         _scale_last(self.net.layers[-1])  # ty: ignore[invalid-argument-type]
         self.net.norm.eps *= _LAST_SCALE**2  # LayerNorm(s * x, eps * s^2) == LayerNorm(x, eps)
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 portable 216.8 -> 212.5 ms and 521 -> 452 MB, kernels 473 -> 427 MB; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`main_test_swin2sr.py`: mirror-pad bottom / right to `(size // window + 1) * window`."""
@@ -199,16 +209,29 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """Keep the shifted window layout only while attention consumes it."""
+    mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
+    windows = rearrange(x, x_size, m.window_size, m.shift_size)
+    attended = m.attn(windows, mask=mask)
+    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
+    x = x + m.drop_path(m.norm1(attended))
+    return x + m.drop_path(m.norm2(m.mlp(x)))
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    strip_nearest_reconstruction = False  # keep the whole-image cuDNN convolution plans
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, SwinTransformerBlock) and m.shift_size:
+                override(m, _shifted_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
@@ -218,7 +241,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 

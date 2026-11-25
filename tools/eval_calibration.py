@@ -24,13 +24,15 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 import torch
+
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 THRESHOLDS = (1, 5, 10)  # degrees
@@ -47,7 +49,7 @@ TIERS = {  # tier -> (mode, dtype, how, column)
 def dataset(every: int = 1) -> tuple[list[Path], np.ndarray]:
     """Image paths in the csv's order, every `every`-th, and their ground truth `[N, 3]` (roll, pitch, vfov; rad)."""
     root = Path(os.environ["FASTFORKS_DATA"]) / "calibration" / "lamar2k"
-    with (root / "images.csv").open() as f:
+    with (root / "images.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))[::every]
     gt = np.array([[float(r["roll"]), float(r["pitch"]), float(r["vfov"])] for r in rows])
     return [root / "images" / r["fname"] for r in rows], gt
@@ -62,6 +64,15 @@ def auc(errors: np.ndarray, t: float, min_error: float = 1.0) -> float:
     last = np.searchsorted(e, t, side="right")
     r, x = np.r_[recall[:last], recall[last - 1]], np.r_[e[:last], t]
     return round(float(np.trapezoid(r, x=x) / t) * 100, 2)
+
+
+def available_angles(errors: np.ndarray) -> list[int]:
+    """Allow unsupported all-NaN angles, but reject invalid predictions for every reported angle."""
+    given = [i for i in range(len(ANGLES)) if not np.isnan(errors[:, i]).all()]
+    if ANGLES.index("vfov") not in given or not np.isfinite(errors[:, given]).all():
+        msg = "non-finite calibration predictions; refusing to aggregate accuracy"
+        raise ValueError(msg)
+    return given
 
 
 def read(p: Path) -> np.ndarray:
@@ -112,8 +123,8 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 def predict(fn: Any, paths: list[Path], times: list[float]) -> np.ndarray:  # noqa: ANN401
     """`[N, 3]` float64 of `paths`, one call each (timed, decoding overlapped)."""
     out = []
-    with ThreadPoolExecutor(4) as pool:
-        for img in pool.map(read, paths):
+    with closing(prefetch(read, paths, workers=4)) as images:
+        for img in images:
             x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
             torch.cuda.synchronize()
             t = time.perf_counter()
@@ -146,7 +157,7 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats()
             times: list[float] = []
             err = np.degrees(np.abs(predict(fn, paths, times) - gt))
-            given = [i for i in range(len(ANGLES)) if not np.isnan(err[:, i]).all()]  # a model without roll / pitch
+            given = available_angles(err)  # models may omit roll / pitch, but reported values must be finite
             metrics = {f"{ANGLES[i]}_auc{t}": auc(err[:, i], t) for i in given for t in THRESHOLDS}
             row = {
                 "ref": ref, "task": "calibration", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
@@ -160,7 +171,7 @@ def main() -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

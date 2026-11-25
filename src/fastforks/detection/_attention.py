@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.export_sampling import export_bilinear
 from fastforks._core.tracing import in_onnx_export
 
 
@@ -50,20 +51,30 @@ def deformable_sample(
 
 
 def sample_maps(
-    maps: list[torch.Tensor], loc: torch.Tensor, weights: torch.Tensor, points: int | list[int]
+    maps: list[torch.Tensor],
+    loc: torch.Tensor,
+    weights: torch.Tensor,
+    points: int | list[int],
+    *,
+    export_with_gather: bool = False,
 ) -> torch.Tensor:
     """`deformable_sample` on the per-level value maps `[B * heads, dh, h, w]`."""
     b, q, heads, n = weights.shape
     dh = maps[0].shape[1]
     grids = (2 * loc - 1).permute(0, 2, 1, 3, 4).flatten(0, 1).split(points, dim=-2)  # per level [B*heads, Q, p, 2]
     dtype = maps[0].dtype
-    if in_onnx_export() and dtype != torch.float32:
+    exporting = in_onnx_export()
+    if exporting and dtype != torch.float32:
         # fp32 island of the exported graph: TensorRT's fp16 GridSample returns NaN / huge values (D-FINE-X at 800x1344)
         maps, grids = [v.float() for v in maps], [g.float() for g in grids]
     weights = weights.permute(0, 2, 1, 3).reshape(b * heads, 1, q, n).split(points, dim=-1)
     out = None
     for v, g, w in zip(maps, grids, weights, strict=True):  # fastforks: per level, no cat of the samples (a copy)
-        s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False).to(dtype)
+        s = (
+            export_bilinear(v, g)
+            if exporting and export_with_gather
+            else F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False)
+        ).to(dtype)
         s = (s * w).sum(-1)
         out = s if out is None else out + s
     return out.reshape(b, heads * dh, q).transpose(1, 2)  # ty: ignore[unresolved-attribute]

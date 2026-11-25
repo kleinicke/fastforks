@@ -27,6 +27,9 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from fastforks._core.mps import fence
+from fastforks._core.tracing import exporting_for_mlx
+
 
 @dataclass(frozen=True)
 class Config:
@@ -402,6 +405,7 @@ class VitMatteFusionBlock(nn.Module):
     def forward(self, features, detailed_feature_map):
         upscaled_features = nn.functional.interpolate(features, scale_factor=2, mode="bilinear", align_corners=False)
         out = torch.cat([detailed_feature_map, upscaled_features], dim=1)
+        del upscaled_features
         out = self.conv(out)
 
         return out
@@ -459,13 +463,44 @@ class VitMatteDetailCaptureModule(nn.Module):
 
     def forward(self, features, pixel_values):
         detail_features = self.convstream(pixel_values)
-        for i in range(len(self.fusion_blocks)):
+        for i, block in enumerate(self.fusion_blocks[:-1]):
             detailed_feature_map_name = "detailed_feature_map_" + str(len(self.fusion_blocks) - i - 1)
-            features = self.fusion_blocks[i](features, detail_features[detailed_feature_map_name])
+            features = fence(block(features, detail_features.pop(detailed_feature_map_name)))
+        return matte_in_strips(features, pixel_values, self._matte)
 
-        alphas = torch.sigmoid(self.matting_head(features))
+    def _matte(self, features, pixels):
+        return self.matting_head(self.fusion_blocks[-1](features, pixels)).sigmoid()
 
-        return alphas
+
+def matte_in_strips(features, pixels, matte):
+    """Apply the local 2x matting tail in row strips for large FP16 CUDA images (on MPS and MLX, any dtype).
+
+    On MLX the strips are static slices of the exported graph; its checkpoints evaluate them one after the other.
+    """
+    height, width = pixels.shape[-2:]
+    mlx = exporting_for_mlx()
+    if height * width < 1024 * 1024 or (
+        not mlx
+        and (
+            not (features.device.type == "mps" or (features.is_cuda and features.dtype == torch.float16))
+            or torch.is_grad_enabled()
+            or torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+        )
+    ):
+        return matte(features, pixels)
+
+    # Adjacent rows for 2x bilinear upsampling and the two full-resolution 3x3 convolutions.
+    # A strip starts at an even output row so bilinear samples use the original pixel centers.
+    half_height = features.shape[-2]
+    rows = max(32, (128 * 1024) // width)
+    output = []
+    for start in range(0, half_height, rows):
+        stop = min(start + rows, half_height)
+        low, high = max(0, start - 2), min(half_height, stop + 2)
+        alpha = fence(matte(features[..., low:high, :], pixels[..., 2 * low : 2 * high, :]))
+        output.append(alpha[..., 2 * (start - low) : 2 * (stop - low), :])
+    return torch.cat(output, dim=-2)
 
 
 class VitMatteForImageMatting(nn.Module):

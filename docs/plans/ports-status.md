@@ -39,7 +39,7 @@ In this order, unless something more useful turns up:
 - nnFoundation (`nnfoundation-cnn`, `nnfoundation-vit`, volume encoders; CC-BY-SA-4.0 weights): portable MPS goldens
   and Mac speed rows (CNN 200^3, ViT 192^3; the ViT's 13824-token attention may not fit an MPS fp32 path). Weights in
   the maintainers' local weights store `ff-weights/nnfoundation/`.
-- nnU-Net v2 loader (`fastforks.volume.load_nnunet`, volume; shared engine with TotalSegmentator): MPS check of
+- nnU-Net v2 loader (`fastforks.volume.load(path)`, volume; shared engine with TotalSegmentator): MPS check of
   `tests/test_volume.py` and the TotalSegmentator MPS goldens / speed rows again (the engine now accumulates in float16
   like nnU-Net, also on the CPU). Weights: any nnU-Net v2 results folder (TotalSegmentator's Dataset297 in
   the maintainers' local weights store `ff-weights/totalsegmentator/`).
@@ -291,7 +291,7 @@ exist) and the MPS goldens, all passing. Still open:
 
 ## Known gaps that wait for a release
 
-- Known broken in 0.2.0 and gated until 0.2.1 (card `planned`): [KNOWN_BROKEN_0.2.1.md](KNOWN_BROKEN_0.2.1.md).
+- Original 0.2.0 limitations and measured 0.2.1 follow-up: [KNOWN_BROKEN_0.2.1.md](KNOWN_BROKEN_0.2.1.md).
 - The `dpt_fused` build `48e0065bb7cf` for `sm_120` is not on Hugging Face yet; kernel builds are uploaded at
   release time.
 - The `romav2` build `bb29839cee98` (fused depthwise conv) is not on Hugging Face yet; local copy in

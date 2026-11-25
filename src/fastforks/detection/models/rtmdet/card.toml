@@ -3,12 +3,12 @@ name = "RTMDet (CSPNeXt, tiny / S / M / L / X; nano and M person detectors)"
 summary = "RTMDet (Lyu et al. 2022, OpenMMLab): real-time one-stage detector, all convolutions: a CSPNeXt backbone (5 x 5 depthwise convs), a CSPNeXt-PAFPN neck and a head that predicts, per cell of the stride 8 / 16 / 32 maps, a score per class and the distances to the four box edges; class-wise NMS. COCO checkpoints (80 classes) from mmdetection and the person-only detectors mmpose ships as the box source of RTMPose (same backbone family as `fastforks.pose`'s RTMPose). The image is fitted into 640 x 640 (nano: 320 x 320); vendored from mmdetection (no mmdet / mmcv dependency). The portable `module()` is the whole network (class logits and decoded boxes per cell, before NMS)."
 tier = "stable"
 outputs = ["boxes", "scores", "labels"]
-uses = ["cspnext", "cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cspnext", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
   "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
   "The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.",
-  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~65 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable at 640 x 480 and ~125 MiB at 1920 x 1080 (136 vs 56, 238 vs 114 MiB; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -40,7 +40,7 @@ nms_iou = 0.65  # reference test_cfg
 [options]
 score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # as the other detection families; the reference's COCO test_cfg is 0.001
 max_detections = { default = 100, min = 1 }  # COCO evaluation keeps the best 100 per image; the reference's test_cfg returns 300
-cuda_graphs = { default = true, effect = "speed" }  # kernels: replay normalisation, network and box decoding from a CUDA graph (false: eager, no graph pool)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the canvas resize, normalisation, network and box decoding from CUDA graphs (false: eager, no graph pool)
 
 [modes.portable]
 # fp16 moves single low-score boxes by pixels (golden image: worst box 1.6 px portable, 10.7 px kernels on S, 6.4 px on
@@ -49,6 +49,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay normalisat
 # unchanged (docs/data/detection_eval.jsonl).
 cuda_dtype = "float16"  # the network; scores, boxes and NMS stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 # Not built, for datacenter GPUs (A100 / L40S / H100 class): the net is convolutions only, so batching is where the

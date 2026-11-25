@@ -2,10 +2,20 @@
 
 import math
 
+import pytest
 import torch
 import torch.nn.functional as F
 
-from fastforks.tracking.models.locotrack.net.locotrack import CMDTop, alibi_bias, posenc, same_conv
+from fastforks.kernels.locotrack_sample import neighborhood
+from fastforks.tracking.models.locotrack.net.locotrack import (
+    SIZE,
+    CMDTop,
+    _offsets,
+    alibi_bias,
+    map_coordinates_2d,
+    posenc,
+    same_conv,
+)
 
 
 def test_same_padding_is_tensorflow_same() -> None:
@@ -52,3 +62,33 @@ def test_posenc_upstream_order() -> None:
     assert out.shape == (1, 84)
     xb = (x[..., None, :] * 2.0 ** torch.arange(10)[:, None]).reshape(1, -1)
     torch.testing.assert_close(out, torch.cat([x, torch.sin(xb), torch.cos(xb)], -1), atol=1e-5, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+@pytest.mark.parametrize("strided", [False, True])
+def test_local_sampler_matches_grid_sample(dtype: torch.dtype, *, strided: bool) -> None:
+    torch.manual_seed(7)
+    device = torch.device("cuda")
+    grid = torch.randn(2, 3, 8, 16, 12, device=device, dtype=dtype)
+    if strided:
+        grid = grid.permute(0, 1, 4, 2, 3).contiguous().permute(0, 1, 3, 4, 2)
+    points = torch.randn(2, 9, 3, 2, device=device) * 150 + 128
+    points[:, 0] = 0
+    points[:, 1] = 256
+    points[:, 2] = -600
+    yx = (points * points.new_tensor([16 / SIZE, 8 / SIZE])).flip(-1)
+    with torch.autocast("cuda", dtype=torch.float16):
+        expected = map_coordinates_2d(grid, yx.unsqueeze(3) + _offsets(device)).half()
+        actual = neighborhood(grid, points)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize(("hw", "kernel", "stride"), [((8, 7), 3, 2), ((7, 7), 5, 4), ((2, 2), 2, 2), ((24, 16), 3, 1)])
+def test_implicit_padding_matches_same(hw: tuple[int, int], kernel: int, stride: int) -> None:
+    from fastforks.tracking.models.locotrack.model import _same_conv  # noqa: PLC0415
+    from fastforks.tracking.models.locotrack.net.locotrack import same_conv  # noqa: PLC0415
+
+    conv = same_conv(3, 8, kernel, stride)
+    x = torch.randn(2, 3, *hw)
+    torch.testing.assert_close(_same_conv(conv, x), conv(x))

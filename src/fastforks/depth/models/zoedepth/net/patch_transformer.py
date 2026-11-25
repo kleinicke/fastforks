@@ -26,6 +26,7 @@
 
 import torch
 import torch.nn as nn
+from fastforks._core.upload import to_device  # fastforks
 
 
 class PatchTransformerEncoder(nn.Module):
@@ -63,7 +64,7 @@ class PatchTransformerEncoder(nn.Module):
             0, sequence_length, dtype=torch.float32, device=device).unsqueeze(1)
         index = torch.arange(
             0, embedding_dim, 2, dtype=torch.float32, device=device).unsqueeze(0)
-        div_term = torch.exp(index * (-torch.log(torch.tensor(10000.0, device=device)) / embedding_dim))
+        div_term = torch.exp(index * (-torch.log(to_device(torch.tensor(10000.0), device)) / embedding_dim))  # fastforks: to_device (a pageable upload syncs the host)
         pos_encoding = position * div_term
         pos_encoding = torch.cat([torch.sin(pos_encoding), torch.cos(pos_encoding)], dim=1)
         pos_encoding = pos_encoding.unsqueeze(1).repeat(1, batch_size, 1)

@@ -19,6 +19,7 @@ from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.model import Backend, Dtype, ModeArg
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
+from fastforks._core.upload import device_tensor, to_device
 
 if TYPE_CHECKING:
     import os
@@ -112,8 +113,8 @@ class ImageEmbeddings:
     embedding of image `i`. A prompt call takes a single-image embedding.
 
     Attributes:
-        features: The backend's feature tensors, image batch first, on the model's device (opaque; layout differs per
-            family).
+        features: The backend's opaque feature tensors, image batch first. MLX keeps these on the CPU for the next
+            prompt call. The layout differs per family.
         image_size: `(H, W)` of the embedded image(s).
         model: Versioned model id that computed them.
         backend: The backend that computed them.
@@ -267,7 +268,7 @@ class PromptableSegmentationModel(core.Model):
 
     def _to_batch(self, image: ImageLike) -> torch.Tensor:
         """`image` as a checked `[B, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         return x
 
@@ -375,8 +376,11 @@ class PromptableSegmentationModel(core.Model):
             msg = f"{self.variant.ref} is not a concept model: {extra} apply to text / exemplar prompts only"
             raise InputError(msg)
         prompts, batched = self._prompts(given)
+        # the point check reads the caller's (host) arrays: on the device copies it waited for the image encoder
+        # (six host syncs), so the prompt decoder could not be launched while the encoder ran
+        host = {k: _numeric(k, given[k], _PROMPTS[k][2]) for k in ("input_points", "input_labels") if k in prompts}
         emb = self._embedding(image)
-        _check_points_in_image(prompts, emb.image_size)
+        _check_points_in_image(host, emb.image_size)
         p = next(iter(prompts.values())).shape[0]
         if p == 0:  # an empty prompt batch (e.g. a detector found nothing): an empty result, no model run
             return self._no_masks(emb, multimask_output)
@@ -393,7 +397,7 @@ class PromptableSegmentationModel(core.Model):
             m = out["iou_scores"].shape[-1] if "iou_scores" in out and multimask_output else 1
             self._check_outputs(out, {"pred_masks": (p, m, *self._runner.mask_size), "iou_scores": (p, m)})
             low = out["pred_masks"].float()
-            masks = self._runner.upsample(low, emb.image_size) > 0
+            masks = self._runner.binary_masks(low, emb.image_size)
             if (c := self._runner.low_res_clamp) is not None:
                 low = low.clamp(-c, c)
         maps = {"masks": masks, "iou_scores": out["iou_scores"].float(), "pred_masks": low}
@@ -462,7 +466,7 @@ class PromptableSegmentationModel(core.Model):
             if m.ndim not in {2, 3} or tuple(m.shape[-2:]) != size:
                 msg = f"input_masks must be [P, H, W] (or [H, W]) at the frame size {size}, got {tuple(m.shape)}"
                 raise InputError(msg)
-            prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self.device)}
+            prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self._device)}
         else:
             given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
             kinds = self._runner.video_prompts or self.prompts
@@ -482,13 +486,23 @@ class PromptableSegmentationModel(core.Model):
             )
         if not batched:
             out = {k: v[:, 0] for k, v in out.items()}
-        return VideoSegmentationResult(
-            out["masks"], out["pred_masks"], out["object_score_logits"], self.variant.ref, self.backend, self.options
+        return self._move_result(
+            VideoSegmentationResult(
+                out["masks"],
+                out["pred_masks"],
+                out["object_score_logits"],
+                self.variant.ref,
+                self.backend,
+                self.options,
+            )
         )
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
-        x = self._to_batch(cast("ImageLike", video[t]))
+        v = video[t]
+        if isinstance(v, torch.Tensor):  # a host frame: pinned and async, not a copy that waits for the GPU
+            v = to_device(v, self._device)
+        x = self._to_batch(cast("ImageLike", v))
         if x.shape[0] != 1:
             msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
             raise InputError(msg)
@@ -529,24 +543,15 @@ class PromptableSegmentationModel(core.Model):
             size = (int(x.shape[-2]), int(x.shape[-1]))
         ex_boxes = _normalised(ex_boxes, size)
         emb = self._embedding(image if x is None else self._embed_tensor(x))
-        (h, w), size = emb.image_size, self._runner.mask_size
+        h, w = emb.image_size
         with self._session():
-            out = self._runner.segment_concept(dict(emb.features), text, ex_boxes, ex_labels)
-            q = out["scores"].shape[0]  # the runner's raw maps (not the card outputs, which are the result fields)
-            shapes = {"scores": (q,), "boxes": (q, 4), "pred_masks": (q, *size)}
-            if (got := {k: tuple(v.shape) for k, v in out.items()}) != shapes:
-                msg = f"{self.variant.ref}: runner returned {got}, expected {shapes}"
-                raise RuntimeError(msg)
-            out = {k: v.float() for k, v in out.items()}
-            scores = out["scores"]
-            idx = torch.nonzero(scores > threshold)[:, 0]
-            idx = idx[torch.argsort(scores[idx], descending=True)]
-            boxes = out["boxes"][idx] * torch.tensor([w, h, w, h], device=self.device, dtype=torch.float32)
-            if len(idx):
-                masks = self._runner.upsample(out["pred_masks"][idx, None], (h, w))[:, 0] > 0
+            out = self._runner.selected_concepts(dict(emb.features), text, ex_boxes, ex_labels, threshold=threshold)
+            boxes = out["boxes"] * device_tensor([w, h, w, h], device=self._device, dtype=torch.float32)
+            if len(boxes):
+                masks = self._runner.binary_masks(out["pred_masks"][:, None], (h, w))[:, 0]
             else:  # nothing found: no zero-batch interpolation
-                masks = torch.zeros((0, h, w), dtype=torch.bool, device=self.device)
-        return ConceptSegmentationResult(boxes, scores[idx], None, masks, (), self.variant.ref, self.backend, options)
+                masks = torch.zeros((0, h, w), dtype=torch.bool, device=self._device)
+        return ConceptSegmentationResult(boxes, out["scores"], None, masks, (), self.variant.ref, self.backend, options)
 
     def _check_exemplars(
         self, boxes: PromptLike | None, labels: PromptLike | None, text: str | None
@@ -611,9 +616,9 @@ class PromptableSegmentationModel(core.Model):
         """The result of an empty prompt batch (`P = 0`): `[0, M, H, W]` masks, `[0, M]` scores."""
         m, (h, w), (mh, mw) = _MULTIMASK if multimask else 1, emb.image_size, self._runner.mask_size
         return PromptableSegmentationResult(
-            torch.zeros((0, m, h, w), dtype=torch.bool, device=self.device),
-            torch.zeros((0, m), device=self.device),
-            torch.zeros((0, m, mh, mw), device=self.device),
+            torch.zeros((0, m, h, w), dtype=torch.bool, device=self._device),
+            torch.zeros((0, m), device=self._device),
+            torch.zeros((0, m, mh, mw), device=self._device),
             self.variant.ref,
             self.backend,
             self.options,
@@ -652,7 +657,7 @@ class PromptableSegmentationModel(core.Model):
                 msg = f"{name} must have {dims} (or {dims - 1}, without P) dims, got shape {tuple(t.shape)}"
                 raise InputError(msg)
             batched.add(t.ndim == dims)
-            out[name] = (t if t.ndim == dims else t[None]).to(self.device)
+            out[name] = _upload(t if t.ndim == dims else t[None], self._device)
         self._check_prompt_shapes(out, caller)
         points = out.get("input_points")
         if points is not None and points.shape[0] and not points.shape[1]:  # P prompts with no point each
@@ -683,6 +688,19 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
 
     The same model as `PromptableSegmentationModel` with calls typed as `ConceptSegmentationResult`.
     """
+
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Example inputs for the module, including CLIPSeg's projected text condition."""
+        images = super().example_inputs(height, width, batch=batch)
+        if self.card.family != "clipseg":
+            return images
+        if images[0].shape[-2:] != (352, 352):
+            msg = "CLIPSeg's exported image input is the normalized 352x352 network input; export at 352x352"
+            raise InputError(msg)
+        runner = cast("Any", self._runner)  # CLIPSeg's runner supplies image preprocessing and text projection.
+        return runner.pixels(images[0]), runner.condition("object").expand(batch, -1).contiguous()
 
     @overload
     def __call__(
@@ -766,7 +784,7 @@ class InContextSegmentationModel(PromptableSegmentationModel):
         """
         emb = self._embedding(image)
         refs, sizes = self._references(reference_images)
-        masks = _reference_masks(reference_masks, sizes, self.device)
+        masks = _reference_masks(reference_masks, sizes, self._device)
         with self._session():
             out = self._runner.segment_reference(emb.features["features"], refs, masks)
             h, w = out["similarity"].shape
@@ -851,6 +869,17 @@ def _exemplar_labels(labels: PromptLike, n: int) -> torch.Tensor:
         msg = "input_boxes_labels must be 1 (positive) or 0 (negative); pass only real boxes (no padding)"
         raise InputError(msg)
     return lab.long()
+
+
+def _upload(t: torch.Tensor, device: torch.device) -> torch.Tensor:
+    """`t` on `device`; a host tensor goes to a GPU through a fresh pinned copy, which does not wait for the stream.
+
+    A pageable copy (`t.to("cuda")`) is a host sync per prompt array; the pinned staging block is ours (the caller may
+    change `t` right away) and is reused only after the copy has run.
+    """
+    if device.type != "cuda" or t.device.type != "cpu":
+        return t.to(device)
+    return torch.empty(t.shape, dtype=t.dtype, pin_memory=True).copy_(t).to(device, non_blocking=True)
 
 
 def _check_points_in_image(prompts: dict[str, torch.Tensor], size: tuple[int, int]) -> None:
@@ -938,7 +967,7 @@ def bench_inputs(model: PromptableSegmentationModel, size: BenchSize) -> BenchIn
     three candidate masks); `get_image_embeddings` alone is the encoder.
     """
     h, w = size.height, size.width
-    image = synthetic_image(h, w, model.device)[0]
+    image = synthetic_image(h, w, model._device)[0]  # noqa: SLF001
     if "text" in model.prompts:
         return (image,), {"text": "object"}
     if "reference" in model.prompts:

@@ -157,7 +157,7 @@ class ClassificationModel(core.Model):
         Raises:
             InputError: Unsupported or too small image.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         out = self._batched(self._run, x)
         logits = self._check_outputs(out, {"logits": (x.shape[0], len(self.class_names))})["logits"]
@@ -177,7 +177,7 @@ class ClassificationModel(core.Model):
 
 def bench_inputs(model: ClassificationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]` (resized and cropped by the model as usual)."""
-    return (synthetic_image(size.height, size.width, model.device),), {}
+    return (synthetic_image(size.height, size.width, model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, _load = task_api(TASK, ClassificationModel)

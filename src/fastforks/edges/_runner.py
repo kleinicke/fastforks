@@ -26,6 +26,7 @@ import torch.nn.functional as F
 
 from fastforks._core import runner as core
 from fastforks._core.runner import Context, Forward, NoParams
+from fastforks.kernels import cv_resample
 from fastforks.shared.cv2_resize import cv2_resize
 
 if TYPE_CHECKING:
@@ -53,6 +54,16 @@ def to_detect(image: torch.Tensor, resolution: int) -> torch.Tensor:
     if size == (h, w):
         return levels
     return cv2_resize(levels, *size, "cubic" if resolution > min(h, w) else "area")
+
+
+def to_detect_cuda(image: torch.Tensor, resolution: int) -> torch.Tensor:
+    """The CUDA detector input, using the portable coefficient tables and rounding rules."""
+    h, w = image.shape[-2:]
+    size = detect_size(h, w, resolution)
+    levels = cv_resample.image_levels(image)
+    if size == (h, w):
+        return levels
+    return cv_resample.resize(levels, *size, "cubic" if resolution > min(h, w) else "area")
 
 
 def safe_step(x: torch.Tensor, step: int = 2) -> torch.Tensor:

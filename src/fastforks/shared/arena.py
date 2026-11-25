@@ -84,6 +84,50 @@ def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:  # no
     return module
 
 
+def upload(module: nn.Module, device: torch.device) -> nn.Module:
+    """Upload a dense CPU inference module directly into one aligned CUDA allocation.
+
+    Copy each storage once and reconstruct its registered views, including tied parameters.
+    This avoids keeping individually allocated CUDA weights alongside a compacted copy.
+    """
+    groups: dict[int, list[tuple[nn.Module, str, torch.Tensor, bool]]] = {}
+    for owner in module.modules():
+        for param, entries in ((True, owner._parameters), (False, owner._buffers)):  # noqa: SLF001
+            for name, tensor in entries.items():
+                if tensor is None:
+                    continue
+                if tensor.device.type != "cpu" or tensor.layout != torch.strided:
+                    msg = "Direct arena upload requires dense CPU parameters and buffers"
+                    raise ValueError(msg)
+                groups.setdefault(tensor.untyped_storage()._cdata, []).append((owner, name, tensor, param))  # noqa: SLF001
+
+    sizes = [items[0][2].untyped_storage().nbytes() for items in groups.values()]
+    arena = torch.empty(sum(-(-n // _ALIGN) * _ALIGN for n in sizes), device=device, dtype=torch.uint8)
+    offset = 0
+    moved: dict[int, torch.Tensor] = {}
+    with torch.no_grad():
+        for items, nbytes in zip(groups.values(), sizes, strict=True):
+            storage = items[0][2].untyped_storage()
+            source = torch.empty(0, dtype=torch.uint8, device="cpu").set_(storage, 0, (nbytes,))  # ty: ignore[no-matching-overload]
+            dest = arena.narrow(0, offset, nbytes)
+            dest.copy_(source, non_blocking=True)
+            for owner, name, tensor, param in items:
+                if id(tensor) not in moved:
+                    start = offset // tensor.element_size() + tensor.storage_offset()
+                    view = arena.view(tensor.dtype).as_strided(tensor.shape, tensor.stride(), start)
+                    moved[id(tensor)] = (
+                        nn.Parameter(view, requires_grad=tensor.requires_grad)
+                        if isinstance(tensor, nn.Parameter)
+                        else view
+                    )
+                if param:
+                    owner._parameters[name] = moved[id(tensor)]  # noqa: SLF001  # ty: ignore[invalid-assignment]
+                else:
+                    owner._buffers[name] = moved[id(tensor)]  # noqa: SLF001
+            offset += -(-nbytes // _ALIGN) * _ALIGN
+    return module
+
+
 def compact_runner(runner: object) -> None:
     """`compact` every network of a built runner.
 

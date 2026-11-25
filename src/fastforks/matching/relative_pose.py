@@ -34,6 +34,7 @@ import torch
 
 from fastforks._core.errors import InputError, KernelUnavailableError
 from fastforks._core.outputs import short_repr
+from fastforks._core.upload import device_tensor
 
 if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
@@ -471,7 +472,7 @@ class _TorchScorer:
         best_e, best_count = _polish(self, best_e, best_score, best_count, fundamental=fundamental)
         inliers = self.inliers(best_e)
         eye = torch.eye(3, device=dev).expand(P, 3, 3)
-        unit = torch.tensor([0.0, 0.0, 1.0], device=dev).expand(P, 3)
+        unit = device_tensor([0.0, 0.0, 1.0], device=dev).expand(P, 3)
         if fundamental:
             return eye, unit, best_e, inliers, best_count >= sample
         R, t, ok = _recover_pose(best_e.view(P, 3, 3), self.x1, self.x2, inliers)
@@ -915,7 +916,7 @@ def _refit(kron: torch.Tensor, w: torch.Tensor, e: torch.Tensor, *, fundamental:
     ata = torch.einsum("pni,pn,pnj->pij", kron, w, kron)
     vec = torch.linalg.eigh(ata).eigenvectors[..., 0]  # smallest eigenvalue
     u, sig, vh = torch.linalg.svd(vec.view(-1, 3, 3))
-    rank2 = torch.tensor([1.0, 1.0, 0.0], device=e.device, dtype=u.dtype)[None]
+    rank2 = device_tensor([1.0, 1.0, 0.0], device=e.device, dtype=u.dtype)[None]
     proj = (u * (sig * rank2 if fundamental else rank2)[:, None]) @ vh
     proj = (proj / proj.flatten(1).norm(dim=1)[:, None, None]).reshape(-1, 9).float()
     enough = (w.sum(1) >= 8)[:, None]  # noqa: PLR2004 - the linear solver's minimum
@@ -930,7 +931,7 @@ def _recover_pose(
     u, _, vh = torch.linalg.svd(e.to(_LO_DTYPE))
     u = u * torch.where(torch.linalg.det(u) < 0, -1.0, 1.0)[:, None, None]
     vh = vh * torch.where(torch.linalg.det(vh) < 0, -1.0, 1.0)[:, None, None]
-    w = torch.tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], device=e.device, dtype=u.dtype)
+    w = device_tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], device=e.device, dtype=u.dtype)
     r1, r2, t = u @ w @ vh, u @ w.T @ vh, u[:, :, 2]
     rs = torch.stack((r1, r1, r2, r2), 1).float()  # [P, 4, 3, 3]
     ts = torch.stack((t, -t, t, -t), 1).float()  # [P, 4, 3]

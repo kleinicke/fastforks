@@ -25,9 +25,22 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.upload import device_tensor
+from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
-from .net.alltracker import DIM, WINDOW, AllTracker, CNBlock1d, CNBlock2d, CorrPyramid, UpdateBlock, upsample
+from .net.alltracker import (
+    DIM,
+    WINDOW,
+    AllTracker,
+    CNBlock1d,
+    CNBlock2d,
+    CorrPyramid,
+    UpdateBlock,
+    scale_xy,
+    upsample,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -35,6 +48,7 @@ if TYPE_CHECKING:
     from fastforks.tracking._runner import Context
 
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architecture value
+MPS_FRAME_CHUNK = 2  # fixed: the same on MPS, where smaller chunks cost no time but save memory
 STRIDE = WINDOW // 2  # fixed: upstream's window stride at inference
 VIS_POWER = math.log(0.5) / math.log(0.6)  # fixed: maps upstream's 0.6 visibility threshold to 0.5
 
@@ -64,48 +78,87 @@ def _pad(h: int, w: int) -> tuple[int, int, int, int]:
     return pw // 2, pw - pw // 2, ph // 2, ph - ph // 2
 
 
+def _sample_sparse(
+    flows8: torch.Tensor, visconfs8: torch.Tensor, mask: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate the upsampling stencil only at the four pixels used by each query."""
+    n, _, h, w = flows8.shape
+    xy = pts + offset
+    limit = device_tensor((8 * w - 1, 8 * h - 1), device=xy.device, dtype=xy.dtype)
+    grid = xy * device_tensor((2 / (8 * w - 1), 2 / (8 * h - 1)), device=xy.device, dtype=xy.dtype) - 1
+    # Match grid_sample's align_corners=True coordinates, including its border padding.
+    sample = ((grid + 1) * 0.5 * limit).clamp_min(0).minimum(limit)
+    x, y = sample.unbind(-1)
+    x0, y0 = x.floor().long(), y.floor().long()
+    x1, y1 = x0 + 1, y0 + 1
+    xx = torch.stack([x0, x1, x0, x1]).clamp_max(8 * w - 1)
+    yy = torch.stack([y0, y0, y1, y1]).clamp_max(8 * h - 1)
+    cells = yy.div(8, rounding_mode="floor") * w + xx.div(8, rounding_mode="floor")
+    subpixels = 8 * yy.remainder(8) + xx.remainder(8)
+    weights = mask.view(n, 9, 64, h, w)[:, :, subpixels, yy // 8, xx // 8].softmax(1)
+    values = torch.cat([flows8, visconfs8], 1)
+    patches = F.unfold(8 * values, (3, 3), padding=1).view(n, 4, 9, h * w)
+    samples = (patches[:, :, :, cells] * weights[:, None]).sum(dim=2).to(values.dtype)
+    samples = torch.cat([samples[:, :2], samples[:, 2:].sigmoid()], 1).float()
+    left, right, top, bottom = x1 - x, x - x0, y1 - y, y - y0
+    out = samples[:, :, 0] * (left * top)
+    out = out.addcmul(samples[:, :, 1], right * top)
+    out = out.addcmul(samples[:, :, 2], left * bottom)
+    out = out.addcmul(samples[:, :, 3], right * bottom)
+    return pts + out[:, :2].transpose(1, 2), out[:, 2] * out[:, 3]
+
+
 def _sample(
     flows8: torch.Tensor, visconfs8: torch.Tensor, mask: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Tracks `[S, K, 2]` and `visible * confident` `[S, K]` of the points `pts` `[K, 2]` (unpadded network pixels)."""
-    flow = upsample(flows8, mask)
-    vis = upsample(visconfs8, mask).sigmoid()
+    if flows8.is_cuda and not torch.compiler.is_compiling() and pts.shape[0] <= flows8.shape[-2] * flows8.shape[-1]:
+        return _sample_sparse(flows8, visconfs8, mask, pts, offset)
+    mask = to_float32(mask)  # float32 islands of a float16 MLX replay (`.float()` records nothing there)
+    flow = upsample(to_float32(flows8), mask)
+    vis = upsample(to_float32(visconfs8), mask).sigmoid()
     h, w = flow.shape[-2:]
     xy = pts + offset
-    grid = (xy * xy.new_tensor((2 / (w - 1), 2 / (h - 1))) - 1)[None, None].expand(flow.shape[0], -1, -1, -1)
+    grid = (scale_xy(xy, 2 / (w - 1), 2 / (h - 1)) - 1)[None, None].expand(flow.shape[0], -1, -1, -1)
     f = F.grid_sample(torch.cat([flow, vis], 1).float(), grid, align_corners=True, padding_mode="border")[:, :, 0]
     return pts + f[:, :2].transpose(1, 2), f[:, 2] * f[:, 3]
 
 
-def _direction(
-    net: AllTracker, fmaps: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor, iters: int
+def _direction(  # noqa: PLR0913 - feature window, point coordinates, and traversal options
+    net: AllTracker, fmaps: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor, iters: int, *, reverse: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Tracks `[L, K, 2]` and `visible * confident` `[L, K]` of points on frame 0 of `fmaps` `[L, C, h, w]`."""
+    """Tracks and visibility in traversal order, anchored at the first or last feature frame."""
     n, k = fmaps.shape[0], pts.shape[0]
     tracks, vis = pts[None].repeat(n, 1, 1), pts.new_ones(n, k)
     if n == 1:
         return tracks, vis
-    zeros = fmaps.new_zeros((1, 2, *fmaps.shape[-2:]), dtype=torch.float32)
+    anchor = fmaps[-1] if reverse else fmaps[0]
+    zeros = to_float32(fmaps.new_zeros((1, 2, *fmaps.shape[-2:])))  # the carried window state: float32 on MLX too
     if n == 2:  # noqa: PLR2004 - upstream's two-frame flow
-        f8, v8, m = net.window(fmaps[0], fmaps[1:], zeros, zeros, iters)
+        adjacent = fmaps[:1] if reverse else fmaps[1:]
+        f8, v8, m = net.window(anchor, adjacent, zeros, zeros, iters)
         tracks[1:], vis[1:] = _sample(f8, v8, m, pts, offset)
         return tracks, vis
     starts = list(range(0, n - WINDOW, STRIDE)) or [0]
     if starts[-1] + WINDOW < n:
         starts.append(starts[-1] + STRIDE)
-    pad = starts[-1] + WINDOW - n
-    if pad:
-        fmaps = torch.cat([fmaps, fmaps[-1:].expand(pad, -1, -1, -1)])
-    flows8 = zeros.repeat(n + pad, 1, 1, 1)
-    visconfs8 = zeros.repeat(n + pad, 1, 1, 1)
+    flows8 = zeros.repeat(WINDOW, 1, 1, 1)
+    visconfs8 = zeros.repeat(WINDOW, 1, 1, 1)
     for i, s in enumerate(starts):
-        win = slice(s, s + WINDOW)
-        f8, v8, m = net.window(fmaps[0], fmaps[win], flows8[win], visconfs8[win], iters)
-        flows8[win], visconfs8[win] = f8, v8
-        if s + WINDOW < n + pad:  # the frames after the window start from its last frame (nearest visited)
-            flows8[s + WINDOW :], visconfs8[s + WINDOW :] = f8[-1:], v8[-1:]
-        keep = min(STRIDE if i + 1 < len(starts) else WINDOW, n - s)  # later windows overwrite the rest
+        stop = min(s + WINDOW, n)
+        window = fmaps[n - stop : n - s].flip(0) if reverse else fmaps[s:stop]
+        if (pad := WINDOW - len(window)) > 0:
+            window = torch.cat((window, window[-1:].expand(pad, -1, -1, -1)))
+        f8, v8, m = net.window(anchor, window, flows8, visconfs8, iters)
+        another = i + 1 < len(starts)
+        keep = min(STRIDE if another else WINDOW, n - s)  # later windows overwrite the rest
         tracks[s : s + keep], vis[s : s + keep] = _sample(f8[:keep], v8[:keep], m[:keep], pts, offset)
+        if another:
+            # Keep the overlap and seed only the incoming frames from the last visited frame.
+            for state, updated in ((flows8, f8), (visconfs8, v8)):
+                state[:-STRIDE].copy_(updated[STRIDE:])
+                state[-STRIDE:].copy_(updated[-1:])
+        del f8, v8, m, window
     return tracks, vis
 
 
@@ -117,33 +170,44 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     queries: torch.Tensor,
     params: Params,
     amp: torch.dtype | None,
+    group: int | None = None,
 ) -> dict[str, torch.Tensor]:
-    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
+    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`.
+
+    `group`: every query starts on this frame (no data-dependent grouping: the graph the MLX port exports).
+    """
     h, w = size
+    queries = to_float32(queries)  # the point coordinates stay float32 in a float16 MLX replay
     nh, nw = params.height, params.width
     left, right, top, bottom = _pad(nh, nw)
-    scale = torch.tensor((nw / w, nh / h), device=queries.device)  # (x, y)
-    offset = torch.tensor((left, top), device=queries.device, dtype=torch.float32)
+    offset = device_tensor((left, top), device=queries.device, dtype=torch.float32)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     tracks = queries.new_zeros(n, queries.shape[0], 2)
     vis = queries.new_zeros(n, queries.shape[0])
     with region:
         chunks = []
-        for s in range(0, n, FRAME_CHUNK):
-            video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+        step = MPS_FRAME_CHUNK if queries.device.type == "mps" else FRAME_CHUNK
+        for s in range(0, n, step):
+            video = torch.cat([frames(t) for t in range(s, min(n, s + step))])
             if video.shape[-2:] != (nh, nw):
                 video = F.interpolate(video, (nh, nw), mode="bilinear", align_corners=False)
             chunks.append(net.encode(F.pad(video, (left, right, top, bottom), mode="replicate")))
+            del video
         fmaps = torch.cat(chunks)
-        pts = (queries[:, 1:] + 0.5) * scale - 0.5
-        for t0 in queries[:, 0].long().unique().tolist():
-            sel = (queries[:, 0] == t0).nonzero()[:, 0]
+        del chunks
+        pts = scale_xy(queries[:, 1:] + 0.5, nw / w, nh / h) - 0.5
+        for t0 in [group] if group is not None else queries[:, 0].long().unique().tolist():
+            sel = (
+                torch.arange(queries.shape[0], device=queries.device)
+                if group is not None
+                else ((queries[:, 0] == t0).nonzero()[:, 0])
+            )
             tr, vi = _direction(net, fmaps[t0:], pts[sel], offset, params.iters)
             tracks[t0:, sel], vis[t0:, sel] = tr, vi
             if t0 > 0:
-                tr, vi = _direction(net, fmaps[: t0 + 1].flip(0), pts[sel], offset, params.iters)
+                tr, vi = _direction(net, fmaps[: t0 + 1], pts[sel], offset, params.iters, reverse=True)
                 tracks[:t0, sel], vis[:t0, sel] = tr[1:].flip(0), vi[1:].flip(0)
-    return {"tracks": (tracks + 0.5) / scale - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
+    return {"tracks": scale_xy(tracks + 0.5, w / nw, h / nh) - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
 
 
 class Portable(Runner):
@@ -360,4 +424,32 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Graph(Portable):
+    """The offline pass per query frame as one exported graph (the grouping by start frame stays eager)."""
+
+    def _run(self, video: torch.Tensor, queries: torch.Tensor, group: int) -> dict[str, torch.Tensor]:
+        size = (video.shape[-2], video.shape[-1])
+        return track(
+            self.net, lambda t: video[t : t + 1], video.shape[0], size, queries, self.ctx.params, self.amp, group
+        )
+
+    def __call__(
+        self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """Tracks and visibility of the queries."""
+        del size
+        video = torch.cat([frames(t) for t in range(n)])
+        starts = queries[:, 0].long()
+        tracks, vis = queries.new_zeros(n, queries.shape[0], 2), queries.new_zeros(n, queries.shape[0])
+        for t0 in starts.unique().tolist():
+            sel = (starts == t0).nonzero()[:, 0]
+            out = self._run(video, queries[sel], t0)
+            tracks[:, sel], vis[:, sel] = out["tracks"], out["visibility"]
+        return {"tracks": tracks, "visibility": vis}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Graph, attrs=(), methods=("_run",), half_wino_f32=True),
+}

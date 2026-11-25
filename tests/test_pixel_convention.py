@@ -261,7 +261,7 @@ def test_float64_poses_with_a_large_world_offset_keep_their_precision(family):
 
     from fastforks.multiview._api import MultiViewModel  # noqa: PLC0415
 
-    self = SimpleNamespace(variant=SimpleNamespace(ref="x"), device=torch.device("cpu"))
+    self = SimpleNamespace(variant=SimpleNamespace(ref="x"), device=torch.device("cpu"), _device=torch.device("cpu"))
     k = torch.tensor([[[500.0, 0, 3.5], [0, 500.0, 3.5], [0, 0, 1]]]).expand(2, 3, 3)
     c2w = np.tile(np.eye(4), (2, 1, 1))
     c2w[1, 0, 3] = 0.1

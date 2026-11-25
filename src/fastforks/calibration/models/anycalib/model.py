@@ -15,7 +15,8 @@ instead of a host branch, so a call has no device-to-host sync.
 
 `portable`: plain PyTorch, the network in float32 or float16 (SDPA attention); the head's upsampling, the ray map
 and the fit always in float32. `kernels`: the `fastbb` ViT (flash attention, `dpt_fused` block GEMMs, fp16
-accumulate), `cudnn_hacc` decoder convolutions, the network replayed from a CUDA graph per input shape.
+accumulate), `cudnn_hacc` decoder convolutions, the network and the camera fit replayed from a CUDA graph per input
+shape.
 """
 
 from __future__ import annotations
@@ -32,8 +33,10 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import FastViT, fp16_accumulate, sdpa_attention, vit_large
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
@@ -62,7 +65,7 @@ class Params:
         ar_min: Lower clamp of the network input's aspect ratio (H / W).
         ar_max: Upper clamp.
         gn_iters: Gauss-Newton steps.
-        cuda_graphs: Option: kernels replays the network from a CUDA graph.
+        cuda_graphs: Option: kernels replays the network and the camera fit from a CUDA graph.
     """
 
     resolution: int
@@ -107,8 +110,8 @@ def preprocess(image: torch.Tensor, size: tuple[int, int]) -> tuple[torch.Tensor
     h, w = x.shape[-2:]
     x = F.interpolate(x, size, mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
     s2 = (wt / w, ht / h)
-    scale = torch.tensor([s1[0] * s2[0], s1[1] * s2[1]], dtype=torch.float32, device=dev)
-    return x, scale, torch.tensor([shift[0] * s2[0], shift[1] * s2[1]], dtype=torch.float32, device=dev)
+    scale = device_tensor([s1[0] * s2[0], s1[1] * s2[1]], dtype=torch.float32, device=dev)
+    return x, scale, device_tensor([shift[0] * s2[0], shift[1] * s2[1]], dtype=torch.float32, device=dev)
 
 
 class _Net(nn.Module):
@@ -194,6 +197,12 @@ class _AnyCalib(Runner):
         """float32 rays `[B, 3, h, w]` of the network input `x` (float32 in [0, 1])."""
         raise NotImplementedError
 
+    def _camera(self, x: torch.Tensor) -> torch.Tensor:
+        """Pinhole `(fx, fy, cx, cy)` `[B, 4]` in pixels of the network input `x`: network, then the camera fit."""
+        rays = self._rays(x)
+        with torch.autocast(x.device.type, enabled=False):
+            return fit(rays.permute(0, 2, 3, 1).reshape(rays.shape[0], -1, 3), *x.shape[-2:], self.ctx.params.gn_iters)
+
     @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Pinhole intrinsics and vertical field of view of `[B, 3, H, W]` RGB in `[0, 1]`."""
@@ -201,10 +210,9 @@ class _AnyCalib(Runner):
         h, w = image.shape[-2:]
         size = target_size(h, w, p)
         x, scale, shift = preprocess(image, size)
-        rays = self._rays(x)
-        b = rays.shape[0]
+        params = self._camera(x)
+        b = params.shape[0]
         with torch.autocast(image.device.type, enabled=False):
-            params = fit(rays.permute(0, 2, 3, 1).reshape(b, -1, 3), *size, p.gn_iters)
             params = torch.cat([params[:, :2] / scale, (params[:, 2:] - shift) / scale], -1)
             vfov, _ = Pinhole().get_vfov(params, h)
         k = params.new_zeros(b, 3, 3)
@@ -251,7 +259,7 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 
 
 class Kernels(_AnyCalib):
-    """`fastbb` ViT-L (flash attention, fused block GEMMs), `cudnn_hacc` decoder, a CUDA graph per input shape."""
+    """`fastbb` ViT-L (flash attention, fused block GEMMs), `cudnn_hacc` decoder, network + fit in a CUDA graph."""
 
     module = Runner.module  # fp16-accumulate GEMMs and convolutions are cuBLAS / cuDNN modes, not exportable operators
 
@@ -272,9 +280,11 @@ class Kernels(_AnyCalib):
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        # the network and the camera fit (its ~2,000 small Gauss-Newton launches are host-bound on Windows)
+        eager = super()._camera
+        self.graphs = GraphCache(eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
-    def _eager(self, x: torch.Tensor) -> torch.Tensor:
+    def _rays(self, x: torch.Tensor) -> torch.Tensor:
         net, fast = self.net, self.fast
         with torch.autocast("cuda", enabled=False), fp16_accumulate():
             t = fast.tokens((x - net.image_mean) / net.image_std)
@@ -285,9 +295,9 @@ class Kernels(_AnyCalib):
                     outs.append(t)
             return _maps(net, outs, *x.shape[-2:])
 
-    def _rays(self, x: torch.Tensor) -> torch.Tensor:
+    def _camera(self, x: torch.Tensor) -> torch.Tensor:
         out = None if self.graphs is None else self.graphs.run((x.device, tuple(x.shape)), x)
-        return self._eager(x) if out is None else out
+        return super()._camera(x) if out is None else out
 
     def release_graphs(self) -> None:
         """Free the CUDA graphs and their memory pool."""
@@ -295,4 +305,8 @@ class Kernels(_AnyCalib):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_rays",)),
+}

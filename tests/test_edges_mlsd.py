@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+import pytest
 import torch
 
 from fastforks._core import registry
-from fastforks.edges.models.mlsd.model import decode, draw
+from fastforks.edges.models.mlsd.model import _clip, decode, draw
 
 
 def test_card() -> None:
@@ -45,3 +46,26 @@ def test_decode() -> None:
     assert not keep.any()
     _, keep = decode(maps, 0.1, 4.0)
     assert not keep.any()
+
+
+@pytest.mark.slow
+def test_clip_onnx_matches_eager_without_integer_bitwise(tmp_path) -> None:
+    """Line clipping exports correctly without operators rejected by TensorRT."""
+    onnx = pytest.importorskip("onnx")
+    ort = pytest.importorskip("onnxruntime")
+    pytest.importorskip("onnxscript")
+
+    class Clip(torch.nn.Module):
+        def forward(self, segments: torch.Tensor) -> tuple[torch.Tensor, ...]:
+            return _clip(segments, 17, 23)
+
+    segments = torch.tensor([[-5, 2, 30, 15], [-4, -3, -1, 8], [10, -5, 10, 30], [1, 1, 20, 15]])
+    model = Clip().eval()
+    path = tmp_path / "clip.onnx"
+    torch.onnx.export(model, (segments,), path, dynamo=True)
+    graph = onnx.load(str(path)).graph
+    assert not any(node.op_type.startswith("Bitwise") for node in graph.node)
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    actual = session.run(None, {session.get_inputs()[0].name: segments.numpy()})
+    for got, want in zip(actual, model(segments), strict=True):
+        np.testing.assert_array_equal(got, want.numpy())

@@ -3,7 +3,7 @@ name = "RT-DETRv2 (ResNet-vd, S / M / M* / L / X)"
 summary = "RT-DETRv2 (Lv et al. 2024, Baidu): real-time end-to-end detection; ResNet-vd backbone, hybrid encoder (one attention layer, CSP-RepVGG feature pyramid), deformable-attention decoder over 300 selected queries, no NMS; boxes, scores and COCO classes at the input size. The portable `module()` is the whole network at 640x640 (class logits and normalised boxes)."
 tier = "stable"
 outputs = ["boxes", "scores", "labels"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~110 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
@@ -43,6 +43,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the networ
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection, box refinement and heads stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU), fp16-accumulate GEMMs, CUDA graph

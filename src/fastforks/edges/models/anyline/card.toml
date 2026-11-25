@@ -3,7 +3,7 @@ name = "AnyLine line art"
 summary = "AnyLine preprocessor of MistoLine (TheMisto.ai; controlnet_aux `AnylineDetector`, ComfyUI-Anyline): the MTEED edge network (TEED architecture, weights by TheMisto.ai) blended with a Gaussian-difference line art whose small specks are removed; sharp line maps for line-conditioned ControlNets."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["teed"]  # fastforks.shared modules this family imports
+uses = ["teed", "mlx_wrap", "quantile"]  # fastforks.shared modules this family imports
 licence_notes = [
   "The MTEED weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.",
 ]
@@ -32,10 +32,12 @@ short_side = { default = 1280, min = 64, aliases = ["resolution", "detect_resolu
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off"
+kernels = ["edge_components"]
+mlx_kernels = ["conv_mlx"]  # the direct few-channel conv, Winograd 3x3s
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "Tiny and Efficient Model for The Edge Detection Generalization"
@@ -45,6 +47,5 @@ venue = "ICCV 2023 workshops"
 
 [[variants]]
 id = "anyline"
-planned = { tensorrt = "the TensorRT ONNX parser rejects an Expand node" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "MTEED.pth", size = 248298, sha256 = "a3c2d8a8ce9422555c787160bd46362d761325a565333c0e3f6a53e0bae2abdb", url = "https://huggingface.co/TheMistoAI/MistoLine/resolve/1d9d0b3d48b295cf70d80a0f839a3055672f8393/Anyline/MTEED.pth" }]

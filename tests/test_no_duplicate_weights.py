@@ -79,12 +79,17 @@ def test_kernels_load_holds_no_more_weights_than_portable(ref):
     api = API[TASK[ref]]
     if "kernels" not in api.model_card(ref).modes:
         pytest.skip(f"{ref} has no kernels mode")
+    # Some loaders clear process-wide cuBLAS workspaces during warmup. Exclude them consistently from both
+    # sides of this weight-retention test; the workspace is not owned by either model.
+    clear_workspaces = getattr(torch._C, "_cuda_clearCublasWorkspaces", lambda: None)
     held = {}
     for mode in ("portable", "kernels"):
         gc.collect()
+        clear_workspaces()
         torch.cuda.empty_cache()
         base = torch.cuda.memory_allocated()
         m = api.load(ref, mode=mode, device="cuda")
+        clear_workspaces()
         held[mode] = torch.cuda.memory_allocated() - base
         del m
     assert held["kernels"] <= 1.1 * held["portable"] + 16 * MIB, {k: f"{v / MIB:.0f} MiB" for k, v in held.items()}

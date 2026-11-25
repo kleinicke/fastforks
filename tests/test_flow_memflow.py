@@ -10,8 +10,16 @@ import torch
 from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
-from fastforks.flow.models.memflow.model import _kernel_lookup
-from fastforks.flow.models.memflow.net import CorrBlock, MemFlowNet
+from fastforks.flow.models.memflow.model import (
+    _fft_depthwise,
+    _fft_fits,
+    _fft_size,
+    _kernel_lookup,
+    _pcblock,
+    _pointwise,
+    _pointwise_fits,
+)
+from fastforks.flow.models.memflow.net import CorrBlock, MemFlowNet, PCBlock
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,3 +87,53 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), f1, f2)(coords)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want, rtol=0, atol=4e-3)  # fp16 pooling and output of |corr| < 8
+
+
+@pytest.mark.parametrize(("channels", "size"), [(3, (7, 9)), (70, (12, 5))])  # 70: two channel chunks
+def test_fft_depthwise_is_the_conv(channels: int, size: tuple[int, int]) -> None:
+    torch.manual_seed(0)
+    conv = torch.nn.Conv2d(channels, channels, 15, padding=7, groups=channels).double()
+    x = torch.randn(2, channels, *size, dtype=torch.float64)
+    assert _fft_fits(conv)
+    got = _fft_depthwise(conv, x)
+    torch.testing.assert_close(got, conv(x), rtol=0, atol=1e-12)
+    assert _fft_depthwise(conv, x[:, :, 1:]).shape == x[:, :, 1:].shape  # another size: new spectra
+    assert not _fft_fits(torch.nn.Conv2d(4, 4, 15, padding=7))  # dense
+    assert not _fft_fits(torch.nn.Conv2d(4, 4, 7, padding=3, groups=4))  # small
+
+
+def test_pointwise_is_the_conv() -> None:
+    torch.manual_seed(0)
+    conv = torch.nn.Conv2d(6, 5, 1).double()
+    x = torch.randn(2, 6, 7, 9, dtype=torch.float64)
+    assert _pointwise_fits(conv)
+    torch.testing.assert_close(_pointwise(conv, x), conv(x), rtol=0, atol=1e-12)
+    torch.testing.assert_close(_pointwise(conv, x[..., ::2]), conv(x[..., ::2]), rtol=0, atol=1e-12)  # strided input
+    assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 1, stride=2))
+    assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 1, groups=4))
+    assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 3, padding=1))
+
+
+@pytest.mark.parametrize("kernels", [(1, 7), (1, 15)])
+def test_pcblock_fused_is_the_block(kernels: tuple[int, ...]) -> None:
+    torch.manual_seed(0)
+    block = PCBlock(6, 5, kernels).double()
+    x = torch.randn(2, 6, 9, 11, dtype=torch.float64)
+    with torch.no_grad():
+        torch.testing.assert_close(_pcblock(block, x), block(x), rtol=0, atol=1e-12)
+
+
+def test_fft_size_has_only_small_factors() -> None:
+    assert [_fft_size(n) for n in (149, 254, 256, 7)] == [150, 256, 256, 8]
+
+
+@pytest.mark.parametrize("rows", [100, 320])
+def test_readout_matrix_rows_match_fused_attention(rows: int) -> None:
+    """The kept softmax matrix rows (some, all) and fused attention for the rest give the fused readout."""
+    torch.manual_seed(0)
+    net = MemFlowNet(6750.0).eval()
+    a, b = (2 * x - 1 for x in _pair(128, 160, batch=2))  # 16 x 20 = 320 queries per image
+    with torch.no_grad():
+        want = net.forward_pair(a, b, 2)
+        got = net.forward_pair(a, b, 2, matrix_bytes=2 * 320 * 4 * rows)
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-4)

@@ -78,7 +78,7 @@ def _entry(label, x):
 def test_aria_sizes_default_pair_and_jsonl(tmp_path):
     gen1 = {"CameraCalibrations": [_entry("camera-slam-left", 0.0), _entry("camera-slam-right", 0.1)]}
     path = tmp_path / "gen1.json"
-    path.write_text(json.dumps(gen1))
+    path.write_text(json.dumps(gen1), encoding="utf-8")
     rig = g.read_calib(path)
     assert rig.left.size == (480, 640)  # (height, width)
     assert g.read_calib(path, size=(240, 320)).left.size == (240, 320)
@@ -90,19 +90,19 @@ def test_aria_sizes_default_pair_and_jsonl(tmp_path):
         ]
     }
     path2 = tmp_path / "gen2.json"
-    path2.write_text(json.dumps(gen2))
+    path2.write_text(json.dumps(gen2), encoding="utf-8")
     assert g.read_calib(path2).right.size == (512, 512)  # Gen2's default pair, its size
     assert g.read_calib(path2, names=("slam-front-left", "camera-rgb")).right.size == (3024, 4032)
     # MPS online calibration: one calibration per line, ImageSizes listed in camera order; the first line is read
     line = {"ImageSizes": [[640, 480], [640, 480], [1408, 1408]], **gen1}
     line["CameraCalibrations"].append(_entry("camera-rgb", 0.05))
     jsonl = tmp_path / "online_calibration.jsonl"
-    jsonl.write_text(json.dumps(line) + "\n" + json.dumps({"CameraCalibrations": []}) + "\n")
+    jsonl.write_text(json.dumps(line) + "\n" + json.dumps({"CameraCalibrations": []}) + "\n", encoding="utf-8")
     assert g.read_calib(jsonl).left.size == (480, 640)
     assert g.read_calib(jsonl, names=("camera-slam-left", "camera-rgb")).right.size == (1408, 1408)
     odd = {"CameraCalibrations": [_entry("my-left", 0.0), _entry("my-right", 0.1)]}
     path3 = tmp_path / "odd.json"
-    path3.write_text(json.dumps(odd))
+    path3.write_text(json.dumps(odd), encoding="utf-8")
     with pytest.raises(InputError, match=r"pass size=\(height, width\)"):
         g.read_calib(path3, names=("my-left", "my-right"))
 
@@ -110,7 +110,7 @@ def test_aria_sizes_default_pair_and_jsonl(tmp_path):
 # --- nerfstudio / instant-ngp -----------------------------------------------------------------------------------
 def _transforms(tmp_path, top, frames, name="transforms.json"):
     path = tmp_path / name
-    path.write_text(json.dumps({**top, "frames": frames}))
+    path.write_text(json.dumps({**top, "frames": frames}), encoding="utf-8")
     return path
 
 

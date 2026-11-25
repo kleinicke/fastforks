@@ -27,15 +27,22 @@ from __future__ import annotations
 import contextlib
 import math
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mps import release
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2 import DepthAnythingV2
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
+_MONO_SPLIT_MIN_PIXELS = 512 * 512
 DA_SIZE = 518  # fixed: upstream resizes every image to 518 x 518 for Depth Anything
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
@@ -215,11 +222,13 @@ def _pyramid(fmap1: torch.Tensor, fmap2: torch.Tensor, levels: int) -> list[torc
     b, c, h, w = fmap1.shape
     f1 = fmap1.reshape(b, c, h * w).transpose(1, 2)
     out = []
-    for _ in range(levels):
+    for level in range(levels):
         h2, w2 = fmap2.shape[-2:]
-        corr = torch.matmul(f1, fmap2.reshape(b, c, h2 * w2)) / math.sqrt(c)
+        corr = torch.matmul(f1, fmap2.reshape(b, c, h2 * w2))
+        corr.div_(math.sqrt(c))  # scale the newly allocated volume without a second copy
         out.append(corr.reshape(b * h * w, 1, h2, w2))
-        fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="bilinear", align_corners=False)
+        if level + 1 < levels:
+            fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="bilinear", align_corners=False)
     return out
 
 
@@ -331,20 +340,44 @@ class FlowSeek(nn.Module):
         out = F.interpolate(s.output_conv1(path), (ph * 14, pw * 14), mode="bilinear", align_corners=True)
         return path, F.relu(s.output_conv2(out))
 
-    def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
+    def forward(
+        self,
+        image1: torch.Tensor,
+        image2: torch.Tensor,
+        iters: int,
+        corr_fn: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor], torch.Tensor]] | None = None,
+        upsample: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] = _upsample,
+    ) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`."""
         cfg = self.cfg
         b, _, h, w = image1.shape
         device = image1.device
         both = torch.cat([image1, image2], dim=0)
-        mean = torch.tensor(MEAN, device=device).view(1, 3, 1, 1)
-        std = torch.tensor(STD, device=device).view(1, 3, 1, 1)
+        mean = device_tensor(MEAN, device=device).view(1, 3, 1, 1)
+        std = device_tensor(STD, device=device).view(1, 3, 1, 1)
         small = F.interpolate(both, (DA_SIZE, DA_SIZE), mode="bilinear", align_corners=False)
         with self._amp(device):
             # upstream's normalisation (x / mean - std, not (x - mean) / std): the checkpoints were trained with it
             path, depth = self._mono(small / mean - std)
-            mono = self.merge_head(F.interpolate(path.float(), (h, w), mode="bilinear", align_corners=False))
+            if (
+                self.fp16
+                and path.device.type in ("cuda", "mps")
+                and h * w >= _MONO_SPLIT_MIN_PIXELS
+                and not torch.is_grad_enabled()
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            ):
+                # The full-resolution FP32 resize and autocast input are both live in the merge head.
+                mono = torch.cat(
+                    [
+                        self.merge_head(F.interpolate(feature.float(), (h, w), mode="bilinear", align_corners=False))
+                        for feature in path.split(1)
+                    ]
+                )
+            else:
+                mono = self.merge_head(F.interpolate(path.float(), (h, w), mode="bilinear", align_corners=False))
         bases = motion_bases(F.interpolate(depth[:b].float(), (h, w), mode="bilinear", align_corners=False))
+
+        del path, depth, small
 
         # upstream InputPadder ('sintel' mode): centred replicate padding to multiples of 8
         ph, pw = -h % FACTOR, -w % FACTOR
@@ -354,20 +387,29 @@ class FlowSeek(nn.Module):
         with self._amp(device):
             net, context = self.init_conv(self.cnet(torch.cat(both.chunk(2, dim=0), dim=1))).split(cfg.dim, dim=1)
             net_b, context_b = self.init_conv(self.bnet(bases)).split(cfg.dim, dim=1)
+            del bases
             net = torch.cat([net, net_b], dim=1)
             context = torch.cat([context, context_b], dim=1)
+            del net_b, context_b
             flow = self.flow_head(net)[:, :2].float()
             fmaps = torch.cat([self.fnet(both), mono], dim=1)  # batch norm in eval mode: per-image as upstream
-        fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
-        pyramid = _pyramid(fmap1, fmap2, cfg.levels)
+        fmap1, fmap2 = (fmaps.float() if corr_fn is None else fmaps).chunk(2, dim=0)
+        del fmaps, mono, both, mean, std
+        release(fmap1)  # MPS: the encoders' cached buffers (5 GiB at 1080p) are of no use to the correlation volume
+        pyramid = _pyramid(fmap1, fmap2, cfg.levels) if corr_fn is None else []
+        lookup = corr_fn(fmap1, fmap2) if corr_fn is not None else None
         grid = _coords(b, fmap1.shape[-2], fmap1.shape[-1], device)
+        del fmap1, fmap2
         for _ in range(iters):
-            corr = _lookup(pyramid, grid + flow, cfg.radius)
+            corr = lookup(grid + flow) if lookup is not None else _lookup(pyramid, grid + flow, cfg.radius)
             with self._amp(device):
                 net = self.update_block(net, context, corr, flow)
+                del corr
                 delta = self.flow_head(net)[:, :2]
             flow = flow + delta.float()
+            del delta
+        del pyramid, lookup, grid, context
         with self._amp(device):
             mask = 0.25 * self.upsample_weight(net)
-        up = _upsample(flow, mask.float())
+        up = upsample(flow, mask.float())
         return up[..., pads[2] : pads[2] + h, pads[0] : pads[0] + w]

@@ -8,6 +8,7 @@ import math
 from .submodule import (Align_Corners, Align_Corners_Range, BasicBlock, convbn, convbn_3d, disparity_regression,
                         get_disp_range_samples)
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 
 class hourglass(nn.Module):
     def __init__(self, in_channels):
@@ -37,16 +38,17 @@ class hourglass(nn.Module):
         self.redir2 = convbn_3d(in_channels * 2, in_channels * 2, kernel_size=1, stride=1, pad=0)
 
     def forward(self, x):
-        conv1 = self.conv1(x)
-        conv2 = self.conv2(conv1)
-
-        conv3 = self.conv3(conv2)
-        conv4 = self.conv4(conv3)
-
-        conv5 = F.relu(self.conv5(conv4) + self.redir2(conv2), inplace=True)
-        conv6 = F.relu(self.conv6(conv5) + self.redir1(x), inplace=True)
-
-        return conv6
+        low = self.conv2(self.conv1(x))
+        bottom = self.conv4(self.conv3(low))
+        up = self.conv5(bottom)
+        del bottom
+        skip = self.redir2(low)
+        del low
+        up = F.relu(up + skip, inplace=True)
+        del skip
+        out = self.conv6(up)
+        del up
+        return F.relu(out + self.redir1(x), inplace=True)
 
 class feature_extraction(nn.Module):
     def __init__(self, arch_mode="nospp", num_stage=None, concat_feature_channel=12):
@@ -271,6 +273,10 @@ class GetCostVolume(nn.Module):
                                padding_mode='zeros', align_corners=True).view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)
 
 
+        if exporting_for_mlx():  # functional: one multiply, no in-place write into a transposed copy
+            keep = (mw >= disp_range_samples)[:, None]  # (B, 1, D, H, W)
+            return x.unsqueeze(2) * keep.to(x.dtype), y_warped
+
         # a littel difference, no zeros filling
         x_warped = x.unsqueeze(2).repeat(1, 1, ndisp, 1, 1) #(B, C, D, H, W)
         x_warped = x_warped.transpose(0, 1) #(C, B, D, H, W)
@@ -284,9 +290,10 @@ class GetCostVolume(nn.Module):
         assert (x.is_contiguous() == True)
         bs, channels, height, width = x.size()
 
-        concat_cost = x.new().resize_(bs, channels * 2, ndisp, height, width).zero_()  # (B, 2C, D, H, W)
-
         x_warped, y_warped = self.get_warped_feats(x, y, disp_range_samples, ndisp)
+        if exporting_for_mlx():
+            return torch.cat((x_warped, y_warped), 1)
+        concat_cost = x.new().resize_(bs, channels * 2, ndisp, height, width).zero_()  # (B, 2C, D, H, W)
         concat_cost[:, x.size()[1]:, :, :, :] = y_warped
         concat_cost[:, :x.size()[1], :, :, :] = x_warped
 

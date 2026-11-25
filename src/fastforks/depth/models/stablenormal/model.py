@@ -19,24 +19,33 @@ exports; a traced or exported module reuses the noise of its traced shape.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.sd2 import EMPTY_PROMPT_77, LATENT_SCALE, Noise, SD2Net, load_net
 from fastforks.shared.sd2.net.fast import Fast
 from fastforks.shared.sd2.net.unet import ControlNetEncoder
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from fastforks.depth._runner import Context
+    from fastforks.shared.sd2.net.unet import ResnetBlock2D
+    from fastforks.shared.sd2.net.vae import DecoderBlock
 
 TIMESTEP = 0  # fixed: hubconf StableNormal_turbo `t_start=0`, the ControlNet's and the UNet's timestep
 _ALIGN = 8  # fixed: the VAE downsampling factor; the input is padded to a multiple of it
 _CAMERA = (-1.0, -1.0, -1.0)  # fixed: StableNormal's (x left, y up, z to the viewer) -> camera (y down, z forward)
 _UNUSED = ("controlnet_cond_embedding.", "controlnet_down_blocks.", "controlnet_mid_block.")  # skipped upstream
+_LARGE_DECODER_PIXELS = 1_000_000  # fixed: input size from which the decoder runs memory-bounded (no numerics change)
 
 
 @dataclass(frozen=True)
@@ -76,15 +85,16 @@ def finish(n: torch.Tensor, pad: tuple[int, int], size: tuple[int, ...]) -> torc
     n = _unit(n.float())[:, :, : -ph or None, : -pw or None]
     if tuple(n.shape[-2:]) != tuple(size):
         n = F.interpolate(n, size, mode="bilinear")
-    n = _unit(n) * n.new_tensor(_CAMERA)[:, None, None]
+    n = _unit(n) * device_tensor(_CAMERA, device=n.device, dtype=n.dtype)[:, None, None]
     return n.permute(0, 2, 3, 1)
 
 
 def _nets(ctx: Context) -> tuple[SD2Net, ControlNetEncoder]:
     """UNet + VAE + the 77-token empty prompt (files 0-2) and the ControlNet encoder (file 3)."""
     net = load_net(ctx, prompt=EMPTY_PROMPT_77, cin=4)
-    with torch.device(ctx.device):
-        control = ControlNetEncoder(cin=4)
+    with torch.device("meta"):
+        control = ControlNetEncoder(cin=4).to(dtype=net.empty_text.dtype)
+    control.to_empty(device=ctx.device)
     control.load_state_dict({k: v for k, v in ctx.state_dict(3, strip="").items() if not k.startswith(_UNUSED)})
     return net, control.eval()
 
@@ -96,7 +106,7 @@ def infer(net: SD2Net, control: ControlNetEncoder, image: torch.Tensor, params: 
     rgb = net.vae.encode_mean(x.to(dtype)) * LATENT_SCALE
     (z,) = noise(rgb.shape, rgb.device, dtype)
     ctx = net.empty_text.to(dtype).expand(rgb.shape[0], -1, -1)
-    t = torch.tensor(TIMESTEP, device=rgb.device)
+    t = device_tensor(TIMESTEP, device=rgb.device)
     pred = net.unet(z, t, ctx, residuals=control(rgb, t, ctx))
     return finish(net.vae.decode(pred / LATENT_SCALE), pad, image.shape[-2:])
 
@@ -107,6 +117,37 @@ class _Both(torch.nn.Module):
     def __init__(self, net: SD2Net, control: ControlNetEncoder) -> None:
         super().__init__()
         self.net, self.control = net, control
+
+
+class _DecoderConv(nn.Conv2d):
+    """Bound the final VAE block's convolution workspace in large CUDA inference calls."""
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - match nn.Conv2d.forward
+        """Convolve four row groups with the padding halo of the original 3 x 3 convolution."""
+        convolve = super().forward
+        if (
+            input.dtype != torch.float16
+            or not input.is_cuda
+            or not input.is_contiguous()
+            or torch.is_grad_enabled()
+            or torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+            or in_onnx_export()
+            or input.shape[-2] * input.shape[-1] < _LARGE_DECODER_PIXELS
+        ):
+            return convolve(input)
+
+        batch, _, height, width = input.shape
+        rows = (height + 3) // 4
+        out = input.new_empty((batch, self.out_channels, height, width))
+        for start in range(0, height, rows):
+            stop = min(height, start + rows)
+            first, last = max(0, start - 1), min(height, stop + 1)
+            part = convolve(input[..., first:last, :].contiguous())
+            offset = start - first
+            out[..., start:stop, :].copy_(part[..., offset : offset + stop - start, :])
+            del part
+        return out
 
 
 class Portable(Runner):
@@ -121,6 +162,11 @@ class Portable(Runner):
         super().__init__(ctx)
         self.dtype = torch.float16 if ctx.dtype == "float16" else torch.float32
         self.both = _Both(*_nets(ctx)).to(self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            final = cast("DecoderBlock", self.both.net.vae.decoder.up_blocks[-1])
+            for resnet in cast("Iterable[ResnetBlock2D]", final.resnets):
+                resnet.conv1.__class__ = _DecoderConv
+                resnet.conv2.__class__ = _DecoderConv
         self.noise = Noise(ctx.params.seed)
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
@@ -167,4 +213,19 @@ class Kernels(Runner):
         return {"normals": finish(f.decode(self.net.vae, pred / LATENT_SCALE), pad, image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(
+        Portable,
+        attrs=("both.net.unet", "both.control"),
+        methods=("both.net.vae.encode_mean", "both.net.vae.decode"),
+        cache_mb=1024,
+    ),
+    "kernels_mlx": mlx_wrap.port(
+        Portable,
+        attrs=("both.net.unet", "both.control"),
+        methods=("both.net.vae.encode_mean", "both.net.vae.decode"),
+        cache_mb=1024,
+    ),
+}

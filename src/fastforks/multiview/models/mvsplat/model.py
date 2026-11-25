@@ -25,7 +25,9 @@ fp16; kernels adds cuDNN fp16-accumulate convs and fp16-accumulate GEMMs. The Ga
 
 from __future__ import annotations
 
+import functools
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -35,10 +37,16 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks._core.upload import device_tensor, to_device
+from fastforks._core.volume_ops import warp_dot
+from fastforks.kernels import mvsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
-from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
+from fastforks.shared import mlx_wrap
 from fastforks.shared.group_norm import fast_group_norms
 
 from .net.backbone.multiview_transformer import MultiViewFeatureTransformer
@@ -64,6 +72,14 @@ NEAR = 1.0  # fixed: the scene is scaled so that near = 1 (upstream's re10k trai
 MEAN = (0.485, 0.456, 0.406)  # fixed: ImageNet normalisation of the UniMatch backbone
 STD = (0.229, 0.224, 0.225)
 DEPTH_CHUNK = 32  # fixed: a memory bound (depth candidates warped at once, [V, C, D, h, w] volume)
+
+
+Accumulate = Callable[[torch.Tensor, torch.Tensor, torch.Tensor, int], None]  # a fused plane sweep (`correlation`)
+
+
+def cuda_accumulate(feat: torch.Tensor, grid: torch.Tensor, out: torch.Tensor, offset: int) -> None:
+    """`mvsplat_corr.accumulate` with the grid in the features' (CUDA autocast) precision, as `grid_sample` takes it."""
+    mvsplat_corr.accumulate(feat, grid.to(feat.dtype), out, offset)
 
 
 @dataclass(frozen=True)
@@ -97,11 +113,11 @@ class Backbone(nn.Module):
 
     def forward(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`[V, 3, h, w]` in `[0, 1]` -> transformer and CNN features, both `[V, C, h / 4, w / 4]`."""
-        mean, std = (torch.tensor(t, device=images.device).view(1, 3, 1, 1) for t in (MEAN, STD))
+        mean, std = (device_tensor(t, device=images.device).view(1, 3, 1, 1) for t in (MEAN, STD))
         cnn = self.backbone((images - mean) / std)[0]
         views = list(cnn.unbind(0))
         splits = [split_feature(x[None], num_splits=SPLITS) for x in views]
-        pos = PositionEmbeddingSine(num_pos_feats=FEATURES // 2)(splits[0])
+        pos = to_run_dtype(PositionEmbeddingSine(num_pos_feats=FEATURES // 2)(splits[0]), cnn.dtype)  # float32 table
         views = [merge_splits(x + pos, num_splits=SPLITS) for x in splits]
         return torch.cat(self.transformer(views, attn_num_splits=SPLITS), 0), cnn
 
@@ -140,17 +156,18 @@ def _poses(c2w: torch.Tensor) -> list[torch.Tensor]:
 
     Covers upstream's two-view branch too (`inv(E1) E0` and its inverse).
     """
-    inv = torch.linalg.inv(c2w)
+    inv = invert(c2w)  # affine camera matrices; shared closed form also exports to ONNX
     return [inv.roll(-i, 0) @ c2w for i in range(1, c2w.shape[0])]
 
 
-def correlation(
+def correlation(  # noqa: PLR0913 - camera geometry and execution precision
     feat: torch.Tensor,
     k: torch.Tensor,
     c2w: torch.Tensor,
     disp: torch.Tensor,
     *,
     dtype: torch.dtype,
+    fused: Accumulate | None = None,
 ) -> torch.Tensor:
     """Upstream's plane-sweep cost volume, averaged over all other views.
 
@@ -159,7 +176,9 @@ def correlation(
         k: `[V, 3, 3]` intrinsics in feature pixels (upstream: normalised intrinsics times `w`, `h`).
         c2w: `[V, 4, 4]` camera-to-world.
         disp: `[V, D]` inverse-depth candidates.
-        dtype: dtype of the warped features and products (the sums accumulate in float32).
+        dtype: dtype of the projected grid and input features.
+        fused: sample and accumulate in one kernel, `(features, fp32 grid, volume, offset)` (`cuda_accumulate`, or
+            `mvsplat_metal.accumulate` bound to its library): channels-last features, offset 1 writes the volume.
 
     Returns:
         `[V, D, h, w]` mean correlation (dot product / sqrt(C)) of every view's features with each other view's
@@ -173,15 +192,25 @@ def correlation(
     grid = torch.stack((xs, ys, torch.ones_like(xs)), 0).float().view(1, 3, h * w)
     rays = invert(k.float()) @ grid  # [V, 3, hw]
     depth = (1.0 / disp.float()).view(v, 1, d, 1)
-    out = feat.new_zeros(v, d, h, w, dtype=torch.float32)
+    if fused is not None:
+        feat = feat.contiguous(memory_format=torch.channels_last)
+        out = feat.new_empty(v, d, h, w, dtype=torch.float32)
+    else:
+        out = feat.new_zeros(v, d, h, w, dtype=torch.float32)
     poses = _poses(c2w.float())
     for i, pose in enumerate(poses, 1):
-        other = feat.roll(-i, 0)  # view j against view (j + i) % V
         pts = (pose[:, :3, :3] @ rays).unsqueeze(2) * depth + pose[:, :3, 3:, None]  # [V, 3, D, hw]
         pix = k.float() @ pts.view(v, 3, -1)
         pix = pix.view(v, 3, d, h * w)
         uv = pix[:, :2] / pix[:, 2:].clamp(min=1e-3)
         g = torch.stack((2 * uv[:, 0] / (w - 1) - 1, 2 * uv[:, 1] / (h - 1) - 1), -1)  # [V, D, hw, 2]
+        if fused is not None:
+            fused(feat, g, out, i)
+            continue
+        if exporting_for_mlx():  # one Metal kernel in the replay: no [V, C, D, h, w] warped volume
+            out = out + warp_dot(feat, feat.roll(-i, 0), g)
+            continue
+        other = feat.roll(-i, 0)  # view j against view (j + i) % V
         for j in range(0, d, DEPTH_CHUNK):
             gj = g[:, j : j + DEPTH_CHUNK].reshape(v, -1, w, 2).to(feat.dtype)
             warped = grid_sample(other, gj, mode="bilinear", padding_mode="zeros", align_corners=True)
@@ -197,6 +226,7 @@ class Net(nn.Module):
         super().__init__()
         self.backbone = Backbone()
         self.depth_predictor = DepthPredictor()
+        self.fused_correlation: Accumulate | None = None
 
     def forward(
         self, images: torch.Tensor, k_norm: torch.Tensor, c2w: torch.Tensor, near: torch.Tensor, far: torch.Tensor
@@ -227,7 +257,9 @@ class Net(nn.Module):
         lo, hi = 1.0 / far.float(), 1.0 / near.float()
         disp = lo[:, None] + torch.linspace(0.0, 1.0, CANDIDATES, device=feat.device)[None] * (hi - lo)[:, None]
         head: Any = p.depth_head_lowres[0]
-        corr = torch.cat((correlation(feat, k, c2w, disp, dtype=head.weight.dtype).to(feat.dtype), feat), 1)
+        costs = correlation(feat, k, c2w, disp, dtype=head.weight.dtype, fused=self.fused_correlation)
+        corr = torch.cat((to_run_dtype(costs, feat.dtype), feat), 1)  # .to: a no-op in the float32 MLX twin
+        del costs
         corr = p.corr_refine_net(corr) + p.regressor_residual(corr)
         pdf = F.softmax(p.depth_head_lowres(corr).float(), dim=1)
         coarse = (disp[..., None, None] * pdf).sum(1, keepdim=True)
@@ -235,7 +267,8 @@ class Net(nn.Module):
         disps = F.interpolate(coarse, scale_factor=4, mode="bilinear", align_corners=True)
         x = images.to(feat.dtype)
         up = p.upsampler(torch.cat((feat, cnn), 1))
-        refined = p.refine_unet(torch.cat((x, p.proj_feature(up), disps.to(x.dtype), pdf_max.to(x.dtype)), 1))
+        coarse_maps = (to_run_dtype(disps, x.dtype), to_run_dtype(pdf_max, x.dtype))  # .to: a no-op in the MLX twin
+        refined = p.refine_unet(torch.cat((x, p.proj_feature(up), *coarse_maps), 1))
         raw = p.to_gaussians(torch.cat((refined, x, up), 1))
         delta, density = p.to_disparity(refined).float().split(1, dim=1)
         fine = (disps + delta).clamp(lo.view(v, 1, 1, 1), hi.view(v, 1, 1, 1))
@@ -308,8 +341,11 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     """
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
-    for deg, (y, p) in enumerate(zip(_y((r @ _S.to(r)).transpose(1, 2)), _P, strict=True), 1):
-        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = y.transpose(1, 2) @ p.to(r)
+    s = to_device(_S.to(r.dtype), r.device)  # cast on the CPU first: MPS has no float64
+    for deg, (y, p) in enumerate(zip(_y((r @ s).transpose(1, 2)), _P, strict=True), 1):
+        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(
+            y, to_device(p.to(r.dtype), r.device)
+        )
     return d
 
 
@@ -356,29 +392,30 @@ def gaussians(
         c2w: `[V, 4, 4]` camera-to-world (input units).
     """
     v, _, h, w = raw.shape
-    raw = raw.float().permute(0, 2, 3, 1).reshape(v, h * w, RAW_DIM)
+    raw = raw.permute(0, 2, 3, 1).reshape(v, h * w, RAW_DIM)
     dev = raw.device
-    pixel = 1 / torch.tensor((w, h), dtype=torch.float32, device=dev)
+    pixel = 1 / device_tensor((w, h), dtype=torch.float32, device=dev)
     ys, xs = ((torch.arange(n, device=dev, dtype=torch.float32) + 0.5) / n for n in (h, w))
     xy = torch.stack(torch.meshgrid(xs, ys, indexing="xy"), -1).reshape(1, h * w, 2)
-    xy = xy + (raw[..., :2].sigmoid() - 0.5) * pixel
+    xy = xy + (raw[..., :2].float().sigmoid() - 0.5) * pixel
     scales, rot, sh = raw[..., 2:].split((3, 4, 3 * SH), -1)
     k_inv = invert(k_norm.float())
     multiplier = 0.1 * (k_inv[:, :2, :2] @ pixel).sum(-1)  # [V]
     d = depth.float().reshape(v, h * w, 1)
-    scales = (SCALE_MIN + (SCALE_MAX - SCALE_MIN) * scales.sigmoid()) * d * multiplier[:, None, None]
+    scales = (SCALE_MIN + (SCALE_MAX - SCALE_MIN) * scales.float().sigmoid()) * d * multiplier[:, None, None]
+    rot = rot.float()
     rot = rot / (rot.norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
-    sh = sh.reshape(v, h * w, 3, SH) * mask.to(dev)
+    sh = sh.reshape(v, h * w, 3, SH).float() * to_device(mask, dev)
     c2w = c2w.float()
-    r = c2w[:, None, :3, :3]
-    rays = (k_inv[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None])[..., 0]
+    # the per-pixel 3 x 3 (9 x 9) products as one GEMM per view (a bmm over pixels runs gemv-like cuBLAS kernels)
+    rays = torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1) @ k_inv.mT
     rays = rays / rays.norm(dim=-1, keepdim=True)  # upstream get_world_rays: unit directions
-    means = c2w[:, None, :3, 3] + (r @ rays[..., None])[..., 0] * d
+    means = c2w[:, None, :3, 3] + (rays @ c2w[:, :3, :3].mT) * d
     c2w64 = f64(c2w)[:, :3, :3]
-    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot[..., [3, 0, 1, 2]]))
+    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot.roll(1, -1)))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
-    harmonics = sh @ sh_rotation(c2w64).float()[:, None].transpose(-1, -2)
+    harmonics = sh.reshape(v, h * w * 3, SH) @ sh_rotation(c2w64).float().mT
     return {
         "gaussians/means": means.reshape(-1, 3),
         "gaussians/scales": scales.reshape(-1, 3),
@@ -488,6 +525,7 @@ class Kernels(_Base):
         from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - kernels only
 
         cudnn_hacc.load(ctx.device)
+        self.net.fused_correlation = cuda_accumulate
         if _hacc_convs(self.net) == 0:
             msg = "MVSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
@@ -500,4 +538,27 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MetalKernels(Portable):
+    """PyTorch MPS with the plane sweep in one Metal kernel (`mvsplat_metal`: no warped `[V, C, D, h, w]` chunks)."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        from fastforks._core import mps  # noqa: PLC0415 - device-specific adaptation
+        from fastforks.kernels import mvsplat_metal  # noqa: PLC0415 - device-specific library
+
+        mps.adapt(self.net)  # the convention of Metal runners (no 3-D or transposed convs here: a no-op)
+        self.net.fused_correlation = functools.partial(mvsplat_metal.accumulate, mvsplat_metal.load(ctx.device))
+
+    def module(self) -> torch.nn.Module:
+        """The Metal plane sweep cannot be exported as a PyTorch module."""
+        return Runner.module(self)
+
+
+_Mlx = mlx_wrap.port(Portable, kernels_fp16_only=True)
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
+}

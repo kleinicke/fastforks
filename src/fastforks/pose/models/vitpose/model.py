@@ -23,11 +23,15 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import cublas_gemms, fp16_accumulate
+from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks._core.sampling import grid_sample
-from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.pose._runner import BUCKETS, Forward, Runner, TopDown, in_buckets
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net import EPS, PATCH, PATCH_PAD, Arch, Block, ViTPose, convert
 
@@ -49,6 +53,7 @@ class Params(Arch):
     """Card `[params]` + variant `params` + `[options]`."""
 
     fp32_accumulate: bool  # kernels: every GEMM through cuBLAS with fp32 accumulation (option)
+    stream: bool = False
 
 
 def crop_boxes(boxes: torch.Tensor, height: int, width: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -121,7 +126,7 @@ def decode(hm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return coords, score
 
 
-class Portable(Runner):
+class Portable(TopDown):
     """Plain PyTorch: crops on the device, float16 network on CUDA, float32 decode."""
 
     dtypes = ("float32", "float16")
@@ -131,8 +136,17 @@ class Portable(Runner):
         """Build the network with the checkpoint (HF keys converted, BatchNorm folded) on the device."""
         super().__init__(ctx)
         a: Params = ctx.params
+        if a.stream and ctx.device.type != "cuda":
+            msg = "ViTPose stream=True requires CUDA for weight transfers"
+            raise OptionsError(msg)
         net = ViTPose(a)
         net.load_state_dict(convert(ctx.state_dict(strip=""), a))
+        if a.stream:
+            net.eval().to(ctx.torch_dtype)
+            if ctx.mode == "kernels":
+                for block in net.blocks:
+                    override(block, _staged_kernel_block)
+            net.blocks = StreamedModuleList(net.blocks, ctx.device)  # ty: ignore[invalid-assignment]
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device).view(1, 3, 1, 1)
@@ -142,12 +156,17 @@ class Portable(Runner):
         x = ((crops - self.mean) / self.std).to(self.ctx.torch_dtype)
         return self.net(x).float()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        hm = self.heatmaps(crop(image, centre, size, a.height, a.width))
+    def regions(self, boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Crop centres and sizes of the person boxes."""
+        return crop_boxes(boxes, self.ctx.params.height, self.ctx.params.width)
+
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in [0, 1] at the network size."""
+        return crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """DARK heatmap decoding, mapped back to the input."""
+        hm = self.heatmaps(crops)
         coords, score = decode(hm)
         h, w = hm.shape[-2:]
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
@@ -156,6 +175,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network: crops `[B, 3, h, w]` RGB in [0, 1] at the network size -> heatmaps `[B, K, h / 4, w / 4]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
 
         def fn(_net: Any, crops: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - the wrapped network
             return self.heatmaps(crops)
@@ -186,6 +208,12 @@ def _block(b: Block, w: tuple[torch.Tensor, ...], x: torch.Tensor) -> torch.Tens
     return lin(y, w_fc2, b.fc2.bias, res=x)
 
 
+def _staged_kernel_block(block: Block, x: torch.Tensor) -> torch.Tensor:
+    # Each packed weight is contiguous FP16. These 1x1 filters share its storage.
+    filters = tuple(_w4(layer.weight) for layer in (block.qkv, block.proj, block.fc1, block.fc2))
+    return _block(block, filters, x)
+
+
 class Kernels(Portable):
     """Our kernels: fused fp16 GEMMs, flash attention, a CUDA graph per person bucket.
 
@@ -197,19 +225,25 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable network in fp16 with the fused-GEMM filters attached; the graph cache."""
         super().__init__(ctx)
-        self.blocks = [b for b in self.net.blocks if isinstance(b, Block)]  # all of them (built above)
+        self.blocks = [] if ctx.params.stream else [b for b in self.net.blocks if isinstance(b, Block)]
         self.w4 = [tuple(_w4(getattr(b, n).weight) for n in ("qkv", "proj", "fc1", "fc2")) for b in self.blocks]
         self.net.head.to(memory_format=torch.channels_last)
         self.gemm = cublas_gemms if ctx.params.fp32_accumulate else fp16_accumulate
-        self.graphs = SmallShapeGraphs(self._decoded, pixels=BUCKETS[-1] * ctx.params.height * ctx.params.width)
+        self.graphs = SmallShapeGraphs(
+            self._decoded, pixels=BUCKETS[-1] * ctx.params.height * ctx.params.width, enabled=not ctx.params.stream
+        )
 
     def _decoded(self, crops: torch.Tensor) -> torch.Tensor:
         """`[P, K, 3]` float32 (x, y in heatmap pixels after DARK, score) of crops in [0, 1] at the network size."""
         with self.gemm():
             x = ((crops - self.mean) / self.std).half()
             t = self.net.tokens(x)
-            for b, w in zip(self.blocks, self.w4, strict=True):
-                t = _block(b, w, t)
+            if self.ctx.params.stream:
+                for block in self.net.blocks:
+                    t = block(t)
+            else:
+                for b, w in zip(self.blocks, self.w4, strict=True):
+                    t = _block(b, w, t)
             hm = self.net.head(self.net.feature_map(t).contiguous(memory_format=torch.channels_last)).float()
         coords, score = decode(hm)
         return torch.cat([coords, score[..., None]], -1)
@@ -218,12 +252,9 @@ class Kernels(Portable):
         """Free the CUDA graphs and their memory pool on the device."""
         self.graphs.release()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The graphed network and decoding per person bucket, mapped back to the input."""
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        crops = crop(image, centre, size, a.height, a.width)
         out = in_buckets(self.graphs, crops)
         h, w = a.height // UPSAMPLE_OUT, a.width // UPSAMPLE_OUT
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
@@ -288,12 +319,10 @@ class MetalKernels(Portable):
         hm = F.linear(t, *self.final).float().view(-1, h, w, k)
         return pose_metal.dark_decode(self.lib, hm, k, channels_last=True, sigma=SIGMA, radius=RADIUS, clip=CLIP)
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The network and DARK decoding with the Metal kernels, mapped back to the input."""
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        out = self._decoded(crop(image, centre, size, a.height, a.width))
+        out = self._decoded(crops)
         h, w = a.height // UPSAMPLE_OUT, a.width // UPSAMPLE_OUT
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
         kp = out[..., :2] * scale[:, None] + (centre - size * 0.5)[:, None]
@@ -301,4 +330,9 @@ class MetalKernels(Portable):
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

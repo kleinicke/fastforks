@@ -62,7 +62,7 @@ def _desc(buf: bytes) -> tuple[int, list[int]]:
 
 def param_shapes(program: Path) -> dict[str, tuple[int, ...]]:
     """Parameter name -> shape, from a PIR `inference.json`."""
-    ops = json.loads(program.read_text())["program"]["regions"][0]["blocks"][0]["ops"]
+    ops = json.loads(program.read_text(encoding="utf-8"))["program"]["regions"][0]["blocks"][0]["ops"]
     return {o["A"][3]: tuple(o["O"]["TT"]["D"][1]) for o in ops if o.get("#") == "p"}
 
 

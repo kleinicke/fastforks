@@ -52,3 +52,16 @@ def test_portable_matches_network() -> None:
     assert x.shape == (2, 4, 96, 128)
     with torch.no_grad():
         torch.testing.assert_close(run._net(x), net(x), atol=2e-5, rtol=1e-4)
+
+
+def test_geometry_cached_in_inference_mode_supports_autograd() -> None:
+    cfg = Config(hidden_size=16, num_attention_heads=1, num_hidden_layers=1, window_block_indices=(), image_size=32)
+    net = VitMatteForImageMatting(cfg).eval()
+    geometry = model._Geometry(net, torch.float32, torch.device("cpu"))
+    with torch.inference_mode():
+        pos, rel = geometry(2, 2)
+    assert not pos.is_inference()
+    assert all(not item.is_inference() for layer in rel for item in layer)
+    x = torch.ones_like(rel[0][0], requires_grad=True)
+    (x * rel[0][0]).sum().backward()
+    assert x.grad is not None

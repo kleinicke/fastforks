@@ -120,6 +120,23 @@ def test_identity_survives_a_gap() -> None:
     assert sorted(out[-1].ids.tolist()) == [1, 2]
 
 
+def test_a_frame_array_runs_the_detector_per_batch_size_frames() -> None:
+    box = np.array([100.0, 100.0, 140.0, 200.0])
+    video = np.zeros((5, 4, 6, 3), np.uint8)
+    calls = []
+
+    def detector(x: np.ndarray) -> object:
+        calls.append(x.shape)
+        one = lambda f: np.array([[*(box + 2 * f), 0.9]])  # noqa: E731 - one moving object
+        return one(0) if x.ndim == 3 else [one(f) for f in range(len(x))]
+
+    per_frame = track_objects(video, detector)
+    calls.clear()
+    batched = track_objects(video, detector, batch_size=2)
+    assert calls == [(2, 4, 6, 3), (2, 4, 6, 3), (1, 4, 6, 3)]
+    assert [t.ids.tolist() for t in batched] == [t.ids.tolist() for t in per_frame] == [[1]] * 5
+
+
 def test_low_score_detections_extend_tracks() -> None:
     tracker = ByteTracker()
     box = [100.0, 100.0, 140.0, 200.0]

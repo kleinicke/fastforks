@@ -3,7 +3,7 @@ name = "ZoeDepth"
 summary = "ZoeDepth (Bhat et al. 2023): metric monocular depth from a MiDaS v3.1 BEiT-L/16 core with metric-bins heads (NYU indoor, KITTI outdoor) chosen by a learned domain router (ZoeD_M12_NK)."
 tier = "stable"
 outputs = ["depth"]
-uses = ["midas_beit"]  # fastforks.shared modules this family imports
+uses = ["midas_beit", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "torch.compile(fullgraph=True) and torch.export are not supported: graph break in the vendored MiDaS core call and data-dependent NYU / KITTI head routing (documented xfail).",
   "Inputs below 5 px per side raise InputError when pad_input is on.",
@@ -38,6 +38,7 @@ flip = true  # average with the horizontally flipped pass (original infer defaul
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]

@@ -28,3 +28,29 @@ def test_kernels_track_like_portable(model: str) -> None:
         out[mode] = m(frames, queries).tracks.float().cpu()
         del m
     assert (out["kernels"] - out["portable"]).abs().max() < 3.0
+
+
+@pytest.mark.gpu
+def test_correlation_windows_and_padded_rows_match_torch() -> None:
+    from fastforks.tracking.models.cotracker.model import Core, _KernelCore  # noqa: PLC0415
+
+    portable = object.__new__(Core)
+    fused = object.__new__(_KernelCore)
+    portable.r, portable.dt = 3, torch.float16
+    frames = torch.arange(3, device="cuda").expand(5, 3)
+    coords = torch.randn(3, 5, 2, device="cuda").transpose(0, 1) * 5
+    coords[0] = coords.new_tensor([1.5, -2.25])
+    grid = torch.randn(3, 7, 11, 13, dtype=torch.float16, device="cuda")
+    win, frac = portable._window(grid, frames, coords)
+    g, f = fused._window(grid, frames, coords)
+    torch.testing.assert_close(g, win, atol=0, rtol=0)
+    torch.testing.assert_close(f, frac, atol=0, rtol=0)
+    storage = g.new_full((15, 49 * 13 + 7), 17)
+    dst = storage[:, : 49 * 13].view(5, 3, 7, 7, 13)
+    ref = portable._lerp(win, frac)
+    assert fused._lerp(g, f, dst) is dst
+    torch.testing.assert_close(dst, ref, atol=0, rtol=0)
+    assert torch.all(storage[:, -7:] == 17)
+    frame, point = frames[:, 0], coords[:, 0]
+    got = fused.support([grid], frame, point)[0]
+    torch.testing.assert_close(got, portable.support([grid], frame, point)[0], atol=0, rtol=0)

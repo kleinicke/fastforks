@@ -2,7 +2,7 @@ schema = 2
 name = "AnySplat"
 summary = "AnySplat (Jiang et al. 2025): feed-forward 3D Gaussian splatting from unposed, uncalibrated images. A VGGT backbone (fine-tuned aggregator, camera head and depth head) predicts the cameras and depth of every view; a DPT Gaussian head predicts per-pixel Gaussians (opacity, scale, rotation, degree-4 SH), fused per voxel into one scene (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
 tier = "experimental"
-uses = ["depth_anything_v2", "rope2d"]  # shared modules imported directly by this family
+uses = ["depth_anything_v2", "rope2d", "mlx_wrap", "qk_affine"]  # shared modules imported directly by this family
 outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "gaussians"]  # gaussians: MultiViewResult.gaussians (not a map)
 
 licence_notes = [
@@ -40,6 +40,7 @@ voxel_size = { default = 0.002, min = 0.0 }  # Gaussian fusion voxel in scene un
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]

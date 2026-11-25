@@ -1,11 +1,11 @@
 r"""LoMa matching goldens from the reference implementation.
 
-Reference: upstream davnords/loma (`REF_COMMIT`) `LoMa(LoMaB(mp=False, compile=False, weights_url=None))` with the
+Reference: upstream davnords/loma (`REF_COMMIT`) `LoMa with the variant configuration` with the
 card's checkpoint loaded as upstream does (`load_state_dict(strict=False)`: the extra layers' keys), its `detect`,
 `describe_keypoints`, `forward` and `filter_matches`; CPU float32 (every `amp` flag off, the DINOv2 cast back to
 float32; upstream's module-level `device` must be the CPU: run with `CUDA_VISIBLE_DEVICES=`). Input as upstream's
 `match` on paths, in float: the detector's image resized to a long side of `long_side` (aspect kept, sides floored
-to a multiple of 8) and ImageNet-normalised by DaD, the descriptor's to the `size` square, not normalised (its
+to a multiple of 8) and ImageNet-normalised by DaD, the descriptor's to the `size` square (upstream's
 `read_image`); both torch bicubic antialiased (= PIL's filter), clamped, not rounded to uint8. Inputs: the RAFT
 goldens' pair (tools/golden/raft_flow.py: a 384x512 astronaut.png crop and its affine warp) in [0, 1]. Stored as
 float32: `input`, `input2` (RGB), `keypoints1` / `keypoints2` `[N, 2]` (upstream `to_pixel_coords` - 0.5: pixel
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 FAMILY = "loma"
 UPSTREAM = "https://github.com/davnords/loma"
-REF_COMMIT = "415caedde23a9ed479172ed174fe4ff7b4514d4b"
+REF_COMMIT = "ecc947d44ddc9d50387e887bbedc743d65ffac00"
 
 
 def resize(image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
@@ -56,7 +56,18 @@ def build(
     import loma  # noqa: PLC0415  # reference checkout
     from loma.loma import filter_matches  # noqa: PLC0415
 
-    cfg = loma.LoMaB(mp=False, compile=False, weights_url=None)
+    cfg = loma.LoMa.Cfg(
+        input_dim=params.get("input_dim", 256),
+        embed_dim=params["dim"],
+        num_heads=params["heads"],
+        n_layers=params["layers"],
+        descriptor="dedode_g" if params.get("descriptor", "dedode_g") == "dedode_g" else "dedode_b",
+        descriptor_vgg_size="11" if params.get("descriptor") == "dedode_b_vgg11" else "19",
+        descriptor_in1k_normalization=params.get("normalize_descriptor", False),
+        mp=False,
+        compile=False,
+        weights_url=None,
+    )
     net = loma.LoMa(cfg)
     sd = torch.load(files[0], map_location="cpu", weights_only=True)
     missing, unexpected = net.load_state_dict(sd, strict=False)
@@ -68,8 +79,9 @@ def build(
         if hasattr(m, "amp_dtype"):
             m.amp = False
             m.amp_dtype = torch.float32
-    dino = net._descriptor.encoder.frozen_dinov2  # noqa: SLF001
-    dino.dinov2_vitl14 = dino.dinov2_vitl14.float()
+    dino = getattr(net._descriptor.encoder, "frozen_dinov2", None)  # noqa: SLF001
+    if dino is not None:
+        dino.dinov2_vitl14 = dino.dinov2_vitl14.float()
     net.eval().to(device)
     thr, size, long_side = params["threshold"], int(params["size"]), int(params["long_side"])
     num = int(params["max_keypoints"])
@@ -103,6 +115,7 @@ def build(
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("checkout", type=Path, help="git checkout of davnords/loma")
+    ap.add_argument("--only", nargs="+", help="only these variant IDs")
     a = ap.parse_args()
     import skimage  # noqa: PLC0415
 
@@ -116,7 +129,7 @@ def main() -> None:
     t1, t2 = (torch.from_numpy(i).permute(2, 0, 1).float() / 255 for i in (img1, img2))
     sys.path.insert(0, str(reference_tree(a.checkout, REF_COMMIT) / "src"))
     for card, variant in registry.cards("matching").values():
-        if card.family != FAMILY:
+        if card.family != FAMILY or (a.only and variant.id not in a.only):
             continue
         params = dict(card.params) | dict(variant.params) | dict(card.options)
         run = build(registry.weights(card, variant), params)
@@ -128,8 +141,9 @@ def main() -> None:
             family=FAMILY,
             upstream=f"{UPSTREAM}@{REF_COMMIT}",
             patch=None,
-            settings=f"CPU float32, upstream LoMa(LoMaB(mp=False)) with {variant.weights[0].name}, DaD detect on a "
-            f"long side of {params['long_side']} + DeDoDe-G describe on {params['size']}x{params['size']} (torch "
+            settings=f"CPU float32, upstream LoMa(mp=False) with {variant.weights[0].name}, DaD detect on a "
+            f"long side of {params['long_side']} + {params['descriptor']} describe on "
+            f"{params['size']}x{params['size']} (torch "
             f"bicubic antialias), {params['max_keypoints']} keypoints, filter_matches threshold {params['threshold']}, "
             f"skimage astronaut.png {h}x{w} crop + affine warp as raft_flow.py, torch {torch.__version__}",
             task="matching",

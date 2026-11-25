@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.upload import to_device  # fastforks
 
 from .unimatch.utils import split_feature, merge_splits
 
@@ -27,7 +29,7 @@ def generate_shift_window_attn_mask(
     # Ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # calculate attention mask for SW-MSA
     h, w = input_resolution
-    img_mask = torch.zeros((1, h, w, 1)).to(device)  # 1 H W 1
+    img_mask = torch.zeros((1, h, w, 1))  # 1 H W 1  # fastforks: filled on the CPU, uploaded once below
     h_slices = (
         slice(0, -window_size_h),
         slice(-window_size_h, -shift_size_h),
@@ -44,6 +46,7 @@ def generate_shift_window_attn_mask(
             img_mask[:, h, w, :] = cnt
             cnt += 1
 
+    img_mask = to_device(img_mask, device)  # fastforks: to_device (a pageable upload syncs the host)
     mask_windows = split_feature(
         img_mask, num_splits=input_resolution[-1] // window_size_w, channel_last=True
     )
@@ -131,7 +134,7 @@ def single_head_split_window_attention(
 
         dt = torch.get_autocast_dtype(q.device.type) if torch.is_autocast_enabled(q.device.type) else q.dtype
         heads = num_splits * num_splits
-        mask = attn_mask.repeat(1, 1, m).to(dt)[None] if with_shift else None
+        mask = to_run_dtype(attn_mask.repeat(1, 1, m), dt)[None] if with_shift else None  # fastforks: MLX run dtype
         out = F.scaled_dot_product_attention(
             q.reshape(b, heads, -1, c).to(dt), k.view(b, heads, -1, c).to(dt), v.view(b, heads, -1, c).to(dt),
             attn_mask=mask, scale=1 / scale_factor,
@@ -602,6 +605,7 @@ class MultiViewFeatureTransformer(nn.Module):
                 shift_size_w=window_size_w // 2,
                 device=multi_view_features[0].device,
             )  # [K*K, H/K*W/K, H/K*W/K]
+            shifted_window_attn_mask = to_run_dtype(shifted_window_attn_mask, multi_view_features[0].dtype)  # fastforks: MLX twin's f32
         else:
             shifted_window_attn_mask = None
 

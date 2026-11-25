@@ -44,7 +44,7 @@ def test_boxes_whose_size_overflows_float32_are_rejected():
 
 @pytest.mark.parametrize("labels", sorted(rtmpose.FLIP))
 def test_flip_table_swaps_left_and_right(labels):
-    names = (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text().split()
+    names = (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text(encoding="utf-8").split()
     flip = rtmpose.FLIP[labels]
     assert len(names) == len(flip)
     assert [flip[i] for i in flip] == list(range(len(names)))  # an involution
@@ -96,7 +96,7 @@ def test_flip_test_of_the_mirrored_crop_gives_the_mirrored_logits(keypoints, nec
 
 @pytest.mark.parametrize(("count", "labels"), [(17, "coco-keypoints-17"), (133, "coco-wholebody-133")])
 def test_skeleton_joins_named_neighbours(count, labels):
-    names = (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text().split()
+    names = (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text(encoding="utf-8").split()
     limbs = _api.SKELETONS[labels]
     assert len(set(limbs)) == len(limbs) == {17: 19, 133: 65}[count]  # mmpose `skeleton_info` of the dataset
     assert all(0 <= a < count and 0 <= b < count and a != b for a, b in limbs)
@@ -116,7 +116,9 @@ def test_every_pose_label_set_has_limbs_and_a_flip_table():
         rtmpose.FLIP
     )
     for labels, limbs in _api.SKELETONS.items():
-        count = len((resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text().split())
+        count = len(
+            (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text(encoding="utf-8").split()
+        )
         assert len(set(limbs)) == len(limbs), labels
         assert all(0 <= a < count and 0 <= b < count and a != b for a, b in limbs), labels
 
@@ -133,3 +135,16 @@ def test_in_buckets_runs_bucket_sized_batches_in_order(people):
     assert torch.equal(in_buckets(forward, crops), crops * 2)
     assert set(seen) <= set(BUCKETS)
     assert sum(seen) - people < BUCKETS[-1]
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width"), [(13, 17), (256, 192)])
+def test_cuda_topdown_crop_matches_portable(height: int, width: int) -> None:
+    from fastforks.kernels import pose_warp  # noqa: PLC0415
+
+    torch.manual_seed(3)
+    image = torch.rand(1, 3, 69, 271, device="cuda")[:, :, :, ::2]
+    boxes = torch.tensor([[-12.75, 0.5, 92.75, 79], [23.25, 7, 58, 41], [-100, 84, -25, 151]], device="cuda")
+    centre, size = rtmpose.crop_boxes(boxes, height, width)
+    got = pose_warp.crop(image, centre, size, height, width)
+    assert torch.equal(got, rtmpose.crop(image, centre, size, height, width))

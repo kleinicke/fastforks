@@ -353,14 +353,18 @@ def test_segmentation(fake):
     assert rb.logits.dtype == torch.float32
 
 
-def test_segmentation_probabilities_become_log_space(fake):
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+def test_segmentation_probabilities_become_log_space(fake, dtype):
+    runner_outputs = []
+
     class Probs(SegRunner):
         probabilities = True  # mask classification: per-class probabilities, not logits
 
         def __call__(self, image):
-            p = torch.zeros(image.shape[0], 150, *image.shape[-2:])
+            p = torch.zeros(image.shape[0], 150, *image.shape[-2:], dtype=dtype)
             p[:, 2] = 0.5 * image[:, 0]
             p[:, 4] = 0.25
+            runner_outputs.append(p)
             return {"logits": p}
 
     fake("segmentation", Probs, ["logits"], {"label_set": "ade20k-150"})
@@ -368,6 +372,11 @@ def test_segmentation_probabilities_become_log_space(fake):
     img[:, 3:, 0] = 255
     r = segmentation.load("fake", device="cpu")(img, logits=True)
     assert r.logits is not None
+    expected = torch.zeros(150, 5, 6, dtype=dtype)
+    expected[2, :, 3:] = 0.5
+    expected[4] = 0.25
+    torch.testing.assert_close(runner_outputs[0][0], expected, rtol=0, atol=0)
+    torch.testing.assert_close(r.logits, expected.float().clamp_min(1e-30).log(), rtol=0, atol=0)
     torch.testing.assert_close(r.logits[2, 0, 3], torch.tensor(0.5).log())
     torch.testing.assert_close(r.logits[4, 0, 0], torch.tensor(0.25).log())
     assert torch.isfinite(r.logits).all()  # zero probabilities are floored
@@ -1287,7 +1296,11 @@ def test_seginfer_mask_semantic():
 
     masks, classes = torch.randn(2, 5, 7, 9), torch.randn(2, 5, 4)
     want = torch.einsum("bqc,bqhw->bchw", classes.softmax(-1)[..., :-1], masks.sigmoid())
+    original = masks.clone()
     torch.testing.assert_close(mask_semantic(masks, classes), want)
+    assert torch.equal(masks, original)
+    torch.testing.assert_close(mask_semantic(masks, classes, inplace=True), want)
+    assert torch.equal(masks, original.sigmoid())
 
 
 def test_concept_threshold_validated_and_recorded(fake):

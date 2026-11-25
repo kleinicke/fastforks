@@ -28,6 +28,8 @@ class InferenceCore:
                  cfg: DictConfig = None,
                  *,
                  image_feature_store: ImageFeatureStore = None,
+                 encode_mask=None,
+                 segment=None,
                  device: Optional[Union[str, torch.device]] = None
                  ):
         if device is None:
@@ -37,7 +39,9 @@ class InferenceCore:
             network = MatAnyone.from_pretrained(network)
         network.to(device)
         network.eval()
-        self.network = network  
+        self.network = network
+        self.encode_mask = network.encode_mask if encode_mask is None else encode_mask
+        self.segment = network.segment if segment is None else segment
         cfg = cfg if cfg is not None else network.cfg
         self.cfg = cfg
         self.mem_every = cfg.mem_every
@@ -125,7 +129,7 @@ class InferenceCore:
             as_permanent = 'first'
 
         self.memory.initialize_sensory_if_needed(key, self.object_manager.all_obj_ids)
-        msk_value, sensory, obj_value, _ = self.network.encode_mask(
+        msk_value, sensory, obj_value, _ = self.encode_mask(
             image,
             pix_feat,
             self.memory.get_sensory(self.object_manager.all_obj_ids),
@@ -184,7 +188,7 @@ class InferenceCore:
                                               last_pix_feat=self.last_pix_feat, last_pred_mask=self.last_mask)
         memory_readout = self.object_manager.realize_dict(memory_readout)
 
-        sensory, _, pred_prob_with_bg = self.network.segment(ms_features,
+        sensory, _, pred_prob_with_bg = self.segment(ms_features,
                                                         memory_readout,
                                                         self.memory.get_sensory(
                                                             self.object_manager.all_obj_ids),
@@ -378,7 +382,7 @@ class InferenceCore:
                              force_permanent=force_permanent,
                              is_deep_update=True)
         else: # compute self.last_msk_value for non-memory frame 
-            msk_value, _, _, _ = self.network.encode_mask(
+            msk_value, _, _, _ = self.encode_mask(
                             image,
                             pix_feat,
                             self.memory.get_sensory(self.object_manager.all_obj_ids),

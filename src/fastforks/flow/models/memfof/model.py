@@ -11,8 +11,15 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.half import half_weights
+from fastforks._core.patch import override
+from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels.flow_upsample import convex
+from fastforks.shared import mlx_wrap
 
+from .net.gma import Aggregate, Attention, rearrange
+from .net.layer import ConvNextBlock
 from .net.model import MEMFOF
 
 if TYPE_CHECKING:
@@ -20,6 +27,9 @@ if TYPE_CHECKING:
 
     from fastforks._core.kernels import CubinModule
     from fastforks.flow._runner import Context
+
+_REFINE_ROWS = 24  # fixed: rows per pointwise ConvNeXt chunk for large updates (memory bound, not numerics)
+_REFINE_MIN_PIXELS = 16_384  # fixed: update size from which the pointwise work is chunked
 
 
 @dataclass(frozen=True)
@@ -36,6 +46,39 @@ def _net(ctx: Context) -> MEMFOF:
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
     return net.eval().to(ctx.device)
+
+
+def _refine_in_rows(block: ConvNextBlock, image: torch.Tensor) -> torch.Tensor:
+    """Keep the spatial convolutions whole and bound pointwise work for large CUDA updates."""
+    if (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or image.shape[-2] * image.shape[-1] < _REFINE_MIN_PIXELS
+    ):
+        return ConvNextBlock.forward(block, image)
+    features = block.dwconv(image).permute(0, 2, 3, 1)
+    result = None
+    layout = torch.channels_last if image.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    for start in range(0, features.shape[1], _REFINE_ROWS):
+        part = features[:, start : start + _REFINE_ROWS]
+        value = block.pwconv2(block.act(block.pwconv1(block.norm(part))))
+        if block.gamma is not None:
+            value = block.gamma * value
+        stop = start + value.shape[1]
+        value = image[..., start:stop, :] + value.permute(0, 3, 1, 2)
+        value = block.final(value.contiguous(memory_format=layout))
+        if result is None:
+            result = torch.empty(
+                (value.shape[0], value.shape[1], features.shape[1], features.shape[2]),
+                device=value.device,
+                dtype=value.dtype,
+                memory_format=layout,
+            )
+        result[..., start:stop, :] = value
+        del part, value
+    assert result is not None  # noqa: S101 - the nonempty feature map yields at least one group
+    return result
 
 
 class _Scaled(Runner):
@@ -72,10 +115,19 @@ class Portable(_Scaled):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.fp16 = ctx.dtype == "float16"
+        if ctx.device.type == "cuda" and self.fp16:
+            for block in self.net.update_block.refine:
+                override(block, _refine_in_rows)
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (375x1242 99.0 -> 84.0 ms, peak 695 -> 488 MB RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self.net.forward_pair(image1, image2, self.ctx.params.iters, fp16=self.fp16)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
-        return {"flow": self.net.forward_pair(image1, image2, self.ctx.params.iters, fp16=self.fp16)}
+        return {"flow": self._flow(image1, image2)}
 
     def module(self) -> torch.nn.Module:
         """The network; returns the flow."""
@@ -92,10 +144,11 @@ def _kernel_lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callab
     """
     b, c, h, w = f1.shape
     a = f1.to(torch.float16).permute(0, 2, 3, 1).contiguous()
-    pyr, x = [], f2.to(torch.float16)
-    for _ in range(4):
-        pyr.append(x.permute(0, 2, 3, 1).contiguous())
+    x = f2.to(torch.float16).contiguous(memory_format=torch.channels_last)
+    pyr = [x.permute(0, 2, 3, 1)]
+    for _ in range(3):
         x = F.avg_pool2d(x, 2)
+        pyr.append(x.permute(0, 2, 3, 1))
     side = 4 * 81
 
     def lookup(coords: torch.Tensor) -> torch.Tensor:
@@ -126,18 +179,90 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
         super().__init__(ctx)
+        half_weights(self.net)  # the encoders and each recurrent update reuse the autocast weights
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.lookup = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
+        head = self.net.upsample_weight[-1]
+        # Only the second 9 x 16² logits produce the forward flow returned by this task.
+        forward_channels = 9 * 16**2
+        if not isinstance(head, torch.nn.Conv2d) or head.bias is None or head.out_channels != 2 * forward_channels:
+            msg = "Unexpected MEMFOF upsampling head"
+            raise ValueError(msg)
+        head.out_channels = forward_channels
+        head.weight = torch.nn.Parameter(head.weight[forward_channels:].detach().clone(), requires_grad=False)
+        head.bias = torch.nn.Parameter(head.bias[forward_channels:].detach().clone(), requires_grad=False)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
         iters = self.ctx.params.iters
-        return {"flow": self.net.forward_pair(image1, image2, iters, corr_fn=self.lookup, fp16=True)}
+        return {
+            "flow": self.net.forward_pair(image1, image2, iters, corr_fn=self.lookup, fp16=True, upsample_flow=convex)
+        }
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+_GMA_MATRIX_BYTES = 1 << 30  # fixed: float32 attention matrix from which the MLX pass recomputes it (memory bound)
+
+
+def _windows(net: MEMFOF, f1: torch.Tensor, f2: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
+    """`CorrBlock`'s windows without its all-pairs volumes: the pooled f2 pyramid and `corr_windows` (one kernel).
+
+    Upstream halves f2 bilinearly (align_corners=False, scale 0.5), which is 2 x 2 average pooling, and pooling commutes
+    with the dot product. At `scale = 1` (2160 x 3840 frames) each direction's volume alone is 4.2 GB in float32.
+    """
+    levels = [f2]
+    for _ in range(net.corr_levels - 1):
+        levels.append(F.avg_pool2d(levels[-1], 2))
+    radius, scale = net.corr_radius, f1.shape[1] ** -0.5
+    return lambda coords: corr_windows(f1, levels, coords, radius, scale)
+
+
+def _attention_qk(att: Attention, fmap: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Upstream's attention matrix, or (scaled queries, keys) when it is large: `_aggregate_sdpa` recomputes it."""
+    b, _, h, w = fmap.shape
+    if b * att.heads * (h * w) ** 2 * 4 <= _GMA_MATRIX_BYTES:
+        return Attention.forward(att, fmap)
+    q, k = att.to_qk(fmap).chunk(2, dim=1)
+    q, k = (rearrange(t, "b (h d) x y -> b h (x y) d", h=att.heads) for t in (q, k))
+    return q * (att.scale * math.log(h * w, 3)), k
+
+
+def _aggregate_sdpa(
+    agg: Aggregate, attn: torch.Tensor | tuple[torch.Tensor, torch.Tensor], fmap: torch.Tensor
+) -> torch.Tensor:
+    """Upstream's aggregation; with (queries, keys) one attention op (MLX runs it in query blocks: no N^2 matrix)."""
+    if not isinstance(attn, tuple):
+        return Aggregate.forward(agg, attn, fmap)
+    _, _, h, w = fmap.shape
+    v = rearrange(agg.to_v(fmap), "b (h d) x y -> b h (x y) d", h=agg.heads)
+    q, k = attn
+    out = F.scaled_dot_product_attention(q, k, v.to(q.dtype), scale=1.0)
+    out = rearrange(out, "b h (x y) d -> b (h d) x y", x=h, y=w)
+    if agg.project is not None:
+        out = agg.project(out)
+    return fmap + agg.gamma * out
+
+
+class _Mlx(Portable):
+    """The portable pass for the MLX replay: correlation windows without volumes, the large GMA matrix recomputed."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and swap the volume and the attention matrix for their memory-bound forms."""
+        super().__init__(ctx)
+        override(self.net.att, _attention_qk)
+        override(self.net.update_block.aggregator, _aggregate_sdpa)
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        corr_fn = functools.partial(_windows, self.net)
+        return self.net.forward_pair(image1, image2, self.ctx.params.iters, corr_fn=corr_fn, fp16=self.fp16)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Mlx, attrs=(), methods=("_flow",), half_wino_f32=True),
+}

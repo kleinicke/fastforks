@@ -3,8 +3,8 @@ name = "BiSeNet face parsing"
 summary = "BiSeNet (Yu et al. 2018) face parsing from face-parsing.PyTorch: a ResNet-18 context path with attention refinement and feature fusion, 19 CelebAMask-HQ face-part classes (skin, brows, eyes, glasses, ears, earrings, nose, mouth, lips, neck, necklace, cloth, hair, hat) on a 512 x 512 face crop. The parser that GFPGAN / CodeFormer pipelines use through facexlib; MIT code and weights."
 tier = "experimental"
 outputs = ["logits"]
-limitations = ["No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only."]
-uses = ["seginfer"]  # fastforks.shared modules this family imports
+limitations = ["Accuracy is measured on 2,000 LaPa test images with nine shared face-part labels, including background."]
+uses = ["seginfer", "cnn_kernels", "cuda_graphs", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/facexlib"
@@ -34,10 +34,10 @@ resize = ["fixed", 512, 512]  # test.py: img.resize((512, 512), Image.BILINEAR)
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "measured slower: cudnn_hacc fp16-accumulate convolutions 2.77 ms vs 2.41 ms portable (512x512)"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [output]
 label_set = "celebamask-hq-19-bisenet"

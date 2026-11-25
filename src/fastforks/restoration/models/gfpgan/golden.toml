@@ -15,10 +15,19 @@ upstream = "https://github.com/TencentARC/GFPGAN@7552a7791caad982045a7bbe5634bbf
 settings = "CPU float32, GFPGANer.enhance on an aligned face: [-1, 1], net(x, return_rgb=False, randomize_noise=False)[0], back to [0, 1], clamped, no uint8 rounding; inputs/cropped_faces/Adele_crop.png; torch 2.14.1+cu130"
 
 [validated."gfpgan-v1.4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "style_weights@bfae2c2ef906:sm_120"]
+symbols = {"style_weights" = {"style_weights" = "8e130b2a9f6eb6ef"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
+date = "2026-11-18"
+mean_px = 0.00034
+p99_px = 0.00144
+
+[validated."gfpgan-v1.4@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "style_weights@bfae2c2ef906:sm_120"]
+symbols = {"style_weights" = {"style_weights" = "8e130b2a9f6eb6ef"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 0.00034
 p99_px = 0.00144

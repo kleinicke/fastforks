@@ -37,7 +37,13 @@ class State(Enum):
 
 
 class CausalConv3d(nn.Conv3d):
-    """`InflatedCausalConv3d`: spatial padding in the convolution, temporal padding by repetition or memory."""
+    """`InflatedCausalConv3d`: spatial padding in the convolution, temporal padding by repetition or memory.
+
+    `fold_time()` (kernels, one-frame clips): every output frame then reads `k_t` copies of the one input frame (the
+    first frame repeated as padding), which is a 2-D convolution with the kernel summed over time (in float32, rounded
+    once to the weight dtype): a third of the arithmetic and no stacked copy of the frames. Only the summed kernel is
+    kept; a clip of several frames then raises.
+    """
 
     def __init__(
         self,
@@ -56,21 +62,42 @@ class CausalConv3d(nn.Conv3d):
         self.head = 2 * p[0]
         self.keep = k[0] - s[0]
         self.memory: torch.Tensor | None = None
+        self.time_sum: torch.Tensor | None
+        self.register_buffer("time_sum", None)  # `fold_time`
 
     def forward(self, x: torch.Tensor, state: State) -> torch.Tensor:
         kt, st = self.kernel_size[0], self.stride[0]
         if kt == 1:
             return super().forward(x[:, :, ::st])
+        repeats = False  # every input frame is the one frame of `x`
         if state is State.ACTIVE and self.memory is not None:
             frames = list(self.memory.unbind(2)) + list(x.unbind(2))
         else:
             frames = [x[:, :, 0]] * self.head + list(x.unbind(2))
+            repeats = x.shape[2] == 1
         if self.keep and state is not State.DISABLED:
             self.memory = torch.stack(frames[len(frames) - self.keep :], 2)  # a copy, not a view of the clip
         else:
             self.memory = None
         # one output frame at a time from its kt input frames: no padded copy of the whole clip
         n = (len(frames) - kt) // st + 1
+        if self.time_sum is not None:
+            if not (repeats and n == 1):
+                msg = "the convolution's time kernel is folded (fold_time): one-frame clips only"
+                raise RuntimeError(msg)
+            return F.conv2d(frames[0], self.time_sum, self.bias, self.stride[1:], self.padding[1:]).unsqueeze(2)
+        if (
+            not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            and torch.is_inference_mode_enabled()
+            and n == 1
+            and state is State.DISABLED
+            and self.kernel_size == (3, 3, 3)
+            and self.stride == (1, 1, 1)
+            and self.padding == (0, 1, 1)
+            and x.is_cuda
+            and x.numel() * x.element_size() * kt >= 512 * 1024**2
+        ):
+            return self._spatial_strips(frames)
         out = None
         for j in range(n):
             y = super().forward(torch.stack(frames[j * st : j * st + kt], 2))
@@ -79,19 +106,53 @@ class CausalConv3d(nn.Conv3d):
             out[:, :, j : j + 1] = y
         return out
 
+    def fold_time(self) -> None:
+        """Replace the 3-D kernel by its sum over time (one-frame clips only, see the class docstring)."""
+        if self.kernel_size[0] == 1:  # already 2-D in effect: `forward` reads every `stride`-th frame
+            return
+        with torch.no_grad():
+            w = self.weight.float().sum(2).to(self.weight.dtype)
+        del self.weight
+        self.time_sum = w
+
+    def _spatial_strips(self, frames: list[torch.Tensor]) -> torch.Tensor:
+        """Apply a stride-one 3x3 convolution to rows with one input halo on either side."""
+        b, c, h, w = frames[0].shape
+        bytes_per_row = b * c * w * frames[0].element_size() * len(frames)
+        rows = max(1, 256 * 1024**2 // bytes_per_row)
+        out: torch.Tensor | None = None
+        for start in range(0, h, rows):
+            end = min(h, start + rows)
+            top, bottom = max(0, start - 1), min(h, end + 1)
+            y = super().forward(torch.stack([frame[:, :, top:bottom] for frame in frames], dim=2))
+            if out is None:
+                out = y.new_empty((b, self.out_channels, 1, h, w))
+            out[:, :, :, start:end] = y[:, :, :, start - top : end - top]
+        assert out is not None
+        return out
+
 
 def group_norm(norm: nn.GroupNorm, x: torch.Tensor, *, upcast: bool, silu: bool = False) -> torch.Tensor:
     """`causal_norm_wrapper`: per-frame group norm of `[B, C, T, H, W]`, rounded to the input dtype; `silu` then
     applies SiLU in place.
 
-    One frame at a time into one output buffer, so neither the frame-major copy nor the float32 upcast is ever made
-    for the whole clip (the arithmetic per frame is unchanged).
+    `upcast` on CUDA runs the norm on the bf16 / fp16 frame itself: the CUDA kernel accumulates the statistics and
+    computes `x * a + b` in float32 and rounds once, like the float32 norm rounded afterwards (on large maps bit for
+    bit; small maps take other reduction orders, at most one bf16 rounding apart), without the float32 copy of the
+    frame: 2.4x faster, and no float32 temporary to bound.
     """
-    w, b = (norm.weight.float(), norm.bias.float()) if upcast else (norm.weight, norm.bias)
-    out = torch.empty_like(x)
-    for i in range(x.shape[2]):
-        f = x[:, :, i]
-        out[:, :, i] = F.group_norm(f.float() if upcast else f.contiguous(), norm.num_groups, w, b, norm.eps)
+    native = upcast and x.is_cuda and x.dtype in (torch.bfloat16, torch.float16) and norm.weight.dtype == x.dtype
+    up = upcast and not native
+    w, b = (norm.weight.float(), norm.bias.float()) if up else (norm.weight, norm.bias)
+    groups = norm.num_groups
+    if x.shape[2] == 1:
+        f = x[:, :, 0]
+        out = F.group_norm(f.float() if up else f.contiguous(), groups, w, b, norm.eps).to(x.dtype).unsqueeze(2)
+    else:
+        out = torch.empty_like(x)
+        for i in range(x.shape[2]):
+            f = x[:, :, i]
+            out[:, :, i] = F.group_norm(f.float() if up else f.contiguous(), groups, w, b, norm.eps)
     return F.silu(out, inplace=True) if silu else out
 
 

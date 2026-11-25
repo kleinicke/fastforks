@@ -8,18 +8,18 @@ Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input 
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anyline`](#anyline) | yes | no kernels | no kernels |
-| [`hed`](#hed) | yes | no kernels | no kernels |
-| [`lineart`](#lineart) | yes | no kernels | no kernels |
-| [`lineart-anime`](#lineart_anime) | yes | no kernels | no kernels |
-| [`lineart-coarse`](#lineart) | yes | no kernels | no kernels |
-| [`mlsd`](#mlsd) | yes | no kernels | no kernels |
-| [`pidinet`](#pidinet) | no | no kernels | no kernels |
-| [`teed`](#teed) | yes | no kernels | no kernels |
+| [`anyline`](#anyline) | yes | 35.0, 16.7x | 702, 0.7x |
+| [`hed`](#hed) | yes | 8.25, 4.7x | 264, 0.81x |
+| [`lineart`](#lineart) | yes | 15.5, 1.9x | 284, 1.1x |
+| [`lineart-anime`](#lineart_anime) | yes | 6.50, 3.9x | 244, 0.54x |
+| [`lineart-coarse`](#lineart) | yes | 15.4, 2.0x | 284, 1.1x |
+| [`mlsd`](#mlsd) | yes | 7.73, 4.6x | 148, 0.7x |
+| [`pidinet`](#pidinet) | no | 12.3, 2.9x | 392, 1.1x |
+| [`teed`](#teed) | yes | 3.83, 7.7x | 146, 0.79x |
 
 <a id="anyline"></a>
 
@@ -31,7 +31,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>50.7<br>no kernels | 909 / 1002<br>654 / 722<br>no kernels |
+| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>45.2<br>35.0 | 909 / 1002<br>648 / 702<br>648 / 702 |
+| `anyline` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>21.0<br>18.8<br>11.6<br>12.9 (full line map only; memory estimated) | 509 / 562<br>362 / 384<br>362 / 384<br>306 / 346<br>528 / 542 |
 
 <details><summary>Details</summary>
 
@@ -42,16 +43,29 @@ Commercial use: yes.
 - Training data: Not stated for MTEED (TheMistoAI/MistoLine `Anyline/MTEED.pth`, the TEED network).
 - Licence note: The MTEED weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
 - Options: `short_side` = 1280 (>= 64; also `resolution`; also `detect_resolution`)
-- Kernel libraries: none (the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off)
+- Kernel libraries: `edge_components`
 - Variants: `anyline`
-- Not in this release (planned for 0.2.1): `anyline` TensorRT export: the TensorRT ONNX parser rejects an Expand node
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
-- no kernels: the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off.
-- `anyline` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
-- `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s
+- `anyline` 1024x1024, first call: portable + torch.compile 40 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
+- `anyline` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
+- `anyline` portable 1080x1920, kernels 1080x1920: Current native CUDA FP16 latency with reused fusion scratch; exact edge maps on two synthetic and three labeled BSDS inputs in each mode.
+- `anyline` portable 1024x1024: Eager foreground-component filtering reuses its label buffer. FP16 and FP32 outputs match bitwise on the synthetic input and eight BSDS500 images.
+- `anyline` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s, kernels 0.15 s / 0.515 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 48.45 / 52.32 / 36.15 |  | 49.14 / 52.52 / 36.51 |  |  |
+| `anyline` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 45.91 / 50.11 / 33.87 | 46.56 / 49.99 / 34.80 | 46.57 / 49.97 / 34.80 | 46.56 / 49.99 / 34.80 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -59,7 +73,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `anyline` | no kernels backend | - | - |
+| `anyline` | 8e-05 / 2e-05 | RTX 5060 Ti, torch 2.10.0+cu130 | `edge_components@d6becc089ab3:sm_120` |
 
 ### Limitations
 
@@ -77,7 +91,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>no kernels | 300 / 324<br>187 / 224<br>no kernels |
+| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>8.25 | 300 / 324<br>187 / 224<br>193 / 264 |
+| `hed` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 20.3<br>6.02<br>4.44<br>4.81<br>2.57 | 199 / 226<br>117 / 146<br>121 / 146<br>137 / 166<br>170 / 178 |
 
 <details><summary>Details</summary>
 
@@ -87,15 +102,28 @@ Commercial use: yes.
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/hed/__init__.py ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); HED (Xie and Tu) trains on BSDS500; this re-trained model states no data.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe` = False
-- Kernel libraries: none (a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `hed`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` 1080x1920 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off.
-- `hed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
-- `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s
+- `hed` 1024x1024, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 12 s (ONNX + engine).
+- `hed` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
+- `hed` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `hed` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s, kernels 0.31 s / 0.12 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `hed` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 61.96 / 63.49 / 61.47 |  | 61.95 / 63.51 / 61.47 |  |  |
+| `hed` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 61.63 / 62.62 / 61.38 | 61.64 / 62.61 / 61.38 | 61.63 / 62.64 / 61.38 | 61.64 / 62.61 / 61.38 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -103,7 +131,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hed` | no kernels backend | - | - |
+| `hed` | 6e-05 / 0.00102 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -117,8 +145,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
-| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
+| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>15.5 | 221 / 264<br>222 / 284<br>217 / 284 |
+| `lineart` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.7<br>9.93<br>8.49<br>6.49<br>4.80 | 141 / 186<br>129 / 164<br>126 / 186<br>117 / 164<br>150 / 176 |
+| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>15.4 | 221 / 264<br>222 / 284<br>217 / 284 |
+| `lineart-coarse` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.8<br>9.92<br>8.51<br>6.49<br>4.80 | 141 / 186<br>129 / 164<br>126 / 166<br>117 / 164<br>150 / 176 |
 
 <details><summary>Details</summary>
 
@@ -128,17 +158,35 @@ Commercial use: yes.
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); informative-drawings trains on unpaired photographs and line drawings.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
-- Kernel libraries: none (a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off)
+- Kernel libraries: `vol_norm`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `lineart`, `lineart-coarse`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved); `lineart-coarse` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
-- no kernels: a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off.
-- `lineart` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
-- `lineart-coarse` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
-- `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s
-- `lineart-coarse` load / first call: original 0.16 s / 0.048 s, portable 0.16 s / 0.019 s
+- `lineart` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 10 s (ONNX + engine).
+- `lineart-coarse` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 10 s (ONNX + engine).
+- `lineart` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `lineart` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `lineart-coarse` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart-coarse` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `lineart-coarse` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s, kernels 0.28 s / 0.098 s (1024x1024)
+- `lineart-coarse` load / first call: original 0.16 s / 0.048 s, portable 0.16 s / 0.019 s, kernels 0.52 s / 0.093 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `lineart` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.19 / 52.90 / 38.26 |  | 50.19 / 52.85 / 38.26 |  |  |
+| `lineart` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 49.18 / 52.31 / 36.92 | 49.18 / 52.24 / 36.92 | 49.18 / 52.27 / 36.92 | 49.18 / 52.24 / 36.92 |  |
+| `lineart-coarse` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 44.39 / 48.10 / 38.90 |  | 44.39 / 48.14 / 38.90 |  |  |
+| `lineart-coarse` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 42.88 / 46.46 / 36.60 | 42.89 / 46.48 / 36.60 | 42.89 / 46.46 / 36.60 | 42.88 / 46.45 / 36.60 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -146,8 +194,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lineart` | no kernels backend | - | - |
-| `lineart-coarse` | no kernels backend | - | - |
+| `lineart` | 0.00011 / 0.00079 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@c55f9fff92d3:sm_120` |
+| `lineart-coarse` | 0.00014 / 0.00102 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@c55f9fff92d3:sm_120` |
 
 </details>
 
@@ -161,7 +209,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>no kernels | 407 / 448<br>241 / 284<br>no kernels |
+| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>6.50 | 407 / 448<br>241 / 284<br>217 / 244 |
+| `lineart-anime` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.3<br>3.86<br>3.62<br>2.80<br>1.54 | 364 / 408<br>161 / 206<br>161 / 186<br>180 / 206<br>304 / 314 |
 
 <details><summary>Details</summary>
 
@@ -170,16 +219,29 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart_anime/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); ControlNet 1.1 describes the anime line art model as trained on anime illustrations and their line drawings.
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
-- Kernel libraries: none (a pix2pix U-Net: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `cuda_graphs` = True (speed only)
+- Kernel libraries: `cv_resample`
 - Variants: `lineart-anime`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart-anime` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
-- no kernels: a pix2pix U-Net: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off.
-- `lineart-anime` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
-- `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s
+- `lineart-anime` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
+- `lineart-anime` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
+- `lineart-anime` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `lineart-anime` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s, kernels 0.54 s / 0.126 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `lineart-anime` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 38.40 / 41.95 / 23.84 |  | 38.40 / 41.94 / 23.84 |  |  |
+| `lineart-anime` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 38.23 / 41.73 / 23.76 | 38.24 / 41.69 / 23.76 | 38.23 / 41.71 / 23.76 | 38.24 / 41.69 / 23.76 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -187,7 +249,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lineart-anime` | no kernels backend | - | - |
+| `lineart-anime` | 7e-05 / 0.00052 | RTX 5060 Ti, torch 2.10.0+cu130 | `cv_resample@969307ab22a7:sm_120` |
 
 </details>
 
@@ -201,7 +263,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>no kernels | 185 / 212<br>127 / 170<br>no kernels |
+| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>7.73 | 185 / 212<br>127 / 170<br>127 / 148 |
+| `mlsd` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 20.6<br>7.65<br>7.03<br>4.61<br>5.75 (standalone CNN with eager resize and line decoding) | 113 / 132<br>72 / 90<br>72 / 90<br>101 / 130<br>295 / 310 |
 
 <details><summary>Details</summary>
 
@@ -210,17 +273,29 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/lhwcv/mlsd_pytorch/blob/2312205254e66911703decf775f626995d260f17/LICENSE ; https://github.com/lhwcv/mlsd_pytorch/tree/2312205254e66911703decf775f626995d260f17/models
 - Training data: Not stated for this checkpoint; the M-LSD paper trains on the Wireframe dataset (Huang et al. 2018, no licence stated).
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
-- Kernel libraries: none (a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0), `cuda_graphs` = True (speed only)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mlsd`
-- Not in this release (planned for 0.2.1): `mlsd` TensorRT export: the TensorRT ONNX parser rejects BitwiseAnd
+- Public TensorRT export is unavailable for `mlsd` (the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs).
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)
-- no kernels: a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off.
-- `mlsd` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c mlsd, host OpenCV resize, float post-processing
-- `mlsd` load / first call: original 0.21 s / 0.057 s, portable 0.17 s / 0.011 s
+- `mlsd` 1024x1024, first call: portable + torch.compile 11 s (cold Inductor cache).
+- `mlsd` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c mlsd, host OpenCV resize, float post-processing
+- `mlsd` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `mlsd` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `mlsd` load / first call: original 0.21 s / 0.057 s, portable 0.17 s / 0.011 s, kernels 0.57 s / 0.491 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 102 YorkUrban images in the DT-LSD release. Each M-LSD mode uses 512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching each annotation at most once. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `mlsd` | YorkUrban test (102 images), line segment sAP@5 / @10 / @15 % | 6.69 / 13.44 / 17.01 | 6.65 / 13.37 / 16.92 | 6.69 / 13.44 / 17.02 | 6.66 / 13.35 / 16.96 | 6.66 / 13.35 / 16.94 | 6.69 / 13.44 / 17.02 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a54f74f7, 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 10d473ab, 2026-11-19.
 
 ### Parity
 
@@ -228,7 +303,11 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `mlsd` | no kernels backend | - | - |
+| `mlsd` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+
+### Limitations
+
+- A standalone FP32 TensorRT CNN that preserves backbone preactivation outputs matches portable FP32 on all 102 YorkUrban images. The measured path uses PyTorch preprocessing and line decoding.
 
 </details>
 
@@ -242,7 +321,8 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>no kernels | 339 / 368<br>328 / 372<br>no kernels |
+| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>12.3 | 339 / 368<br>328 / 372<br>328 / 392 |
+| `pidinet` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.5<br>6.59<br>6.37<br>5.66<br>4.50 | 199 / 236<br>186 / 228<br>186 / 228<br>166 / 190<br>187 / 200 |
 
 <details><summary>Details</summary>
 
@@ -252,15 +332,28 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/pidi/LICENSE ; https://github.com/hellozhuo/pidinet/blob/master/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1). The file name matches the paper's table 5 BSDS500 model.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `apply_filter` = False, `safe` = False
-- Kernel libraries: none (the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off)
+- Kernel libraries: `cv_resample`
 - Variants: `pidinet`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pidinet` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved)
-- no kernels: the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off.
-- `pidinet` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c pidinet, host OpenCV resize, float post-processing
-- `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s
+- `pidinet` 1024x1024, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
+- `pidinet` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c pidinet, host OpenCV resize, float post-processing
+- `pidinet` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `pidinet` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s, kernels 0.17 s / 0.616 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `pidinet` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 59.29 / 59.92 / 60.81 |  | 59.29 / 59.90 / 60.81 |  |  |
+| `pidinet` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 58.79 / 59.59 / 60.31 | 58.79 / 59.61 / 60.31 | 58.79 / 59.55 / 60.31 | 58.79 / 59.61 / 60.31 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -268,7 +361,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `pidinet` | no kernels backend | - | - |
+| `pidinet` | 0.00019 / 0.00192 | RTX 5060 Ti, torch 2.10.0+cu130 | `cv_resample@969307ab22a7:sm_120` |
 
 </details>
 
@@ -282,7 +375,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>no kernels | 149 / 184<br>122 / 146<br>no kernels |
+| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>3.83 | 149 / 184<br>122 / 146<br>122 / 146 |
+| `teed` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.8<br>2.54<br>2.43<br>1.10<br>0.799 | 89 / 110<br>68 / 88<br>68 / 88<br>71 / 104<br>106 / 120 |
 
 <details><summary>Details</summary>
 
@@ -291,16 +385,29 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/xavysp/TEED/blob/40fa4b1391dc6424f88989d0ca75d5b592c8681d/LICENSE ; https://github.com/xavysp/TEED/tree/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5
 - Training data: BIPED (Barcelona Images for Perceptual Edge Detection) (BIPED (the repository's checkpoints/BIPED folder and README); the dataset is for non-commercial use.)
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255)
-- Kernel libraries: none (a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255), `cuda_graphs` = True (speed only)
+- Kernel libraries: `smish`
 - Variants: `teed`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `teed` 1080x1920 (0.1 GiB peak allocated, 0.1 reserved)
-- no kernels: a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off.
-- `teed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
-- `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s
+- `teed` 1024x1024, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 12 s (ONNX + engine).
+- `teed` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
+- `teed` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `teed` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s, kernels 0.16 s / 0.443 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `teed` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 53.18 / 56.46 / 48.54 |  | 53.18 / 56.47 / 48.54 |  |  |
+| `teed` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 51.58 / 54.40 / 47.90 | 51.58 / 54.34 / 47.89 | 51.58 / 54.41 / 47.90 | 51.58 / 54.34 / 47.89 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -308,7 +415,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `teed` | no kernels backend | - | - |
+| `teed` | 0.00023 / 0.00137 | RTX 5060 Ti, torch 2.10.0+cu130 | `smish@c9aaf63e6ef7:sm_120` |
 
 </details>
 
@@ -320,14 +427,14 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`anyline`](#anyline) | portable | MIT | LicenseRef-CreativeML-OpenRAIL-PlusPlus-M | unstated | yes | edges |
-| [`hed`](#hed) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | edges |
-| [`lineart`](#lineart) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
-| [`lineart-anime`](#lineart_anime) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
-| [`lineart-coarse`](#lineart) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
-| [`mlsd`](#mlsd) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | edges, lines |
-| [`pidinet`](#pidinet) | portable | LicenseRef-research-only | LicenseRef-research-only (assumed from code) | unstated | **no** (code: LicenseRef-research-only (noncommercial); weights: LicenseRef-research-only (assumed from code)) | edges |
-| [`teed`](#teed) | portable | MIT | MIT | biped | yes | edges |
+| [`anyline`](#anyline) | portable, kernels | MIT | LicenseRef-CreativeML-OpenRAIL-PlusPlus-M | unstated | yes | edges |
+| [`hed`](#hed) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | edges |
+| [`lineart`](#lineart) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | edges |
+| [`lineart-anime`](#lineart_anime) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | edges |
+| [`lineart-coarse`](#lineart) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | edges |
+| [`mlsd`](#mlsd) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | edges, lines |
+| [`pidinet`](#pidinet) | portable, kernels | LicenseRef-research-only | LicenseRef-research-only (assumed from code) | unstated | **no** (code: LicenseRef-research-only (noncommercial); weights: LicenseRef-research-only (assumed from code)) | edges |
+| [`teed`](#teed) | portable, kernels | MIT | MIT | biped | yes | edges |
 
 </details>
 

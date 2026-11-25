@@ -315,6 +315,8 @@ def test_timm_shape_changes_and_eviction(timm_model, monkeypatch):
     cache = _cache(model)
     monkeypatch.setattr(cache, "_max", 2)
     monkeypatch.setattr(cache, "_stale", 8)
+    # Exercise the LRU policy independently of the large-input pool-release policy below.
+    monkeypatch.setattr(cache, "_much_larger", lambda _x: False)
     sizes = (112, 224, 336)  # multiples of both patch sizes
     want = {s: _timm_eager(model, _t(s, s, s), monkeypatch) for s in sizes}
     graphs = cache.graphs
@@ -341,6 +343,8 @@ def test_timm_tables_outlive_their_cache(timm_model, monkeypatch):
     """
     model = timm_model
     model.release_graphs()
+    # Keep the original graph alive while the position-table cache cycles through much larger grids.
+    monkeypatch.setattr(_cache(model), "_much_larger", lambda _x: False)
     walk = _runner(model).walk
     a = _t(1, 224, 224)
     want = _timm_eager(model, a, monkeypatch)
@@ -355,6 +359,18 @@ def test_timm_tables_outlive_their_cache(timm_model, monkeypatch):
     _same(_timm(model, a), want)  # a replay
     assert len(_cache(model).graphs) == 1
     del junk
+
+
+def test_timm_larger_input_releases_graph_pool(timm_model, monkeypatch):
+    """A much larger eager input releases the small graph's pool and remains numerically correct."""
+    model = timm_model
+    model.release_graphs()
+    small, large = _t(1, 112, 112), _t(2, 224, 224)
+    want = _timm_eager(model, large, monkeypatch)
+    _timm(model, small), _timm(model, small)
+    assert len(_cache(model).graphs) == 1
+    _same(_timm(model, large), want)
+    assert not _cache(model).graphs
 
 
 def test_timm_tables_lru(timm_model):

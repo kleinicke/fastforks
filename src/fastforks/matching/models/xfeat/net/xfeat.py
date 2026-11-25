@@ -81,9 +81,13 @@ class XFeat(nn.Module):
 		feats = F.normalize(feats, dim=-1)
 
 		#Correct kpt scale
-		mkpts = mkpts * torch.tensor([rw1,rh1], device=mkpts.device).view(1, 1, -1)
+		# fastforks: the scale filled on the device (torch.tensor uploads, which syncs; same values)
+		scale = torch.full((2,), rw1, device=mkpts.device, dtype=torch.get_default_dtype())
+		scale[1:].fill_(rh1)  # fastforks: not scale[1] = rh1, which uploads the scalar
+		mkpts = mkpts * scale.view(1, 1, -1)
 
 		valid = scores > 0
+		valid = [valid[b].nonzero()[:, 0] for b in range(B)]  # fastforks: as indices, one host sync per image, not three
 		return [  
 				   {'keypoints': mkpts[b][valid[b]],
 					'scores': scores[b][valid[b]],
@@ -283,6 +287,11 @@ class XFeat(nn.Module):
 	@torch.inference_mode()
 	def match(self, feats1, feats2, min_cossim = 0.82):
 
+		# fastforks: a blank image can have no keypoints, so there are no mutual matches.
+		if feats1.shape[0] == 0 or feats2.shape[0] == 0:
+			empty = torch.empty(0, dtype=torch.long, device=feats1.device)
+			return empty, empty
+
 		# fastforks: one [N, M] similarity matrix live at a time (upstream keeps both and takes the row maxima twice)
 		best12, match12 = (feats1 @ feats2.t()).max(dim=1)
 		_, match21 = (feats2 @ feats1.t()).max(dim=1)
@@ -325,7 +334,10 @@ class XFeat(nn.Module):
 
 		feats = torch.gather( M1, 1, top_k[...,None].expand(-1, -1, 64))
 		mkpts = torch.gather(xy1, 1, top_k[...,None].expand(-1, -1, 2))
-		mkpts = mkpts * torch.tensor([rw1, rh1], device=mkpts.device).view(1,-1)
+		# fastforks: the scale filled on the device (torch.tensor uploads, which syncs; same values)
+		scale = torch.full((2,), rw1, device=mkpts.device, dtype=torch.get_default_dtype())
+		scale[1:].fill_(rh1)  # fastforks: not scale[1] = rh1, which uploads the scalar
+		mkpts = mkpts * scale.view(1,-1)
 
 		return mkpts, feats
 

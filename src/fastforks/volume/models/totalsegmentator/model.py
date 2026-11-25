@@ -19,11 +19,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.runner import host
 from fastforks.volume import _nnunet_runner as nn_runner
+from fastforks.volume._mlx import port as mlx_port
 from fastforks.volume._nnunet_runner import weight_names
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+    from fastforks.volume._runner import Context
 
 __all__ = ["RUNNERS", "Params", "weight_names", "zoom_linear", "zoom_nearest"]
 
@@ -50,8 +54,11 @@ def zoom_linear(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
 
 def zoom_nearest(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
     """`scipy.ndimage.zoom(x, order=0)` to `shape`: index `floor(o * (n - 1) / (m - 1) + 0.5)` per axis."""
-    for axis, m in enumerate(shape):
-        n = x.shape[axis]
+    source = x.shape
+    # Independent axis selections commute. Shrink first and apply the largest expansion last.
+    axes = sorted(enumerate(shape), key=lambda item: item[1] / source[item[0]])
+    for axis, m in axes:
+        n = source[axis]
         if n == m:
             continue
         scale = (n - 1) / (m - 1) if m > 1 else 0.0
@@ -69,9 +76,10 @@ class Portable(nn_runner.Portable):
         p: Params = self.ctx.params
         if p.classes is None:
             return super()._names(labels)
-        lines = (Path(__file__).parent / p.classes).read_text().splitlines()
+        lines = (Path(__file__).parent / p.classes).read_text(encoding="utf-8").splitlines()
         return {k: n for k, n in enumerate(lines, start=1) if n}
 
+    @host
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> dict[str, torch.Tensor]:
         """Labels of one volume on its grid."""
         p: Params = self.ctx.params
@@ -93,5 +101,12 @@ class Portable(nn_runner.Portable):
 class Kernels(Portable, nn_runner.Kernels):
     """`fastforks.volume._nnunet_runner.Kernels` with TotalSegmentator's spacing change and class list."""
 
+    def __init__(self, ctx: Context) -> None:
+        """Limit the workspace alongside the resident networks of the multi-part CT model."""
+        super().__init__(ctx)
+        if len(self.parts) > 1:
+            for part in self.parts:
+                part.batch = 1
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

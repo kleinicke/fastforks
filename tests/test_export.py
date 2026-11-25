@@ -24,6 +24,7 @@ from fastforks._core.errors import BackendUnavailableError, InputError
 from fastforks._core.export import flat_outputs, output_names
 from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
+from fastforks.pose.models.rtmpose.net import ScaleNorm
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
 from synth import pair, prompt_kwargs, size
@@ -32,6 +33,15 @@ from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
 SHAPE = (1, 3, 96, 128)  # not a multiple of every pad multiple: padding and cropping are in the traced graph
+
+
+def test_rtmpose_half_export_accumulates_scale_norm_in_fp32():
+    layer = ScaleNorm(64).half().eval()
+    inputs = torch.linspace(-400, 400, 64, dtype=torch.float16).repeat(2, 1)
+    exported = torch.export.export(layer, (inputs,))
+    (norm,) = [node for node in exported.graph.nodes if node.target == torch.ops.aten.linalg_vector_norm.default]
+    assert norm.meta["val"].dtype == torch.float32
+    torch.testing.assert_close(exported.module()(inputs), layer(inputs), rtol=0, atol=0)
 
 
 _ONNX_NEEDS_NEWER_TORCH = {"c-fast-foundationstereo@1", "foundationstereo-vit-s@1", "selective-igev-eth3d-finetune@1"}
@@ -63,6 +73,9 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
+    "dedode-v2-b@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
+    "loftr-outdoor@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
+    "loma-b64@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
@@ -116,6 +129,34 @@ _needs_onnx = pytest.mark.skipif(
 )
 
 
+@pytest.mark.slow
+@_needs_onnx
+@pytest.mark.parametrize("align_corners", [False, True])
+def test_dfine_onnx_bilinear_sampling(tmp_path, align_corners):
+    """Export the gather-based sampler and compare padding and interpolation across two distinct maps."""
+    import onnx  # noqa: PLC0415 - optional
+    import onnxruntime as ort  # noqa: PLC0415 - optional
+
+    from fastforks._core.export_sampling import export_bilinear  # noqa: PLC0415
+
+    class Sampler(torch.nn.Module):
+        def forward(self, feature, grid):
+            return export_bilinear(feature, grid, align_corners=align_corners)
+
+    generator = torch.Generator().manual_seed(110)
+    feature = torch.randn(2, 4, 5, 8, generator=generator)
+    grid = torch.rand(2, 9, 7, 2, generator=generator) * 3.0 - 1.5
+    grid[:, 0, 0] = torch.tensor([-1.0, 1.0])
+    path = tmp_path / "bilinear.onnx"
+    torch.onnx.export(Sampler().eval(), (feature, grid), path, input_names=["feature", "grid"], dynamo=True)
+    onnx.checker.check_model(path)
+    assert all(node.op_type != "GridSample" for node in onnx.load(path).graph.node)
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    (actual,) = session.run(None, {"feature": feature.numpy(), "grid": grid.numpy()})
+    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=align_corners)
+    torch.testing.assert_close(torch.from_numpy(actual), expected, atol=2e-6, rtol=1e-5)
+
+
 def _onnx_checks_the_export(ref: str) -> bool:
     """The ONNX test of `ref` passes: it captures `module()` with the same `torch.export(strict=False)` (torch.onnx's
     first strategy) and compares ONNX Runtime with `module()`, so test_module_compile_export can skip the export."""
@@ -133,6 +174,7 @@ def _load(ref: str) -> Any:
 _NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the tokens) the card does not give
     "clipseg": (352, 352),
     "grounding-dino-tiny": (320, 320),  # the 900-query top-k needs at least 900 encoder tokens
+    "lw-detr-tiny-coco": (640, 640),  # module() expects the runner's 640x640 network input
     "owlv2-b16": (960, 960),
     "parseq-tiny": (32, 128),
     "vitpose-plus-small": (256, 192),
@@ -153,7 +195,12 @@ def _pair(shape: tuple[int, ...]) -> tuple[torch.Tensor, torch.Tensor]:
 
 
 def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
-    pair = _pair(_shape(model))
+    shape = _shape(model)
+    if TASK[ref] == "pose" and model._runner.needs_boxes:  # module() receives network-sized crops
+        params = model._runner.ctx.params
+        if hasattr(params, "height") and hasattr(params, "width"):
+            shape = (*SHAPE[:2], params.height, params.width)
+    pair = _pair(shape)
     if TASK[ref] == "classification":  # the module takes transformed images (the model call's [io] transform)
         io = model.variant.io
         return (scale(resize_crop(pair[0], io), io),)
@@ -161,7 +208,9 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return model.example_inputs(*_shape(model)[2:], batch=2)
     if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         return pair
-    if TASK[ref] == "restoration" and model._runner.mask == "required":  # inpainting: the image and its mask
+    needs_mask = TASK[ref] == "restoration" and model._runner.mask == "required"
+    needs_guide = TASK[ref] == "matting" and any(getattr(model._runner, n) == "required" for n in ("trimap", "mask"))
+    if needs_mask or needs_guide:  # image plus the required inpainting mask or matting guide
         return model.example_inputs(*pair[0].shape[2:])
     if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
         return (pair[0], model._runner.condition("a cat"))
@@ -383,11 +432,12 @@ def test_onnx_multiview(ref, tmp_path):
     with pytest.raises(InputError, match="fixed size"):
         model.export_onnx(tmp_path / "m.onnx", h, w, batch=v, size_range=((h, w), (2 * h, 2 * w)))
     path = model.export_onnx(tmp_path / "m.onnx", h, w, batch=v)
+    module = model.module()
     with torch.inference_mode():
-        want = model.module()(*inputs)
+        want = module(*inputs)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
     assert [i.name for i in session.get_inputs()] == list(spec("multiview").inputs[: len(inputs)])
-    assert [o.name for o in session.get_outputs()] == list(want)
+    assert [o.name for o in session.get_outputs()] == output_names(model, module, want)
     got = session.run(None, {i.name: x.numpy() for i, x in zip(session.get_inputs(), inputs, strict=True)})
     for name, out in zip(want, got, strict=True):
         w, g = want[name], torch.from_numpy(out)
@@ -396,6 +446,51 @@ def test_onnx_multiview(ref, tmp_path):
         else:
             tol = 1e-3 * max(w.float().abs().max().item(), 1.0)
             torch.testing.assert_close(g, w, rtol=1e-3, atol=tol, msg=f"{ref}: {name}")
+
+
+@pytest.mark.slow
+@_needs_onnx
+def test_depthfm_output_scaling_onnx(tmp_path):
+    """The full-tensor DepthFM reductions lower with explicit axes."""
+    import onnxruntime as ort  # noqa: PLC0415 - optional
+
+    from fastforks._core.export_resize import matmul_antialias  # noqa: PLC0415 - only this export
+    from fastforks.depth.models.depthfm.model import finish  # noqa: PLC0415 - only this export
+
+    class Finish(torch.nn.Module):
+        def forward(self, values):
+            return finish(values, (13, 17))
+
+    decoded = torch.linspace(-1, 1, 2 * 3 * 11 * 15).reshape(2, 3, 11, 15)
+    path = tmp_path / "depthfm_finish.onnx"
+    with matmul_antialias():
+        torch.onnx.export(Finish().eval(), (decoded,), path, input_names=["decoded"], dynamo=True)
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 2
+    session = ort.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
+    (out,) = session.run(None, {"decoded": decoded.numpy()})
+    torch.testing.assert_close(torch.from_numpy(out), finish(decoded, (13, 17)), atol=1e-6, rtol=1e-5)
+
+
+def test_mvsanywhere_export_rotation_distance_near_identity():
+    """Preserve the small positive distance and clamp trace roundoff in the exported graph."""
+    from fastforks.multiview.models.mvsanywhere.model import _pose_distance  # noqa: PLC0415 - only this export
+
+    class Distance(torch.nn.Module):
+        def forward(self, poses):
+            return _pose_distance(poses)
+
+    epsilon = torch.finfo(torch.float32).eps * 2
+    poses = torch.eye(4).expand(3, 4, 4).clone()
+    poses[1, 0, 0] -= epsilon
+    poses[2, 0, 0] += epsilon
+    poses[:, 1, 3] = 2
+    exported = torch.export.export(Distance(), (poses,), strict=False).module()
+    distance, rotation, translation = exported(poses)
+    expected = torch.tensor([0.0, (2 * epsilon / 3) ** 0.5, 0.0])
+    torch.testing.assert_close(rotation, expected, rtol=1e-6, atol=0.0)
+    torch.testing.assert_close(translation, torch.full((3,), 2.0))
+    torch.testing.assert_close(distance, (expected.square() + 4).sqrt())
 
 
 def _main_map_name(ref: str) -> str:
@@ -458,6 +553,42 @@ def test_trt_dtype_unknown_is_a_clear_error():
     assert _torch_dtype(trt, 2) is torch.float16
     with pytest.raises(RuntimeError, match="does not support engine tensors of type 99"):
         _torch_dtype(trt, 99)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_tensorrt_data_dependent_output_sizes(tmp_path):
+    """NonZero can change the output size on every call, even on fixed-size inputs."""
+    if not torch.cuda.is_available() or importlib.util.find_spec("tensorrt") is None:
+        pytest.skip("needs CUDA and tensorrt")
+    onnx = pytest.importorskip("onnx")
+    from fastforks._core.export import TensorRTEngine, build_tensorrt  # noqa: PLC0415
+
+    h, t = onnx.helper, onnx.TensorProto
+    graph = h.make_graph(
+        [h.make_node("NonZero", ["mask"], ["indices"]), h.make_node("Identity", ["mask"], ["identity"])],
+        "variable output length",
+        [h.make_tensor_value_info("mask", t.BOOL, [2, 6])],
+        [
+            h.make_tensor_value_info("indices", t.INT64, [2, "count"]),
+            h.make_tensor_value_info("identity", t.BOOL, [2, 6]),
+        ],
+    )
+    path = tmp_path / "nonzero.onnx"
+    onnx.save(h.make_model(graph, opset_imports=[h.make_opsetid("", 18)]), path)
+    engine = TensorRTEngine(build_tensorrt(path, tmp_path / "nonzero.engine"))
+    x = torch.arange(12, device=engine.device).reshape(2, 6)
+    stream = torch.cuda.Stream(device=engine.device)
+    stream.wait_stream(torch.cuda.current_stream())
+    cases = []
+    for i, count in enumerate((3, 0, 12, 1, 8, 0)):
+        with torch.cuda.stream(stream if i % 2 else torch.cuda.current_stream()):
+            mask = x < count
+            cases.append((engine.run(mask), mask))
+    torch.cuda.synchronize()
+    for outputs, mask in cases:
+        torch.testing.assert_close(outputs["indices"], torch.nonzero(mask).T)
+        torch.testing.assert_close(outputs["identity"], mask)
 
 
 def test_export_defaults_per_task():
@@ -604,7 +735,49 @@ def _first_per_task() -> list[str]:
 
 
 def _tensors(result: Any) -> dict[str, torch.Tensor]:
+    if isinstance(result, list):
+        return {f"{i}.{key}": value for i, item in enumerate(result) for key, value in _tensors(item).items()}
+    from fastforks.matching import SparseMatchingResult  # noqa: PLC0415
+
+    if isinstance(result, SparseMatchingResult):
+        # Sparse matchers may reorder equal-scoring keypoints without changing
+        # the detected points or matched coordinates. Compare those, not indices.
+        def order(rows: torch.Tensor) -> torch.Tensor:
+            idx = torch.arange(len(rows), device=rows.device)
+            for col in range(rows.shape[1] - 1, -1, -1):
+                idx = idx[torch.argsort(rows[idx, col], stable=True)]
+            return idx
+
+        a, b, pairs = result.keypoints1, result.keypoints2, result.pairs.long()
+        matches = torch.cat((a[pairs[:, 0]], b[pairs[:, 1]]), dim=1)
+        match_order = order(matches)
+        out = {
+            "keypoints1": a[order(a)],
+            "matches": matches[match_order],
+            "scores": result.scores[match_order],
+        }
+        # If every second-image point is matched, the ordered matches already
+        # compare all of them; sorting subpixel coordinates independently can
+        # reorder near-ties after harmless floating-point rounding.
+        if torch.unique(pairs[:, 1]).numel() != len(b):
+            out["keypoints2"] = b[order(b)]
+        return out
     return {k: v for k, v in vars(result).items() if isinstance(v, torch.Tensor)}
+
+
+def test_sparse_compile_comparison_is_order_independent() -> None:
+    from fastforks.matching import SparseMatchingResult  # noqa: PLC0415
+
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    b = torch.tensor([[5.0, 6.0], [7.0, 8.0]])
+    first = SparseMatchingResult(a, b, torch.tensor([[0, 1], [1, 0]]), torch.tensor([0.8, 0.9]), "m", "cpu")
+    second = SparseMatchingResult(
+        a.flip(0), b.flip(0), torch.tensor([[0, 1], [1, 0]]), torch.tensor([0.9, 0.8]), "m", "cpu"
+    )
+    for key, value in _tensors(first).items():
+        torch.testing.assert_close(value, _tensors(second)[key])
+    changed = SparseMatchingResult(a, b, torch.tensor([[0, 0], [1, 1]]), torch.tensor([0.8, 0.9]), "m", "cpu")
+    assert not torch.equal(_tensors(first)["matches"], _tensors(changed)["matches"])
 
 
 @pytest.mark.slow
@@ -624,14 +797,30 @@ def test_model_compile_equals_eager(ref):
         assert model.compile(backend="aot_eager") is model
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
-        for name, w in _tensors(want).items():
+        expected, actual = _tensors(want), _tensors(got)
+        assert set(actual) == set(expected)
+        for name, w in expected.items():
             # a few track points sit on near-ties of the cost-volume argmax: locotrack-s needs 9.3e-3 on top of rtol
             atol = 1.2e-2 if TASK[ref] == "tracking" else 2e-3
-            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
+            torch.testing.assert_close(actual[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)
     finally:
         model._runner.__class__ = runner_type  # the sweep model is shared with later tests
+
+
+@pytest.mark.slow
+@pytest.mark.model
+def test_dedode_compiled_matches_eager_semantics() -> None:
+    """Graph breaks are allowed, but the compiled sparse matches must remain correct."""
+    test_model_compile_equals_eager("dedode-v2-b@1")
+
+
+@pytest.mark.slow
+@pytest.mark.model
+def test_loftr_compiled_matches_eager_semantics() -> None:
+    """LoFTR's sparse selection may graph-break but must preserve matches."""
+    test_model_compile_equals_eager("loftr-outdoor@1")
 
 
 @pytest.mark.slow
@@ -692,7 +881,7 @@ def _tiny_vit_stub(side: int) -> Any:
         variant=SimpleNamespace(
             ref="tiny-vit", outputs=("logits",), io=SimpleNamespace(crop=side, resize=side, input="imagenet")
         ),
-        card=SimpleNamespace(task="classification"),
+        card=SimpleNamespace(task="classification", family="vit"),
         weights=None,
         device="cpu",
         module=lambda: net,
@@ -869,7 +1058,41 @@ def test_sincos_einsum_has_one_input_dtype(module):
     torch.testing.assert_close(ep.module()(pos), M()(pos), rtol=1e-6, atol=1e-6)
 
 
-def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
+@pytest.mark.gpu
+def test_tensorrt_scatter_plugin_survives_fresh_process(tmp_path):
+    """Standard plugins must be available for both parsing and fresh-process engine loading."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    if not torch.cuda.is_available() or importlib.util.find_spec("tensorrt") is None:
+        pytest.skip("needs CUDA and tensorrt")
+    pytest.importorskip("onnxscript")
+    from fastforks._core.export import build_tensorrt  # noqa: PLC0415
+
+    class Scatter(torch.nn.Module):
+        def forward(self, values, index):
+            return torch.zeros_like(values).scatter_add(1, index, values)
+
+    values = torch.arange(8, dtype=torch.float32).reshape(1, 8)
+    index = torch.tensor([[0, 1, 1, 3, 4, 4, 6, 7]], dtype=torch.int64)
+    program = torch.onnx.export(Scatter().eval(), (values, index), dynamo=True, verbose=False)
+    assert program is not None
+    path = tmp_path / "scatter.onnx"
+    program.save(str(path))
+    engine = build_tensorrt(path, tmp_path / "scatter.engine")
+    code = """
+import sys, torch
+from fastforks._core.export import TensorRTEngine
+x = torch.arange(8, dtype=torch.float32, device='cuda').reshape(1, 8)
+i = torch.tensor([[0, 1, 1, 3, 4, 4, 6, 7]], dtype=torch.int64, device='cuda')
+actual = TensorRTEngine(sys.argv[1])(x, i)
+torch.testing.assert_close(actual, torch.zeros_like(x).scatter_add(1, i, x), rtol=0, atol=0)
+"""
+    subprocess.run([sys.executable, "-c", code, str(engine)], check=True, timeout=60)
+
+
+@pytest.mark.parametrize("dynamic", [False, True])
+def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path, dynamic):
     """A failing engine build raises BackendUnavailableError naming TensorRT's first error and a way out."""
     from types import SimpleNamespace  # noqa: PLC0415
 
@@ -884,17 +1107,67 @@ def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
     network = SimpleNamespace(num_inputs=0)
     builder = SimpleNamespace(
         create_network=lambda _: network,
-        create_builder_config=lambda: SimpleNamespace(set_memory_pool_limit=lambda *_: None),
+        create_builder_config=lambda: SimpleNamespace(
+            set_memory_pool_limit=lambda *_: None, add_optimization_profile=lambda *_: None
+        ),
+        create_optimization_profile=object,
         build_serialized_network=build,
     )
     trt = SimpleNamespace(
+        init_libnvinfer_plugins=lambda *_: True,
         Builder=lambda _: builder,
         OnnxParser=lambda *_: SimpleNamespace(parse_from_file=lambda _: True),
         NetworkDefinitionCreationFlag=SimpleNamespace(STRONGLY_TYPED=0),
     )
     monkeypatch.setattr(export, "_tensorrt", lambda: trt)
     monkeypatch.setattr(export, "_trt_logger", lambda: logger)
+    profile = (((256, 256), (320, 384)), (288, 320), 1) if dynamic else None
     with pytest.raises(
         BackendUnavailableError, match=r"build failed: Inconsistent strides In compileGraph\. Try float32"
-    ):
-        export.build_tensorrt(tmp_path / "m.onnx", tmp_path / "m.engine")
+    ) as error:
+        export.build_tensorrt(tmp_path / "m.onnx", tmp_path / "m.engine", profile=profile)
+    assert ("omit --size-range" in str(error.value)) == dynamic
+
+
+def test_failed_tensorrt_context_reports_allocator_error(monkeypatch, tmp_path):
+    """A valid plan can fail to allocate a context; report the new TensorRT error at load."""
+    from contextlib import nullcontext  # noqa: PLC0415
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core import export  # noqa: PLC0415
+
+    logger = SimpleNamespace(errors=["older build error"])
+
+    def create_context() -> None:
+        logger.errors.append("CUDA allocation failed")
+
+    engine = SimpleNamespace(create_execution_context=create_context)
+    trt = SimpleNamespace(
+        init_libnvinfer_plugins=lambda *_: True,
+        Runtime=lambda _: SimpleNamespace(deserialize_cuda_engine=lambda _: engine),
+    )
+    monkeypatch.setattr(export, "_tensorrt", lambda: trt)
+    monkeypatch.setattr(export, "_trt_logger", lambda: logger)
+    monkeypatch.setattr(export, "_cuda_device", torch.device)
+    monkeypatch.setattr(torch.cuda, "device", lambda _: nullcontext())
+    plan = tmp_path / "m.engine"
+    plan.write_bytes(b"engine")
+
+    with pytest.raises(RuntimeError, match=r"cannot create a TensorRT execution context.*CUDA allocation failed"):
+        export.TensorRTEngine(plan)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_aanet_export_skips_cuda_only_correlation():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    from fastforks.stereo.models.aanet.net.cost import CostVolume  # noqa: PLC0415 - this family only
+
+    module = CostVolume(4)
+    rng = torch.Generator().manual_seed(0)
+    pair = tuple(torch.rand((1, 8, 6, 12), generator=rng, dtype=torch.float16) for _ in range(2))
+    cuda_pair = tuple(x.cuda() for x in pair)
+    exported = torch.export.export(module, cuda_pair, strict=False)
+    assert all(node.target != torch.ops.aten.bmm.dtype for node in exported.graph.nodes)
+    torch.testing.assert_close(exported.module()(*cuda_pair).cpu(), module(*pair))

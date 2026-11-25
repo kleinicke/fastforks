@@ -2,7 +2,7 @@ schema = 2
 name = "RF-DETR (N / S / M / L detection, Seg N to 2XL)"
 summary = "RF-DETR (Roboflow 2025): real-time end-to-end detection with a DINOv2-small backbone using windowed attention, a single-scale projector and a deformable-attention decoder over 100 to 300 queries, no NMS; boxes, scores and COCO classes at the input size, plus instance masks for the Seg variants. The image is resized to a square (384 to 768 px per variant). The portable `module()` is the whole network (normalised boxes, class logits and, for Seg, mask logits)."
 tier = "experimental"
-uses = ["rfdetr", "cuda_graphs"]
+uses = ["rfdetr", "cuda_graphs", "mlx_wrap"]
 outputs = ["boxes", "scores", "labels", "masks"]
 limitations = [
   "Requires the optional transformers and torchvision libraries.",
@@ -68,9 +68,10 @@ trace_alpha = 0.2
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "fvm_conv"]  # packed-QKV flash attention in the backbone, depthwise convs of the Seg head, fp16-accumulate GEMMs, CUDA graph replay of the network
+kernels = ["rfdetr_input", "fastbb", "fvm_conv"]  # packed-QKV flash attention in the backbone, depthwise convs of the Seg head, fp16-accumulate GEMMs, CUDA graph replay of the network
 
 [output]
 label_set = "coco-80"

@@ -5,9 +5,11 @@ from __future__ import annotations
 import concurrent.futures as cf
 import gc
 import hashlib
+import os
 import subprocess
 import sys
 import threading
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -20,6 +22,7 @@ from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import cuda_graphs
 from synth import image, pair
+from test_files import SYMLINKS
 from test_golden import API, TASK
 
 REFS = ["hitnet-eth3d@1", "depth-anything-v2-s@1", "mobilenet_v2.tv2_in1k@1", "segformer-b0-ade20k@1"]
@@ -119,7 +122,8 @@ def test_threads_download_the_same_file(tmp_path, monkeypatch):
         if p.is_file() and not p.is_symlink() and p != paths[0] and "stamps" not in p.parts
     ]  # the readable view link `fam/w.bin` is a symlink to the blob, not a stray file
     assert not leftovers
-    assert (files.cache_root() / "fam" / "w.bin").resolve() == paths[0].resolve()
+    if SYMLINKS:  # the view link (none where symlinks need a privilege: `link_view` skips it)
+        assert (files.cache_root() / "fam" / "w.bin").resolve() == paths[0].resolve()
     assert not list(files.cache_root().rglob(".download.*"))
 
 
@@ -144,12 +148,12 @@ def test_processes_download_the_same_file(tmp_path, monkeypatch):
     procs = [
         subprocess.Popen(
             [sys.executable, "-I", "-c", _CHILD, sha, str(len(data)), src.as_uri(), str(tmp_path / f"out{i}")],
-            env={**__import__("os").environ, "PYTHONPATH": ":".join(sys.path)},
+            env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
         )
         for i in range(2)
     ]
     assert [p.wait(120) for p in procs] == [0, 0]
-    paths = {(tmp_path / f"out{i}").read_text() for i in range(2)}
+    paths = {(tmp_path / f"out{i}").read_text(encoding="utf-8") for i in range(2)}
     assert len(paths) == 1
     assert files.Path(paths.pop()).read_bytes() == data
     assert not list(files.cache_root().rglob(".download.*"))
@@ -353,3 +357,74 @@ def test_cuda_threads_on_two_streams_match_single_thread():
     for r, w, outs in zip(refs, want, got, strict=True):
         for out in outs:
             assert torch.equal(out, w), f"{r}: {(out - w).abs().max()}"
+
+
+def _refusing_replace(monkeypatch, refusals: int) -> list[int]:
+    """Renaming the download `part` is refused `refusals` times (Windows, while a concurrent rename lands)."""
+    calls = [0]
+    real = Path.replace
+
+    def replace(self, target):
+        if self.name != "part":  # the verification stamp is written by a rename too
+            return real(self, target)
+        calls[0] += 1
+        if calls[0] <= refusals:
+            raise PermissionError(5, "Access is denied", str(self))
+        return real(self, target)
+
+    monkeypatch.setattr(Path, "replace", replace)
+    monkeypatch.setattr(files.time, "sleep", lambda _s: None)
+    return calls
+
+
+def test_place_retries_a_replace_refused_while_the_target_is_not_there(tmp_path, monkeypatch):
+    """A refused rename with no verified blob at the target yet is retried, then placed and remembered."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    calls = _refusing_replace(monkeypatch, 2)
+    files._place(part, s.sha256, s, dest, "file:///x")
+    assert calls[0] == 3
+    assert dest.read_bytes() == data
+    assert not part.exists()
+
+
+def test_place_raises_a_replace_refused_on_every_try(tmp_path, monkeypatch):
+    """A rename that stays refused with no verified blob at the target is an error, not a silent success."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    calls = _refusing_replace(monkeypatch, 99)
+    with pytest.raises(PermissionError):
+        files._place(part, s.sha256, s, dest, "file:///x")
+    assert calls[0] == files._REPLACE_TRIES
+    assert not dest.exists()
+
+
+def test_place_retries_while_a_concurrent_blob_is_not_readable_yet(tmp_path, monkeypatch):
+    """A concurrent rename's blob that cannot be read yet (Errno 13) is retried, then accepted once it verifies."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    dest.parent.mkdir()
+    dest.write_bytes(data)  # the concurrent download's copy
+    calls = _refusing_replace(monkeypatch, 99)
+    checks = [0]
+    real = files._corrupt
+
+    def corrupt(path, spec):
+        checks[0] += 1
+        if checks[0] == 1:
+            raise PermissionError(13, "Permission denied", str(path))
+        return real(path, spec)
+
+    monkeypatch.setattr(files, "_corrupt", corrupt)
+    files._place(part, s.sha256, s, dest, "file:///x")
+    assert (calls[0], checks[0]) == (2, 2)
+    assert dest.read_bytes() == data

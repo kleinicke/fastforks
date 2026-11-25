@@ -18,10 +18,14 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.up_deconv import up_deconv_weight
 
 from .net import RRDBNet
+from .net.rrdbnet_arch import RRDB, ResidualDenseBlock
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -37,6 +41,51 @@ class Params:
     num_block: int  # RRDB blocks: 23, 6 in the anime model
     num_feat: int  # trunk channels (64 in the release models)
     num_grow: int  # dense-block growth channels (32 in the release models)
+    cuda_graphs: bool
+
+
+_TAIL_TILE_BYTES = 64 * 1024**2  # upper target per high-resolution 64-channel feature map
+
+
+_Ups = list[tuple[torch.Tensor, torch.Tensor]]  # transposed-conv weight and bias of each nearest 2x + conv
+
+
+def _upsample(m: RRDBNet, feature: torch.Tensor, ups: _Ups | None = None) -> torch.Tensor:
+    if ups is None:
+        y = m.lrelu(m.conv_up1(F.interpolate(feature, scale_factor=2, mode="nearest")))
+        y = m.lrelu(m.conv_up2(F.interpolate(y, scale_factor=2, mode="nearest")))
+    else:  # kernels: each nearest 2x + conv as one fp16-accumulate transposed conv, bias + LeakyReLU in place
+        y = feature
+        for w, b in ups:
+            y = sr_ops.bias_activation(cudnn_hacc.deconv_half_acc(y, w, (1, 1), (2, 2)), b)
+    return m.conv_last(m.lrelu(m.conv_hr(y)))
+
+
+def _upsample_stripes(m: RRDBNet, feature: torch.Tensor, ups: _Ups | None = None) -> torch.Tensor:
+    """The two 2x upconvolutions and two output convolutions need just two input halo rows on either side."""
+    b, c, h, w = feature.shape
+    rows = max(1, _TAIL_TILE_BYTES // (b * c * 16 * w * feature.element_size()))
+    if rows >= h:
+        return _upsample(m, feature, ups)
+    out = torch.empty(
+        (b, m.conv_last.out_channels, 4 * h, 4 * w),
+        device=feature.device,
+        dtype=feature.dtype,
+        memory_format=torch.channels_last,
+    )
+    for start in range(0, h, rows):
+        end = min(start + rows, h)
+        lo, hi = max(0, start - 2), min(h, end + 2)
+        tile = _upsample(m, feature[:, :, lo:hi], ups)
+        out[:, :, 4 * start : 4 * end].copy_(tile[:, :, 4 * (start - lo) : 4 * (end - lo)])
+    return out
+
+
+def _stripe_forward(m: RRDBNet, x: torch.Tensor, ups: _Ups | None = None) -> torch.Tensor:
+    feature = F.pixel_unshuffle(x, 4 // m.scale) if m.scale in (1, 2) else x
+    feature = m.conv_first(feature)
+    feature = feature + m.conv_body(m.body(feature))
+    return _upsample_stripes(m, feature, ups)
 
 
 class Portable(Runner):
@@ -68,7 +117,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        return {"image": _stripe_forward(self.net, x) if x.is_cuda else self.net(x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
@@ -80,27 +130,85 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _dense(m: ResidualDenseBlock, x: torch.Tensor) -> torch.Tensor:
+    """Write each growth convolution directly into its final channel slice instead of rebuilding dense prefixes."""
+    b, c, h, w = x.shape
+    packed = torch.empty(
+        (b, m.conv5.in_channels, h, w), device=x.device, dtype=x.dtype, memory_format=torch.channels_last
+    )
+    packed[:, :c].copy_(x)
+    backend = cudnn_hacc.load(x.device)
+    for conv in (m.conv1, m.conv2, m.conv3, m.conv4):
+        tail = packed[:, c : c + conv.out_channels]
+        backend.conv_into(packed[:, :c], conv.weight, tail, padding=1, stride=1)
+        sr_ops.bias_activation(tail, conv.get_parameter("bias"))
+        c += conv.out_channels
+    return sr_ops.residual(m.conv5(packed), x)
+
+
+def _rrdb(m: RRDB, x: torch.Tensor) -> torch.Tensor:
+    return sr_ops.residual(m.rdb3(m.rdb2(m.rdb1(x))), x)
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    _GRAPH_PIXELS = 192 * 256  # fixed: launch-bound x2 patches before pixel unshuffle
+    _GRAPH_SCALE = 2  # fixed: the x4 forwards are already GPU-bound at this size
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        sr_ops.load(ctx.device)
+        # 4 instead of 9 multiply-adds per pixel and no upsampled maps (anime-6b 512^2: 129.7 -> 119.9 ms,
+        # error against float32 unchanged)
+        self.ups: _Ups = [
+            (up_deconv_weight(c.weight.detach()).contiguous(memory_format=torch.channels_last), c.get_parameter("bias"))
+            for c in (self.net.conv_up1, self.net.conv_up2)
+        ]
         for m in self.net.modules():
+            if isinstance(m, ResidualDenseBlock):
+                override(m, _dense)
+            elif isinstance(m, RRDB):
+                override(m, _rrdb)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
+        self._graphs = SmallShapeGraphs(
+            self._upscale,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs and ctx.params.scale == self._GRAPH_SCALE,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _upscale(self, image: torch.Tensor) -> torch.Tensor:
+        with fp16_accumulate():
+            return _stripe_forward(self.net, image, self.ups)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
         x = image.to(torch.float16).contiguous(memory_format=self.fmt)
-        with fp16_accumulate():
-            return {"image": self.net(x)}
+        return {"image": self._graphs(x)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    # the cache is resident memory: each variant gets the smallest one that keeps its speed (survey, 512x512 float16)
+    "kernels_mlx": mlx_wrap.port(
+        Portable,
+        kernels_fp16_only=True,
+        cache_mb={"realesrgan-x2plus": 128, "realesrgan-x4plus": 768, "realesrgan-x4plus-anime-6b": 512},
+        chunk_mb={"realesrgan-x2plus": 1024, "realesrgan-x4plus": 1024, "realesrgan-x4plus-anime-6b": 1024},
+    ),
+}
 
 # ESRGAN's original `model.N` layout (old-arch ESRGAN files, e.g. 4x-UltraSharp) -> BasicSR's RRDBNet names
 _OLD = {"model.0.": "conv_first.", "model.3.": "conv_up1.", "model.6.": "conv_up2.", "model.8.": "conv_hr."}

@@ -12,6 +12,7 @@ from fastforks._core.checkpoint import Inert
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import cudnn_hacc, stereo_ops
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner, crop, pad_widths
 
@@ -78,6 +79,11 @@ class _CoExRunner(Runner):
 class Portable(_CoExRunner):
     """Plain PyTorch: float32 (CPU) or pure fp16 weights (CUDA, NHWC); float32 volume statistics and regression."""
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 15.9 -> 9.3 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:
@@ -98,7 +104,8 @@ class Portable(_CoExRunner):
         return Forward(self.net, forward)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: launch-bound up to KITTI 375x1242 (batch x H x W of the raw input), measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x H x W of the raw input; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 12.2 -> 7.6 ms, 720x1280 16.2 -> 14.0 ms (reserved 562 -> 408 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
@@ -170,4 +177,28 @@ class Kernels(_CoExRunner):
         return crop(disp, Crop(pads[2], pads[0], h, w))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _MlxPortable(_CoExRunner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
+
+    batch = 1
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxCoEx(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
+}

@@ -12,12 +12,12 @@ import weakref
 import pytest
 import torch
 
-from fastforks.shared.cuda_graphs import SmallShapeGraphs, capture_stream, side_stream
+from fastforks.shared.cuda_graphs import GraphCache, SmallShapeGraphs, capture_stream, side_stream
 
 
 class _Owner:
-    def __init__(self, pixels: int = 10) -> None:
-        self._graphs = SmallShapeGraphs(self._forward, pixels=pixels)
+    def __init__(self, pixels: int = 10, *, one_shape: bool = False) -> None:
+        self._graphs = SmallShapeGraphs(self._forward, pixels=pixels, one_shape=one_shape)
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         return x @ x + 1
@@ -63,3 +63,49 @@ def test_captures_leave_no_memory_behind():
         del owner
         left.append(_allocated_mb())
     assert left[1:] == left[:-1], f"MB left after each model: {left}"
+
+
+@pytest.mark.gpu
+def test_one_shape_drops_the_graph_before_a_smaller_input():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    graph = _Owner(pixels=64 * 64, one_shape=True)
+    x = torch.randn(1, 1, 64, 64, device="cuda")
+    y = torch.randn(1, 1, 32, 32, device="cuda")
+    cache = graph._graphs.cache
+    assert cache is not None
+    for _ in range(4):
+        graph._graphs(x)
+        graph._graphs(y)
+        assert not cache.graphs
+    graph._graphs(x)
+    captured = graph._graphs(x)
+    assert len(cache.graphs) == 1
+    torch.testing.assert_close(graph._graphs(y), y @ y + 1)
+    assert not cache.graphs
+    torch.testing.assert_close(captured, graph._graphs(x))
+    assert not cache.graphs
+
+
+@pytest.mark.gpu
+def test_direct_capture_retries_with_a_warmup(monkeypatch: pytest.MonkeyPatch) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    cache = GraphCache(torch.square, capture_warmup=False)
+    original = cache._capture_once
+    attempts = []
+
+    def capture(inputs, *, warmup):
+        attempts.append(warmup)
+        if not warmup:
+            msg = "This operator needs the capture stream warmed first"
+            raise RuntimeError(msg)
+        return original(inputs, warmup=warmup)
+
+    monkeypatch.setattr(cache, "_capture_once", capture)
+    x = torch.randn(64, device="cuda")
+    assert cache.run(x.shape, x) is None
+    torch.testing.assert_close(cache.run(x.shape, x), x.square(), atol=0, rtol=0)
+    torch.testing.assert_close(cache.run(x.shape, 2 * x), (2 * x).square(), atol=0, rtol=0)
+    assert attempts == ([False, True] if torch.cuda.get_allocator_backend() == "native" else [True])
+    cache.release()

@@ -1,5 +1,5 @@
 # plemeri/transparent-background f0fa9170 (1.3.4) transparent_background/InSPyReNet.py. Patches: the imports
-# (package-relative, no `sys.path` edit; the Swin-B backbone is `.swinb`, fastforks.shared.swin_v1).
+# (package-relative, no `sys.path` edit), the Swin-B backbone, and earlier release of used pyramid features.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -77,18 +77,22 @@ class InSPyReNet(nn.Module):
         x5 = self.context5(x5) #32
 
         f3, d3 = self.decoder([x3, x4, x5]) #16
+        del x3, x4, x5
 
         f3 = self.res(f3, (H // 4,  W // 4 ))
         f2, p2 = self.attention2(torch.cat([x2, f3], dim=1), d3.detach())
+        del x2, f3
         d2 = self.image_pyramid.reconstruct(d3.detach(), p2) #4
 
         x1 = self.res(x1, (H // 2, W // 2))
         f2 = self.res(f2, (H // 2, W // 2))
         f1, p1 = self.attention1(torch.cat([x1, f2], dim=1), d2.detach(), p2.detach()) #2
+        del x1, f2
         d1 = self.image_pyramid.reconstruct(d2.detach(), p1) #2
         
         f1 = self.res(f1, (H, W))
-        _, p0 = self.attention0(f1, d1.detach(), p1.detach()) #2
+        f0, p0 = self.attention0(f1, d1.detach(), p1.detach()) #2
+        del f0, f1
         d0 = self.image_pyramid.reconstruct(d1.detach(), p0) #2
         
         out = dict()

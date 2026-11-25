@@ -104,7 +104,7 @@ class FlowModel(core.Model):
         Raises:
             InputError: Unsupported, mismatched or too small inputs.
         """
-        t1, t2 = to_rgb_pair(image1, image2, self.device, ("image1", "image2"))
+        t1, t2 = to_rgb_pair(image1, image2, self._device, ("image1", "image2"))
         self._check_size(t1)
         maps = unbatch(self._batched(self._run, t1, t2), image1)
         return FlowResult(maps["flow"], self.variant.ref, self.backend, self.options)
@@ -140,7 +140,7 @@ class _PortableModule(torch.nn.Module):
 
 def bench_inputs(model: FlowModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: a synthetic textured pair `[1, 3, H, W]` (the second image shifted by 8 px)."""
-    return synthetic_pair(size.height, size.width, model.device), {}
+    return synthetic_pair(size.height, size.width, model._device), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, FlowModel)

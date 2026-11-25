@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import torch
+import torch.nn.functional as F
+
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.half import half_weights
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import flow_upsample, flowseek_corr
+from fastforks.shared import mlx_wrap
 
 from .net import FlowSeek
 
 if TYPE_CHECKING:
-    import torch
+    from collections.abc import Callable
 
+    from fastforks._core.kernels import CubinModule
     from fastforks.flow._runner import Context
 
 
@@ -43,6 +51,10 @@ class Portable(Runner):
         self.net.load_state_dict(sd)
         self.net.fp16 = ctx.dtype == "float16"
         self.net.eval().to(ctx.device)
+        if ctx.device.type == "cuda" and self.net.fp16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (375x1242 85.3 -> 77.8 ms, peak 688 -> 629 MB RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a batch."""
@@ -54,4 +66,50 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2, iters))
 
 
-RUNNERS = {"portable": Portable}
+def _lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
+    """Prepare native-width channels-last feature maps for the four pyramid levels."""
+    b, c, h, w = f1.shape
+    if c != 384 or f2.shape != f1.shape:  # noqa: PLR2004 - FlowSeek-T architecture
+        msg = "FlowSeek-T needs two matching 384-channel feature maps"
+        raise ValueError(msg)
+    left = f1.to(dtype=torch.float16, memory_format=torch.channels_last)
+    levels = [f2.to(dtype=torch.float16, memory_format=torch.channels_last)]
+    for _ in range(3):
+        levels.append(F.avg_pool2d(levels[-1], 2))
+
+    def lookup(coords: torch.Tensor) -> torch.Tensor:
+        if coords.shape != (b, 2, h, w) or coords.device != left.device or coords.dtype != torch.float32:
+            msg = "FlowSeek coordinates must be float32 BCHW pixel coordinates on the feature device"
+            raise ValueError(msg)
+        out = left.new_empty((b, h, w, 324))
+        k.launch("lookup", (h * w, b, 4), (128, 1, 1), left, *levels, coords.contiguous(), out, h, w, 1 / math.sqrt(c))
+        return out.permute(0, 3, 1, 2)
+
+    return lookup
+
+
+class Kernels(Portable):
+    """Portable FP16 network with native-width on-demand correlation and fused convex flow upsampling."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and load the CUDA correlation kernel."""
+        super().__init__(ctx)
+        half_weights(self.net)  # reuse cast weights across the depth encoder and recurrent updates
+        self.k = flowseek_corr.load(ctx.device)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a batch, with on-demand correlation."""
+        return {
+            "flow": self.net(
+                image1, image2, self.ctx.params.iters, lambda a, b: _lookup(self.k, a, b), flow_upsample.convex
+            )
+        }
+
+    module = Runner.module
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024),
+}

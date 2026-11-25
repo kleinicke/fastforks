@@ -15,25 +15,73 @@ sha256 = "92d0188c4aeb2149c4f9f81a85e7fc3befc29483de214fce0312936181548efd"
 upstream = "https://github.com/wasserth/TotalSegmentator@184fa4765456492b2ab81a981cc387465906b003"
 settings = "CPU float32, totalsegmentator(ml=True, fast=True, device='cpu') on s0013 ct.nii.gz, centre crop (96, 128, 128) (z, y, x) RAS, torch 2.10.0+cu130"
 
+[refs."totalsegmentator-total-6mm@1"]
+sha256 = "8b6de8f9693abafcb9297bc6c4c938b807f0923b7513bc2943e50f5a34ba2e87"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total, fast=False, fastest=True, model_size=big"
+
 [refs."totalsegmentator-total@1"]
 sha256 = "9647e359f73e37292650dc96a41c140f0a9ff976c24d3b8b25ec4b73146d75eb"
 upstream = "https://github.com/wasserth/TotalSegmentator@184fa4765456492b2ab81a981cc387465906b003"
 settings = "CPU float32, totalsegmentator(ml=True, fast=False, device='cpu') on s0013 ct.nii.gz, centre crop (96, 128, 128) (z, y, x) RAS, torch 2.10.0+cu130"
 
+[refs."totalsegmentator-v3-total-3mm@1"]
+sha256 = "a3eb77447ce76facab9fc463af1c591c206f7bedd2268f6ba4df20c13ec25049"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=True, fastest=False, model_size=big"
+
+[refs."totalsegmentator-v3-total-6mm@1"]
+sha256 = "0821bfda5d944f839c72327c25517ffc18a5cb3d59e2ccf4460f416ab6c38541"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=False, fastest=True, model_size=big"
+
+[refs."totalsegmentator-v3-total-small-3mm@1"]
+sha256 = "9f7d3f311163cdc60fa719e84095a7e88099a1e1d4786cb81856c71b1ad65430"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=True, fastest=False, model_size=small"
+
+[refs."totalsegmentator-v3-total-small@1"]
+sha256 = "27d1eba62283ff3fe4f0bce3ec091fed628603428ed8eaafe2f493d493a5b85c"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=False, fastest=False, model_size=small"
+
+[refs."totalsegmentator-v3-total@1"]
+sha256 = "d6e7fe26a0d9e6fe0de4c834f33116ef883e02beca2c7c5bbcf4134ba67d3a12"
+upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894d05f1d1e65de52277"
+settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=False, fastest=False, model_size=big"
+
 [validated."totalsegmentator-total-3mm@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.0006
+date = "2026-11-18"
+mean_px = 0.00056
+p99_px = 0.0
+
+[validated."totalsegmentator-total-3mm@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00056
 p99_px = 0.0
 
 [validated."totalsegmentator-total@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
+date = "2026-11-18"
+mean_px = 7e-05
+p99_px = 0.0
+
+[validated."totalsegmentator-total@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 7e-05
 p99_px = 0.0

@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.shared.igev_blocks.net.extractor import Feature, MultiBasicEncoder
 from fastforks.shared.igev_blocks.net.submodule import BasicConv, BasicConv_IN, Conv2x, Conv2x_IN, disparity_regression
 from fastforks.shared.mobilenetv2 import MobileNetV2Features
@@ -211,6 +212,19 @@ class ExcitiveAttentionVolume(nn.Module):
         d = self.max_disp // 4
         cl3 = torch.channels_last_3d
         feat = self.feat_stem(context).unsqueeze(2)
+        if exporting_for_mlx():
+            # Functional build for graph replay: in-place plane writes export as slice_scatter chains that copy
+            # the whole chunk volume once per disparity (MLX: ~5 s of copies per call at 256x376).
+            outs = []
+            for d0, d1 in d_chunks(d, 2 * c * h * w, CC_CHUNK):
+                a, e = max(0, d0 - 2), min(d, d1 + 2)
+                shifted = torch.stack(
+                    [F.pad(right[..., : w - i], (i, 0)) if i < w else torch.zeros_like(right) for i in range(a, e)], 2
+                )
+                vol = torch.cat((left.unsqueeze(2).expand(-1, -1, e - a, -1, -1), shifted), 1)
+                y = self.cc_stem(vol)[:, :, d0 - a : d1 - a]
+                outs.append(self.fuse_stem(y * feat))
+            return torch.cat(outs, 2)
         out = None
         for d0, d1 in d_chunks(d, 2 * c * h * w, CC_CHUNK):
             a, e = max(0, d0 - 2), min(d, d1 + 2)

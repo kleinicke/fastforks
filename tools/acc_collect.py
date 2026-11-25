@@ -12,7 +12,7 @@ row fills: "original fp32", "original fp16", "portable", "kernels" (null: a tier
 
 "original fp16" = `upstream16`: the authors' own precision option where the code has one, else autocast float16
 (`upstreamac` where the own option fails), as measured, also where it loses accuracy (the point of the column; user
-2026-11-06). `--write` updates docs/data/<task>_eval.jsonl (replaces only the (ref, mode, dataset) rows it
+2026-11-06). `--write` updates docs/data/<task>_eval.jsonl (replaces only the (ref, tier, dataset) rows it
 collected) and appends the original speed rows (fp32 + fp16) to docs/data/speed.jsonl (rows already there are not
 repeated); `--task` limits both to the tasks measured completely.
 """
@@ -65,7 +65,7 @@ PORTS = {"crestereo-eth3d-pt": "crestereo-eth3d"}
 
 
 def _jl(p: Path) -> list[dict[str, Any]]:
-    return [json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.exists() else []
+    return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()] if p.exists() else []
 
 
 def _sd(raw: Path) -> list[dict[str, Any]]:
@@ -251,28 +251,37 @@ def speed_rows(raw: Path, picked: dict[str, dict[str, str]]) -> list[dict[str, A
 
 
 def merge_lines(old: list[str], new: list[dict[str, Any]]) -> list[str]:
-    """Old lines (verbatim, in order) minus those the new rows replace by (ref, mode, dataset), then the new rows."""
-    gone = {(r["ref"], r["mode"], r.get("dataset")) for r in new}
+    """Keep old lines in order unless a new row replaces the same ref, precision tier and dataset."""
+
+    def identity(row: dict[str, Any]) -> tuple[str, str, str | None]:
+        return row["ref"], row.get("tier") or row["mode"], row.get("dataset")
+
+    gone = {identity(row) for row in new}
     keep = []
     for x in old:
         if x.strip():
             r = json.loads(x)
-            if (r["ref"], r["mode"], r.get("dataset")) in gone:
+            if identity(r) in gone:
                 continue
         keep.append(x if x.endswith("\n") else x + "\n")
     return keep + [json.dumps(r) + "\n" for r in new]
 
 
 def write(rows: dict[str, list[dict[str, Any]]], sp: list[dict[str, Any]], tasks: list[str] | tuple[str, ...]) -> None:
-    """Update docs/data/<task>_eval.jsonl (only collected (ref, mode, dataset) rows are replaced), add speed rows."""
+    """Update docs/data/<task>_eval.jsonl (only collected (ref, tier, dataset) rows are replaced), add speed rows."""
     for t in tasks:
         f = ROOT / "docs/data" / f"{t}_eval.jsonl"
-        f.write_text("".join(merge_lines(f.read_text().splitlines(keepends=True) if f.exists() else [], rows[t])))
+        f.write_text(
+            "".join(
+                merge_lines(f.read_text(encoding="utf-8").splitlines(keepends=True) if f.exists() else [], rows[t])
+            ),
+            encoding="utf-8",
+        )
     sj = ROOT / "docs/data/speed.jsonl"
     key = ("ref", "mode", "tier", "input", "date")
     have_sp = {tuple(r.get(k) for k in key) for r in _jl(sj)}
     new = [r for r in sp if r.get("task") in tasks and tuple(r.get(k) for k in key) not in have_sp]
-    with sj.open("a") as f:
+    with sj.open("a", encoding="utf-8") as f:
         f.writelines(json.dumps(r) + "\n" for r in new)
     print(f"wrote {sum(len(rows[t]) for t in tasks)} eval rows, appended {len(new)} speed rows", file=sys.stderr)
 
@@ -327,7 +336,7 @@ def main() -> None:
            f"{r['ms']} ms, {r.get('peak_alloc_mb')} / {r.get('peak_reserved_mb')} MB") for r in sp]  # fmt: skip
     text = "\n".join(md)
     if a.md:
-        Path(a.md).write_text(text + "\n")
+        Path(a.md).write_text(text + "\n", encoding="utf-8")
     else:
         print(text)
     if a.write:

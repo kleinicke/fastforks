@@ -20,12 +20,14 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate, half_weights, pure_half
 from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.depth._runner import Forward, NoParams, Runner, scale
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.fastbb import Flash64
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
 
-from .net.raft_depth_normal_dpt5 import RAFTDepthNormalDPT5, norm_normalize
+from .net.raft_depth_normal_dpt5 import ConvGRU, RAFTDepthNormalDPT5, Token2Feature, norm_normalize
 from .net.vit_dino_reg import Attention, Mlp, vit_large_reg
 
 if TYPE_CHECKING:
@@ -66,8 +68,56 @@ class _Metric3D(nn.Module):
         self.encoder = vit_large_reg(checkpoint=None, out_channels=[1024] * 4, drop_path_rate=0.0)
         self.decoder = RAFTDepthNormalDPT5(_config())
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        return self.decoder(self.encoder(x))
+    def forward(self, x: torch.Tensor, *, final_only: bool = False) -> dict[str, torch.Tensor]:
+        return self.decoder(self.encoder(x), final_only=final_only)
+
+
+def _eager_cuda(x: torch.Tensor) -> bool:
+    return x.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+    )
+
+
+def _inference_gru(
+    gru: ConvGRU, hidden: torch.Tensor, cz: torch.Tensor, cr: torch.Tensor, cq: torch.Tensor, *inputs: torch.Tensor
+) -> torch.Tensor:
+    """Reuse the input channel buffer after its update and reset convolutions."""
+    if not _eager_cuda(hidden):
+        return ConvGRU.forward(gru, hidden, cz, cr, cq, *inputs)
+    packed = torch.cat((hidden, *inputs), dim=1)
+    update = torch.sigmoid(gru.convz(packed) + cz)
+    reset = torch.sigmoid(gru.convr(packed) + cr)
+    packed[:, : hidden.shape[1]].copy_(reset * hidden)
+    del reset
+    candidate = torch.tanh(gru.convq(packed) + cq)
+    del packed
+    return (1 - update) * hidden + update * candidate
+
+
+def _project_fine_features(readout: Token2Feature, tokens: list[torch.Tensor]) -> torch.Tensor:
+    """Project on the token grid before nearest-neighbor replication."""
+    if not _eager_cuda(tokens[0]):
+        return Token2Feature.forward(readout, tokens)
+    features = readout.readoper(tokens).permute(0, 3, 1, 2).contiguous()
+    projected = readout.sample(features.float())
+    return F.interpolate(projected, scale_factor=readout.scale_factor, mode="nearest")
+
+
+def _upsample_fields(dec: RAFTDepthNormalDPT5, flow: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Apply the same convex upsampling weights independently to each output field."""
+    if not _eager_cuda(flow):
+        return RAFTDepthNormalDPT5.upsample_flow(dec, flow, mask)
+    batch, fields, height, width = flow.shape
+    factor = 2**dec.n_downsample
+    weights = mask.view(batch, 1, 9, factor, factor, height, width).softmax(dim=2)
+    neighbors = F.unfold(flow, (3, 3), padding=1).view(batch, fields, 9, 1, 1, height, width)
+    out = flow.new_empty((batch, fields, factor * height, factor * width))
+    for field in range(fields):
+        section = slice(field, field + 1)
+        value = (weights * neighbors[:, section]).sum(dim=2)
+        out[:, section].copy_(value.permute(0, 1, 4, 2, 5, 3).reshape(batch, 1, factor * height, factor * width))
+        del value
+    return out
 
 
 def _net(ctx: Context) -> _Metric3D:
@@ -77,6 +127,13 @@ def _net(ctx: Context) -> _Metric3D:
     load_strict(net, state, f"{ctx.variant.ref} checkpoint", not_in_checkpoint=("encoder.mask_token",))
     net.encoder.mask_token.data.zero_()  # not in the checkpoint; upstream: zeros, only used in training
     net.decoder.register_depth_expectation_anchor(BINS, 1)  # broadcasts over the batch
+    if ctx.device.type == "cuda":
+        for module in net.decoder.update_block.modules():
+            if isinstance(module, ConvGRU):
+                override(module, _inference_gru)
+        if ctx.dtype == "float16":
+            override(net.decoder.token2feature.read_0, _project_fine_features)
+            override(net.decoder, _upsample_fields, "upsample_flow")
     return net.eval()
 
 
@@ -143,8 +200,11 @@ class Portable(Runner):
 
     def _run(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         x, s, pad = _prepare(self.ctx, image)
+        final_only = x.is_cuda and not (
+            torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()
+        )
         with torch.autocast(x.device.type, dtype=torch.float16, enabled=self.half):
-            o = self.net(x)
+            o = self.net(x, final_only=final_only)
         maps = torch.cat([o["prediction"], o["confidence"], o["prediction_normal"][:, :3]], 1)
         return _restore(image, intrinsics, s, pad, maps)
 
@@ -213,10 +273,10 @@ def _decode(dec: Any, tokens: torch.Tensor, b: int, gh: int, gw: int) -> torch.T
     inp = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp, zqr, strict=False)]
     ub = dec.update_block
     mask = None
-    for _ in range(dec.iters):
+    for i in range(dec.iters):
         net = ub(net, inp, iter32=True, iter16=False, iter08=False, update=False)
         net = ub(net, inp, iter32=True, iter16=True, iter08=False, update=False)
-        net, mask, delta = ub(net, inp, None, flow, iter32=True, iter16=True)
+        net, mask, delta = ub(net, inp, None, flow, iter32=True, iter16=True, return_mask=i + 1 == dec.iters)
         flow = flow + delta
     up = dec.upsample_flow(flow, mask)
     depth = dec.clamp(up[:, :1] * dec.regress_scale + dec.max_val)
@@ -239,6 +299,9 @@ class Kernels(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.vit = _ViT(self.net.encoder, "hh", dpt_fused.load(ctx.device))
+        # autocast casts these weights to fp16 at every conv (bit-identical, ~700 copies per call: 151.6 -> 148.9 ms
+        # at 994 x 1482); NCHW stays, the channels-last decoder ran slower (layout copies around its other ops)
+        half_weights(self.net.decoder, channels_last=False)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Metric depth, normals and confidence of a batch."""
@@ -250,4 +313,15 @@ class Kernels(Runner):
         return _restore(image, intrinsics, s, pad, maps)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+# The decoder runs as a float32 graph (the portable float16 run keeps it under autocast): a float16 decoder misses the
+# depth golden (mean 0.021, tol 0.01; float32 decoder 0.0001).
+_Mlx = mlx_wrap.port(
+    Portable, attrs=("net.encoder",), methods=("net.decoder.forward",), fp32_methods=("net.decoder.forward",)
+)
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
+}

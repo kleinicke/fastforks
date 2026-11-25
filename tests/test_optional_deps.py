@@ -126,14 +126,14 @@ def test_optional_imports_only_in_guarded_helpers():
     found: list[str] = []
     for f in sorted(SRC.rglob("*.py")):
         rel = f.relative_to(SRC).as_posix()
-        _scan(ast.parse(f.read_text(), rel), rel, found)
+        _scan(ast.parse(f.read_text(encoding="utf-8"), rel), rel, found)
     assert not found, "\n".join(found)
 
 
 def test_guarded_helpers_exist():
     """The allowlist names real functions that really import something optional (no stale entries)."""
     for rel, func in GUARDED:
-        tree = ast.parse((SRC / rel).read_text())
+        tree = ast.parse((SRC / rel).read_text(encoding="utf-8"))
         fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == func)
         assert any(OPTIONAL.intersection(_imported(n)) for n in ast.walk(fn)), f"{rel}:{func} imports nothing optional"
 
@@ -156,7 +156,7 @@ def test_requires_known_and_documented():
     for card, _ in NEEDY.values():
         assert set(card.requires) <= set(LIBRARY_EXTRA), card.family
         assert set(card.extras) <= set(
-            tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+            tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["optional-dependencies"]
         )
     assert stereo.model_card("s2m2-s").requires == ()
     assert classification.model_card("deit_base_patch16_224.fb_in1k").requires == ("timm",)
@@ -262,7 +262,7 @@ def _family_code(card) -> tuple[set[str], bool]:
     libnet = False
     for f in sorted(d.rglob("*.py")):
         pkg = ["fastforks", *f.parent.relative_to(SRC).parts]
-        n, lib = _code_needs(f.read_text(), pkg)
+        n, lib = _code_needs(f.read_text(encoding="utf-8"), pkg)
         needs |= n
         libnet |= lib
     return needs, libnet
@@ -301,7 +301,7 @@ def test_the_drift_scanner_sees_every_import_form(source, needs, libnet):
 
 
 def test_supported_versions_match_the_core_extras():
-    extras = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+    extras = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["optional-dependencies"]
     from fastforks._core.cards import LIBRARY_SPEC  # noqa: PLC0415
 
     for lib, spec in LIBRARY_SPEC.items():
@@ -365,15 +365,17 @@ def build_dists():
 
 
 def test_model_dists_declare_their_libraries(build_dists, tmp_path):
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
-    extras = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
+    extras = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["optional-dependencies"]
     version = "1.2.3"
     for name, spec in dists.items():
         out = tmp_path / name
         out.mkdir()
         build_dists.stage(name, spec, version, out, extras)
-        deps = tomllib.loads((out / "pyproject.toml").read_text())["project"]["dependencies"]
-        assert deps == [f"fastforks-core=={version}", *build_dists.library_requirements(spec, extras)]
+        project = tomllib.loads((out / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        library_reqs = build_dists.library_requirements(spec, extras)
+        assert project["dependencies"] == [f"fastforks-core=={version}", *library_reqs]
+        assert spec["summary"] in (out / project["readme"]).read_text(encoding="utf-8")
 
     def needs(task):
         return set(build_dists.library_requirements({"code_classes": ["permissive"], "tasks": [task]}, extras))
@@ -385,8 +387,8 @@ def test_model_dists_declare_their_libraries(build_dists, tmp_path):
 
 
 def test_fastforks_metapackage_installs_everything_but_tensorrt(build_dists):
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
-    text = (ROOT / "pyproject.toml").read_text()
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     core = tomllib.loads(build_dists.core_pyproject(text, dists, "1.2.3"))["project"]
     assert "all" not in core["optional-dependencies"]  # `pip install fastforks` is "everything"
     # libs: every library extra and ONNX export; TensorRT stays opt-in (CUDA-version specific)

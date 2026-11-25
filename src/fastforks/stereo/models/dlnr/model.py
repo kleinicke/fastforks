@@ -6,6 +6,7 @@ import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.dlnr import DLNR
@@ -75,4 +76,31 @@ class Kernels(Runner):
         return {"disparity": self._forward(self.net, self.k, left, right, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), one pair per call."""
+
+    batch = 1  # not measured on Apple GPUs
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = DLNR(_args())
+        net.load_state_dict(ctx.state_dict())
+        self.net = mlx_net.MlxDLNR(prepare(net, half=False), mlx_wrap.run_dtype(ctx), ctx.params.iters)
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
+}

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from fastforks._core import registry
+from fastforks.kernels import knn_attention
 from fastforks.multiview.models.resplat import model, render
-from fastforks.multiview.models.resplat.net.point_transformer import knn_query
+from fastforks.multiview.models.resplat.net.point_transformer import KNNAttention, knn_query
 
 
 def _rotations(n: int, seed: int = 0) -> torch.Tensor:
@@ -18,7 +20,7 @@ def _params(**kw: object) -> model.Params:
     base = {
         "vit": "vits", "channels": 256, "latent": 4, "fixed_latent": True, "gaussians_per_point": 1,
         "same_points": False, "lowest": 8, "size_multiple": 32, "train_size": (256, 448), "near": 0.01, "far": 200.0,
-        "long_side": 0, "refine": 2,
+        "long_side": 0, "iters": 2,
     }  # fmt: skip
     return model.Params(**(base | kw))  # type: ignore[arg-type]
 
@@ -46,6 +48,21 @@ def test_knn_matches_exact_distances() -> None:
     want = d.topk(8, dim=1, largest=False)[0]  # the fp32 grid at 50 makes ties: compare distances, not indices
     for pool, margin in ((64, 16), (4096, 2), (4096, 16)):  # 64 / margin 2: many queries redone over all points
         assert torch.equal(d.gather(1, knn_query(8, p, rows=32, pool=pool, margin=margin)).sort(1)[0], want)
+
+
+@pytest.mark.slow
+def test_exported_knn_matches_exact_distances() -> None:
+    class KNN(torch.nn.Module):
+        def forward(self, points: torch.Tensor) -> torch.Tensor:
+            return knn_query(4, points, rows=8, pool=16, budget=1024)
+
+    points = torch.randn(64, 3, generator=torch.Generator().manual_seed(0))
+    module = KNN().eval()
+    exported = torch.export.export(module, (points,), strict=False).module()
+    distances = (points[:, None] - points[None]).square().sum(-1)
+    expected = distances.topk(4, dim=1, largest=False)[0]
+    for idx in (module(points), exported(points)):
+        torch.testing.assert_close(distances.gather(1, idx).sort(1)[0], expected)
 
 
 def test_sh_rotation_keeps_colours() -> None:
@@ -76,3 +93,30 @@ def test_render_single_gaussian() -> None:
         32, 32, 0.01, 100.0,
     )  # fmt: skip
     torch.testing.assert_close(img[0, :, 16, 16], torch.tensor([0.7, 0.4, 0.8]) * 0.99, atol=5e-3, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("k", [8, 16])
+def test_indexed_attention_matches_gather(k: int) -> None:
+    """Batched gather/matmul is the reference, including repeated neighbours, equal logits and extreme scores."""
+    gen = torch.Generator(device="cuda").manual_seed(13)
+    qkv = torch.randn(163, 192, generator=gen, device="cuda", dtype=torch.float16)
+    qkv[0, :64] = 0
+    qkv[1, :64] *= 10
+    indices = torch.randint(0, qkv.shape[0], (qkv.shape[0], k), generator=gen, device="cuda")
+    indices[2] = 37
+    q, keys, values = qkv.chunk(3, -1)
+    with torch.autocast("cuda", dtype=torch.float16):
+        want = KNNAttention._attend(q, keys, values, indices, 0.125)
+        got = knn_attention.attention(qkv, indices)
+    torch.testing.assert_close(got, want, rtol=0.001, atol=0.0002)
+
+
+def test_chunked_point_mlp(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.multiview.models.resplat.net.point_transformer import MLP  # noqa: PLC0415
+
+    torch.manual_seed(123)
+    layer = MLP(16)
+    x = torch.randn(19, 16)
+    monkeypatch.setattr(model, "_MLP_TILE_BYTES", 7 * layer.fc1.out_features * x.element_size())
+    torch.testing.assert_close(model._point_mlp(layer, x), layer(x))

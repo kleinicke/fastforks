@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "docs" / "data"
 REGISTRY = DATA / "devices.toml"
 FLOOR = DATA / "speed.jsonl"
-BACKENDS = ("cuda", "rocm", "mps", "cpu")  # cpu: a machine's CPU cores (surveyed on Apple silicon)
+BACKENDS = ("cuda", "rocm", "mps", "mlx", "cpu")  # mlx: the MLX ports; cpu: a machine's CPU cores (Apple silicon)
 MODES = ("upstream-default", "upstream", "portable", "kernels")  # the cell order of every table
 STATUSES = ("ok", "unsupported", "failed", "oom")
 GOLDENS = ("pass", "fail", "skip")  # optional `golden`: the golden check of the same loaded model
@@ -33,6 +33,8 @@ MEMORY_KINDS = {
 PROTOCOLS = {
     "warm-median": "median of warm, synchronised calls after warm-up (at least 5; 2 for calls over 2 s on surveys)",
 }
+# optional startup figures of a survey row: load, first call, the footprint after load, a first call at a second size
+_STARTUP_KEYS = ("load_s", "first_call_s", "load_peak_footprint_mb", "second_shape_s")
 _SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _DTYPES = ("float32", "bfloat16", "float16")
 _WARM_RUNS = 5  # fewest timed calls of a reference row counted as `warm-median`
@@ -66,7 +68,7 @@ class Device:
 def devices() -> list[Device]:
     """The registry in its order; exactly one reference device."""
     out = []
-    for slug, d in tomllib.loads(REGISTRY.read_text()).items():
+    for slug, d in tomllib.loads(REGISTRY.read_text(encoding="utf-8")).items():
         extra = set(d) - {"name", "backend", "match", "memory", "details", "software", "reference", "hidden"}
         if not _SLUG.match(slug) or extra or d.get("backend") not in BACKENDS:
             msg = f"devices.toml [{slug}]: bad slug, unknown keys {sorted(extra)} or backend not one of {BACKENDS}"
@@ -136,6 +138,11 @@ def _check(path: Path, n: int, row: dict[str, Any], dev: Device) -> list[str]:
     if status == "ok":
         if not isinstance(row.get("ms"), int | float):
             errs.append(f"{where}: an ok row needs ms")
+        errs += [  # optional startup figures (speed_survey): numbers when present
+            f"{where}: {k} must be a number"
+            for k in _STARTUP_KEYS
+            if k in row and (not isinstance(row[k], int | float) or isinstance(row[k], bool) or row[k] < 0)
+        ]
         kind = row.get("memory_kind")
         if kind is not None and (kind not in MEMORY_KINDS or any(k not in row for k in MEMORY_KINDS[kind][0])):
             errs.append(f"{where}: memory_kind not one of {sorted(MEMORY_KINDS)} or its fields missing")
@@ -147,7 +154,11 @@ def _check(path: Path, n: int, row: dict[str, Any], dev: Device) -> list[str]:
 def survey_rows(dev: Device) -> list[dict[str, Any]]:
     """The rows of a survey device, checked; raises ValueError naming every bad row."""
     path = dev.data
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.is_file() else []
+    rows = (
+        [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if path.is_file()
+        else []
+    )
     errs = [e for n, r in enumerate(rows, 1) for e in _check(path, n, r, dev)]
     seen: dict[tuple[str, str, str, str], int] = {}
     for n, r in enumerate(rows, 1):
@@ -172,5 +183,5 @@ def rows(dev: Device) -> list[dict[str, Any]]:
     """The device's rows: the floor as recorded for the reference, else the checked survey rows."""
     if not dev.reference:
         return survey_rows(dev)
-    floor = [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    floor = [json.loads(line) for line in FLOOR.read_text(encoding="utf-8").splitlines() if line.strip()]
     return [r for r in floor if not r.get("cold") or "ms" in r]  # cold-start rows without timings: startup only

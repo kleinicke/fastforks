@@ -8,6 +8,11 @@
 import torch
 import torch.nn as nn
 
+from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.tracing import in_onnx_export
+
+from ._export import inverse_real_dft2, real_dft2
+
 
 def reflect_pad(x, p):
     """`F.pad(x, (p, p, p, p), mode="reflect")` that keeps `x`'s memory format (slice copies into one buffer)."""
@@ -16,6 +21,7 @@ def reflect_pad(x, p):
     b, c, h, w = x.shape
     fmt = torch.channels_last if x.stride(1) == 1 and c > 1 else torch.contiguous_format
     out = torch.empty((b, c, h + 2 * p, w + 2 * p), dtype=x.dtype, device=x.device, memory_format=fmt)
+    out = to_run_dtype(out, x.dtype)  # fastforks: the MLX twin's buffer is float32 (MLX run dtype); else a no-op
     out[..., p : p + h, p : p + w] = x
     if p == 1 and h >= 4 and w >= 4:  # noqa: PLR2004 - two strided copies: columns 1, w - 2 and rows 2, h - 1
         out[..., 1 : h + 1, :: w + 1] = x[..., :, 1 : w - 1 : w - 3]
@@ -47,15 +53,21 @@ class FourierUnit(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         dtype = x.dtype
-        nhwc = x.permute(0, 2, 3, 1).float()  # a view on channels-last input
-        ffted = torch.view_as_real(torch.fft.rfftn(nhwc, dim=(1, 2), norm="ortho"))  # (b, h, w/2+1, c, 2)
+        exporting = in_onnx_export()
+        if exporting:
+            ffted = real_dft2(x.float()).permute(0, 2, 3, 1, 4)
+        else:
+            nhwc = x.permute(0, 2, 3, 1).float()  # a view on channels-last input
+            ffted = torch.view_as_real(torch.fft.rfftn(nhwc, dim=(1, 2), norm="ortho"))  # (b, h, w/2+1, c, 2)
         ffted = ffted.reshape(b, h, -1, 2 * c).permute(0, 3, 1, 2)  # channels c * 2 + real / imag, as upstream
         conv = self.conv_layer
         ffted = nn.functional.conv2d(ffted, conv.weight.float(), None if conv.bias is None else conv.bias.float())
         ffted = self.relu(self.bn(ffted))
         ffted = ffted.permute(0, 2, 3, 1).reshape(b, h, -1, c, 2).contiguous()
+        if exporting:
+            return inverse_real_dft2(ffted.permute(0, 3, 1, 2, 4), w).to(dtype)
         output = torch.fft.irfftn(torch.view_as_complex(ffted), s=(h, w), dim=(1, 2), norm="ortho")
-        return output.permute(0, 3, 1, 2).to(dtype)
+        return to_run_dtype(output.permute(0, 3, 1, 2), dtype)  # the float32 island ends here (MLX replay too)
 
 
 class SpectralTransform(nn.Module):

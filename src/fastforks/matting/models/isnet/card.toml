@@ -3,7 +3,7 @@ name = "IS-Net"
 summary = "IS-Net (Qin et al., ECCV 2022): dichotomous image segmentation, a U²-Net-style encoder-decoder of residual U-blocks at 1024 x 1024 (strided stem), trained with intermediate supervision. `isnet-general-use` is the authors' general-purpose model (rembg's `isnet-general-use`), `isnet` the academic DIS5K model."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xuebinqin/DIS"
@@ -28,8 +28,11 @@ size = 1024  # network input side (upstream inference); the map is resized back 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU blocks as one conv with an fp32 epilogue
 
 [[papers]]

@@ -3,7 +3,7 @@ name = "Video Depth Anything"
 summary = "Video Depth Anything (Chen et al., CVPR 2025): temporally consistent depth of long videos from the Depth Anything V2 encoder and a DPT head with temporal attention, run in overlapping 32-frame windows; relative (Small) and metric (Metric Small) checkpoints."
 tier = "experimental"
 outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "Only the Small checkpoints (relative and metric) are Apache-2.0; the Base and Large checkpoints are CC-BY-NC-4.0 and not included.",
@@ -13,6 +13,7 @@ limitations = [
   "`model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.",
   "Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.",
   "The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.",
+  "Video Depth Anything Small at 40 frames of 480 × 640 in FP16 uses 1,231 MiB portable and 1,297 MiB kernels on an RTX 5060 Ti, with warm medians of 458.1 and 375.8 ms. Depth matches bitwise on this clip and three labeled TUM clips within each mode.",
 ]
 
 [output]
@@ -43,6 +44,7 @@ metric = false  # metric checkpoints: depth in metres, windows not scale + shift
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb"]

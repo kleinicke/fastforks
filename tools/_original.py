@@ -353,7 +353,7 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     card, variant = registry.resolve("flow", full)
     size = variant.params.get("size", card.params.get("size"))
     scale = variant.params.get("scale", card.params["scale"])
-    net = RAFT(argparse.Namespace(**json.loads((a.tree / "config/eval" / g.CONFIG[size]).read_text())))
+    net = RAFT(argparse.Namespace(**json.loads((a.tree / "config/eval" / g.CONFIG[size]).read_text(encoding="utf-8"))))
     sd = load_state_dict(registry.weights(card, variant, allow_download=False)[0])
     sd |= {k.replace(".bn3.", ".downsample.1."): v for k, v in sd.items() if ".bn3." in k}
     net.load_state_dict(sd, strict=True)
@@ -1491,12 +1491,19 @@ def _xfeat(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # 
     return call
 
 
-def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
+def _lightglue(
+    a: Any,  # noqa: ANN401 - benchmark arguments
+    full: str,
+    fp16: bool,  # noqa: FBT001 - shared benchmark interface
+    options: dict[str, Any] | None = None,
+    *,
+    flash: bool = True,
+) -> Any:  # noqa: ANN401 - model callable
     """Upstream `match_pair` with the extractor and `LightGlue` as `tools/golden/lightglue.py` (card `options`).
 
     `options` override the card's. fp16: the authors' `mp` option (LightGlue's mixed precision; the extractor stays
-    float32). Upstream's attention runs in float16 on CUDA either way. Needs a `FF_LIGHTGLUE_REPO` checkout with the
-    pinned commit and kornia.
+    float32). With the authors' default `flash=True`, upstream's attention runs in float16 on CUDA either way.
+    Needs a `FF_LIGHTGLUE_REPO` checkout with the pinned commit and kornia.
     """
     import functools  # noqa: PLC0415
 
@@ -1515,7 +1522,7 @@ def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = N
     params, opts = dict(variant.params), dict(card.options) | (options or {})
     extractor = {"aliked": ALIKED, "disk": DISK}[params["extractor"]]
     ex = extractor(max_num_keypoints=opts["max_keypoints"]).eval().cuda()
-    lg = LightGlue(features=params["extractor"], mp=fp16).eval().cuda()
+    lg = LightGlue(features=params["extractor"], mp=fp16, flash=flash).eval().cuda()
     a.note = f"upstream match_pair {params['extractor']} + LightGlue, resize {opts['long_side']}"
 
     def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
@@ -2538,7 +2545,7 @@ def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     card, variant = registry.resolve("matching", full)
     sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOMA_REPO"]), g.REF_COMMIT) / "src"))
     params = dict(card.params) | dict(variant.params) | dict(card.options)
-    a.note = f"upstream LoMa(LoMaB(mp=False)), float32, {params['max_keypoints']} keypoints"
+    a.note = f"upstream {variant.id} (mp=False), float32, {params['max_keypoints']} keypoints"
     run = g.build(registry.weights(card, variant, allow_download=False), params, device="cuda")
 
     def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images

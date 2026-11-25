@@ -3,7 +3,7 @@
 Adapted from https://github.com/jinlinyi/PerspectiveFields/blob/main/perspective2d/utils/panocam.py
 """
 
-from typing import Tuple
+from typing import NamedTuple, Tuple
 
 import torch
 from torch.nn import functional as F
@@ -11,8 +11,22 @@ from torch.nn import functional as F
 from .camera import BaseCamera
 from .gravity import Gravity
 from .misc import J_up_projection, J_vecnorm, SphericalManifold
+from ..small_einsum import einsum  # fastforks: broadcast products, not per-pixel bmm
 
 # flake8: noqa: E266
+
+
+class ImageGrid(NamedTuple):
+    """Pixel coordinates and dimensions shared by one camera fit."""
+
+    height: int
+    width: int
+    pixels: torch.Tensor
+
+    @classmethod
+    def from_camera(cls, camera: BaseCamera) -> "ImageGrid":
+        w, h = camera.size[0].round().to(torch.int64).tolist()
+        return cls(h, w, camera.pixel_coordinates((h, w)))
 
 
 def get_horizon_line(camera: BaseCamera, gravity: Gravity, relative: bool = True) -> torch.Tensor:
@@ -44,7 +58,9 @@ def get_horizon_line(camera: BaseCamera, gravity: Gravity, relative: bool = True
     return horizon / camera.size[1] if relative else horizon
 
 
-def get_up_field(camera: BaseCamera, gravity: Gravity, normalize: bool = True) -> torch.Tensor:
+def get_up_field(
+    camera: BaseCamera, gravity: Gravity, normalize: bool = True, *, grid: ImageGrid | None = None
+) -> torch.Tensor:
     """Get the up vector field from the camera parameters.
 
     Args:
@@ -57,10 +73,8 @@ def get_up_field(camera: BaseCamera, gravity: Gravity, normalize: bool = True) -
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
-
-    uv = camera.normalize(camera.pixel_coordinates())
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
+    uv = camera.normalize(xy)
 
     # projected up is (a, b) - c * (u, v)
     abc = gravity.vec3d
@@ -70,10 +84,10 @@ def get_up_field(camera: BaseCamera, gravity: Gravity, normalize: bool = True) -
         d_uv = camera.distort(uv, return_scale=True)[0]  # (..., N, 1)
         d_uv = torch.diag_embed(d_uv.expand(d_uv.shape[:-1] + (2,)))  # (..., N, 2, 2)
         offset = camera.up_projection_offset(uv)  # (..., N, 2)
-        offset = torch.einsum("...i,...j->...ij", offset, uv)  # (..., N, 2, 2)
+        offset = einsum("...i,...j->...ij", offset, uv)  # (..., N, 2, 2)
 
         # (..., N, 2)
-        projected_up2d = torch.einsum("...Nij,...Nj->...Ni", d_uv + offset, projected_up2d)
+        projected_up2d = einsum("...Nij,...Nj->...Ni", d_uv + offset, projected_up2d)
 
     if normalize:
         projected_up2d = F.normalize(projected_up2d, dim=-1)  # (..., N, 2)
@@ -87,6 +101,8 @@ def J_up_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> torch.Tensor:
     """Get the jacobian of the up field.
 
@@ -103,11 +119,10 @@ def J_up_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w, xy = grid
 
     # Forward
-    xy = camera.pixel_coordinates()
     uv = camera.normalize(xy)
 
     projected_up2d = gravity.vec3d[..., None, :2] - gravity.vec3d[..., 2, None, None] * uv
@@ -116,16 +131,17 @@ def J_up_field(
     J = []
 
     # (..., N, 2, 2)
-    J_norm2proj = J_vecnorm(
-        get_up_field(camera, gravity, normalize=False).reshape(camera.shape[0], -1, 2)
-    )
+    unnormalized = projected_up2d
+    if hasattr(camera, "dist"):
+        unnormalized = get_up_field(camera, gravity, normalize=False, grid=grid).reshape(camera.shape[0], -1, 2)
+    J_norm2proj = J_vecnorm(unnormalized)
 
     # distortion values
     if hasattr(camera, "dist"):
         d_uv = camera.distort(uv, return_scale=True)[0]  # (..., N, 1)
         d_uv_diag = torch.diag_embed(d_uv.expand(d_uv.shape[:-1] + (2,)))  # (..., N, 2, 2)
         offset = camera.up_projection_offset(uv)  # (..., N, 2)
-        offset_uv = torch.einsum("...i,...j->...ij", offset, uv)  # (..., N, 2, 2)
+        offset_uv = einsum("...i,...j->...ij", offset, uv)  # (..., N, 2, 2)
 
     ######################
     ## Gravity Jacobian ##
@@ -135,18 +151,18 @@ def J_up_field(
 
     if hasattr(camera, "dist"):
         # (..., N, 2, 3)
-        J_proj2abc = torch.einsum("...Nij,...Njk->...Nik", d_uv_diag + offset_uv, J_proj2abc)
+        J_proj2abc = einsum("...Nij,...Njk->...Nik", d_uv_diag + offset_uv, J_proj2abc)
 
     if camera_R_rig is not None:
-        J_proj2abc = torch.einsum("bnij,bjk->bnik", J_proj2abc, camera_R_rig)
+        J_proj2abc = einsum("bnij,bjk->bnik", J_proj2abc, camera_R_rig)
         # g_rig = R0^T @ g0
-        g_rig = Gravity(torch.einsum("...ij,...i->...j", camera_R_rig[:1], gravity.vec3d[:1]))
+        g_rig = Gravity(einsum("...ij,...i->...j", camera_R_rig[:1], gravity.vec3d[:1]))
         J_abc2delta = SphericalManifold.J_plus(g_rig.vec3d) if spherical else g_rig.J_rp()
-        J_proj2delta = torch.einsum("bnij,jk->bnik", J_proj2abc, J_abc2delta[0])
+        J_proj2delta = einsum("bnij,jk->bnik", J_proj2abc, J_abc2delta[0])
     else:
         J_abc2delta = SphericalManifold.J_plus(gravity.vec3d) if spherical else gravity.J_rp()
-        J_proj2delta = torch.einsum("...Nij,...jk->...Nik", J_proj2abc, J_abc2delta)
-    J_up2delta = torch.einsum("...Nij,...Njk->...Nik", J_norm2proj, J_proj2delta)
+        J_proj2delta = einsum("...Nij,...jk->...Nik", J_proj2abc, J_abc2delta)
+    J_up2delta = einsum("...Nij,...Njk->...Nik", J_norm2proj, J_proj2delta)
     J.append(J_up2delta)
 
     ######################
@@ -156,12 +172,12 @@ def J_up_field(
     J_proj2uv = J_up_projection(uv, gravity.vec3d, wrt="uv")  # (..., N, 2, 2)
 
     if hasattr(camera, "dist"):
-        J_proj2up = torch.einsum("...Nij,...Njk->...Nik", d_uv_diag + offset_uv, J_proj2uv)
-        J_proj2duv = torch.einsum("...i,...j->...ji", offset, projected_up2d)
+        J_proj2up = einsum("...Nij,...Njk->...Nik", d_uv_diag + offset_uv, J_proj2uv)
+        J_proj2duv = einsum("...i,...j->...ji", offset, projected_up2d)
 
         inner = (uv * projected_up2d).sum(-1)[..., None, None]
         J_proj2offset1 = inner * camera.J_up_projection_offset(uv, wrt="uv")
-        J_proj2offset2 = torch.einsum("...i,...j->...ij", offset, projected_up2d)  # (..., N, 2, 2)
+        J_proj2offset2 = einsum("...i,...j->...ij", offset, projected_up2d)  # (..., N, 2, 2)
         J_proj2uv = (J_proj2duv + J_proj2offset1 + J_proj2offset2) + J_proj2up
 
     J_uv2f = camera.J_normalize(xy)  # (..., N, 2, 2)
@@ -171,8 +187,8 @@ def J_up_field(
 
     J_uv2f = J_uv2f.sum(-1)  # (..., N, 2)
 
-    J_proj2f = torch.einsum("...ij,...j->...i", J_proj2uv, J_uv2f)  # (..., N, 2)
-    J_up2f = torch.einsum("...Nij,...Nj->...Ni", J_norm2proj, J_proj2f)[..., None]  # (..., N, 2, 1)
+    J_proj2f = einsum("...ij,...j->...i", J_proj2uv, J_uv2f)  # (..., N, 2)
+    J_up2f = einsum("...Nij,...Nj->...Ni", J_norm2proj, J_proj2f)[..., None]  # (..., N, 2, 1)
     J.append(J_up2f)
 
     #######################
@@ -182,19 +198,21 @@ def J_up_field(
     if hasattr(camera, "dist"):
         # gradient as: grad(duv * up) + grad(uv * grad(duv uv) * up)
         J_duv = camera.J_distort(uv, wrt="scale2dist")  # (..., K)
-        J_first2dist = torch.einsum("...n,...k->...nk", projected_up2d, J_duv)  # (..., 2, K)
+        J_first2dist = einsum("...n,...k->...nk", projected_up2d, J_duv)  # (..., 2, K)
 
-        J_sec2dist = torch.einsum("...i,...j->...ij", uv, projected_up2d)  # (..., N, 2, 2)
+        J_sec2dist = einsum("...i,...j->...ij", uv, projected_up2d)  # (..., N, 2, 2)
         J_uvTdist = camera.J_up_projection_offset(uv, wrt="dist")  # (..., 2, k)
-        J_sec2dist = torch.einsum("...nj,...jk->...nk", J_sec2dist, J_uvTdist)  # (..., 2, K)
+        J_sec2dist = einsum("...nj,...jk->...nk", J_sec2dist, J_uvTdist)  # (..., 2, K)
 
-        J_k = torch.einsum("...ij,...jk->...ik", J_norm2proj, J_first2dist + J_sec2dist)
+        J_k = einsum("...ij,...jk->...ik", J_norm2proj, J_first2dist + J_sec2dist)
         J.append(J_k)
 
     return torch.cat(J, axis=-1).reshape(camera.shape[0], h, w, 2, -1)
 
 
-def get_latitude_field(camera: BaseCamera, gravity: Gravity) -> torch.Tensor:
+def get_latitude_field(
+    camera: BaseCamera, gravity: Gravity, *, grid: ImageGrid | None = None
+) -> torch.Tensor:
     """Get the latitudes of the camera pixels in radians.
 
     Latitudes are defined as the angle between the ray and the up vector.
@@ -209,13 +227,11 @@ def get_latitude_field(camera: BaseCamera, gravity: Gravity) -> torch.Tensor:
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
-
-    uv1, _ = camera.image2world(camera.pixel_coordinates())
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
+    uv1, _ = camera.image2world(xy)
     rays = camera.pixel_bearing_many(uv1)
 
-    lat = torch.einsum("...Nj,...j->...N", rays, gravity.vec3d)
+    lat = einsum("...Nj,...j->...N", rays, gravity.vec3d)
 
     eps = 1e-6
     lat_asin = torch.asin(lat.clamp(min=-1 + eps, max=1 - eps))
@@ -229,6 +245,8 @@ def J_latitude_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> torch.Tensor:
     """Get the jacobian of the latitude field.
 
@@ -245,11 +263,9 @@ def J_latitude_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
 
     # Forward
-    xy = camera.pixel_coordinates()
     uv1, _ = camera.image2world(xy)
     uv1_norm = camera.pixel_bearing_many(uv1)  # (..., N, 3)
 
@@ -263,13 +279,13 @@ def J_latitude_field(
 
     if camera_R_rig is not None:
         # g_rig = R0^T @ g0
-        g_rig = Gravity(torch.einsum("...ij,...i->...j", camera_R_rig[:1], gravity.vec3d[:1]))
+        g_rig = Gravity(einsum("...ij,...i->...j", camera_R_rig[:1], gravity.vec3d[:1]))
         J_abc2delta = SphericalManifold.J_plus(g_rig.vec3d) if spherical else g_rig.J_rp()
-        uv1_norm_rotated = torch.einsum("bNi,bij->bNj", uv1_norm, camera_R_rig)
-        J_delta = torch.einsum("bNj,jk->bNk", uv1_norm_rotated, J_abc2delta[0])
+        uv1_norm_rotated = einsum("bNi,bij->bNj", uv1_norm, camera_R_rig)
+        J_delta = einsum("bNj,jk->bNk", uv1_norm_rotated, J_abc2delta[0])
     else:
         J_abc2delta = SphericalManifold.J_plus(gravity.vec3d) if spherical else gravity.J_rp()
-        J_delta = torch.einsum("...Ni,...ij->...Nj", uv1_norm, J_abc2delta)
+        J_delta = einsum("...Ni,...ij->...Nj", uv1_norm, J_abc2delta)
     J.append(J_delta)
 
     ######################
@@ -281,8 +297,8 @@ def J_latitude_field(
         J_w_to_img2f = J_w_to_img2f * camera.f[..., None, None, :]
     J_w_to_img2f = J_w_to_img2f.sum(-1)  # (..., N, 2)
 
-    J_norm2f = torch.einsum("...Nij,...Nj->...Ni", J_norm2w_to_img, J_w_to_img2f)  # (..., N, 3)
-    J_f = torch.einsum("...Ni,...i->...N", J_norm2f, gravity.vec3d).unsqueeze(-1)  # (..., N, 1)
+    J_norm2f = einsum("...Nij,...Nj->...Ni", J_norm2w_to_img, J_w_to_img2f)  # (..., N, 3)
+    J_f = einsum("...Ni,...i->...N", J_norm2f, gravity.vec3d).unsqueeze(-1)  # (..., N, 1)
     J.append(J_f)
 
     #######################
@@ -291,8 +307,8 @@ def J_latitude_field(
 
     if hasattr(camera, "dist"):
         J_w_to_img2dist = camera.J_image2world(xy, "dist")
-        J_norm2dist = torch.einsum("...Nij,...Njk->...Nik", J_norm2w_to_img, J_w_to_img2dist)
-        J_dist = torch.einsum("...Nij,...i->...Nj", J_norm2dist, gravity.vec3d)
+        J_norm2dist = einsum("...Nij,...Njk->...Nik", J_norm2w_to_img, J_w_to_img2dist)
+        J_dist = einsum("...Nij,...i->...Nj", J_norm2dist, gravity.vec3d)
         J.append(J_dist)
 
     n_params = sum(j.shape[-1] for j in J)
@@ -304,6 +320,8 @@ def get_perspective_field(
     gravity: Gravity,
     use_up: bool = True,
     use_latitude: bool = True,
+    *,
+    grid: ImageGrid | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get the perspective field from the camera parameters.
 
@@ -322,13 +340,13 @@ def get_perspective_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w = grid.height, grid.width
 
     if use_up:
         permute = (0, 3, 1, 2)
         # (..., 2, h, w)
-        up = get_up_field(camera, gravity).permute(permute)
+        up = get_up_field(camera, gravity, grid=grid).permute(permute)
     else:
         shape = (camera.shape[0], 2, h, w)
         up = camera.new_zeros(shape)
@@ -336,7 +354,7 @@ def get_perspective_field(
     if use_latitude:
         permute = (0, 3, 1, 2)
         # (..., 1, h, w)
-        lat = get_latitude_field(camera, gravity).permute(permute)
+        lat = get_latitude_field(camera, gravity, grid=grid).permute(permute)
     else:
         shape = (camera.shape[0], 1, h, w)
         lat = camera.new_zeros(shape)
@@ -352,6 +370,8 @@ def J_perspective_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get the jacobian of the perspective field.
 
@@ -373,18 +393,18 @@ def J_perspective_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w = grid.height, grid.width
 
     if use_up:
-        J_up = J_up_field(camera, gravity, spherical, log_focal, camera_R_rig)  # (..., h, w, 2, 4)
+        J_up = J_up_field(camera, gravity, spherical, log_focal, camera_R_rig, grid=grid)  # (..., h, w, 2, 4)
     else:
         shape = (camera.shape[0], h, w, 2, 4)
         J_up = camera.new_zeros(shape)
 
     if use_latitude:
         J_lat = J_latitude_field(
-            camera, gravity, spherical, log_focal, camera_R_rig
+            camera, gravity, spherical, log_focal, camera_R_rig, grid=grid
         )  # (..., h, w, 1, 4)
     else:
         shape = (camera.shape[0], h, w, 1, 4)

@@ -3,12 +3,24 @@ fallback, fs_cutlass return codes, and the attn_d384 fp16 QK range."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 import torch
 from torch import nn
 
 from fastforks._core import kernels
-from fastforks.kernels import fs_cutlass
+from fastforks.kernels import (
+    cfnet_volume,
+    cudnn_hacc,
+    fs_cutlass,
+    image_normalize,
+    locotrack_sample,
+    msda,
+    romav2,
+    smish,
+    vol_norm,
+)
 from fastforks.kernels import s2m2 as s2m2_kernels
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.s2m2.kernels import inference as s2m2
@@ -24,6 +36,62 @@ def _conv(k=128, c=16):
 
 def _x(h=8, w=8, c=16):
     return torch.zeros((1, c, h, w), dtype=torch.half).contiguous(memory_format=CL)
+
+
+@pytest.mark.parametrize(
+    ("shape", "dtype", "device"),
+    [((1, 2, 4, 4), torch.float16, "cpu"), ((1, 4, 4, 4), torch.float32, "cpu"), ((1, 4, 4, 4), torch.float16, "meta")],
+)
+def test_cudnn_conv_into_validates_destination(shape, dtype, device):
+    conv = cudnn_hacc.CudnnHalfConv.__new__(cudnn_hacc.CudnnHalfConv)
+    x = torch.empty((1, 3, 4, 4), dtype=torch.float16)
+    w = torch.empty((4, 3, 3, 3), dtype=torch.float16)
+    y = torch.empty(shape, dtype=dtype, device=device)
+    with pytest.raises(ValueError, match=r"conv_into destination must be \(1, 4, 4, 4\) torch\.float16 on cpu"):
+        conv.conv_into(x, w, y, padding=1, stride=1)
+
+
+def test_msda_checks_level_indices_before_loading_the_kernel():
+    value = torch.zeros((1, 6, 2, 8), dtype=torch.float16)
+    locations = torch.zeros((1, 3, 2, 1, 4, 2), dtype=torch.float16)
+    weights = locations[..., 0].contiguous()
+    shapes = torch.tensor([[2, 3]])
+    starts = torch.zeros(1, dtype=torch.int64)
+    with pytest.raises(ValueError, match="int64 spatial shapes"):
+        msda.sample(value, shapes.int(), [(2, 3)], starts, locations, weights, 1)
+    with pytest.raises(ValueError, match="value device"):
+        msda.sample(value, shapes, [(2, 3)], starts.to("meta"), locations, weights, 1)
+    assert msda.sample(value, shapes, [(2, 3)], starts, locations[:, :0], weights[:, :0], 1).shape == (1, 0, 16)
+
+
+def test_kernel_boundaries_reject_unsupported_dtypes():
+    grid = torch.empty((1, 1, 2, 2, 8), dtype=torch.bfloat16)
+    with pytest.raises(ValueError, match="float32 or float16 feature grid"):
+        locotrack_sample.neighborhood(grid, torch.zeros((1, 1, 1, 2)))
+    plane = torch.empty((1, 4, 2, 2), dtype=torch.float16)
+    with pytest.raises(ValueError, match="float16 or float32 output"):
+        cfnet_volume.volume((plane, plane, plane, plane), 2, 4, torch.bfloat16)
+    with pytest.raises(ValueError, match="CUDA fp16 channels-last volume"):
+        vol_norm.norm_act_(grid, torch.ones(8), torch.zeros(8), 1e-5, 0.01)
+
+
+def test_romav1_kernel_rejects_unsupported_radius_and_skips_empty_batches():
+    feature = torch.empty((0, 256, 2, 3), dtype=torch.float16)
+    warp = torch.empty((0, 2, 3, 2))
+    with pytest.raises(ValueError, match="256 channels with radius 7"):
+        romav2.correlate_roma1(feature, feature, 7, warp)
+    assert romav2.correlate_roma1(feature, feature, 2, warp).shape == (0, 25, 2, 3)
+
+
+def test_image_kernels_check_the_tensor_device_before_dispatch(monkeypatch):
+    x = torch.empty((1, 3, 4, 4), dtype=torch.float16)
+    with pytest.raises(ValueError, match="statistics must be on the same device"):
+        image_normalize.normalize(x, torch.zeros(3), torch.ones(3, device="meta"))
+
+    device = torch.device("cuda:0")
+    monkeypatch.setattr(smish, "load", lambda dev: SimpleNamespace(device=dev))
+    with pytest.raises(ValueError, match="bound to cuda:0, got input on cpu"):
+        smish.Activation(device)(x)
 
 
 @pytest.fixture

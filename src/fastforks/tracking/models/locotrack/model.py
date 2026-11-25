@@ -16,10 +16,27 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks._core.mlx_cast import to_float32
+from fastforks._core.patch import override
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks.kernels.locotrack_sample import neighborhood
+from fastforks.tracking._mlx import port as mlx_port
+from fastforks.tracking._mlx import scale_xy
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
-from .net.locotrack import SIZE, LocoTrack, MultiHeadAttention, PIPSTransformer, alibi_bias
+from .net.locotrack import (
+    SIZE,
+    SUPPORT,
+    CMDTop,
+    Conv2dSamePadding,
+    Features,
+    LocoTrack,
+    MultiHeadAttention,
+    PIPSTransformer,
+    alibi_bias,
+    posenc,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -27,7 +44,11 @@ if TYPE_CHECKING:
     from fastforks.tracking._runner import Context
 
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architecture value
+MPS_FRAME_CHUNK = 4  # fixed: the same on MPS, where smaller chunks cost no time but save memory
 QUERY_CHUNK = 64  # fixed: upstream's inference chunk
+# the MLX export unrolls every chunk (256 bench queries: 4 x 64); 128 halves the refinement's trace, export 5.4 -> 3.4 s
+# at 4 % more warm time (256: 2.3 s, 8 %). Each query is computed on its own, so the chunk does not change the tracks.
+MLX_QUERY_CHUNK = 128  # fixed: export trace size of the MLX port, not an architecture value
 GELU = 5  # fixed: fused-epilogue activation code of exact GELU (fastforks._optimize.conv_ops)
 
 
@@ -58,24 +79,28 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
-    scale = torch.tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
+    sx, sy = SIZE / w, SIZE / h
+    queries = to_float32(queries)  # the coordinates stay float32 in a float16 MLX replay (Python-float factors)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     grids: list[list[torch.Tensor]] = [[], [], []]
     with region:
-        for s in range(0, n, FRAME_CHUNK):
-            video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+        step = MPS_FRAME_CHUNK if queries.device.type == "mps" else FRAME_CHUNK
+        for s in range(0, n, step):
+            video = torch.cat([frames(t) for t in range(s, min(n, s + step))])
             if video.shape[-2:] != (SIZE, SIZE):
                 video = F.interpolate(video, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
             for g, f in zip(grids, net.frame_features(video * 2 - 1), strict=True):
                 g.append(f)
-        q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
+            del video
+        q = torch.cat([queries[:, :1], scale_xy(queries[:, 1:] + 0.5, sx, sy).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []
-        for s in range(0, q.shape[1], QUERY_CHUNK):
-            p, occ, expd = net.track(f, q, slice(s, s + QUERY_CHUNK))
+        chunk = MLX_QUERY_CHUNK if exporting_for_mlx() else QUERY_CHUNK
+        for s in range(0, q.shape[1], chunk):
+            p, occ, expd = net.track(f, q, slice(s, s + chunk))
             points.append(p[0])
-            vis.append(((1 - occ.float().sigmoid()) * (1 - expd.float().sigmoid()))[0])
-    tracks = torch.cat(points).float().transpose(0, 1) / scale - 0.5
+            vis.append(((1 - to_float32(occ).sigmoid()) * (1 - to_float32(expd).sigmoid()))[0])
+    tracks = scale_xy(to_float32(torch.cat(points)).transpose(0, 1), 1 / sx, 1 / sy) - 0.5
     return {"tracks": tracks, "visibility": torch.cat(vis).T}
 
 
@@ -154,14 +179,68 @@ def _mixer(m: PIPSTransformer) -> Callable[[torch.Tensor], torch.Tensor]:
     return forward
 
 
+def _refine(  # noqa: PLR0913, PLR0917 - same signature as LocoTrack.refine
+    net: LocoTrack,
+    supports: list[torch.Tensor],
+    points: torch.Tensor,
+    occ: torch.Tensor,
+    expd: torch.Tensor,
+    f: Features,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Sample the local grids directly into the fp16 layouts consumed by the three batched GEMMs."""
+    b, n, t, _ = points.shape
+    corrs = []
+    for support, grid, cmdtop in zip(supports, f.grids, net.cmdtop, strict=True):
+        samples = neighborhood(grid, points).view(b * n, t * SUPPORT**2, -1)
+        query = support.reshape(b * n, SUPPORT**2, -1).transpose(1, 2)
+        corr = torch.bmm(samples, query)
+        corrs.append(cmdtop(corr.reshape(b * n * t, SUPPORT, SUPPORT, SUPPORT, SUPPORT)).view(b, n, t, -1))
+    delta = points[..., :-1, :] - points[..., 1:, :]
+    rel = torch.cat([F.pad(delta, (0, 0, 0, 1)), F.pad(-delta, (0, 0, 1, 0))], -1) / SIZE
+    x = torch.cat([occ[..., None], expd[..., None], *corrs, posenc(rel)], -1)
+    update = net.torch_pips_mixer(x.reshape(b * n, t, -1)).reshape(b, n, t, -1).float()
+    return points + update[..., :2], occ + update[..., 2], expd + update[..., 3]
+
+
+def _same_conv(conv: Conv2dSamePadding, x: torch.Tensor) -> torch.Tensor:
+    """Use the convolution's implicit symmetric halo and explicitly pad only a trailing odd pixel."""
+    h, w = x.shape[-2:]
+    sh, sw = conv.stride
+    kh, kw = conv.kernel_size
+    ph, pw = max(kh - (h - 1) % sh - 1, 0), max(kw - (w - 1) % sw - 1, 0)
+    if ph % 2 or pw % 2:
+        x = F.pad(x, (0, pw % 2, 0, ph % 2))
+    return F.conv2d(x, conv.weight, conv.bias, conv.stride, (ph // 2, pw // 2))
+
+
+def _last_corr_conv(conv: Conv2dSamePadding, x: torch.Tensor) -> torch.Tensor:
+    """The last 2x2 CMDTop filter covers the entire 2x2 input and produces one feature vector."""
+    if x.shape[-2:] != conv.kernel_size:
+        msg = "LocoTrack CMDTop final convolution must span the entire correlation feature map"
+        raise ValueError(msg)
+    return F.linear(x.flatten(1), conv.weight.flatten(1), conv.bias)[:, :, None, None]
+
+
 class Kernels(Portable):
     """The fp16 portable pass with the refinement transformer on fused-GEMM kernels and fp16 accumulation."""
 
     def __init__(self, ctx: Context) -> None:
         """The portable network with the kernel forward of the mixer (fp16 weights captured in a closure)."""
         super().__init__(ctx)
+        for layer in self.net.modules():
+            if isinstance(layer, Conv2dSamePadding):
+                override(layer, _same_conv)
+        for cmd in self.net.cmdtop:
+            final = cast("torch.nn.Sequential", cast("CMDTop", cmd).conv[-1])
+            override(final[0], _last_corr_conv)
+        override(self.net, _refine, "refine")
         mixer = self.net.torch_pips_mixer
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override
+        if self.amp == torch.float16:
+            # requires_grad=False weights miss autocast's weight cache: every conv cast its fp32 weight to fp16 per
+            # frame chunk and per refinement; stored in fp16 the outputs are bit-identical (480 x 854: 118 -> 116 ms,
+            # 80 MiB less reserved)
+            half_weights(self.net, channels_last=False)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
@@ -175,4 +254,4 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

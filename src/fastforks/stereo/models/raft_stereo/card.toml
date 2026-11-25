@@ -3,7 +3,7 @@ name = "RAFT-Stereo"
 summary = "RAFT-Stereo (Lipson et al. 2021): multi-level GRU updates over a 1-D all-pairs correlation pyramid, 32 iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "raftstereo-realtime.pth and iraftstereo_rvc.pth from the original zip (another architecture / instance-norm context) are not included and not supported by the kernels engine.",
 ]
@@ -28,10 +28,13 @@ iters = { default = 32, min = 1 }  # GRU update iterations
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx", "graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 
 # The upstream zip also holds raftstereo-realtime.pth (other architecture) and iraftstereo_rvc.pth (instance-norm
 # context): not supported by the kernels engine yet.

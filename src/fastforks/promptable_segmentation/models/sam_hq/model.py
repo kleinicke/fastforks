@@ -17,8 +17,10 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .fast import decode, encode, hq_features, prepare, preprocess_shape, rel_tables, select
@@ -116,7 +118,7 @@ class _Sam(Runner):
         nh, nw = preprocess_shape(h, w, s)
         dev = self.ctx.device
         f64 = torch.device("cpu") if dev.type == "mps" else dev  # MPS has no float64
-        xy = torch.tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
+        xy = device_tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
         pts = None if points is None or labels is None else ((points.to(f64).double() * xy).float().to(dev), labels)
         box = None if boxes is None else (boxes.view(-1, 2, 2).to(f64).double() * xy).float().view(-1, 4).to(dev)
         all_masks, iou = self._decode(features["image_embeddings"], features["hq_features"], pts, box, masks)
@@ -162,9 +164,14 @@ class Portable(_Sam):
         embedding, early = encode(self.sam.image_encoder, x, self.rel)
         return embedding, hq_features(self.sam.mask_decoder, embedding, early)
 
+    def _enc(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        embedding, early = encode(self.sam.image_encoder, x, self.rel)
+        return embedding, hq_features(self.sam.mask_decoder, embedding, early)
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` and HQ feature `[1, 32, 256, 256]`, float32."""
-        embedding, hq = self._encode(image, exact=image.device.type == "cpu")
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=image.device.type == "cpu")
+        embedding, hq = self._enc(x)
         return {"image_embeddings": embedding, "hq_features": hq}
 
     def module(self) -> torch.nn.Module:
@@ -239,4 +246,8 @@ class Kernels(_Sam):
         return (self.sam,)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="sam"),
+}

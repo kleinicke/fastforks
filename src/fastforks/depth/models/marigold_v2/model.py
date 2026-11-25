@@ -22,14 +22,17 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.model import eager_in_compile
+from fastforks._core.runner import host
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import nf4
 
-from .net import Net
 from .net import load as build_net
 from .net.nf4 import NF4Linear
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.depth._runner import Context
 
 MULTIPLE = 16  # fixed: the VAE's 8 x the 2 x 2 latent patching of the transformer
@@ -80,7 +83,7 @@ class Noise:
         self.key: tuple[tuple[int, ...], torch.device] | None = None
         self.z = torch.empty(0)
 
-    @torch.compiler.disable
+    @eager_in_compile
     def __call__(self, shape: tuple[int, ...], device: torch.device) -> torch.Tensor:
         """The noise of `shape` on `device`."""
         if (shape, device) != self.key:
@@ -91,12 +94,14 @@ class Noise:
         return self.z
 
 
-def infer(net: Net, image: torch.Tensor, params: Params, noise: Noise) -> torch.Tensor:
+def infer(
+    predict: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], image: torch.Tensor, params: Params, noise: Noise
+) -> torch.Tensor:
     """The authors' single-step inference on `image [B, 3, H, W]` in `[0, 1]` -> log depth `[B, H, W]`."""
     x = prepare(image, params.long_side)
     b, h, w = x.shape[0], x.shape[-2] // VAE_SCALE, x.shape[-1] // VAE_SCALE
     z = noise((b, LATENT_CHANNELS, h, w), x.device)
-    return finish(net(x, z), image.shape[-2:])
+    return finish(predict(x, z), image.shape[-2:])
 
 
 def _announce(ctx: Context) -> None:
@@ -108,6 +113,7 @@ class Portable(Runner):
     """Plain PyTorch: NF4 weights expanded per linear by a table gather, bf16 GEMMs, float32 glue."""
 
     dtypes = ("bfloat16",)
+    compiled_methods = ("_encode", "_decode")
     batch = 1
     Params = Params
 
@@ -118,19 +124,26 @@ class Portable(Runner):
         self.net = build_net(ctx, stream=ctx.params.stream, exact_mask=ctx.params.exact_mask)
         self.noise = Noise(ctx.params.seed)
 
-    def _run(self, image: torch.Tensor) -> torch.Tensor:
-        return infer(self.net, image, self.ctx.params, self.noise)
+    def _encode(self, image: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
+        return self.net.vae.encode(image, noise)
 
+    def _decode(self, latent: torch.Tensor) -> torch.Tensor:
+        return self.net.vae.decode(latent)
+
+    def _predict(self, image: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
+        return self.net.forward_with_vae(image, noise, encode=self._encode, decode=self._decode)
+
+    @host
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Affine-invariant log depth of one image."""
-        return {"depth": self._run(image)}
+        return {"depth": infer(self._predict, image, self.ctx.params, self.noise)}
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: `[1, 3, H, W]` in `[0, 1]` -> log depth `[1, H, W]`.
 
         Call it once eagerly per input size before tracing: the seeded noise is drawn outside the graph (`Noise`).
         """
-        return Forward(self.net, lambda _net, image: self._run(image))
+        return Forward(self.net, lambda net, image: infer(net, image, self.ctx.params, self.noise))
 
 
 class Kernels(Runner):
@@ -153,17 +166,36 @@ class Kernels(Runner):
         return {"depth": infer(self.net, image, self.ctx.params, self.noise)}
 
 
-_POOL: dict[tuple[int, torch.device], torch.Tensor] = {}  # one bf16 buffer per weight size: no allocator churn
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the VAE and the transformer in `mx` operations (`net.mlx_net`), NF4 kept packed.
+
+    `stream` (default) reads the transformer blocks from the weight file one block ahead per call instead of keeping
+    the 8.5 GB resident; the resize and the seeded noise stay PyTorch on the CPU.
+    """
+
+    batch = 1
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Open the checkpoint in MLX (the VAE and constants resident; the blocks too with `stream=False`)."""
+        super().__init__(ctx)
+        from .net import mlx_net  # noqa: PLC0415 - needs the mlx extra
+
+        self.net = mlx_net.Net(ctx.weights()[0], stream=ctx.params.stream)
+        self.noise = Noise(ctx.params.seed)
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Affine-invariant log depth of one image."""
+        return {"depth": infer(self.net, image.cpu(), self.ctx.params, self.noise)}
 
 
 def _dequant(lin: NF4Linear) -> torch.Tensor:
     q, absmax, bias = (cast("torch.Tensor", t) for t in (lin.q, lin.absmax, lin.bias))  # registered buffers
-    key = (q.numel(), q.device)
-    out = _POOL.get(key)
-    if out is None:
-        out = _POOL[key] = torch.empty(q.numel() * 2, dtype=torch.bfloat16, device=q.device)
+    # A linear consumes the expansion on the current stream. PyTorch's allocator
+    # reuses the storage after the GEMM and isolates concurrent inference streams.
+    out = torch.empty(q.numel() * 2, dtype=torch.bfloat16, device=q.device)
     nf4.dequant(q, absmax, cast("torch.Tensor", NF4Linear.code), out)
     return out.view(bias.numel(), -1)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

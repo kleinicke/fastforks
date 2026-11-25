@@ -25,13 +25,18 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks.interpolation._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, ema_warp
 from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.swin_sr import roll
 
 from .net import MotionFormer, MultiScaleFlow
 from .net.feature_extractor import window_partition, window_reverse
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import numpy as np
+
     from fastforks.interpolation._runner import Context
 
     from .net.feature_extractor import InterFrameAttention, MotionFormerBlock
@@ -117,7 +122,12 @@ def _depadded(x: torch.Tensor, h: int, w: int, window: tuple[int, int]) -> torch
 
 
 def _rolled(x: torch.Tensor, shift: tuple[int, int], sign: int) -> torch.Tensor:
-    return torch.roll(x, shifts=(sign * shift[0], sign * shift[1]), dims=(1, 2)) if shift[0] or shift[1] else x
+    return roll(x, (sign * shift[0], sign * shift[1]), (1, 2)) if shift[0] or shift[1] else x
+
+
+def _eager_cuda(x: torch.Tensor) -> bool:
+    """Whether inference can reuse owned CUDA activations."""
+    return x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
 
 
 def _attention(
@@ -130,10 +140,16 @@ def _attention(
     k, v = m.kv(x2).reshape(b, n, 2, heads, c // heads).permute(2, 0, 3, 1, 4)
     cor_ = m.cor_embed(cor)
     ce = cor_.reshape(b, n, heads, md // heads).transpose(1, 2)
-    attn = (q @ k.transpose(-2, -1)) * m.scale
+    attn = q @ k.transpose(-2, -1)
+    del q, k
+    reuse = _eager_cuda(attn)
+    attn = attn.mul_(m.scale) if reuse else attn * m.scale
     if mask is not None:
         nw = mask.shape[0]
-        attn = (attn.view(b // nw, nw, heads, n, n) + mask[None, :, None].to(attn.dtype)).view(b, heads, n, n)
+        grouped = attn.view(b // nw, nw, heads, n, n)
+        bias = mask[None, :, None].to(attn.dtype)
+        attn = (grouped.add_(bias) if reuse else grouped + bias).view(b, heads, n, n)
+        del grouped, bias
     attn = attn.softmax(dim=-1)
     out = attn @ torch.cat((v, ce), -1)  # one product for both (upstream: two)
     x = m.proj(out[..., : c // heads].transpose(1, 2).reshape(b, n, c))
@@ -157,7 +173,8 @@ def _former_block(  # noqa: PLR0913, PLR0917 - upstream's arguments + the per-sh
     xn = blk.norm1(window_partition(xp, win))
     half = xn.shape[0] // 2
     app, motion = _attention(blk.attn, xn, torch.cat((xn[half:], xn[:half])), cor_win, mask)
-    xn = xn + app  # upstream: the residual on the normed tokens
+    xn = xn.add_(app) if _eager_cuda(xn) else xn + app  # upstream: the residual on the normed tokens
+    del app, xp
     back = _depadded(_rolled(window_reverse(xn, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, c)
     motion = _depadded(_rolled(window_reverse(motion, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, -1)
     return back + blk.mlp(blk.norm2(back), h, w), motion
@@ -175,7 +192,7 @@ def _constants(blk: MotionFormerBlock, shape: tuple[int, int, int], x: torch.Ten
     cor = _rolled(_padded(torch.stack((gx, gy), -1), win), shift, -1)
     mask = _mask(h, w, win, shift)
     out = (window_partition(cor, win).to(x.dtype), None if mask is None else mask.to(x.device))
-    if cache is not None:
+    if cache is not None and type(out[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
         cache[key] = out
     return out
 
@@ -219,26 +236,71 @@ def _warp(x: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     return F.grid_sample(x.float(), g, mode="bilinear", padding_mode="border", align_corners=True)
 
 
+def _warp_pair(x0: torch.Tensor, x1: torch.Tensor, flow: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    return _warp(x0, flow[:, :2]), _warp(x1, flow[:, 2:4])
+
+
 def _head(
-    hd: Head, motion: torch.Tensor, x: torch.Tensor, flow: torch.Tensor | None, fmt: torch.memory_format
+    hd: Head, motion: torch.Tensor, xs: tuple[torch.Tensor, ...], flow: torch.Tensor | None, fmt: torch.memory_format
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """`Head.forward`: the flow and mask update at full size in float32 (its convs in the features' dtype)."""
+    """`Head.forward(motion, cat(xs), flow)`: the flow and mask update at full size in float32.
+
+    Its convs run in the features' dtype. Bilinear resizing works per channel, so the pieces are resized one by one
+    and concatenated at the head's size instead of concatenating them at full size first (the same values).
+    """
     s = hd.scale
     motion = hd.upsample(motion)
     if s != 4:  # noqa: PLR2004 - upstream's 1/4 head
-        x = F.interpolate(x, scale_factor=4.0 / s, mode="bilinear", align_corners=False)
+        xs = tuple(F.interpolate(x, scale_factor=4.0 / s, mode="bilinear", align_corners=False) for x in xs)
     if flow is not None:
         if s != 4:  # noqa: PLR2004
             flow = F.interpolate(flow, scale_factor=4.0 / s, mode="bilinear", align_corners=False) * 4.0 / s
-        x = torch.cat((x, flow), 1)
-    y = hd.conv(torch.cat((motion, x.to(motion.dtype, memory_format=fmt)), 1)).float()
+        xs = (*xs, flow)
+    y = hd.conv(torch.cat((motion, *(x.to(motion.dtype, memory_format=fmt) for x in xs)), 1)).float()
     if s != 4:  # noqa: PLR2004
         y = F.interpolate(y, scale_factor=s // 4, mode="bilinear", align_corners=False)
         return y[:, :4] * (s // 4), y[:, 4:5]
     return y[:, :4], y[:, 4:5]
 
 
-def _interpolate(net: MultiScaleFlow, img0: torch.Tensor, img1: torch.Tensor, t: torch.Tensor, cache: Cache | None):  # noqa: ANN202
+def _refine_warped(
+    net: MultiScaleFlow,
+    parts: tuple[torch.Tensor, ...],
+    features: list[torch.Tensor],
+    stack: Callable[[tuple[torch.Tensor, ...], torch.Tensor, torch.Tensor], torch.Tensor],
+) -> torch.Tensor:
+    """Run each U-Net block as soon as its pair of warped features is available, releasing that scale's inputs."""
+    unet = net.unet
+    flow = parts[-1]
+    inputs = parts
+    skips = []
+    decoder = (unet.up1, unet.up2, unet.up3)
+    features.reverse()  # pop in fine-to-coarse order so already consumed backbone activations can be freed
+    for index, block in enumerate((unet.down0, unet.down1, unet.down2, unet.down3, unet.up0)):
+        if index:
+            flow = F.interpolate(flow, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
+        stacked = stack(inputs, features.pop(), flow)
+        y = block(stacked)
+        del stacked
+        if index < len(decoder):  # down0, down1 and down2 feed the matching decoder skip
+            skips.append(y)
+        inputs = (y,)
+    y = inputs[0]
+    for block in decoder:
+        y = block(torch.cat((y, skips.pop()), 1))
+    return torch.sigmoid(unet.conv(y))
+
+
+def _interpolate(  # noqa: PLR0913
+    net: MultiScaleFlow,
+    img0: torch.Tensor,
+    img1: torch.Tensor,
+    t: torch.Tensor,
+    cache: Cache | None,
+    *,
+    fused: bool = False,
+    stream_warps: bool = False,
+) -> torch.Tensor:
     """`MultiScaleFlow.forward(cat(img0, img1), t)[3]` for float32 `[B, 3, H, W]` frames, `t` `[B, 1, 1, 1]`."""
     b = img0.shape[0]
     dtype = next(net.parameters()).dtype
@@ -256,40 +318,65 @@ def _interpolate(net: MultiScaleFlow, img0: torch.Tensor, img1: torch.Tensor, t:
         feat = torch.cat((tt * m[:b], (1 - tt) * m[b:], af[-1 - i][:b], af[-1 - i][b:]), 1)
         hd = cast("Head", net.block[i])
         if flow is None or mask is None or warped0 is None or warped1 is None:
-            flow, mask = _head(hd, feat, torch.cat((img0, img1), 1), None, fmt)
+            flow, mask = _head(hd, feat, (img0, img1), None, fmt)
         else:
-            flow_, mask_ = _head(hd, feat, torch.cat((img0, img1, warped0, warped1, mask), 1), flow, fmt)
+            flow_, mask_ = _head(hd, feat, (img0, img1, warped0, warped1, mask), flow, fmt)
             flow, mask = flow + flow_, mask + mask_
-        warped0, warped1 = _warp(img0, flow[:, :2]), _warp(img1, flow[:, 2:4])
+            del flow_, mask_
+        del m, feat
+        warped0, warped1 = (ema_warp.pair if fused else _warp_pair)(img0, img1, flow)
     if flow is None or mask is None or warped0 is None or warped1 is None:
         msg = "EMA-VFI needs at least one head"
         raise ValueError(msg)
-    c0, c1, fl = [], [], flow
-    for x in af:  # MultiScaleFlow.warp_features
-        c0.append(_warp(x[:b], fl[:, :2]).to(dtype, memory_format=fmt))  # grid_sample returns NCHW
-        c1.append(_warp(x[b:], fl[:, 2:4]).to(dtype, memory_format=fmt))
-        fl = F.interpolate(fl, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
     parts = (img0, img1, warped0, warped1, mask, flow)
-    tmp = net.unet(*(p.to(dtype, memory_format=fmt) for p in parts), c0, c1)
+    if fused:
+        del mf
+        tmp = _refine_warped(net, parts, af, ema_warp.stack)
+    elif stream_warps:
+        del mf
+
+        def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+            left = _warp(features[:b], coords[:, :2]).to(dtype, memory_format=fmt)
+            right = _warp(features[b:], coords[:, 2:4]).to(dtype, memory_format=fmt)
+            normalized = tuple(p.to(dtype, memory_format=fmt) for p in inputs)
+            return torch.cat((*normalized, left, right), 1)
+
+        tmp = _refine_warped(net, parts, af, stack)
+    else:
+        c0, c1, fl = [], [], flow
+        for i, x in enumerate(af):  # MultiScaleFlow.warp_features
+            if i:
+                fl = F.interpolate(fl, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
+            c0.append(_warp(x[:b], fl[:, :2]).to(dtype, memory_format=fmt))
+            c1.append(_warp(x[b:], fl[:, 2:4]).to(dtype, memory_format=fmt))
+        tmp = net.unet(*(p.to(dtype, memory_format=fmt) for p in parts), c0, c1)
     res = tmp[:, :3].float() * 2 - 1
     merged = torch.lerp(warped1, warped0, torch.sigmoid(mask))  # warped0 * mask + warped1 * (1 - mask)
     return torch.clamp(merged + res, 0, 1)
 
 
-def _frame(
-    net: MultiScaleFlow, pair: tuple[torch.Tensor, torch.Tensor], t: torch.Tensor, cache: Cache | None, *, tta: bool
+def _frame(  # noqa: PLR0913
+    net: MultiScaleFlow,
+    pair: tuple[torch.Tensor, torch.Tensor],
+    t: torch.Tensor,
+    cache: Cache | None,
+    *,
+    tta: bool,
+    fused: bool = False,
+    stream_warps: bool = False,
 ) -> torch.Tensor:
     """`Model.inference` on RGB frames: BGR in and out; `tta` = `fast_TTA` (the pair turned by 180 degrees, mean)."""
     i0, i1 = pair[0].flip(1), pair[1].flip(1)
     if not tta:
-        return _interpolate(net, i0, i1, t, cache).flip(1)
+        return _interpolate(net, i0, i1, t, cache, fused=fused, stream_warps=stream_warps).flip(1)
     b = i0.shape[0]
     both0, both1 = torch.cat((i0, i0.flip(2, 3))), torch.cat((i1, i1.flip(2, 3)))
-    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache)
+    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused, stream_warps=stream_warps)
     return ((pred[:b] + pred[b:].flip(2, 3)) / 2).flip(1)
 
 
-def _net(ctx: Context) -> MultiScaleFlow:
+def _loaded(ctx: Context) -> MultiScaleFlow:
+    """Upstream's network with the variant's checkpoint (float32, CPU)."""
     backbone, flow = _config(ctx.params)
     net = MultiScaleFlow(MotionFormer(**backbone), **flow)
     sd = {  # Trainer.Model.load_model's convert: DDP prefixes, no cached shift masks
@@ -297,7 +384,11 @@ def _net(ctx: Context) -> MultiScaleFlow:
     }
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
-    net = net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+    return net.eval()
+
+
+def _net(ctx: Context) -> MultiScaleFlow:
+    net = _loaded(ctx).to(ctx.device, getattr(torch, ctx.dtype))
     return net.to(memory_format=torch.channels_last) if net.unet.conv.weight.is_cuda else net
 
 
@@ -316,7 +407,12 @@ class Portable(Runner):
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch."""
         t = torch.full((image1.shape[0], 1, 1, 1), timestep, device=image1.device)
-        return {"frame": _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta)}
+        return {"frame": self._run(image1, image2, t)}
+
+    def _run(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        return _frame(
+            self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, stream_warps=_eager_cuda(image1)
+        )
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""
@@ -330,7 +426,7 @@ class Portable(Runner):
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 def _hacc_deconv(deconv: torch.nn.ConvTranspose2d, x: torch.Tensor) -> torch.Tensor:
@@ -347,6 +443,7 @@ class Kernels(Portable):
         """Build the network, route the dense convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        ema_warp.load(ctx.device)
         for m in self.net.modules():
             if isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d and m.groups == 1:
                 override(m, _hacc_conv)
@@ -357,7 +454,7 @@ class Kernels(Portable):
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
-            return _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta)
+            return _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, fused=True)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
@@ -372,4 +469,41 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+def _window_constants(window: int, h: int, w: int, shift: int) -> tuple[np.ndarray, np.ndarray | None]:
+    """`_constants` of one frame for `mlx_net`: the position windows `[nW, N, 2]` and the mask `[nW, N, N]` or None."""
+    win, sh = (window, window), (shift, shift)
+    gx = torch.linspace(-1.0, 1.0, w).view(1, 1, w).expand(1, h, w)
+    gy = torch.linspace(-1.0, 1.0, h).view(1, h, 1).expand(1, h, w)
+    cor = window_partition(_rolled(_padded(torch.stack((gx, gy), -1), win), sh, -1), win)
+    mask = _mask(h, w, win, sh)
+    return cor.numpy(), None if mask is None else mask.numpy()
+
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the network in `mlx.core` operations and two Metal kernels (`mlx_net`).
+
+    float32, or float16 features and convolutions with the flow, the mask and the warps in float32 (as `Portable`).
+    `tta` runs its two passes one after the other.
+    """
+
+    Params = Params
+    batch = 1
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_loaded(ctx)))
+        params = ctx.params
+        constants = partial(_window_constants, params.window)
+        self.net = mlx_net.Net(p, params.depths, params.window, ctx.dtype, constants, tta=params.tta)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
+        """The frame at `timestep` of one padded pair."""
+        return {"frame": self.net(image1, image2, timestep)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

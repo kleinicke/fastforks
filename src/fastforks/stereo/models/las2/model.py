@@ -11,7 +11,11 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.half import pure_half
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import cudnn_hacc, stereo_ops
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner, crop, pad_widths
 
@@ -154,6 +158,8 @@ def gwc_volume_einsum(left: torch.Tensor, right: torch.Tensor, depth: int, group
 
     `[B, G, D, H, W]`; plain PyTorch (pad / unfold / einsum), exportable.
     """
+    if exporting_for_mlx():
+        return gwc_volume(left, right, depth, groups)
     b, c, h, w = left.shape
     right = F.pad(right, (depth - 1, 0, 0, 0)).unfold(3, w, 1).flip(3)  # [B, C, H, D, W]
     vol = torch.einsum(
@@ -189,13 +195,19 @@ def fold_batchnorms(net: torch.nn.Module) -> int:
 
 
 class Portable(Runner):
-    """Plain PyTorch: float32, or fp16 autocast (norms and softmax stay float32).
+    """Plain PyTorch: float32, or fp16 autocast (norms and softmax stay float32); pure fp16 on MPS.
 
     BatchNorms are folded into the convolutions and the correlation volumes are one batched product
     (`corr_volume_einsum`, `gwc_volume_einsum`): upstream's broadcast product + channel mean was a quarter of the
     fp16 pass. Layout per network (measured): channels-last for the H network, NCHW for s / m / l, where channels-last
-    ran the depthwise convolutions and the norms slower.
+    ran the depthwise convolutions and the norms slower. On MPS NCHW for all and the whole network in fp16
+    (`pure_half`): autocast there ran slower than fp32 (H 926 ms against 702 ms at 994x1482, pure fp16 636 ms).
     """
+
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 22.2 -> 6.3 ms per pair)
+    batch_pixels = 1_300_000
 
     deterministic_cudnn = True
 
@@ -207,17 +219,22 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
-        self.channels_last = self.half and isinstance(self.net, LiteAnyStereoH)
+        self.channels_last = self.half and isinstance(self.net, LiteAnyStereoH) and ctx.device.type != "mps"
         fold_batchnorms(self.net)
         if self.channels_last:
             self.net.to(memory_format=torch.channels_last)
         object.__setattr__(self.net, "correlation_volume", corr_volume_einsum)  # plain attributes, read by the forward
         object.__setattr__(self.net, "gwc_volume", gwc_volume_einsum)
+        self.pure = self.half and ctx.device.type == "mps"
+        if self.pure:
+            pure_half(self.net, channels_last=False)
 
     def _run(self, net: LiteAnyStereoV2 | LiteAnyStereoH, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         max_disp = self.ctx.params.max_disp
         if not self.half:
             return _forward(net, left, right, max_disp)
+        if self.pure:
+            return _forward(net, left, right, max_disp).float()
         with torch.autocast(left.device.type, dtype=torch.float16):
             return _forward(net, left, right, max_disp)
 
@@ -230,7 +247,8 @@ class Portable(Runner):
         return Forward(self.net, self._run)
 
 
-_GRAPH_PIXELS = 1_000_000  # fixed: launch-bound up to 1280x720 (batch x H x W of the raw input), measured
+_GRAPH_PIXELS = 2_100_000  # fixed: batch x H x W of the raw input; launch-bound up to 1080p, measured
+# Windows (RTX 5060 Ti, las2-s, eager -> graph): 1080x1920 20.6 -> 14.9 ms (reserved 456 -> 562 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
@@ -296,6 +314,8 @@ class Kernels(Runner):
 class MetalKernels(Portable):
     """Apple MPS: the portable network with the correlation / group-wise correlation volume as one Metal kernel."""
 
+    batch = 1  # not measured on Apple GPUs
+
     module = Runner.module  # the Metal kernel is not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -314,4 +334,15 @@ class MetalKernels(Portable):
         object.__setattr__(self.net, *hook)  # a plain attribute, read by the forward pass
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+}

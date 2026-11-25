@@ -10,7 +10,12 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.layout import nchw
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import exporting_for_mlx
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.gwcnet import CostAggregation, GwcNet
@@ -36,6 +41,7 @@ class Params:
     disp_interval: list[float]
     base_channels: list[int]
     ns_size: int
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> GwcNet | PSMNet:
@@ -104,7 +110,7 @@ def cost_volume(
     """
     gc = isinstance(fl, dict)
     if isinstance(fl, dict) and isinstance(fr, dict):
-        xg, xc = fl["gwc_feature"].float().contiguous(), fl["concat_feature"].float().contiguous()
+        xg, xc = nchw(fl["gwc_feature"]).float(), fl["concat_feature"].float().contiguous()
         y = torch.cat((fr["gwc_feature"], fr["concat_feature"]), 1).float()
         cg, channels = xg.shape[1], groups + 2 * xc.shape[1]
         dtype = fl["gwc_feature"].dtype
@@ -117,7 +123,9 @@ def cost_volume(
         dtype = fl.dtype
     b, cc, h, w = xc.shape
     d = disps.shape[1]
-    volume = xc.new_empty((b, channels, d, h, w), dtype=dtype)
+    exporting = exporting_for_mlx()  # MLX replay: planes stacked, no `slice_scatter` copy per write
+    planes: list[torch.Tensor] = []
+    volume = xc.new_empty((b, channels, d, h, w), dtype=dtype) if not exporting else None
     xs = torch.arange(w, device=xc.device, dtype=torch.float32).view(1, 1, w)
     gy = (torch.arange(h, device=xc.device, dtype=torch.float32) / ((h - 1.0) / 2.0) - 1.0).view(1, h, 1)
     gy = gy.expand(b, h, w)
@@ -127,14 +135,21 @@ def cost_volume(
         warped = grid_sample(y, torch.stack((gx, gy), 3), mode="bilinear", padding_mode="zeros", align_corners=True)
         if gc:
             valid = (xs >= dj).unsqueeze(1).float()  # upstream: x_warped[:, mw < d] = 0
-            corr = (xg * valid * warped[:, :cg]).view(b, groups, cg // groups, h, w).mean(2)
-            volume[:, :groups, j] = corr * VOL_SCALE
-            volume[:, groups : groups + cc, j] = xc * valid * VOL_SCALE
-            volume[:, groups + cc :, j] = warped[:, cg:] * VOL_SCALE
+            # the 0 / 1 mask after the group mean (20 channels, not 160): the same values, the samples being finite
+            corr = (xg * warped[:, :cg]).view(b, groups, cg // groups, h, w).mean(2).mul_(valid)
+            parts = (corr, xc * valid, warped[:, cg:])
         else:
-            volume[:, :cc, j] = xc * VOL_SCALE
-            volume[:, cc:, j] = warped * VOL_SCALE
-    return volume
+            parts = (xc, warped)
+        if volume is None:
+            planes.append(torch.cat([t * VOL_SCALE for t in parts], 1).to(dtype))
+        elif gc:
+            volume[:, :groups, j] = parts[0] * VOL_SCALE
+            volume[:, groups : groups + cc, j] = parts[1] * VOL_SCALE
+            volume[:, groups + cc :, j] = parts[-1] * VOL_SCALE
+        else:
+            volume[:, :cc, j] = parts[0] * VOL_SCALE
+            volume[:, cc:, j] = parts[1] * VOL_SCALE
+    return torch.stack(planes, 2) if volume is None else volume
 
 
 def _first_hypotheses(net: GwcNet | PSMNet, nd: int, scale: int, device: torch.device) -> tuple[torch.Tensor, ...]:
@@ -176,10 +191,11 @@ def _next_hypotheses(
     return full, low
 
 
-def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """Upstream's eval forward (`outputs["stage2"]["pred"]`); disparity `[B, H, W]` float32.
 
     Inputs are cast to the network's dtype (channels-last on CUDA); hypotheses, warps and regression run in float32.
+    `fused` (kernels): the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -195,13 +211,24 @@ def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor) -> to
         else:
             full, low = _next_hypotheses(net, pred, stage, scale)
         key = f"stage{stage + 1}"
-        volume = cost_volume(fl[key], fr[key], low, groups[stage])
+        volume = cost_volume(fl.pop(key), fr.pop(key), low, groups[stage])
+        del low
         cost = agg.dres0(volume)
         del volume
-        cost = agg.dres1(cost) + cost
-        for hourglass in (agg.dres2, agg.dres3, agg.dres4):  # rebinding frees each input volume before the next stage
-            cost = hourglass(cost)
-        pred = upsample_softmax_regress(agg.classif3(cost), full, h, w)
+        if fused:
+            from fastforks.shared.cnn_kernels import conv_residual, stereo_hourglass  # noqa: PLC0415 - kernels only
+
+            cost = conv_residual(agg.dres1, cost, cost)
+            for hourglass in (agg.dres2, agg.dres3, agg.dres4):
+                cost = stereo_hourglass(hourglass, cost)
+        else:
+            cost = agg.dres1(cost) + cost
+            for hourglass in (agg.dres2, agg.dres3, agg.dres4):  # rebinding frees each input volume before the next
+                cost = hourglass(cost)
+        logits = agg.classif3(cost)
+        del cost
+        pred = upsample_softmax_regress(logits, full, h, w)
+        del logits, full
     return pred
 
 
@@ -233,20 +260,42 @@ class Kernels(Runner):
     """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16."""
 
     Params = Params
+    _GRAPH_PIXELS = 256 * 384  # fixed: the group-wise cost volume makes larger shapes GPU-bound
+    _GRAPH_PIXELS_CONCAT = 384 * 640  # fixed: larger limit for the concatenation-only checkpoint
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
         super().__init__(ctx)
-        from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
+        from fastforks.shared.cnn_kernels import hacc_padded_deconvs, prepare_generic  # noqa: PLC0415 - kernel libraries
 
         self.net = _net(ctx)
         if not prepare_generic(self.net, ctx.device):
             msg = "kernels: no conv + BatchNorm run was fused (the module tree changed)"
             raise RuntimeError(msg)
+        hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
+        cap = self._GRAPH_PIXELS_CONCAT if ctx.params.arch == "c" else self._GRAPH_PIXELS
+        self._graphs = SmallShapeGraphs(
+            self._disparity,
+            pixels=cap,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return forward(self.net, left, right, fused=True)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

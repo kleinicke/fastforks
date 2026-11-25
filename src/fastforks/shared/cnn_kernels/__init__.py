@@ -30,6 +30,7 @@ from fastforks.kernels import cudnn_hacc, cutlass_conv
 from fastforks.kernels import igev as igev_kernels
 from fastforks.kernels.cudnn_hacc import conv_half_acc, deconv_half_acc
 from fastforks.kernels.cutlass_conv import ConvEpiArgs, narrow_cfg
+from fastforks.shared.up_deconv import up_deconv_weight
 
 if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
@@ -48,6 +49,7 @@ _ACT_MODULES = {nn.ReLU: ACT["relu"], nn.ReLU6: ACT["relu6"], nn.Sigmoid: ACT["s
 _LEAKY_SLOPE = 0.01  # the only LeakyReLU slope the kernels implement
 _KERNELS: dict[int | None, CubinModule] = {}  # device index -> igev kernels (filled by load)
 _CUTLASS: dict[int | None, cutlass_conv.FusedConvs] = {}  # device index -> cutlass_conv library
+_HACC: dict[int | None, cudnn_hacc.CudnnHalfConv] = {}  # device index -> cudnn_hacc instance
 
 
 def load(device: torch.device) -> None:
@@ -58,7 +60,7 @@ def load(device: torch.device) -> None:
             fallback to PyTorch convs.
     """
     k, fc = igev_kernels.load(device), cutlass_conv.load(device)
-    cudnn_hacc.load(device)
+    _HACC[k.device.index] = cudnn_hacc.load(device)
     _KERNELS[k.device.index], _CUTLASS[k.device.index] = k, fc
 
 
@@ -175,12 +177,59 @@ def conv_ep(  # noqa: PLR0913 - conv module, input and the epilogue terms
     return y
 
 
+def conv_ep_into(  # noqa: PLR0913 - conv module, input, destination and the epilogue terms
+    m: Patched,
+    x: torch.Tensor,
+    dest: torch.Tensor,
+    c0: int,
+    *,
+    s: torch.Tensor | None = None,
+    t: torch.Tensor | None = None,
+    act: int = 0,
+) -> None:
+    """`conv_ep(m, x, s, t, act, keep_pad=True)` written into `dest[:, c0 : c0 + K]` (K: the padded output channels).
+
+    The same conv plan and epilogue as `conv_ep`, without its output tensor and the copy into `dest`: the CUTLASS
+    kernel stores into the slice (`conv_fused`'s `out`), a cuDNN conv writes it (`cudnn_hacc` `conv_into`) and the
+    epilogue runs on it at `dest`'s row stride. `dest`: a channels-last fp16 `[1, C, H, W]` buffer, `c0` a multiple
+    of 8. Other convs (dilated, transposed, 3-D) run `conv_ep` and copy.
+    """
+    if t is None and s is None:
+        t = m._bias32  # noqa: SLF001 - set by prepare_convs
+    k = m.weight.shape[0]
+    aligned = c0 % 8 == 0 and k % 8 == 0 and dest.data_ptr() % 16 == 0
+    if aligned and _fusable(m, x, act, None) and conv_fused(m, x, s, t, _CUTLASS_ACT[act], out=(dest, c0)) is not None:
+        return
+    y = dest[:, c0 : c0 + k]
+    pad, st, dil = m.padding, m.stride, m.dilation
+    plain = (
+        getattr(m, "_hacc", False)
+        and x.dim() == 4  # noqa: PLR2004 - 2-D convs
+        and x.is_contiguous(memory_format=CL)
+        and len(set(pad)) == 1
+        and len(set(st)) == 1
+        and set(dil) == {1}
+        and dest.is_contiguous(memory_format=CL)
+        and dest.shape[0] == 1
+        and dest.dtype == torch.float16
+        and aligned
+    )
+    if not plain:
+        y.copy_(conv_ep(m, x, s, t, act, keep_pad=True))
+        return
+    _HACC[x.device.index].conv_into(x, m.weight, y, pad[0], st[0])
+    if s is not None or t is not None or act:
+        p, c = y.shape[2] * y.shape[3], dest.shape[1]
+        name = "affine_act8" + ("x" if act > ACT["relu6"] else "")
+        kernels(y.device).launch(name, *linear(p * (k // 8)), y, c, s, t, None, 0, p, k, act)
+
+
 def conv_raw(m: Patched, x: torch.Tensor) -> torch.Tensor:
     """The convolution of a prepared conv module without bias, channels-last (padded output channels included)."""
     if getattr(m, "_hacc", False):
         return conv_half_acc(x, m.weight, None, list(m.padding), list(m.stride), list(m.dilation))
     if getattr(m, "_hacc_t", False):
-        return deconv_half_acc(x, m.weight, list(m.padding), list(m.stride))
+        return deconv_half_acc(x, m.weight, list(m.padding), list(m.stride), list(m.output_padding))
     mf = memory_format(x.dim())
     if isinstance(m, (nn.ConvTranspose2d, nn.ConvTranspose3d)):
         f = F.conv_transpose2d if x.dim() == 4 else F.conv_transpose3d  # noqa: PLR2004
@@ -379,9 +428,73 @@ def patch_norms(model: Patched) -> None:
             override(m, _instance_norm_forward)  # torch's returns NCHW for an NHWC input
 
 
+# ------------------------------------------------------------------------------------------------ padding
+REFLECT_MIN_CHANNELS = 8  # fixed: measured (RTX 5060 Ti): below it torch's kernel wins (3 channels: 0.03 / 0.23 ms)
+
+
+def reflect_pad(x: torch.Tensor, pad: tuple[int, int, int, int]) -> torch.Tensor:
+    """`F.pad(x, pad, mode="reflect")` of a 4-D `x` as a channels-last tensor (the same values).
+
+    torch's reflection pad returns NCHW for a channels-last input, so a channels-last conv after it converts back: two
+    full copies (64 x 512 x 512 fp16, pad 3: 1.83 ms) where this writes the interior once (0.21 ms).
+    """
+    left, right, top, bottom = pad
+    n, c, h, w = x.shape
+    out = torch.empty((n, c, h + top + bottom, w + left + right), device=x.device, dtype=x.dtype, memory_format=CL)
+    out[:, :, top : top + h, left : left + w] = x
+    if left:
+        out[:, :, top : top + h, :left] = x[..., 1 : left + 1].flip(3)
+    if right:
+        out[:, :, top : top + h, left + w :] = x[..., w - right - 1 : w - 1].flip(3)
+    if top:
+        out[:, :, :top] = out[:, :, top + 1 : 2 * top + 1].flip(2)
+    if bottom:
+        out[:, :, top + h :] = out[:, :, top + h - bottom - 1 : top + h - 1].flip(2)
+    return out
+
+
+def _reflect_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
+    if x.dim() == 4 and x.shape[1] >= REFLECT_MIN_CHANNELS and x.is_contiguous(memory_format=CL):  # noqa: PLR2004 - NCHW
+        return reflect_pad(x, self.padding)
+    return F.pad(x, self.padding, mode="reflect")
+
+
+def patch_reflection_pads(model: Patched) -> None:
+    """Every `ReflectionPad2d` keeps a channels-last input channels-last (`reflect_pad`)."""
+    for m in model.modules():
+        if is_base(m, nn.ReflectionPad2d):
+            override(m, _reflect_forward)
+
+
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(self, x)
+
+
+HACC_DECONV_CHANNELS = 64  # `hacc_padded_deconvs`: at most this many input channels
+
+
+def hacc_padded_deconvs(model: nn.Module, max_in_channels: int = HACC_DECONV_CHANNELS) -> int:
+    """Run a prepared model's output-padded `ConvTranspose3d`s (groups and dilation 1) through `cudnn_hacc` too.
+
+    `prepare_convs` leaves them on torch's fp32-accumulate data gradient; a model opts in where its goldens validate it.
+    Only those with at most `max_in_channels` input channels: the stride-2 3x3x3 stereo-hourglass upsampling on an RTX
+    5060 Ti, 64 -> 32 at 24 x 68 x 120: 3.61 -> 1.35 ms, but 128 -> 64 at 12 x 34 x 60: 0.37 -> 1.01 ms (cuDNN's first
+    half-compute plan). Returns the number of convs marked.
+    """
+    n = 0
+    for m in model.modules():
+        if (
+            base_type(m) is nn.ConvTranspose3d
+            and any(m.output_padding)
+            and m.groups == 1
+            and all(d == 1 for d in m.dilation)
+            and m.in_channels <= max_in_channels
+        ):
+            m.weight.data = m.weight.data.contiguous(memory_format=memory_format(m.weight.dim()))
+            m._hacc_t = True  # noqa: SLF001
+            n += 1
+    return n
 
 
 def _mark_hacc(model: Patched) -> None:
@@ -528,14 +641,20 @@ def fuse_sequentials(model: Patched) -> int:
     """Replace `conv -> BatchNorm [-> activation]` runs inside every `nn.Sequential` by `FusedConvBN`.
 
     The BN and activation slots become `nn.Identity` (indices and state-dict keys of the conv are unchanged). Only
-    plain BatchNorm modules fuse (BatchNormAct has its own activation). Returns the number of fused runs.
+    plain BatchNorm modules fuse (BatchNormAct has its own activation). Inner Sequentials go first, so a ReLU / ReLU6
+    right after a nested `Sequential(conv, BN)` (upstream's `Sequential(convbn_3d(...), nn.ReLU())`) joins its
+    epilogue too: exact, both commute with the fp16 rounding. Returns the number of fused runs.
     """
     n = 0
-    for seq in [m for m in model.modules() if isinstance(m, nn.Sequential)]:
+    for seq in reversed([m for m in model.modules() if isinstance(m, nn.Sequential)]):
         children = list(seq._modules.items())  # noqa: SLF001 - in-place slot replacement
         i = 0
         while i < len(children):
             name, m = children[i]
+            if _join_act(m, children[i + 1][1] if i + 1 < len(children) else None):
+                seq._modules[children[i + 1][0]] = nn.Identity()  # noqa: SLF001
+                i += 2
+                continue
             if not (
                 isinstance(m, CONVS)
                 and m.padding_mode == "zeros"
@@ -555,6 +674,54 @@ def fuse_sequentials(model: Patched) -> int:
     return n
 
 
+def _join_act(m: nn.Module, nxt: nn.Module | None) -> bool:
+    """Make a ReLU / ReLU6 `nxt` the activation of `m`, a nested Sequential whose output is a plain `FusedConvBN`."""
+    last: nn.Module | None = m
+    while isinstance(last, nn.Sequential):
+        last = next((c for c in reversed(last) if not isinstance(c, nn.Identity)), None)
+    code = None if nxt is None else act_code(nxt)
+    if m is last or not isinstance(last, FusedConvBN) or last.act or code not in {ACT["relu"], ACT["relu6"]}:
+        return False
+    last.act = code
+    return True
+
+
+def _leaves(m: nn.Module) -> list[nn.Module]:
+    if isinstance(m, nn.Sequential):
+        return [leaf for c in m for leaf in _leaves(c)]
+    return [] if isinstance(m, nn.Identity) else [m]
+
+
+def conv_residual(seq: nn.Module, x: torch.Tensor, r: torch.Tensor | None, act: int = 0) -> torch.Tensor:
+    """`act(seq(x) + r)` with the residual add and the activation in the epilogue of `seq`'s last conv run.
+
+    `r` None: no residual. `seq`: a (nested) Sequential after `fuse_sequentials` that ends in a `FusedConvBN` without
+    activation. One rounding to fp16 instead of two (`seq`'s output, then the sum), and no separate add / activation
+    pass.
+
+    Raises:
+        TypeError: `seq` does not end in such a `FusedConvBN`.
+    """
+    *head, last = _leaves(seq) or [seq]
+    if not isinstance(last, FusedConvBN) or last.act:
+        msg = f"conv_residual: needs a Sequential ending in a FusedConvBN without activation, got {seq}"
+        raise TypeError(msg)
+    for m in head:
+        x = m(x)
+    return conv_ep(last.conv, x, last.s, last.t, act, r=r)
+
+
+def stereo_hourglass(hg: Patched, x: torch.Tensor) -> torch.Tensor:
+    """GwcNet's 3D `hourglass` forward (`conv1`..`conv6`, `redir1`, `redir2`) with both skips in the conv epilogues.
+
+    Upstream: `relu(conv5(bottom) + redir2(low))`, then `relu(conv6(up) + redir1(x))`.
+    """
+    low = hg.conv2(hg.conv1(x))
+    up = conv_residual(hg.conv5, hg.conv4(hg.conv3(low)), hg.redir2(low), ACT["relu"])
+    del low
+    return conv_residual(hg.conv6, up, hg.redir1(x), ACT["relu"])
+
+
 def fuse_selective(model: Patched, ratio: int = 4) -> int:
     """Keep the CUTLASS conv + epilogue only for stride > 1 convs and 1x1 expansions (out >= `ratio` x in channels).
 
@@ -572,6 +739,37 @@ def fuse_selective(model: Patched, ratio: int = 4) -> int:
             m._fuse = m._wave = keep  # noqa: SLF001
             n += keep
     return n
+
+
+# ------------------------------------------------------------------------------------------------ upsampling
+def up_deconv(conv: nn.Conv2d) -> nn.ConvTranspose2d:
+    """`conv(nearest_2x(x))` (3x3, padding 1, stride 1) as one transposed conv of `x` (exact up to rounding).
+
+    4 instead of 9 multiply-adds per output pixel and input channel, and no upsampled input map.
+
+    Raises:
+        ValueError: `conv` is not a plain 3x3 stride-1 padding-1 convolution.
+    """
+    plain = conv.padding_mode == "zeros" and conv.groups == 1 and conv.dilation == (1, 1)
+    if conv.kernel_size != (3, 3) or conv.stride != (1, 1) or conv.padding != (1, 1) or not plain:
+        msg = f"up_deconv: needs a 3x3 stride-1 padding-1 conv, got {conv}"
+        raise ValueError(msg)
+    w = conv.weight.detach()
+    d = nn.ConvTranspose2d(
+        conv.in_channels,
+        conv.out_channels,
+        4,
+        stride=2,
+        padding=1,
+        bias=conv.bias is not None,
+        device=w.device,
+        dtype=w.dtype,
+    )
+    with torch.no_grad():
+        d.weight.copy_(up_deconv_weight(w))
+        if conv.bias is not None and d.bias is not None:
+            d.bias.copy_(conv.bias.detach())
+    return d
 
 
 def prepare_generic(model: Patched, device: torch.device, *, fuse: bool = True) -> int:

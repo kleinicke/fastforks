@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 from copy import deepcopy
 # fastforks: timm's Mlp is a small local copy (fastforks.shared.timm_blocks); the unused einops import is dropped; sibling modules are relative
@@ -43,8 +44,8 @@ class WAFT(nn.Module):
         @img: (B,C,H,W) in range 0-255, RGB order
         '''
         # fastforks: torchvision's Normalize written out (same arithmetic: (x - mean) / std)
-        mean = img.new_tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-        std = img.new_tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+        mean = device_tensor([0.485, 0.456, 0.406], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
+        std = device_tensor([0.229, 0.224, 0.225], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
         return ((img/255.0 - mean) / std).contiguous()
 
     def convex_upsample(self, info, mask):
@@ -57,7 +58,7 @@ class WAFT(nn.Module):
         up_info = up_info.permute(0, 1, 4, 2, 5, 3)
         return up_info.reshape(N, C, 2*H, 2*W)
     
-    def forward(self, sample, disp_init=None):
+    def forward(self, sample, disp_init=None, *, final_disparity_only=False):
         """ Estimate disparity between pair of frames """
         output = {}
         image1 = self.normalize_image(sample['img1'])
@@ -70,16 +71,19 @@ class WAFT(nn.Module):
         n, _, h, w = fmap1.shape
 
         idx_bins_2x = torch.linspace(0, self.max_disp/2, self.n_bins, device=fmap1.device, dtype=fmap1.dtype).view(1, self.n_bins, 1, 1)
-        idx_bins_1x = torch.linspace(0, self.max_disp/1, self.n_bins, device=fmap1.device, dtype=fmap1.dtype).view(1, self.n_bins, 1, 1)
-
         prop_hidden = self.prop_proj(torch.cat([fmap1, fmap2], dim=1))
         prop_hidden = self.prop_decoder(prop_hidden)
-        prob_mask = .25 * self.prop_mask_head(prop_hidden)
+        # fastforks: iterative inference only uses the low-resolution bins as its starting point.
+        need_init = not final_disparity_only or self.iters == 0
+        prob_mask = .25 * self.prop_mask_head(prop_hidden) if need_init else None
         prob_bins = self.prop_bins_head(prop_hidden)
-        prob_up = self.convex_upsample(prob_bins, prob_mask)
-        output['init'] = padder.unpad(prob_up)
+        del prop_hidden
+        if prob_mask is not None:
+            output['init'] = padder.unpad(self.convex_upsample(prob_bins, prob_mask))
+        del prob_mask
         prob_bins = F.softmax(prob_bins, dim=1)
         disp = torch.sum(prob_bins * idx_bins_2x, dim=1, keepdim=True)
+        del prob_bins
 
         if disp_init is not None:
             disp = padder.pad(disp_init.unsqueeze(1))
@@ -91,11 +95,18 @@ class WAFT(nn.Module):
             disp = disp.detach()
             warped_fmap2 = disp_warp(fmap2, disp, padding_mode='zeros')
             net = self.delta_proj(torch.cat([fmap1, warped_fmap2, net, disp], dim=1))
+            del warped_fmap2
             net = self.delta_decoder(net)
-            info = self.delta_dist_head(net)
-            delta_disp = self.delta_disp_head(net)
+            info = None if final_disparity_only else self.delta_dist_head(net)
+            disp = disp + self.delta_disp_head(net)
+            if final_disparity_only:
+                if itr + 1 < self.iters:
+                    continue
+                mask = .25 * self.delta_mask_head(net)
+                disparity = padder.unpad(self.convex_upsample(disp * 2, mask)).squeeze(1)
+                return {'disp_pred': disparity}
+
             mask = .25 * self.delta_mask_head(net)
-            disp = disp + delta_disp
             disp_up = self.convex_upsample(disp * 2, mask)
             info_up = self.convex_upsample(info, mask)
             delta_disp_preds.append(disp_up)
@@ -107,7 +118,10 @@ class WAFT(nn.Module):
             disp_final = output['delta_disp_preds'][-1].squeeze(1)
             output['disp_pred'] = disp_final
         else:
+            idx_bins_1x = torch.linspace(0, self.max_disp, self.n_bins, device=fmap1.device, dtype=fmap1.dtype).view(1, self.n_bins, 1, 1)
             disp_final = torch.sum(F.softmax(output['init'], dim=1) * idx_bins_1x, dim=1)
+            if final_disparity_only:
+                return {'disp_pred': disp_final}
             output['disp_pred'] = disp_final
         
         return output

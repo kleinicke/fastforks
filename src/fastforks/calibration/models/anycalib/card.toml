@@ -3,10 +3,11 @@ name = "AnyCalib"
 summary = "AnyCalib (Tirado-Garín and Civera, ICCV 2025): single-image camera calibration. A DINOv2 ViT-L/14 with a light DPT decoder predicts one ray per pixel (tangent coordinates on the unit sphere, convex upsampling); a linear fit and Gauss-Newton refinement give the intrinsics of the chosen camera model. Gives the pinhole intrinsics (fx, fy, cx, cy) and the vertical field of view; no gravity."
 tier = "experimental"
 outputs = ["intrinsics", "vfov"]
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
 
 limitations = [
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+  "The fixed 480 x 640 FP16 TensorRT plan matched portable vertical field of view within 0.553 degrees across 2,000 resized LaMAR images. AUC@5 was 13.05% with TensorRT and 13.02% portable under that fixed-size protocol.",
 ]
 
 [upstream]
@@ -37,6 +38,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the networ
 [modes.portable]
 cuda_dtype = "float16"  # the network; the ray head's upsampling and the camera fit run in float32
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused", "cudnn_hacc"]
@@ -49,6 +51,5 @@ venue = "ICCV 2025"
 
 [[variants]]
 id = "anycalib-pinhole"
-planned = { onnx = "the ONNX converter cannot decompose the exported graph (ConversionError, step 2/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "anycalib_pinhole.pt", size = 1281195455, sha256 = "e73b174563bcb90dc9a0e348ee64fbb898901d2a1786623e62fc0e3b176a1a38", url = "https://github.com/javrtg/AnyCalib/releases/download/v1.0.0/anycalib_pinhole.pt" }]

@@ -190,7 +190,9 @@ class Packer:
 
 def pack(qwen: Path, marigold: Path, out: Path, fold: Path) -> None:
     """Write the lean file (without the folded constants) and the inputs of `fold`."""
-    index = json.loads((qwen / "transformer" / "diffusion_pytorch_model.safetensors.index.json").read_text())
+    index = json.loads(
+        (qwen / "transformer" / "diffusion_pytorch_model.safetensors.index.json").read_text(encoding="utf-8")
+    )
     shards = sorted(set(index["weight_map"].values()))
     blocks = [int(k.split(".")[1]) for k in index["weight_map"] if k.startswith("transformer_blocks.")]
     pk = Packer(max(blocks))
@@ -218,7 +220,7 @@ def pack(qwen: Path, marigold: Path, out: Path, fold: Path) -> None:
     vae.update(vae_tuned)
     for k, v in vae.items():
         pk.vae(k, v)
-    cfg = json.loads((qwen / "vae" / "config.json").read_text())
+    cfg = json.loads((qwen / "vae" / "config.json").read_text(encoding="utf-8"))
     pk.lean["vae.latents_mean"] = torch.tensor(cfg["latents_mean"], dtype=torch.float32)
     pk.lean["vae.latents_std"] = torch.tensor(cfg["latents_std"], dtype=torch.float32)
     # the prompt embeddings (fixed text condition)

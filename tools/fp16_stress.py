@@ -103,7 +103,7 @@ def main() -> int:
     ap.add_argument("--out", default="fp16_stress.jsonl")
     a = ap.parse_args()
     fails = 0
-    with Path(a.out).open("a") as f:
+    with Path(a.out).open("a", encoding="utf-8") as f:
         for task, mid in fs.default_models(a.only, a.task, a.part):
             for mode in fs.modes_of(mid, task, tuple(a.mode)):
                 for row in run_one(mid, mode):

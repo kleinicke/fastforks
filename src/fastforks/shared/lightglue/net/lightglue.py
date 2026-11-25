@@ -110,7 +110,8 @@ class Attention(nn.Module):
         if self.enable_flash and q.device.type == "cuda":
             # use torch 2.0 scaled_dot_product_attention with flash
             if self.has_sdp:
-                args = [x.half().contiguous() for x in [q, k, v]]
+                # fastforks: cast and make contiguous in one copy (`.half().contiguous()` copies twice when strided)
+                args = [x.to(torch.half, memory_format=torch.contiguous_format) for x in [q, k, v]]
                 v = F.scaled_dot_product_attention(*args, attn_mask=mask).to(q.dtype)
                 return v if mask is None else v.nan_to_num()
             else:
@@ -158,9 +159,9 @@ class SelfBlock(nn.Module):
     ) -> torch.Tensor:
         qkv = self.Wqkv(x)
         qkv = qkv.unflatten(-1, (self.num_heads, -1, 3)).transpose(1, 2)
-        q, k, v = qkv[..., 0], qkv[..., 1], qkv[..., 2]
-        q = apply_cached_rotary_emb(encoding, q)
-        k = apply_cached_rotary_emb(encoding, k)
+        # fastforks: the rotary embedding of q and k in one pass (the same elementwise ops, 6 launches instead of 10)
+        q, k = apply_cached_rotary_emb(encoding, qkv[..., :2].movedim(-1, 0).contiguous())
+        v = qkv[..., 2]
         context = self.inner_attn(q, k, v, mask=mask)
         message = self.out_proj(context.transpose(1, 2).flatten(start_dim=-2))
         return x + self.ffn(torch.cat([x, message], -1))
@@ -201,7 +202,12 @@ class CrossBlock(nn.Module):
             lambda t: t.unflatten(-1, (self.heads, -1)).transpose(1, 2),
             (qk0, qk1, v0, v1),
         )
-        if self.flash is not None and qk0.device.type == "cuda":
+        if self.flash is not None and qk0.device.type == "cuda" and mask is None:
+            # fastforks: each input cast to half once (not once per direction); the same values
+            h = [t.to(torch.half, memory_format=torch.contiguous_format) for t in (qk0, qk1, v0, v1)]
+            m0 = self.flash(h[0], h[1], h[3]).to(qk0.dtype)
+            m1 = self.flash(h[1], h[0], h[2]).to(qk0.dtype)
+        elif self.flash is not None and qk0.device.type == "cuda":
             m0 = self.flash(qk0, qk1, v1, mask)
             m1 = self.flash(
                 qk1, qk0, v0, mask.transpose(-1, -2) if mask is not None else None
@@ -539,18 +545,29 @@ class LightGlue(nn.Module):
                 token0, token1 = self.token_confidence[i](desc0, desc1)
                 if self.check_if_stop(token0[..., :m], token1[..., :n], i, m + n):
                     break
-            if do_point_pruning and desc0.shape[-2] > pruning_th:
+            # fastforks: both pruning masks first, then their sizes in one host sync (torch.where synced once per
+            # image); on CUDA nonzero_static with the known size gives the same indices as torch.where without a sync
+            prune_0 = do_point_pruning and desc0.shape[-2] > pruning_th
+            prune_1 = do_point_pruning and desc1.shape[-2] > pruning_th
+            masks = []
+            if prune_0:
                 scores0 = self.log_assignment[i].get_matchability(desc0)
                 prunemask0 = self.get_pruning_mask(token0, scores0, i)
-                keep0 = torch.where(prunemask0)[1]
+                masks.append(prunemask0)
+            if prune_1:
+                scores1 = self.log_assignment[i].get_matchability(desc1)
+                prunemask1 = self.get_pruning_mask(token1, scores1, i)
+                masks.append(prunemask1)
+            if masks:
+                sizes = torch.stack([mk.sum() for mk in masks]).tolist()
+            if prune_0:
+                keep0 = (torch.nonzero_static(prunemask0, size=sizes[0]) if prunemask0.is_cuda else prunemask0.nonzero())[:, 1]
                 ind0 = ind0.index_select(1, keep0)
                 desc0 = desc0.index_select(1, keep0)
                 encoding0 = encoding0.index_select(-2, keep0)
                 prune0[:, ind0] += 1
-            if do_point_pruning and desc1.shape[-2] > pruning_th:
-                scores1 = self.log_assignment[i].get_matchability(desc1)
-                prunemask1 = self.get_pruning_mask(token1, scores1, i)
-                keep1 = torch.where(prunemask1)[1]
+            if prune_1:
+                keep1 = (torch.nonzero_static(prunemask1, size=sizes[-1]) if prunemask1.is_cuda else prunemask1.nonzero())[:, 1]
                 ind1 = ind1.index_select(1, keep1)
                 desc1 = desc1.index_select(1, keep1)
                 encoding1 = encoding1.index_select(-2, keep1)

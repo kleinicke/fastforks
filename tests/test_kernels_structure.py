@@ -217,7 +217,12 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
     "metric3d-vit-large@1": (
         581,
         52,
-        {"Conv2dLoRA.lora_dropout": 62, "ConvTranspose2dLoRA.lora_dropout": 1, "LoRALinear.lora_dropout": 8},
+        {
+            "Conv2dLoRA.lora_dropout": 62,
+            "ConvGRU.forward": 3,
+            "ConvTranspose2dLoRA.lora_dropout": 1,
+            "LoRALinear.lora_dropout": 8,
+        },
     ),
     "midas-dpt-beit-large-512@1": (
         330,
@@ -423,6 +428,7 @@ MAX_REFS = sorted(r for r in {*SMALLEST, *_VARIANTS} if r in GOLDEN and "kernels
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.filterwarnings("ignore:.*was called without intrinsics:UserWarning")
 @pytest.mark.parametrize("ref", MAX_REFS)
 def test_kernels_passes_convert_as_before(ref):
     if not torch.cuda.is_available():

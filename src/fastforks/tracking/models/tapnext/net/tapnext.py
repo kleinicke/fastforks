@@ -28,6 +28,7 @@ from torch.nn import functional as F
 
 from fastforks._core.checkpoint import mismatch_details
 from fastforks._core.errors import CheckpointMismatchError
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: autocast's split in a float16 MLX replay
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -38,10 +39,12 @@ CONV_WIDTH = 4
 
 def posemb_sincos_2d(h: int, w: int, width: int, temperature: float = 10_000.0) -> torch.Tensor:
     """MoCo v3 2D sin-cos embedding `[1, h * w, width]` (float64 math, float32 result, as upstream's numpy)."""
-    y, x = torch.meshgrid(torch.arange(h, dtype=torch.float64), torch.arange(w, dtype=torch.float64), indexing="ij")
     omega = 1.0 / temperature ** (torch.arange(width // 4, dtype=torch.float64) / (width // 4 - 1))
-    y, x = y.flatten()[:, None] * omega, x.flatten()[:, None] * omega
-    return torch.cat([x.sin(), x.cos(), y.sin(), y.cos()], 1).float()[None]
+    x = torch.arange(w, dtype=torch.float64)[:, None] * omega
+    y = torch.arange(h, dtype=torch.float64)[:, None] * omega
+    x = torch.cat([x.sin(), x.cos()], -1).float()[None].expand(h, -1, -1)
+    y = torch.cat([y.sin(), y.cos()], -1).float()[:, None].expand(-1, w, -1)
+    return torch.cat([x, y], -1).reshape(1, h * w, -1)
 
 
 class RMSNorm(nn.Module):
@@ -50,7 +53,7 @@ class RMSNorm(nn.Module):
         self.scale = nn.Parameter(torch.zeros(width))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        xf = x.float()
+        xf = to_float32(x)
         return (xf * torch.rsqrt(xf.square().mean(-1, keepdim=True) + 1e-6) * (self.scale.float() + 1)).to(x.dtype)
 
 
@@ -73,8 +76,14 @@ class RGLRU(nn.Module):
         self.input_gate = BlockDiagonalLinear(width, heads)
         self.a_gate = BlockDiagonalLinear(width, heads)
 
-    def forward(self, x: torch.Tensor, h: torch.Tensor | None) -> tuple[torch.Tensor, torch.Tensor]:
-        """`x [T, N, C]` (float32), `h [N, C]` float32 state or `None` at the video start."""
+    def forward(
+        self, x: torch.Tensor, h: torch.Tensor | None, first: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """`x [T, N, C]` (float32), `h [N, C]` float32 state or `None` at the video start.
+
+        `first` (bool, one element): with a zero `h`, whether `x` starts the video (the same reset as `h=None`, as a
+        tensor: one exported step graph serves every frame).
+        """
         gate_x = torch.sigmoid(self.input_gate(x))
         log_a = -8.0 * torch.sigmoid(self.a_gate(x)) * F.softplus(self.a_param.float())
         a = log_a.exp()
@@ -82,7 +91,9 @@ class RGLRU(nn.Module):
         if h is None:  # reset at the first frame
             mult = torch.cat([torch.ones_like(mult[:1]), mult[1:]])
             h = torch.zeros_like(x[0], dtype=torch.float32)
-        xs = (x * gate_x * mult).float()
+        elif first is not None:
+            mult = torch.cat([torch.where(first, torch.ones_like(mult[:1]), mult[:1]), mult[1:]])
+        xs = to_float32(x * gate_x * mult)
         ys = []
         for t in range(x.shape[0]):
             h = a[t] * h + xs[t]
@@ -101,19 +112,21 @@ class RecurrentBlock(nn.Module):
         self.conv_1d.b = nn.Parameter(torch.zeros(width))
         self.rg_lru = RGLRU(width, heads)
 
-    def forward(self, x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None):
+    def forward(self, x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None, first=None):
+        x = to_run_dtype(x, x.dtype)  # fastforks: the GEMMs in the run dtype, as autocast (identity in PyTorch)
         y = F.gelu(self.linear_y(x), approximate="tanh")
-        return self.temporal(self.linear_x(x).float(), cache, y, self.linear_out)
+        return self.temporal(to_float32(self.linear_x(x)), cache, y, self.linear_out, first)
 
-    def temporal(self, x: torch.Tensor, cache, y: torch.Tensor, out: Callable[[torch.Tensor], torch.Tensor]):
-        """The temporal conv and the RG-LRU scan of the float32 `x` branch, gated by `y`, through `out`."""
+    def temporal(self, x: torch.Tensor, cache, y: torch.Tensor, out: Callable[[torch.Tensor], torch.Tensor], first=None):
+        """The temporal conv and the RG-LRU scan of the float32 `x` branch, gated by `y`, through `out` (`first`: see
+        `RGLRU.forward`)."""
         conv_state = x.new_zeros(CONV_WIDTH - 1, *x.shape[1:]) if cache is None else cache[1]
         xp = torch.cat([conv_state, x])  # [T + 3, N, C]
         t = x.shape[0]
-        w = self.conv_1d.w.float()
-        x = self.conv_1d.b.float() + sum(w[k] * xp[k : k + t] for k in range(CONV_WIDTH))
-        x, h = self.rg_lru(x, None if cache is None else cache[0])
-        x = out((x * y).to(y.dtype))
+        w = to_float32(self.conv_1d.w)
+        x = to_float32(self.conv_1d.b) + sum(w[k] * xp[k : k + t] for k in range(CONV_WIDTH))
+        x, h = self.rg_lru(x, None if cache is None else cache[0], first)
+        x = out(to_run_dtype(x * y, y.dtype))
         return x, (h, xp[-(CONV_WIDTH - 1) :])
 
 
@@ -127,6 +140,7 @@ class MLPBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         w, b = self.ffw_up.w, self.ffw_up.b
+        x = to_run_dtype(x, x.dtype)  # fastforks: the float32 norm's output into the run-dtype GEMMs
         gate = F.gelu(x @ w[0] + b[0, 0], approximate="tanh")
         return self.ffw_down(gate * (x @ w[1] + b[1, 0]))
 
@@ -139,8 +153,8 @@ class ResidualBlock(nn.Module):
         self.channel_pre_norm = RMSNorm(width)
         self.mlp_block = MLPBlock(width, 4 * width)
 
-    def forward(self, x: torch.Tensor, cache):
-        y, cache = self.recurrent_block(self.temporal_pre_norm(x), cache)
+    def forward(self, x: torch.Tensor, cache, first=None):
+        y, cache = self.recurrent_block(self.temporal_pre_norm(x), cache, first)
         x = x + y
         return x + self.mlp_block(self.channel_pre_norm(x)), cache
 
@@ -172,8 +186,11 @@ class EncoderBlock(nn.Module):
         self.mlp = nn.Sequential(nn.Linear(width, 4 * width), nn.GELU(), nn.Identity(), nn.Linear(4 * width, width))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.self_attention(self.ln_1(x))
-        return x + self.mlp(self.ln_2(x))
+        # fastforks: the float32 residual stream and norms, the attention and the MLP in the run dtype (as autocast)
+        y = self.ln_1(x)
+        x = x + self.self_attention(to_run_dtype(y, y.dtype))
+        y = self.ln_2(x)
+        return x + self.mlp(to_run_dtype(y, y.dtype))
 
 
 class TRecViTBlock(nn.Module):
@@ -182,8 +199,8 @@ class TRecViTBlock(nn.Module):
         self.ssm_block = ResidualBlock(width, heads)
         self.vit_block = EncoderBlock(width, heads)
 
-    def forward(self, x: torch.Tensor, cache):
-        x, cache = self.ssm_block(x, cache)  # over time, per token
+    def forward(self, x: torch.Tensor, cache, first=None):
+        x, cache = self.ssm_block(x, cache, first)  # over time, per token
         return self.vit_block(x), cache  # over tokens, per frame
 
 
@@ -208,37 +225,87 @@ class TAPNext(nn.Module):
         self.point_query_token = nn.Parameter(torch.zeros(1, 1, 1, WIDTH))
         self.image_pos_emb = nn.Parameter(torch.zeros(1, g * g, WIDTH))
         self.register_buffer("query_pos_embed", posemb_sincos_2d(SIZE, SIZE, WIDTH))
+        self._query_pos_x: torch.Tensor | None
+        self._query_pos_y: torch.Tensor | None
+        self.register_buffer("_query_pos_x", None, persistent=False)
+        self.register_buffer("_query_pos_y", None, persistent=False)
         self.visible_head = _head(WIDTH, 1)
         self.coordinate_head = _head(WIDTH, 2 * SIZE)
 
+    def _cache_query_axes(self, device: torch.device) -> bool:
+        table = self.query_pos_embed.view(SIZE, SIZE, WIDTH)
+        x, y = table[0, :, :WIDTH // 2], table[:, 0, WIDTH // 2:]
+        if torch.equal(table[..., :WIDTH // 2], x[None].expand(SIZE, -1, -1)) and torch.equal(
+            table[..., WIDTH // 2:], y[:, None].expand(-1, SIZE, -1)
+        ):
+            self._query_pos_x = x.T.contiguous().to(device)
+            self._query_pos_y = y.T.contiguous().to(device)
+            return True
+        self._query_pos_x = self._query_pos_y = None
+        return False
+
+    def to_inference_device(self, device: torch.device) -> None:
+        """Keep separable position axes on CUDA and keep the original checkpoint buffer on the host."""
+        table = self.query_pos_embed
+        if device.type == "cuda" and self._cache_query_axes(device):
+            self.query_pos_embed = None
+            self.to(device)
+            self.query_pos_embed = table
+            self.register_load_state_dict_post_hook(_refresh_query_axes)
+        else:
+            self.to(device)
+
     def query_embedding(self, pos: torch.Tensor) -> torch.Tensor:
         """Point-query tokens `[Q, C]` of query positions `[Q, 2]` `(y, x)` in model pixels."""
-        table = self.query_pos_embed.view(1, SIZE, SIZE, WIDTH).permute(0, 3, 2, 1)  # [1, C, x, y]
-        grid = (pos / SIZE * 2 - 1).to(table.dtype)[None, None]  # (y, x): y indexes the last dim
-        emb = F.grid_sample(table, grid, align_corners=False)[0, :, 0].T  # [Q, C]
-        return (self.point_query_token[0, 0] + emb).to(self.mask_token.dtype)
+        x, y = self._query_pos_x, self._query_pos_y
+        if x is None or y is None:
+            table = self.query_pos_embed.to(pos.device).view(1, SIZE, SIZE, WIDTH).permute(0, 3, 2, 1)  # [1, C, x, y]
+            grid = (pos / SIZE * 2 - 1).to(table.dtype)[None, None]  # (y, x): y indexes the last dim
+            emb = F.grid_sample(table, grid, align_corners=False)
+        else:
+            grid = (pos / SIZE * 2 - 1).to(x.dtype)[None, None]
+            # Use full logical 2D grids so bilinear interpolation and zero padding keep the original rounding.
+            x = x[None, :, :, None].expand(-1, -1, -1, SIZE)
+            y = y[None, :, None, :].expand(-1, -1, SIZE, -1)
+            emb = torch.cat([F.grid_sample(x, grid, align_corners=False), F.grid_sample(y, grid, align_corners=False)], 1)
+        return (self.point_query_token[0, 0] + emb[0, :, 0].T).to(self.mask_token.dtype)
 
-    def query_tokens(self, t0: int, t: int, qt: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
+    def query_tokens(self, t0: int | torch.Tensor, t: int, qt: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
         """`[t, Q, C]` tokens of frames `t0 .. t0 + t - 1` for queries on frames `qt [Q]` with tokens `point`."""
-        frames = torch.arange(t0, t0 + t, device=qt.device, dtype=qt.dtype)[:, None, None]
+        frames = torch.arange(t, device=qt.device, dtype=qt.dtype)[:, None, None] + t0  # t0: int or 0-d tensor
         qt = qt[None, :, None]
         tok = torch.where(frames == qt, point[None], self.mask_token[0])
         return torch.where(frames < qt, self.unknown_token[0], tok)
 
-    def forward(self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t0: int, state: list | None):
+    def forward(  # noqa: PLR0913, PLR0917 - upstream's arguments plus the step graph's reset flag
+        self,
+        video: torch.Tensor,
+        qt: torch.Tensor,
+        point: torch.Tensor,
+        t0: int | torch.Tensor,
+        state: list | None,
+        first: torch.Tensor | None = None,
+    ):
         """`video [T, 3, 256, 256]` in [-1, 1], frames `t0 ..`; returns `(y, x)` tracks `[T, Q, 2]`, visible logits
-        `[T, Q]`, track logits `[T, Q, 512]` and the new state."""
+        `[T, Q]`, track logits `[T, Q, 512]` and the new state (`first`: see `RGLRU.forward`)."""
         t = video.shape[0]
-        x = self.lin_proj(video).flatten(2).transpose(1, 2) + self.image_pos_emb  # [T, 1024, C]
+        x = to_float32(self.lin_proj(video).flatten(2).transpose(1, 2) + self.image_pos_emb)  # [T, 1024, C], fastforks:
+        # the residual stream, the norms, the temporal conv, the RG-LRU scan and the heads stay float32 in a float16
+        # MLX replay (upstream's autocast evaluation)
         n = x.shape[1]
         x = torch.cat([x, self.query_tokens(t0, t, qt, point).to(x.dtype)], 1)
         new = []
         for blk, cache in zip(self.blocks, state or [None] * len(self.blocks), strict=True):
-            x, c = blk(x, cache)
+            x, c = blk(x, cache, first)
             new.append(c)
         p = self.encoder_norm(x[:, n:])
         logits = self.coordinate_head(p)
         return soft_argmax(logits.float()), self.visible_head(p)[..., 0].float(), logits, new
+
+
+def _refresh_query_axes(module: TAPNext, _keys: object) -> None:
+    # load_state_dict preserves the dense upstream checkpoint format.
+    module._cache_query_axes(module.image_pos_emb.device)  # noqa: SLF001 - TAPNext load hook
 
 
 def soft_argmax(logits: torch.Tensor, radius: int = 20, temperature: float = 0.5) -> torch.Tensor:

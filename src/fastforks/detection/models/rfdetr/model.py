@@ -13,7 +13,10 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
-from fastforks.detection._runner import Forward, Runner
+from fastforks._core.upload import device_tensor
+from fastforks.detection._runner import Forward, Runner, split_kept
+from fastforks.kernels import rfdetr_input
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, export_path, network
 
@@ -47,6 +50,8 @@ class Portable(Runner):
     """The pinned upstream network; float16 on CUDA, PostProcess in float32."""
 
     dtypes = ("float32", "float16")
+    batch = None  # `detect_batch`: a batch of images in one network call (box models; Seg pastes masks per image)
+    compiled_methods = ("__call__", "detect_batch")
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
@@ -67,7 +72,9 @@ class Portable(Runner):
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
         export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
-        from fastforks.shared.rfdetr.net.models.postprocess import PostProcess  # noqa: PLC0415 - after optional dependencies
+        from fastforks.shared.rfdetr.net.models.postprocess import (  # noqa: PLC0415 - lazy: heavy vendored import
+            PostProcess,
+        )
 
         self.postprocess = PostProcess(num_select=ctx.params.num_select)
         self.ids = class_map(ctx.params.num_classes + 1).to(ctx.device)
@@ -85,8 +92,10 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
+        if not self.ctx.params.segmentation_head:
+            return self.detect_batch(image, score_threshold)[0]
         raw = {k: v.float() for k, v in self._raw(image).items()}
-        size = torch.tensor([image.shape[-2:]], device=image.device)
+        size = device_tensor([image.shape[-2:]], device=image.device)
         r = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)[0]
         labels = self.ids[r["labels"]]
         keep = ((labels >= 0) & (r["scores"] > score_threshold)).nonzero()[:, 0][: self.ctx.params.max_detections]
@@ -94,6 +103,29 @@ class Portable(Runner):
         if "masks" in r:
             out["masks"] = r["masks"][keep, 0]
         return out
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` for every image of `images` `[B, 3, H, W]`; box models in one network call."""
+        if self.ctx.params.segmentation_head:
+            return super().detect_batch(images, score_threshold)
+        size = device_tensor([list(images.shape[-2:])] * images.shape[0], device=images.device)
+        scores, boxes, labels = self._selected(images, size)
+        keep = (labels >= 0) & (scores > score_threshold)
+        return split_kept(keep, self.ctx.params.max_detections, boxes=boxes, scores=scores, labels=labels)
+
+    def _selected(self, images: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Box models: `_post` of the network outputs of `images` at their `size` `[B, 2]` (height, width)."""
+        return self._post(self._raw(images), size)
+
+    def _post(self, raw: dict[str, torch.Tensor], size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """PostProcess of the network outputs `raw`: scores, boxes, labels of `num_select` rows per image.
+
+        Box models only: their PostProcess ignores the score threshold, so this is one fixed-shape computation.
+        """
+        raw = {k: v.float() for k, v in raw.items()}
+        rs = self.postprocess(raw, target_sizes=size)  # num_select rows per image
+        scores, boxes = torch.stack([r["scores"] for r in rs]), torch.stack([r["boxes"] for r in rs])
+        return scores, boxes, self.ids[torch.stack([r["labels"] for r in rs])]
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: RGB `[B, 3, H, W]` in [0, 1] -> raw outputs.
@@ -131,18 +163,37 @@ class Kernels(Portable):
             use_fp16_accumulate(self.net)
         # The authors offer this fixed-shape inference path and spatial-tensor cache for graph capture.
         prepare_graph(self.net)
-        self.graphs = GraphCache(self.net, graphs=1)
+        # Seg: the network; box models: network and PostProcess (`_top`), which take the size as a graph input
+        self.graphs = GraphCache(self.net if ctx.params.segmentation_head else self._top, graphs=1)
+
+    def _top(self, x: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Box models: `_post` of the network outputs of the prepared input `x`, the graph's forward."""
+        return self._post(dict(zip(RAW, self.net(x), strict=False)), size)
+
+    def _input(self, image: torch.Tensor) -> torch.Tensor:
+        return rfdetr_input.prepare(image.float(), self.mean, self.std, self.ctx.params.resolution)
+
+    def _selected(self, images: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        x = self._input(images)
+        out = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x, size)
+        return self._top(x, size) if out is None else out
 
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        x = self._prepare(image)
+        x = self._input(image)
+        if not self.ctx.params.segmentation_head:  # the graph holds `_top`
+            return dict(zip(RAW, self.net(x), strict=False))
         raw = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         if raw is None:
             raw = self.net(x)
         return dict(zip(RAW, cast("tuple[torch.Tensor, ...]", raw), strict=False))
 
     def release_graphs(self) -> None:
-        """Release the fixed network-input graph and its private memory pool."""
+        """Release the fixed-input graph and its private memory pool."""
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

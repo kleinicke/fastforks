@@ -5,7 +5,7 @@ Upstream `EncoderReSplat.forward` + `forward_update` at eval (b = 1, all views a
 DepthSplat, with log-depth candidates) predicts every view's depth; DINOv2, CNN and cost-volume features at the latent
 resolution (`latent` x downsampled) feed a CNN regressor and a kNN point transformer with multi-view attention over
 the unprojected latent points, whose head predicts `gaussians_per_point` Gaussians per latent pixel (SH degree 3).
-`refine` recurrent steps then render the input views (`render.py`, upstream's gsplat call), compare ResNet-18
+`iters` recurrent steps then render the input views (`render.py`, upstream's gsplat call), compare ResNet-18
 features and colours of render and input, and a second kNN point transformer updates every Gaussian.
 
 Images are resized to the network size (long side `long_side`, default the training size, both sides multiples of
@@ -34,17 +34,23 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
+from fastforks.kernels import depthsplat_corr, knn_attention
 from fastforks.multiview._runner import Forward, Runner, f64, invert
 from fastforks.multiview.models.depthsplat.model import (
+    _chunked_cost_volume,
+    _fused_cost_volume,
     _hacc_convs,
     matrix_quaternion,
     normalized_intrinsics,
     quaternion_product,
 )
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
-from .net.point_transformer import MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
+from .net.point_transformer import MLP, KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
 from .net.resnet import ResNetFeatureWarpper
 from .render import render, sh_basis
 
@@ -82,7 +88,7 @@ class Params:
     near: float  # training depth bounds (used without depth_range)
     far: float
     long_side: int  # network long side (0: the training size's)
-    refine: int  # recurrent refinement steps (upstream num_refine)
+    iters: int  # recurrent refinement steps (upstream num_refine; the option was `refine` until 0.2.0)
 
 
 def network_size(h: int, w: int, p: Params) -> tuple[int, int]:
@@ -207,23 +213,25 @@ class Net(nn.Module):
             xyz = c2w[None, :, :3, -1].float()
             dist = (xyz[:, :, None] - xyz[:, None]).norm(dim=-1)  # upstream torch.cdist (no ONNX conversion)
             nn_matrix = torch.argsort(dist)[:, :, : NEIGHBOURS + 1]
-        bounds = torch.tensor((near, far), device=dev).view(2, 1, 1).expand(2, 1, v)
+        bounds = device_tensor((near, far), device=dev).view(2, 1, 1).expand(2, 1, v)
         res = self.depth_predictor(
             images[None], attn_splits_list=[2], min_depth=1.0 / bounds[1], max_depth=1.0 / bounds[0],
             intrinsics=k[None], extrinsics=c2w[None], nn_matrix=nn_matrix,
         )  # fmt: skip
         depth = res["depth_preds"][-1]  # [1, V, h, w]
+        cnn = list(res["features_cnn_all_scales"][::-1])
+        mv = res["features_mv"][0]
+        prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
         mono = [
             F.interpolate(x, (h // 16, w // 16), mode="bilinear", align_corners=True) for x in res["raw_mono_features"]
         ]
+        del res
         if p.fixed_latent:
             mono = torch.cat([F.pixel_shuffle(x, 4) for x in mono], 1)
             if p.latent == 8:
                 mono = F.interpolate(mono, scale_factor=0.5, mode="bilinear", align_corners=True)
         else:
             mono = torch.cat([F.pixel_shuffle(x, {4: 4, 2: 8, 8: 2}[p.latent]) for x in mono], 1)
-        cnn = list(res["features_cnn_all_scales"][::-1])
-        mv = res["features_mv"][0]
         if p.latent == 2:
             if p.lowest == 8:
                 cnn[1], cnn[2], mv = F.pixel_shuffle(cnn[1], 2), F.pixel_shuffle(cnn[2], 4), F.pixel_shuffle(mv, 4)
@@ -234,8 +242,8 @@ class Net(nn.Module):
             cnn = [F.interpolate(c, size, mode="bilinear", align_corners=True) for c in cnn]
             if mv.shape[-2:] != size:
                 mv = F.interpolate(mv, size, mode="bilinear", align_corners=True)
-        features = torch.cat((mono, torch.cat(cnn, 1), mv), 1)
-        prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
+        features = torch.cat((mono, *cnn, mv), 1)
+        del mono, cnn, mv
         x = images.to(features.dtype)
         if p.fixed_latent:
             if p.latent == 8:
@@ -251,6 +259,7 @@ class Net(nn.Module):
         )
         out = torch.cat((out, x, features, lprob.to(x.dtype)), 1)
         tokens = self.proj(out.permute(0, 2, 3, 1).reshape(v * hl * wl, -1))
+        del out, features, x, lprob
         origins, dirs = _rays(_pixels(hl, wl, dev)[None], k, c2w)
         cloud = (origins + dirs * latent_depth[0].reshape(v, -1, 1).float()).reshape(-1, 3)
         out = tokens + self.pt((cloud, tokens, None), b=1, v=v, h=hl, w=wl)
@@ -272,7 +281,7 @@ class Net(nn.Module):
             depths = latent_depth
             rgb = F.interpolate(images, scale_factor=1.0 / p.latent, mode="area")
         gh, gw = hl * sf, wl * sf
-        xy = _pixels(gh, gw, dev)[None] + (offset.sigmoid() - 0.5) / torch.tensor((gw, gh), device=dev)
+        xy = _pixels(gh, gw, dev)[None] + (offset.sigmoid() - 0.5) / device_tensor((gw, gh), device=dev)
         origins, dirs = _rays(xy, k, c2w)
         sh = sh.reshape(v, -1, 3, SH).clone()
         sh[..., 0] += (rgb.float().permute(0, 2, 3, 1).reshape(v, -1, 3) - 0.5) / C0
@@ -327,17 +336,19 @@ class Net(nn.Module):
             "opacities": g["opacities"],
             "harmonics": g["harmonics"],
         }
-        rendered = self._render(cur, c2w, k, (h, w), near, far)
         target = None
-        for i in range(steps):
+        for _ in range(steps):
+            rendered = self._render(cur, c2w, k, (h, w), near, far)
             f = self._features(rendered if target is not None else torch.cat((rendered, images.float())), (fh, fw))
             if target is None:
-                f, target = f[:v], f[v:]
+                f, target = f[:v], f[v:].clone()  # release the rendered-image features after computing the error
             err = (f - target).permute(0, 2, 3, 1).reshape(1, -1, RESNET_CHANNELS)
+            del f
             rgb = rendered - images.float()
             if m != 4:
                 rgb = F.pixel_unshuffle(rgb, p.latent)
             err = err + self.update_rgb_error_proj(rgb.permute(0, 2, 3, 1).reshape(1, -1, rgb.shape[1]).to(dt))
+            del rendered, rgb
             prev = torch.cat((means, scales, rot, opac, sh), -1)  # [V, n, STATE]
             cloud = means
             if m > 1 and not p.same_points:
@@ -349,8 +360,11 @@ class Net(nn.Module):
             for blk in self.update_error_attn:
                 err = blk(err, v=v, h=fh, w=fw)
             x = torch.cat((prev.to(dt), state, err[0].to(dt)), -1)
+            del prev, err
             pxo = self.update_module[0]([cloud, x, None])
+            del x
             state = self.update_module[1](pxo) + state
+            del pxo
             delta = self.update_head(state).float()
             if m > 1 and not p.same_points:
                 delta = delta.view(v, hl * wl, STATE, m).transpose(-1, -2).reshape(v, -1, STATE)  # c k -> (n k) c
@@ -363,8 +377,6 @@ class Net(nn.Module):
                 "means": means, "scales": scales, "rotations": rot, "opacities": opac[..., 0].sigmoid(),
                 "harmonics": sh.view(v, -1, 3, SH),
             }  # fmt: skip
-            if i < steps - 1:  # upstream also renders after the last step (unused at inference)
-                rendered = self._render(cur, c2w, k, (h, w), near, far)
         return cur
 
     def forward(
@@ -411,6 +423,17 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     return d
 
 
+_MLP_TILE_BYTES = 32 * 1024**2  # maximum size of one expanded point-feature tile
+
+
+def _point_mlp(m: MLP, x: torch.Tensor) -> torch.Tensor:
+    """The MLP acts independently on rows. Bound the expanded fc1 and GELU tensors of the refinement step."""
+    rows = max(1, _MLP_TILE_BYTES // (m.fc1.out_features * m.fc1.weight.element_size()))
+    if x.shape[0] <= rows:
+        return m.fc2(m.act(m.fc1(x)))
+    return torch.cat([m.fc2(m.act(m.fc1(part))) for part in x.split(rows)], dim=0)
+
+
 class _Base(Runner):
     intrinsics = "required"
     cam_to_world = "required"
@@ -424,6 +447,9 @@ class _Base(Runner):
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
         self.net = _net(ctx)
+        for m in self.net.modules():
+            if isinstance(m, MLP):
+                override(m, _point_mlp)
         self.half = ctx.dtype == "float16"
         if self.half:
             self.net.half().to(memory_format=torch.channels_last)
@@ -451,7 +477,7 @@ class _Base(Runner):
         net_c2w = (invert(mid)[None] @ c2w).float()  # upstream pose_align_middle_view
         near, far = (p.near, p.far) if depth_range is None else (float(depth_range[0]), float(depth_range[1]))
         with self._amp():
-            depth, prob, g = self.net(x, k, net_c2w, near, far, p.refine)
+            depth, prob, g = self.net(x, k, net_c2w, near, far, p.iters)
 
         def up(t: torch.Tensor) -> torch.Tensor:
             return F.interpolate(t.float(), (h0, w0), mode="bilinear", align_corners=False)[:, 0]
@@ -459,7 +485,7 @@ class _Base(Runner):
         rm, tm = mid[:3, :3], mid[:3, 3]
         means = (f64(g["means"]) @ rm.T + tm).float()
         rot = g["rotations"] / (g["rotations"].norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
-        q = quaternion_product(matrix_quaternion(c2w[:, :3, :3])[:, None], f64(rot[..., [3, 0, 1, 2]]))
+        q = quaternion_product(matrix_quaternion(c2w[:, :3, :3])[:, None], f64(rot.roll(1, -1)))
         q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
         harmonics = g["harmonics"] @ sh_rotation(rm).float()
         return {
@@ -489,9 +515,19 @@ class _Base(Runner):
 class Portable(_Base):
     """Plain PyTorch: float32 = upstream modules; float16 (CUDA) = fp16 weights under autocast."""
 
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        override(self.net.depth_predictor, _chunked_cost_volume, "cost_volume")
+
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps and Gaussians of `__call__`."""
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
+
+
+def _indexed_attention(m: KNNAttention, pxo: tuple, knn_idx: torch.Tensor) -> torch.Tensor:
+    """Attend at the exact indices chosen by the point block's shared kNN query."""
+    _, x, _ = pxo
+    return m.proj(knn_attention.attention(m.qkv(x), knn_idx))
 
 
 class Kernels(_Base):
@@ -506,8 +542,13 @@ class Kernels(_Base):
         mod = gsraster.load(ctx.device)
         self.net.render = functools.partial(gsraster.render, mod)
         for m in self.net.modules():
+            if isinstance(m, KNNAttention):
+                override(m, _indexed_attention)
             if isinstance(m, PlainPointTransformer):
                 m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
+        knn_attention.load(ctx.device)
+        depthsplat_corr.load(ctx.device)
+        override(self.net.depth_predictor, _fused_cost_volume, "cost_volume")
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "ReSplat kernels: no conv routed through cudnn_hacc"
@@ -525,4 +566,21 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+_MlxEncode = mlx_wrap.port(Portable, attrs=(), methods=("net.encode",))
+
+
+class MlxPortable(_MlxEncode):  # ty: ignore[unsupported-base]
+    """Apple MLX: the encoder as the exported graph, the refinement by hand (`net/mlx_refine.py`, Metal kernels)."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        from .net import mlx_refine  # noqa: PLC0415 - MLX only
+
+        object.__setattr__(self.net, "refine", mlx_refine.Refine(self.net, ctx.dtype))
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+}

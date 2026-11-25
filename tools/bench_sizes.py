@@ -103,11 +103,15 @@ def sizes_for(ref: str, wanted: list[str] | None = None) -> list[str]:
 
 
 def _read(out: Path) -> list[dict]:
-    return [json.loads(line) for line in out.read_text().splitlines() if line.strip("\0 \n")] if out.is_file() else []
+    return (
+        [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip("\0 \n")]
+        if out.is_file()
+        else []
+    )
 
 
 def _append(out: Path, rec: dict) -> None:
-    with out.open("a") as f:
+    with out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
 
 
@@ -249,10 +253,10 @@ def _docs(args: argparse.Namespace) -> int:
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         _table(argparse.Namespace(jsonl=args.jsonl, only=DOC_SIZES))
-    text = DOCS.read_text()
+    text = DOCS.read_text(encoding="utf-8")
     head, rest = text.split(BEGIN)
     tail = rest.split(END)[1]
-    DOCS.write_text(f"{head}{BEGIN}\n{buf.getvalue()}{END}{tail}")
+    DOCS.write_text(f"{head}{BEGIN}\n{buf.getvalue()}{END}{tail}", encoding="utf-8")
     return 0
 
 

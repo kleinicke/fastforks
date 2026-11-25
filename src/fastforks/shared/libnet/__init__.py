@@ -9,13 +9,16 @@ contract of the classification task. A family subclasses them only to change how
 
 from __future__ import annotations
 
+import os
 import re
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import torch
 
 from fastforks._core.checkpoint import load_strict, mismatch_details, torch_mismatch
+from fastforks._core.deferred_init import deferred_library_inits
 from fastforks._core.errors import (
     CardError,
     CheckpointMismatchError,
@@ -32,9 +35,10 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context
     from fastforks._optimize import FastModel
 
-__all__ = ["Kernels", "Params", "Portable", "build", "timm", "torchvision"]
+__all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "timm", "torchvision"]
 
 # torchvision's DenseNet checkpoints predate its module names (`norm.1` -> `norm1`); torchvision renames on load too.
+_TIMM_INITS = ("trunc_normal_", "trunc_normal_tf_", "lecun_normal_", "variance_scaling_")  # timm.layers
 _DENSENET_KEY = re.compile(
     r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
 )
@@ -101,8 +105,14 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
         overlay = {"state_dict": ctx.state_dict(index, strip="")}  # read (and hash-checked) by the core, loaded by timm
         if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
             overlay["num_classes"] = kwargs["num_classes"]
+        lib = timm()
+        # timm's ViT-style initialisers bypass torch.nn.init: deferred as well, every tensor the checkpoint loads skips
+        # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)
+        timm_modules = [m for n, m in tuple(sys.modules.items()) if n == "timm" or n.startswith("timm.")]
         try:
-            return timm().create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs).eval()
+            with deferred_library_inits(timm_modules, _TIMM_INITS):
+                net = lib.create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs)
+            return net.eval()
         except RuntimeError as e:  # timm's strict load of the state dict
             if (keys := torch_mismatch(e)) is None:
                 raise
@@ -123,6 +133,8 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
 class _LibRunner(Runner):
     """Shared part of `Portable` and `Kernels`: build `network(ctx)` and optimise it for `ctx.mode` on `ctx.device`."""
 
+    family: str | None = None
+    fuse_convs = True
     batch = None  # any batch size
     Params = Params
 
@@ -130,7 +142,14 @@ class _LibRunner(Runner):
         """Build the network and optimise it."""
         super().__init__(ctx)
         net = self.network(ctx)
-        self.net: FastModel = optimize(net, mode=ctx.mode, device=ctx.device, fp16=ctx.dtype == "float16")
+        self.net: FastModel = optimize(
+            net,
+            mode=ctx.mode,
+            device=ctx.device,
+            fp16=ctx.dtype == "float16",
+            family=self.family,
+            fuse_convs=self.fuse_convs,
+        )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()
 
@@ -185,3 +204,43 @@ class Kernels(_LibRunner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Logits `[B, classes]` of a transformed batch (a CUDA graph replay for small repeated batches)."""
         return {"logits": self._graphs(image)}
+
+
+class CNNKernels(Kernels):
+    """Apply convolution rewrites to a registry network with a validated CNN kernels mode."""
+
+    family = "cnn"
+
+
+class PoolKernels(CNNKernels):
+    """Fuse pooling while preserving native convolutions for sensitive classifiers."""
+
+    fuse_convs = False
+
+
+class Mlx(Runner):
+    """Apple MLX runner for the supported timm and torchvision classifiers."""
+
+    Params = Params
+    batch = None
+
+    def __init__(self, ctx: Context) -> None:
+        """Translate the verified network to a channels-last MLX forward."""
+        super().__init__(ctx)
+        from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
+
+        if ctx.card.family in mlx_cnn.FAMILIES and not os.environ.get("FASTFORKS_MLX_GRAPH"):
+            self.net = mlx_cnn.Network(ctx)
+        else:  # every other timm / torchvision network: the generic exported-graph translation
+            from fastforks.shared.mlx_graph import GraphNet  # noqa: PLC0415 - optional MLX dependency
+
+            self.net = GraphNet(self.network(ctx), ctx.dtype, kernels=ctx.mode == "kernels")
+
+    def network(self, ctx: Context) -> torch.nn.Module:
+        """The upstream network with its weights (CPU, eval); families override this to wrap or adapt it."""
+        return build(ctx)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Class logits for a transformed image batch."""
+        out = self.net(image)
+        return {"logits": out[0] if isinstance(out, tuple) else out}
