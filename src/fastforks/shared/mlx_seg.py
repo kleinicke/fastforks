@@ -19,7 +19,7 @@ from fastforks._core.mlx import metal_kernel, mx, to_mx
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-__all__ = ["mask_sigmoid_rows", "resize_argmax", "slide_scores", "upsample_argmax"]
+__all__ = ["mask_sigmoid_rows", "resize", "resize_argmax", "slide_scores", "upsample_argmax"]
 
 _CHUNK_ELEMENTS = 1 << 26  # float32 elements of one class chunk's resized scores (256 MB)
 
@@ -46,6 +46,10 @@ def _resize(x: mx.array, size: Sequence[int]) -> mx.array:
         a = mx.take(x, i0, axis=axis)
         x = a + (mx.take(x, i1, axis=axis) - a) * t.reshape(shape)
     return x
+
+
+resize = _resize
+"""`[B, h, w, C]` to `[B, *size, C]`: bilinear, half-pixel centres, the values of torch's resize (lazy)."""
 
 
 def _steps(x: mx.array, sizes: Sequence[Sequence[int]]) -> mx.array:

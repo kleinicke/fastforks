@@ -37,7 +37,6 @@ from fastforks._core.kernels import note_fallback
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
-from fastforks._core.tracing import exporting_for_mlx
 from fastforks.kernels import fvm_seg
 
 if TYPE_CHECKING:
@@ -177,33 +176,6 @@ def _msda_meta(shapes: tuple[tuple[int, int], ...], device: torch.device) -> tup
     return torch.tensor(flat, dtype=torch.int32, device=device), torch.tensor(starts, dtype=torch.int32, device=device)
 
 
-@torch.library.custom_op("fastforks::msda", mutates_args=())
-def msda_op(value: torch.Tensor, loc: torch.Tensor, w: torch.Tensor, shapes: list[int]) -> torch.Tensor:
-    """Deformable attention after its projections as one op of the MLX export (`.mlx_ops` lowers it to one kernel).
-
-    `value` `[B, S, heads, D]`, `loc` `[B, Q, heads, L, P, 2]`, `w` `[B, Q, heads, L, P]`, `shapes` the levels'
-    `H, W` flattened: `[B, Q, heads * D]`. The body (the libraries' pure-torch form: one `grid_sample` per level)
-    only runs when the exported program is executed in PyTorch.
-    """
-    b, _, heads, d = value.shape
-    q, levels, points = loc.shape[1], loc.shape[3], loc.shape[4]
-    sizes = list(zip(shapes[::2], shapes[1::2], strict=True))
-    grids = 2 * loc - 1
-    samples = []
-    for level, (part, (h, w_)) in enumerate(zip(value.split([h * w_ for h, w_ in sizes], dim=1), sizes, strict=True)):
-        v = part.flatten(2).transpose(1, 2).reshape(b * heads, d, h, w_)
-        g = grids[:, :, :, level].transpose(1, 2).flatten(0, 1)  # [B * heads, Q, P, 2]
-        samples.append(F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False))
-    weights = w.transpose(1, 2).reshape(b * heads, 1, q, levels * points)
-    out = (torch.stack(samples, dim=-2).flatten(-2) * weights).sum(-1)  # [B * heads, D, Q]
-    return out.view(b, heads * d, q).transpose(1, 2).contiguous()
-
-
-@msda_op.register_fake
-def _(value: torch.Tensor, loc: torch.Tensor, w: torch.Tensor, shapes: list[int]) -> torch.Tensor:  # noqa: ARG001
-    return value.new_empty((value.shape[0], loc.shape[1], value.shape[2] * value.shape[3]))
-
-
 def _msda_torch(
     self: _Hf,
     hidden_states: torch.Tensor,
@@ -228,12 +200,7 @@ def _msda_torch(
     ref, shapes = kw["reference_points"], kw["spatial_shapes"]
     norm = torch.stack([shapes[..., 1], shapes[..., 0]], -1)
     loc = ref[:, :, None, :, None, :] + off / norm[None, None, None, :, None, :]
-    if exporting_for_mlx():  # one op there (three image-size products in the array form)
-        from . import mlx_ops  # noqa: F401, PLC0415 - needs MLX; registers the lowering
-
-        out = msda_op(value, loc, w, [int(v) for hw in spatial_shapes_list or () for v in hw])
-    else:
-        out = self.ff_msda_torch(value, list(spatial_shapes_list or ()), loc, w)
+    out = self.ff_msda_torch(value, list(spatial_shapes_list or ()), loc, w)
     return self.output_proj(out), w
 
 
