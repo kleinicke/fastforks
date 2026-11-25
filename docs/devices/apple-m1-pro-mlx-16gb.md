@@ -305,8 +305,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 490 | 353 | 490 | 358 | 1.0x | 1357 | 1373 |
 | [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 282 | 220 | – | – | – | 1112 | – |
-| [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 672 | 596 | unsupported | – | – | 2907 | – |
-| [`oneformer-swinl-ade20k`](../models/segmentation.md#oneformer) | 919 | 812 | unsupported | – | – | 3354 | – |
+| [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 692 | 607 | unsupported | – | – | 2149 | – |
+| [`oneformer-swinl-ade20k`](../models/segmentation.md#oneformer) | 924 | 824 | unsupported | – | – | 2587 | – |
 | [`pspnet-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 510 | 380 | 511 | 375 | 1.0x | 1441 | 1450 |
 | [`sapiens-seg-0.3b-goliath`](../models/segmentation.md#sapiens) | 1485 | 1214 | unsupported | – | – | 2967 | – |
 | [`sapiens-seg-1b-goliath`](../models/segmentation.md#sapiens) | 3594 | 2679 | unsupported | – | – | 4541 | – |
@@ -663,15 +663,15 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`flowseek-t`](../models/flow.md#flowseek) | 3246 | 2160 | unsupported | 5781 |
 | [`flowseek-t-things`](../models/flow.md#flowseek) | 2523 | 1760 | unsupported | 5769 |
 | [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 2544 | 1760 | unsupported | 5766 |
-| [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 6050 | 4340 | unsupported | 12170 |
+| [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 2482 | 1820 | unsupported | 1699 |
 | [`gmflow-scale1-things`](../models/flow.md#gmflow) | 2627 | 1934 | unsupported | 1698 |
-| [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | 5903 | 4097 | unsupported | 6369 |
-| [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | 9992 | 7413 | unsupported | 6732 |
-| [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | 10070 | 7455 | unsupported | 6636 |
-| [`gmflow-scale2-regrefine6-sintelft`](../models/flow.md#gmflow) | 9905 | 7371 | unsupported | 6700 |
-| [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | 10122 | 7460 | unsupported | 6663 |
-| [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | 5917 | 4115 | unsupported | 6357 |
-| [`gmflow-scale2-things`](../models/flow.md#gmflow) | 5932 | 4146 | unsupported | 6363 |
+| [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | 5997 | 4132 | unsupported | 2559 |
+| [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | 9845 | 6520 | unsupported | 2791 |
+| [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | 9804 | 6693 | unsupported | 2789 |
+| [`gmflow-scale2-regrefine6-sintelft`](../models/flow.md#gmflow) | 9787 | 6491 | unsupported | 2788 |
+| [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | 9869 | 6487 | unsupported | 2834 |
+| [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | 5979 | 4129 | unsupported | 2494 |
+| [`gmflow-scale2-things`](../models/flow.md#gmflow) | 5990 | 4167 | unsupported | 2554 |
 | [`megaflow`](../models/flow.md#megaflow) | 13158 | 8480 | – | 6561 |
 | [`memflow`](../models/flow.md#memflow) | 9908 | 6997 | unsupported | 8345 |
 | [`memflow-kitti`](../models/flow.md#memflow) | 9851 | 6988 | – | 7586 |

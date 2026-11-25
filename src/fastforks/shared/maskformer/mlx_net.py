@@ -35,9 +35,17 @@ from fastforks.shared import mlx_vit
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-__all__ = ["CACHE_MB", "MlxMaskFormer"]
+__all__ = ["MlxMaskFormer", "cache_mb"]
 
-CACHE_MB = 1024  # MLX buffer cache the runners request (`request_cache`)
+
+def cache_mb(dtype: str) -> int:
+    """MLX buffer cache the runners request (`request_cache`).
+
+    The cache is resident: 1024 MB was 0.9 GB of footprint for 1-2% of warm time. float32 slows sooner as it shrinks
+    (OneFormer 1024 / 512 / 256 MB: 952 / 962 / 989 ms; float16 833 / 837 / 845).
+    """
+    return 256 if dtype == "float16" else 512
+
 
 _Hf = Any  # transformers modules
 _EPS = 1e-5  # every LayerNorm / GroupNorm of both networks (the configs' layer_norm_eps and torch's default)

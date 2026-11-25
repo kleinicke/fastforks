@@ -174,7 +174,7 @@ class Mlx(Portable):
         from fastforks.shared.maskformer import mlx_net  # noqa: PLC0415 - imports mlx
 
         self.mlx = mlx_net.MlxMaskFormer(pretrained(ctx), ctx.dtype, task_inputs=ctx.params.task_tokens)
-        request_cache(self, mlx_net.CACHE_MB)
+        request_cache(self, mlx_net.cache_mb(ctx.dtype))
 
     def _rows_mlx(self, image: torch.Tensor) -> Iterator[tuple[int, mx.array]]:
         """`_rows` on MLX: `(row, [rows * W, 150])` scores in the run dtype (evaluated chunk by chunk by the caller)."""

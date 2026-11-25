@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 from .geometry import coords_grid, generate_window_grid, normalize_coords
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import exporting_for_mlx
 
 
 def global_correlation_softmax(feature0, feature1,
@@ -40,9 +41,14 @@ def global_correlation_softmax(feature0, feature1,
 # fastforks: limit the CUDA / MPS grid_sample workspace. At 1080p the unchunked
 # scale-2 lookup allocates more than 5 GiB for the sampled candidate features alone.
 _LOCAL_SAMPLE_BYTES = 256 * 1024 * 1024
+# fastforks: the MLX export's chunks of float32 samples (matching is float32 in both dtypes). 1080p fp16 / fp32
+# warm ms: the scale-2 lookup of scale2-things 4069 / 5942 at 256 MB, 4155 / 6176 at 128, 4189 / 5936 whole; the
+# refinement of regrefine6-things 6395 / 9878 at 128 MB (256 for its lookup), 7439 / 9907 both at 256, 7655 / 10182 whole
+_MLX_MATCH_BYTES = 256 * 1024 * 1024
+_MLX_REFINE_BYTES = 128 * 1024 * 1024
 
 
-def _local_correlation(feature0, feature1, coords, padding_mode):
+def _local_correlation(feature0, feature1, coords, padding_mode, mlx_bytes):
     b, c, h, w = feature0.shape
     queries = feature0.permute(0, 2, 3, 1).reshape(b, h * w, 1, c)
 
@@ -51,8 +57,11 @@ def _local_correlation(feature0, feature1, coords, padding_mode):
         return torch.matmul(query, sampled.permute(0, 2, 1, 3)).squeeze(-2)
 
     capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
-    if feature0.device.type in ("cuda", "mps") and not capture and not torch.is_grad_enabled():
-        step = max(1, _LOCAL_SAMPLE_BYTES // (b * c * coords.shape[2] * feature1.element_size()))
+    eager = feature0.device.type in ("cuda", "mps") and not capture and not torch.is_grad_enabled()
+    # fastforks: the MLX export records the chunks too (1080p scale 2: 5.4 GB of float32 samples in one piece)
+    if eager or exporting_for_mlx():
+        budget = mlx_bytes if exporting_for_mlx() else _LOCAL_SAMPLE_BYTES
+        step = max(1, budget // (b * c * coords.shape[2] * feature1.element_size()))
         if h * w > step:
             chunks = [
                 dot(queries[:, start:start + step], coords[:, start:start + step])
@@ -89,7 +98,7 @@ def local_correlation_softmax(feature0, feature1, local_radius,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode)
+    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode, _MLX_MATCH_BYTES)
 
     # mask invalid locations
     corr[~valid] = -1e9
@@ -133,7 +142,7 @@ def local_correlation_with_flow(feature0, feature1,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode)
+    corr = _local_correlation(feature0, feature1, sample_coords_norm, padding_mode, _MLX_REFINE_BYTES)
 
     corr = corr.view(b, h, w, -1).permute(0, 3, 1, 2).contiguous()  # [B, (2R+1)^2, H, W]
 
