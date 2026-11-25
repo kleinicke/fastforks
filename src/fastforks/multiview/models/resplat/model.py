@@ -325,28 +325,23 @@ class Net(nn.Module):
         self, g: dict[str, torch.Tensor], images: torch.Tensor, k: torch.Tensor, c2w: torch.Tensor, near: float,
         far: float, steps: int,
     ) -> dict[str, torch.Tensor]:  # fmt: skip
-        """Upstream `forward_update`: `steps` recurrent updates of the Gaussians of `encode`."""
+        """Consume the encoded Gaussian state and condition features over `steps` recurrent updates."""
         p, (v, _, h, w) = self.p, images.shape
         m = p.gaussians_per_point
         dt = g["condition"].dtype
-        state = self.update_proj(g["condition"])
+        state = self.update_proj(g.pop("condition"))
         if p.same_points and m in (4, 16):
             state = F.interpolate(state, scale_factor=round(m**0.5), mode="bilinear", align_corners=True)
         state = state.permute(0, 2, 3, 1).reshape(-1, STATE_CHANNELS)
         hl, wl = h // p.latent, w // p.latent
         fh, fw = (hl * round(m**0.5), wl * round(m**0.5)) if p.same_points and m in (4, 16) else (hl, wl)
-        means, scales, rot = g["means"], g["scales"], g["rotations"]
-        opac, sh = torch.logit(g["opacities"], eps=1e-6)[..., None], g["harmonics"].flatten(2)
-        cur = {
-            "means": means,
-            "scales": scales,
-            "rotations": rot,
-            "opacities": g["opacities"],
-            "harmonics": g["harmonics"],
-        }
+        cur = {name: g.pop(name) for name in ("means", "scales", "rotations", "opacities", "harmonics")}
+        means, scales, rot = cur["means"], cur["scales"], cur["rotations"]
+        opac, sh = torch.logit(cur["opacities"], eps=1e-6)[..., None], cur["harmonics"].flatten(2)
         target = None
         for _ in range(steps):
             rendered = self._render(cur, c2w, k, (h, w), near, far)
+            del cur
             f = self._features(rendered if target is not None else torch.cat((rendered, images.float())), (fh, fw))
             if target is None:
                 f, target = f[:v], f[v:].clone()  # release the rendered-image features after computing the error
@@ -392,9 +387,10 @@ class Net(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Depth `[V, h, w]`, match probability `[V, 1, h', w']` and the Gaussians (view-major `[V, n, ...]`)."""
         g = self.encode(images, k, c2w, near, far)
-        out = {n: g[n] for n in ("means", "scales", "rotations", "opacities", "harmonics")}
         if steps:
             out = self.refine(g, images, k, c2w, near, far, steps)
+        else:
+            out = {n: g[n] for n in ("means", "scales", "rotations", "opacities", "harmonics")}
         return g["depth"], g["confidence"], out
 
 
