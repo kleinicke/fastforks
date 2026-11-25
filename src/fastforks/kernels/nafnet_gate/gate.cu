@@ -126,3 +126,17 @@ extern "C" __global__ void channel_norm(const half2* x, half2* out, int channels
         }
     }
 }
+
+// Multiply by the learned local scores with the same centered edge replication as PyTorch's pad.
+extern "C" __global__ void scale_replicate(
+    __half2* __restrict__ x, const __half2* __restrict__ scores,
+    int h, int w, int oh, int ow, int channels, int64_t count) {
+    const int py = (h - oh) / 2, px = (w - ow) / 2;
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (int64_t)gridDim.x * blockDim.x) {
+        const int64_t pixel = i / channels;
+        const int col = pixel % w, row = pixel / w % h;
+        const int sx = max(0, min(col - px, ow - 1)), sy = max(0, min(row - py, oh - 1));
+        const int64_t base = (pixel / ((int64_t)h * w) * oh + sy) * ow + sx;
+        x[i] = __hmul2_rn(x[i], scores[base * channels + i % channels]);
+    }
+}

@@ -124,3 +124,16 @@ def test_channel_norm(channels: int) -> None:
         expected = torch.nn.functional.layer_norm(inp.permute(0, 2, 3, 1), (channels,), eps=1e-12)
         actual = channel_norm(inp, 1e-12)
         torch.testing.assert_close(actual.permute(0, 2, 3, 1), expected, atol=0.002, rtol=0.002)
+
+
+@pytest.mark.gpu
+def test_local_scale_replicates_asymmetric_edges() -> None:
+    from fastforks.kernels.nafnet_gate import scale_replicate_  # noqa: PLC0415
+
+    torch.manual_seed(7)
+    args = {"device": "cuda", "dtype": torch.float16}
+    x = torch.randn(2, 13, 17, 8, **args).permute(0, 3, 1, 2)
+    scores = torch.randn(2, 8, 14, 8, **args).permute(0, 3, 1, 2)
+    expected = x * torch.nn.functional.pad(scores, (1, 2, 2, 3), mode="replicate")
+    assert scale_replicate_(x, scores) is x
+    assert torch.equal(x, expected)
