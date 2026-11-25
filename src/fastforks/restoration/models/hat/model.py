@@ -451,6 +451,23 @@ def _shifted_block(
     return m.mlp(m.norm2(x)).add_(x)
 
 
+_SHALLOW_RECOMPUTE_BYTES = 512 << 20
+
+
+def _forward_recompute_shallow(net: HAT, image: torch.Tensor) -> torch.Tensor:
+    """Recreate the first convolution for the long residual after the body has consumed its features."""
+    mean = net.mean.type_as(image)
+    x = (image - mean) * net.img_range
+    features = net.forward_features(net.conv_first(x))
+    body = net.conv_after_body(features)
+    del features
+    body.add_(net.conv_first(x))
+    prepared = net.conv_before_upsample(body)
+    del body
+    out = net.conv_last(net.upsample(prepared))
+    return out / net.img_range + mean
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`), channel-aligned CABs (`_pad_cab`)."""
 
@@ -476,7 +493,11 @@ class Kernels(Portable):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
         with fp16_accumulate():
-            return {"image": self.net(image.to(torch.float16))}
+            x = image.to(torch.float16)
+            shallow_bytes = x.shape[0] * math.prod(x.shape[-2:]) * self.net.conv_first.out_channels * x.element_size()
+            if self.net.upsampler == "pixelshuffle" and shallow_bytes >= _SHALLOW_RECOMPUTE_BYTES:
+                return {"image": _forward_recompute_shallow(self.net, x)}
+            return {"image": self.net(x)}
 
 
 RUNNERS = {
