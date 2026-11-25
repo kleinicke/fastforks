@@ -190,15 +190,19 @@ class Portable(Runner):
         self.acc = False
         self.fused = False  # kernels: logits resize and argmax by `seg_up`
 
-    def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
-        """Logits at 1/4 size `[B, classes, h, w]` and their resize steps (to the input size, then the image)."""
+    def _input(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
+        """The network input and the logits' resize steps (to the input size, then the image)."""
         h, w = image.shape[-2:]
         size = target_size(h, w, self.ctx.params.resize)
         size = (max(size[0], _MIN_SIDE), max(size[1], _MIN_SIDE))  # very thin images (aspect > 70): stretched
         fixed = self.ctx.params.resize[0] == "fixed"  # HF processor: PIL resize, logits straight to the image size
-        x = scale(resize(image, size, pil=fixed), self.ctx.io)
-        s = self._forward(x).permute(0, 3, 1, 2)
         steps = ((h, w),) if fixed else (size, (h, w))
+        return scale(resize(image, size, pil=fixed), self.ctx.io), steps
+
+    def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
+        """Logits at 1/4 size `[B, classes, h, w]` and their resize steps (`_input`)."""
+        x, steps = self._input(image)
+        s = self._forward(x).permute(0, 3, 1, 2)
         return (s if self.fused else s.contiguous()), steps  # NCHW: faster PyTorch bilinear upsampling
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -262,6 +266,14 @@ class _MlxPortable(Portable):
         from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
 
         return to_torch(self.net(to_mx(x.float())))
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]`: the logits stay on MLX up to the resize-and-argmax kernel (no CPU copy of the scores)."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        x, steps = self._input(image)
+        return mlx_seg.steps_argmax(self.net(to_mx(x.float())), steps)
 
     module = Runner.module
 

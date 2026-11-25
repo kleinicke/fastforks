@@ -16,6 +16,7 @@ when it completes, and one lazy graph of the whole encoder holds far more than i
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -38,6 +39,21 @@ def _gelu(x: mx.array) -> mx.array:
     return (y * 0.5 * (1 + mx.erf(y * 0.7071067811865476))).astype(x.dtype)
 
 
+def _layer_norm(x: mx.array, w: mx.array, b: mx.array, eps: float) -> mx.array:
+    """`mx.fast.layer_norm`, written out (float32 statistics) below 256 channels (the fused kernel 4-6x slower)."""
+    if x.shape[-1] >= 256:  # noqa: PLR2004
+        return mx.fast.layer_norm(x, w, b, eps)
+    xf = x.astype(mx.float32)
+    d = xf - xf.mean(axis=-1, keepdims=True)
+    return (d * mx.rsqrt(mx.square(d).mean(axis=-1, keepdims=True) + eps)).astype(x.dtype) * w + b
+
+
+@functools.cache
+def _norm(eps: float) -> Callable[..., mx.array]:
+    """`_layer_norm` compiled (the patch embeddings' and stages' norms, outside the blocks)."""
+    return mx.compile(lambda x, w, b: _layer_norm(x, w, b, eps))
+
+
 def _space_to_depth(x: mx.array, r: int) -> mx.array:
     """`[B, H, W, C]` -> `[B, H / r, W / r, r * r * C]` (rows `(i, j, c)`), the map cropped as a stride-`r` conv."""
     b, h, w, c = x.shape
@@ -53,15 +69,15 @@ def _block_fn(heads: int, sr: int, eps: tuple[float, float, float], scale: float
     def block(x: mx.array, *w: mx.array) -> mx.array:
         n1w, n1b, wq, bq, wkv, bkv, wo, bo, n2w, n2b, w1, b1, wd, bd, w2, b2, *red = w
         b, h, wd_, c = x.shape
-        y = mx.fast.layer_norm(x, n1w, n1b, e1)
+        y = _layer_norm(x, n1w, n1b, e1)
         q = mx.addmm(bq, y, wq).reshape(b, h * wd_, heads, -1).transpose(0, 2, 1, 3)
         if sr > 1:
             wr, br, nrw, nrb = red
-            y = mx.fast.layer_norm(mx.addmm(br, _space_to_depth(y, sr), wr), nrw, nrb, er)
+            y = _layer_norm(mx.addmm(br, _space_to_depth(y, sr), wr), nrw, nrb, er)
         kv = mx.addmm(bkv, y.reshape(b, -1, c), wkv).reshape(b, -1, 2, heads, c // heads).transpose(2, 0, 3, 1, 4)
         o = mx.fast.scaled_dot_product_attention(q, kv[0], kv[1], scale=scale)
         x = x + mx.addmm(bo, o.transpose(0, 2, 1, 3).reshape(b, h, wd_, c), wo)
-        y = mx.addmm(b1, mx.fast.layer_norm(x, n2w, n2b, e2), w1)
+        y = mx.addmm(b1, _layer_norm(x, n2w, n2b, e2), w1)
         y = _gelu(ops.depthwise(y, wd, bd, ONE, ONE, ONE))
         return x + mx.addmm(b2, y, w2)
 
@@ -142,10 +158,10 @@ class MlxSegFormer:
         x = mx.transpose(image, (0, 2, 3, 1)).astype(self.dtype)
         feats = []
         for (pw, pb, nw, nb), (stride, pad, eps), blocks, (fw, fb, feps) in self.stages:
-            x = mx.fast.layer_norm(mx.conv2d(x, pw, stride=stride, padding=pad) + pb, nw, nb, eps)
+            x = _norm(eps)(mx.conv2d(x, pw, stride=stride, padding=pad) + pb, nw, nb)
             for fn, w in blocks:
                 x = _step(fn(x, *w))
-            x = _step(mx.fast.layer_norm(x, fw, fb, feps))
+            x = _step(_norm(feps)(x, fw, fb))
             feats.append(x)
         size = feats[0].shape[1:3]
         acc = None

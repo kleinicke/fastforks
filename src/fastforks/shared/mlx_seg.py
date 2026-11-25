@@ -19,7 +19,7 @@ from fastforks._core.mlx import metal_kernel, mx, to_mx
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-__all__ = ["mask_sigmoid_rows", "resize", "resize_argmax", "slide_scores", "upsample_argmax"]
+__all__ = ["mask_sigmoid_rows", "resize", "resize_argmax", "slide_scores", "steps_argmax", "upsample_argmax"]
 
 _CHUNK_ELEMENTS = 1 << 26  # float32 elements of one class chunk's resized scores (256 MB)
 
@@ -210,7 +210,11 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]]) -> tor
     Every step but the last runs as array operations on the (small) intermediate scores; the last resize and the
     argmax are one kernel, so the full-resolution scores never exist.
     """
-    x = to_mx(scores.float().permute(0, 2, 3, 1))
+    return steps_argmax(to_mx(scores.float().permute(0, 2, 3, 1)), sizes)
+
+
+def steps_argmax(x: mx.array, sizes: Sequence[Sequence[int]]) -> torch.Tensor:
+    """`upsample_argmax` of float32 MLX scores `[B, h, w, C]` (a hand-written network's logits, no CPU round trip)."""
     if len(sizes) == 2 and not os.environ.get("FF_MLX_SEG_UNFUSED"):  # noqa: PLR2004 - the usual model + image resize
         return _fused2(x, sizes)
     for size in sizes[:-1]:
