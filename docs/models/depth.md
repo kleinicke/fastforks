@@ -1444,7 +1444,7 @@ Commercial use: yes.
 | `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
 | `video-depth-anything-metric-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1812<br>1437<br>161<br>61.8<br>112 (single-image call, CUDA tensor input)<br>67.7 (single-image engine) | 7223 / 10186<br>5609 / 8422<br>1083 / 1764<br>852 / 1146<br>1263 / 1524<br>988 / 1022 |
 | `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
-| `video-depth-anything-metric-s` | Synthetic 32-frame clip (32x994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 3900<br>3018<br>822<br>627<br>721 (32-frame clip, decoded CPU RGB to CPU depth) | 7549 / 10186<br>5935 / 8422<br>1368 / 1666<br>1259 / 1636<br>1513 / 1992 |
+| `video-depth-anything-metric-s` | Synthetic 32-frame clip (32x994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3900<br>3018<br>822<br>627<br>721 (32-frame clip, decoded CPU RGB to CPU depth)<br>253 (32-frame clip, CUDA tensors in and out) | 7549 / 10186<br>5935 / 8422<br>1368 / 1666<br>1259 / 1636<br>1513 / 1992<br>1995 / 2370 |
 
 <details><summary>Details</summary>
 
@@ -1468,7 +1468,7 @@ Commercial use: yes.
 - `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-metric-s` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 92 s (ONNX + engine).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
-- `video-depth-anything-metric-s` 32x994x1482, first call: portable + torch.compile 66 s (cold Inductor cache).
+- `video-depth-anything-metric-s` 32x994x1482, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `video-depth-anything-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=True. The author code used its built-in attention fallback with xFormers unavailable.
 - `video-depth-anything-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=False (author CUDA autocast). The author code used its built-in attention fallback with xFormers unavailable.
 - `video-depth-anything-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.

@@ -2317,7 +2317,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | unik3d-vitl | 994x1482 | 107 ms | 94.4 ms | 58.0 ms | 62.8 ms | 32.8 s | 105 s | 1063 / 1152 | 1258 / 1312 | 985 / 1066 | 1609 / 1678 |
 | video-depth-anything-metric-s | 480x640 | 147 ms | 101 ms (single image) | 60.2 ms (single image) | 59.5 ms | 32.5 s | 82.1 s | 953 / 1146 | 1143 / 1464 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-metric-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 61.8 ms | 34.2 s | 92.5 s | 1083 / 1764 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
-| video-depth-anything-metric-s | 32x994x1482 | 822 ms | 721 ms (32-frame clip, decoded CPU RGB to CPU depth) | – | 627 ms | 65.9 s | – | 1368 / 1666 | 1513 / 1992 | 1259 / 1636 | – |
+| video-depth-anything-metric-s | 32x994x1482 | 822 ms | 721 ms (32-frame clip, decoded CPU RGB to CPU depth) | 253 ms (32-frame clip, CUDA tensors in and out) | 627 ms | 65.9 s | 110 s | 1368 / 1666 | 1513 / 1992 | 1259 / 1636 | 1995 / 2370 |
 | video-depth-anything-s | 88x1080x1920 | 1423 ms | 1314 ms (full 88-frame clip) | – | 1233 ms | 82.7 s | – | 6207 / 6524 | 7762 / 8530 | 6288 / 6486 | – |
 | video-depth-anything-s | 480x640 | 147 ms | 100 ms (single image) | 60.3 ms (single image) | 58.4 ms | 34.8 s | 103 s | 953 / 1146 | 1143 / 1344 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-s | 88x480x640 | 954 ms | 762 ms (full 88-frame clip) | 524 ms (full 88-frame clip) | 835 ms | 51.8 s | 181 s | 1730 / 1946 | 2587 / 3260 | 1796 / 1946 | 2753 / 3148 |
