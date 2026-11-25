@@ -26,12 +26,14 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.kernels import linear
+from fastforks._core.patch import override
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, conv_fused, cutlass, fuse_ok, fused_cfg
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
+from ..net.dpt import _resize
 from ..net.utils import get_danv2_io_size
 from .encoder import prepare_encoders
 
@@ -187,6 +189,39 @@ def _prep_block(blk: nn.Module, cpad: torch.Tensor) -> None:
         c1.in_channels = cpad
 
 
+def _stream_depth_features(
+    module: nn.Module,
+    features: Sequence[tuple[torch.Tensor, torch.Tensor]],
+    patch_h: int,
+    patch_w: int,
+    out_h: int,
+    out_w: int,
+) -> tuple[list[torch.Tensor], torch.Tensor, torch.Tensor]:
+    """Build the pyramid coarse to fine and retain only the left view for the context encoder."""
+    batch = features[0][0].shape[0]
+    context = []
+    path = None
+    for scale in (3, 2, 1, 0):
+        patch, cls = features[scale]
+        if module.use_clstoken:
+            readout = cls.unsqueeze(1).expand_as(patch)
+            patch = module.readout_projects[scale](torch.cat((patch, readout), -1))
+        tokens = patch.transpose(1, 2).reshape(batch, patch.shape[-1], patch_h, patch_w)
+        resized = _resize(module.resize_layers[scale], module.projects[scale](tokens))
+        layer = getattr(module.scratch, f"layer{scale + 1}_rn")(resized)
+        del resized
+        y = F.interpolate(layer, (out_h // 2**scale, out_w // 2**scale), mode="bilinear", align_corners=True)
+        del layer
+        refine = getattr(module.scratch, f"refinenet{scale + 1}")
+        size = (out_h // 2 ** (scale - 1), out_w // 2 ** (scale - 1)) if scale else None
+        path = refine(y, size=size) if path is None else refine(path, y, size=size)
+        if scale < 3:
+            context.append(y[: batch // 2].clone())
+        del y
+    assert path is not None
+    return context[::-1], path[: batch // 2], path[batch // 2 :]
+
+
 def prepare_kernels(model: nn.Module, device: torch.device) -> None:
     """Load the kernel libraries for `device` and patch `model` (on `device`, eval) for `forward_kernels`."""
     cnn_kernels.load(device)  # raises if a library or cuDNN is unusable: no silent fallback to PyTorch convs
@@ -200,6 +235,7 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> None:
         pretrained, out_dtype=torch.bfloat16, fused=dpt_fused.load(device)
     )  # fp16 ViT, bf16 tokens for the bf16 DPT heads
     prepare_encoders(model)  # fnet / cnet: fp16 NHWC, folded BN, fastbb instance norm, hacc convs (convs on DPT: bf16)
+    override(model.defomencoder.depth_anything.depth_feat, _stream_depth_features)
     nch = (2 * (2 * a.corr_radius + 1), len(a.scale_list) * (2 * a.scale_corr_radius + 1))
     cpad = tuple((c + 7) // 8 * 8 for c in nch)
     _prep_block(model.update_block, cpad[0])

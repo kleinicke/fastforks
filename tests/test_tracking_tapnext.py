@@ -11,6 +11,7 @@ import torch
 
 from fastforks import tracking
 from fastforks._core.errors import InputError, WeightsError
+from fastforks.kernels import tapnext_state
 from fastforks.tracking._api import TrackingModel, _queries, grid_queries, synthetic_video
 
 
@@ -77,13 +78,14 @@ def test_bench_inputs_move_and_grid() -> None:
 
 @pytest.mark.model
 @pytest.mark.gpu
-def test_tapnext_kernels_frame_graphs_match_eager() -> None:
+@pytest.mark.parametrize("ref", ["tapnext@1", "tapnext-pp@1"])
+def test_tapnext_kernels_frame_graphs_match_eager(ref: str) -> None:
     """The graphed frame steps: bit-equal to eager across videos and query counts; release frees them."""
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     try:
-        graphed = tracking.load("tapnext@1", mode="kernels", device="cuda")
-        eager = tracking.load("tapnext@1", mode="kernels", device="cuda", cuda_graphs=False)
+        graphed = tracking.load(ref, mode="kernels", device="cuda")
+        eager = tracking.load(ref, mode="kernels", device="cuda", cuda_graphs=False)
     except WeightsError as e:
         pytest.skip(f"tapnext weights not available: {e}")
     assert eager._runner.steps is None
@@ -100,3 +102,24 @@ def test_tapnext_kernels_frame_graphs_match_eager() -> None:
     assert len(steps.graphs) == 2, f"want one recurrent graph per query count (failed: {list(steps._failed)})"
     graphed.release_graphs()
     assert not steps.graphs
+
+
+@pytest.mark.gpu
+def test_tapnext_half_history_preserves_float_convolution() -> None:
+    """Eager and ring histories retain the original Float32 convolution across ring rotations."""
+    gen = torch.Generator("cuda").manual_seed(19)
+    history = torch.randn(3, 13, 64, device="cuda", dtype=torch.float16, generator=gen)
+    weights = torch.randn(4, 64, device="cuda", generator=gen)
+    bias = torch.randn(64, device="cuda", generator=gen)
+    ring = history.clone()
+    chronological = history
+    for step in range(6):
+        x = torch.randn(1, 13, 64, device="cuda", dtype=torch.float16, generator=gen)
+        order = torch.tensor([(step + j) % 3 for j in range(3)], device="cuda")
+        frames = torch.cat((chronological, x))
+        want = bias + sum(weights[j] * frames[j : j + 1].float() for j in range(4))
+        value, chronological = tapnext_state.history_eager(x, weights, bias, chronological)
+        rotated = tapnext_state.history_update(x, weights, bias, order, ring)
+        torch.testing.assert_close(value, want, rtol=0, atol=0)
+        torch.testing.assert_close(rotated, want, rtol=0, atol=0)
+        torch.testing.assert_close(chronological, frames[1:], rtol=0, atol=0)

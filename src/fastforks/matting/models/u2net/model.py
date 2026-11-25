@@ -185,6 +185,7 @@ class Kernels(_Matting):
             graphs=2,  # a batch's full chunks and its last one
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def release_graphs(self) -> None:

@@ -979,6 +979,7 @@ option matching.romav2.keep_descriptors
 option matching.xfeat.long_side
 option matching.xfeat.max_keypoints
 option matting.ben2.cuda_graphs
+option matting.inspyrenet.cuda_graph_policy
 option matting.matanyone.cuda_graphs
 option matting.matanyone.dilate aliases r_dilate
 option matting.matanyone.erode aliases r_erode

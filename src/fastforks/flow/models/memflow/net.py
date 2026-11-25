@@ -267,7 +267,7 @@ class MemFlowNet(nn.Module):
         matrix = None
         if rows:
             kt = k[:, 0].transpose(1, 2)
-            matrix = softmax_rows_(torch.baddbmm(kt.new_empty(()), q[:, 0, :rows], kt, beta=0, alpha=scale), 32 << 20)
+            matrix = softmax_rows_(torch.baddbmm(kt.new_empty(()), q[:, 0, :rows], kt, beta=0, alpha=scale))
             q = q[:, :, rows:]
         coords0 = coords_grid(b, h, w, image1.device)
         coords1 = coords0

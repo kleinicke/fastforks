@@ -226,7 +226,13 @@ class _GraphedDCC:
     def __init__(self, dcc: DCC, *, enabled: bool, capture_after: int) -> None:
         self.dcc = dcc
         self.graphs = SmallShapeGraphs(
-            dcc, pixels=DCC_ROWS, graphs=1, enabled=enabled, capture_after=capture_after, size=lambda v, *_: v.shape[0]
+            dcc,
+            pixels=DCC_ROWS,
+            graphs=1,
+            enabled=enabled,
+            capture_after=capture_after,
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
+            size=lambda v, *_: v.shape[0],
         )
 
     def __call__(
@@ -267,6 +273,7 @@ class Kernels(Portable):
             graphs=1,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
         )
         self.dcc_graph = _GraphedDCC(self.dcc, enabled=ctx.params.cuda_graphs, capture_after=cudnn_hacc.capture_after())
 

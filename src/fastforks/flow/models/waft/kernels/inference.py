@@ -46,12 +46,18 @@ def graph_pixels(image: torch.Tensor, _other: torch.Tensor) -> int:
     return b * (h + top + bottom) * (w + left + right)
 
 
-def _resconv_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+def _resconv_forward(self: nn.Module, x: torch.Tensor, *, consume_input: bool = False) -> torch.Tensor:
     """GELU -> conv -> GELU -> conv, + skip (conv or identity)."""
     _, c0, _, c1 = self.conv
     skip = x if isinstance(self.skip_conv, nn.Identity) else conv_ep(self.skip_conv, x)
-    y = conv_ep(c0, F.gelu(x), act=ACT["gelu"])
+    activated = torch.ops.aten.gelu_(x) if consume_input else F.gelu(x)
+    y = conv_ep(c0, activated, act=ACT["gelu"])
     return conv_ep(c1, y, r=skip.contiguous(memory_format=CL))
+
+
+def _stem_resconv_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """The feature encoder owns its concatenated depth and RGB input; the skip projection reads it first."""
+    return _resconv_forward(self, x, consume_input=True)
 
 
 def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
@@ -66,7 +72,7 @@ def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
     use_fused_bilinear(net, fused)  # both DPT heads' channels-last resizes (PyTorch's NHWC bilinear is 4x slower)
     for m in net.modules():
         if isinstance(m, resconv):
-            override(m, _resconv_forward)
+            override(m, _stem_resconv_forward if m is net.fnet.ds1 else _resconv_forward)
     use_flash_attention(net.refine_net)
     # The 3 C + 2 channel input of the warp's 1 x 1 conv gets zero channels up to a multiple of 8: 16-byte pixels, so
     # each iteration's writes into it are vectorized copies (1080p: 194 channels, 3.6 ms of copies per iteration).

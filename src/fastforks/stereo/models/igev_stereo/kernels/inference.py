@@ -38,7 +38,7 @@ from fastforks.shared.igev_blocks.net.submodule import context_upsample, dispari
 from fastforks.stereo._volume import gwc_volume_blocks
 
 _TAIL = 3  # cutlass_conv affine act 3: relu(res + relu(conv * s + t))
-STRIP_PIXELS = 2 * 2**20  # context-encoder full-res stage processed in row strips of about this many pixels
+STRIP_PIXELS = 2**20  # fixed: full-resolution context stem work per stripe
 STRIP_HALO = 16  # full-res rows of receptive field of conv1(7x7) + layer1 + layer2 (14), kept even
 
 

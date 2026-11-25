@@ -247,10 +247,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 203<br>189<br>109<br>82.6 | 719 / 784<br>535 / 596<br>507 / 600<br>1117 / 1140 |
-| `locotrack-b` | Synthetic video (8x480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>27.2<br>–<br>6.12 (8 frames with 16 queries only) | –<br>241 / 278<br>–<br>233 / 242 |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 193<br>180<br>151<br>74.1 | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034 |
-| `locotrack-s` | Synthetic video (8x480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>25.3<br>–<br>5.66 (8 frames with 16 queries only) | –<br>229 / 280<br>–<br>251 / 256 |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>189<br>109<br>82.6<br>65.8 (24 frames with 256 queries) | 719 / 784<br>535 / 596<br>507 / 600<br>1117 / 1140<br>849 / 882 |
+| `locotrack-b` | Synthetic video (8x480x854) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 42.6<br>40.4<br>27.2<br>17.4<br>9.16 (fixed 8-frame, 16-query tensor module)<br>6.12 (fixed 8-frame, 16-query tensor module) | 355 / 420<br>279 / 334<br>241 / 278<br>232 / 290<br>262 / 336<br>233 / 242 |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>49.8 (24 frames with 256 queries) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>714 / 762 |
+| `locotrack-s` | Synthetic video (8x480x854) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 39.6<br>36.2<br>25.3<br>15.5<br>8.84 (fixed 8-frame, 16-query tensor module)<br>5.66 (fixed 8-frame, 16-query tensor module) | 341 / 400<br>265 / 316<br>229 / 280<br>220 / 286<br>247 / 316<br>251 / 256 |
 
 <details><summary>Details</summary>
 
@@ -264,16 +264,23 @@ Commercial use: yes.
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `locotrack-b` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `locotrack-s` 3000x4000 (5.4 GiB peak allocated, 5.8 reserved)
-- `locotrack-b` 480x854, first call: portable + torch.compile 146 s (cold Inductor cache).
-- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache).
-- `locotrack-s` 8x480x854, first call: TensorRT fp16 51 s (ONNX + engine).
+- `locotrack-b` 480x854, first call: portable + torch.compile 146 s (cold Inductor cache), TensorRT fp16 170 s (ONNX + engine).
+- `locotrack-b` 8x480x854, first call: portable + torch.compile 49 s (cold Inductor cache).
+- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache), TensorRT fp16 159 s (ONNX + engine).
+- `locotrack-s` 8x480x854, first call: portable + torch.compile 47 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-b` portable 480x854, kernels 480x854: FP16 native model, 24 frames and 256 queried points. Earlier release of consumed tracking intermediates. Tracks and visibility matched the previous path bitwise on synthetic inputs and three DAVIS clips.
+- `locotrack-b` original (fp32) 8x480x854: Original offline forward, query chunk 64, with 256×256 frame resize and pixel coordinate conversion. FP32.
+- `locotrack-b` original 8x480x854: Original offline forward, query chunk 64, with 256×256 frame resize and pixel coordinate conversion. CUDA autocast FP16.
 - `locotrack-b` portable 8x480x854: The eager portable module on the same eight-frame, 16-query example input used for TensorRT.
+- `locotrack-b` kernels 8x480x854: Public Fastforks call on device tensors, including query validation and result wrapping.
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
+- `locotrack-s` original (fp32) 8x480x854: Original offline forward, query chunk 64, with 256×256 frame resize and pixel coordinate conversion. FP32.
+- `locotrack-s` original 8x480x854: Original offline forward, query chunk 64, with 256×256 frame resize and pixel coordinate conversion. CUDA autocast FP16.
 - `locotrack-s` portable 8x480x854: The eager portable module on the same eight-frame, 16-query example input used for TensorRT.
-- `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s
-- `locotrack-s` load / first call: original 0.29 s / 0.229 s, portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s
+- `locotrack-s` kernels 8x480x854: Public Fastforks call on device tensors, including query validation and result wrapping.
+- `locotrack-b` load / first call: original 0.1364007770025637 s / 0.772 s (8x480x854), portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s
+- `locotrack-s` load / first call: original 0.1058439280022867 s / 0.776 s (8x480x854), portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -327,7 +334,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md#license-and-disclaimer>
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `fvm_conv`
+- Kernel libraries: `fvm_conv`, `tapnext_state`
 - Variants: `tapnext`, `tapnext-pp`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -359,8 +366,8 @@ CPU, float32: max |diff| <= 4.6e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `tapnext` | 0.00369 / 0.02116 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
-| `tapnext-pp` | 0.00415 / 0.02383 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+| `tapnext` | 0.00369 / 0.02116 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `tapnext_state@be3777b468c9:sm_120` |
+| `tapnext-pp` | 0.00415 / 0.02383 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `tapnext_state@be3777b468c9:sm_120` |
 
 ### Limitations
 
@@ -432,8 +439,8 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `track-on2` | 0.02559 / 0.49624 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `track-on-r` | 0.03312 / 0.75115 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `track-on2` | 0.00222 / 0.00895 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `track-on-r` | 0.00201 / 0.00874 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

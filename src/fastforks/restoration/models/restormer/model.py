@@ -36,6 +36,8 @@ if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
 
 _EPS = 1e-5  # fixed: upstream's LayerNorm epsilon (hard-coded in restormer_arch.py)
+_FFN_TILE_BYTES = 512 << 20  # fixed: target for an expanded CUDA feed-forward projection
+_FFN_TILE_ROWS = 256  # fixed: cap the height of each CUDA feed-forward stripe
 
 
 @dataclass(frozen=True)
@@ -224,8 +226,39 @@ def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
 
 
 def _fused_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
-    gated = fastbb.dwgate(m.project_in(x).permute(0, 2, 3, 1), m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
-    return m.project_out(gated.permute(0, 3, 1, 2))
+    return m.project_out(_gated_features(m, x))
+
+
+def _gated_features(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
+    features = m.project_in(x).permute(0, 2, 3, 1)
+    return fastbb.dwgate(features, m.gate_weight, m.gate_bias).permute(0, 3, 1, 2)  # ty: ignore[invalid-argument-type]
+
+
+def _tiled_ffn(m: FeedForward, norm: torch.nn.Module, x: torch.Tensor, rows: int) -> torch.Tensor:
+    """Normalize and gate a stripe at a time, writing its residual sum directly to the output."""
+    height = x.shape[-2]
+    out = torch.empty_like(x)
+    for start in range(0, height, rows):
+        stop = min(start + rows, height)
+        # The 3x3 depthwise kernel reads one more row on either side of the output stripe.
+        lo, hi = max(0, start - 1), min(height, stop + 1)
+        gated = _gated_features(m, norm(x[:, :, lo:hi]))
+        residual = m.project_out(gated[:, :, start - lo : stop - lo])
+        torch.add(x[:, :, start:stop], residual, out=out[:, :, start:stop])
+        del gated, residual
+    return out
+
+
+def _cuda_block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
+    """Keep high-resolution feed-forward activations bounded to a row tile."""
+    x = x.contiguous(memory_format=torch.channels_last)
+    x = x + m.attn(m.norm1(x))
+    height, width = x.shape[-2:]
+    row_bytes = x.shape[0] * width * m.ffn.project_in.out_channels * x.element_size()
+    if height > 1 and row_bytes * height > _FFN_TILE_BYTES:
+        rows = min(_FFN_TILE_ROWS, max(1, _FFN_TILE_BYTES // row_bytes))
+        return _tiled_ffn(m.ffn, m.norm2, x, rows)
+    return x + m.ffn(m.norm2(x))
 
 
 def _fold_norm(norm: torch.nn.Module, conv: torch.nn.Conv2d) -> torch.nn.Module:
@@ -355,11 +388,25 @@ class Portable(Runner):
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    return cudnn_hacc.conv_half_acc(
+        x,
+        conv.weight,
+        conv.bias,
+        conv.padding,  # ty: ignore[invalid-argument-type] - Restormer uses integer padding
+        conv.stride,
+        conv.dilation,
+        fuse_bias=conv.kernel_size == (1, 1),
+    )
+
+
+def _attention_depthwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """Depthwise Q/K/V convolution in the channels-last activation layout."""
+    tokens = x.permute(0, 2, 3, 1).contiguous()
+    return fastbb.dwconv3(tokens, conv.get_buffer("_qkv_packed"), None).permute(0, 3, 1, 2)
 
 
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`; the depthwise convs stay PyTorch's).
+    """Channels-last FP16 convolutions (`cudnn_hacc`) and packed Q/K/V depthwise convolutions (`fastbb`).
 
     The attention GEMMs keep float32 accumulation (the `q^T k` sums run over all pixels).
     """
@@ -379,6 +426,12 @@ class Kernels(Portable):
             if is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
             elif isinstance(m, TransformerBlock):
+                override(m, _cuda_block)
+                dw = m.attn.qkv_dwconv
+                if dw.out_channels % 8 == 0 and dw.bias is None:
+                    weight = dw.weight.detach().view(dw.out_channels, 3, 3).permute(1, 2, 0).contiguous()
+                    dw.register_buffer("_qkv_packed", weight, persistent=False)
+                    override(dw, _attention_depthwise)
                 channels = m.attn.qkv.in_channels
                 if channels % 8 or channels > fastbb.LN_MAX_C:
                     continue  # arbitrary-width checkpoint variants use the generic channel normalization

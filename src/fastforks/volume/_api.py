@@ -543,8 +543,8 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         folds: nnU-Net folder: folds to ensemble; `None`: every `fold_<k>` with the checkpoint.
         step: nnU-Net path: sliding-window step (fraction of the patch; `None`: nnU-Net's default 0.5).
         mirror: nnU-Net path: test-time mirroring along the axes the checkpoint allows (`None`: on, nnU-Net's default).
-        checkpoint: nnU-Net folder: checkpoint file name in the fold folders (`None`: `checkpoint_final.pth`;
-            `checkpoint_best.pth`: nnU-Net's best epoch).
+        checkpoint: nnU-Net folder: checkpoint file name in the fold folders (`None`: `checkpoint_final.pth`).
+            For a safetensors export, pass `checkpoint="checkpoint_final.safetensors"`.
 
     Returns:
         The loaded model: a `VolumeModel`, or a `VolumeEncoder` / `VolumeInteractive` for those cards.

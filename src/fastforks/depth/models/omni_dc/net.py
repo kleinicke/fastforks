@@ -283,8 +283,10 @@ class Backbone(nn.Module):
         self.cfi_dec1 = _cbr(128, 32)
         self.cfi_dec0 = nn.Sequential(_conv(32, 1), nn.Sigmoid())
 
-    def forward(self, rgb: torch.Tensor, depth: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """Image `[B, 3, H, W]`, depth input `[B, 2, H, W]` -> guide, DySPN confidence, context, input confidence."""
+    def decoder_features(
+        self, rgb: torch.Tensor, depth: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Build the encoder skips and final decoder maps consumed by the prediction heads."""
         fe1 = self.conv1(torch.cat([self.conv1_rgb(rgb), self.conv1_dep(depth)], 1))
         fe2, fe3, fe4, fe5, fe6, fe7 = self.former(fe1)
         fd5 = self.dec5(_cat(self.dec6(fe7), fe6))
@@ -293,6 +295,11 @@ class Backbone(nn.Module):
         del fd5, fe5
         fd2 = self.dec2(_cat(self.dec3(_cat(fd4, fe4)), fe3))
         del fe3
+        return fe1, fe2, fd2, fd4, fe4
+
+    def forward(self, rgb: torch.Tensor, depth: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Image `[B, 3, H, W]`, depth input `[B, 2, H, W]` -> guide, DySPN confidence, context, input confidence."""
+        fe1, fe2, fd2, fd4, fe4 = self.decoder_features(rgb, depth)
         f2 = _cat(fd2, fe2)
         del fd2, fe2
         # Keep the projected branches and release their larger shared input before the final full-size convolutions.

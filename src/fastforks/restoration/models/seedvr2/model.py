@@ -33,13 +33,14 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.model import eager_in_compile
+from fastforks._core.patch import override
 from fastforks.kernels import nf4
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared.nf4 import code as nf4_code
 
 from .net import BF, CONFIGS, LATENT, SPATIAL, Net
 from .net import load as build_net
-from .net.vae import CausalConv3d
+from .net.vae import CausalConv3d, State, Upsample3D
 
 if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
@@ -133,6 +134,39 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self._run(image))
 
 
+_UPSAMPLE_BAND_BYTES = 128 * 1024**2
+
+
+def _banded_upsample(m: Upsample3D, x: torch.Tensor, state: State) -> torch.Tensor:
+    """Decode large single-frame features by row, keeping only the projected halo for each folded convolution."""
+    batch, channels, frames, height, width = x.shape
+    weight = m.conv.time_sum
+    row_bytes = batch * channels * width * x.element_size() * 4
+    if (
+        not x.is_cuda
+        or frames != 1
+        or state is not State.DISABLED
+        or weight is None
+        or height * row_bytes < 2 * _UPSAMPLE_BAND_BYTES
+    ):
+        return Upsample3D.forward(m, x, state)
+
+    rows = max(1, _UPSAMPLE_BAND_BYTES // (row_bytes * m.t))
+    out = x.new_empty((batch, channels, 1, 2 * height, 2 * width))
+    for start in range(0, height, rows):
+        end = min(height, start + rows)
+        # The folded 3x3 needs a one-pixel halo. One low-resolution row covers two output rows.
+        top, bottom = max(0, start - 1), min(height, end + 1)
+        count = bottom - top
+        projected = m.upscale_conv(x[:, :, :, top:bottom])
+        # The first video frame retains only temporal phase zero, matching Upsample3D's initial-frame crop.
+        projected = projected.view(batch, 2, 2, m.t, channels, count, width)[:, :, :, 0]
+        pixels = projected.permute(0, 3, 4, 1, 5, 2).reshape(batch, channels, 2 * count, 2 * width)
+        band = F.conv2d(pixels, weight, m.conv.bias, padding=1)
+        out[:, :, 0, 2 * start : 2 * end].copy_(band[:, :, 2 * (start - top) : 2 * (end - top)])
+    return out
+
+
 class Kernels(Runner):
     """Portable with the VAE's time kernels folded (one frame per call) and the NF4 expansion as one fused kernel."""
 
@@ -147,6 +181,8 @@ class Kernels(Runner):
         for m in self.net.vae.modules():
             if isinstance(m, CausalConv3d):
                 m.fold_time()  # `infer` restores one frame per call
+            if isinstance(m, Upsample3D):
+                override(m, _banded_upsample)
         if ctx.params.quant == "nf4":
             nf4.load(ctx.device)
             self.net.dit.dequant = _Dequant(ctx.device)

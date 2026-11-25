@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | 3.04, 4.6x | 178, 0.76x |
 | [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | 12.8, 1.4x (384x384) | 356, 0.67x |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | 12.9, 1.4x (384x384) | 354, 0.67x |
 | [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | 1.75, 5.1x | 106, 0.73x |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
@@ -55,9 +55,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`efficientvit_b2`](#efficientvit) | yes | 1.12, 9.5x | 170, 1.1x |
 | [`eva02_large_patch14_448`](#eva02) | yes | 14.1, 2.3x | 786, 0.61x |
 | [`falconsai-nsfw-vit`](#nsfw_vit) | yes | 1.61, 3.6x | 228, 1.0x |
-| [`fastvit_sa24`](#fastvit) | yes | 1.41, 5.0x (256x256) | 132, 0.93x |
-| [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
-| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
+| [`fastvit_sa24`](#fastvit) | yes | 1.48, 4.8x (256x256) | 140, 0.99x |
+| [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.872, 4.1x (256x256) | 88, 1.1x |
+| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.765, 4.0x (256x256) | 118, 1.6x |
 | [`focalnet_base_lrf`](#focalnet) | yes | 5.44, 3.3x | 258, 0.62x |
 | [`focalnet_base_srf`](#focalnet) | yes | 4.99, 3.4x | 256, 0.62x |
 | [`focalnet_small_lrf`](#focalnet) | yes | 4.18, 4.0x | 154, 0.61x |
@@ -94,7 +94,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`shvit_s1`](#shvit) | yes | 0.805, 10.4x | 62, 0.94x |
 | [`shvit_s2`](#shvit) | yes | 0.949, 8.8x | 88, 0.86x |
 | [`shvit_s3`](#shvit) | yes | 1.01, 9.3x | 112, 1.0x |
-| [`shvit_s4`](#shvit) | yes | 1.78, 6.4x (256x256) | 102, 0.86x |
+| [`shvit_s4`](#shvit) | yes | 1.84, 6.2x (256x256) | 94, 0.8x |
 | [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
@@ -103,16 +103,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`swin_base_patch4_window7_224`](#swin) | yes | 2.16, 6.9x | 238, 0.57x |
 | [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.934, 6.4x | 84, 0.75x |
 | [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.19, 5.1x | 106, 0.67x |
-| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.80, 3.2x (384x384) | 178, 0.61x |
-| [`tiny_vit_21m_512`](#tinyvit) | yes | 3.13, 2.6x (512x512) | 258, 0.45x |
+| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.87, 3.1x (384x384) | 172, 0.59x |
+| [`tiny_vit_21m_512`](#tinyvit) | yes | 3.21, 2.5x (512x512) | 298, 0.52x |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.858, 6.9x | 78, 0.93x |
 | [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
 | [`vit_base_patch16_224`](#vit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.9, 2.0x | 926, 0.53x |
-| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.46, 2.2x (448x448) | 276, 0.95x |
-| [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 806, 1.2x |
-| [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.6, 1.6x (448x448) | 724, 1.1x |
-| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.06, 1.4x (448x448) | 284, 1.2x |
+| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.51, 2.1x (448x448) | 324, 1.1x |
+| [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 826, 1.2x |
+| [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.6, 1.6x (448x448) | 718, 1.1x |
+| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.12, 1.4x (448x448) | 272, 1.1x |
 
 <a id="alexnet"></a>
 
@@ -182,7 +182,7 @@ Commercial use: yes.
 | `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>4.01<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>211 / 240<br>374 / 416 |
 | `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>4.24<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>204 / 240<br>238 / 260<br>404 / 446 |
 | `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>4.24<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>238 / 260<br>402 / 444 |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>12.8<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>288 / 356<br>326 / 370<br>464 / 500 |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>14.0<br>12.9<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>309 / 358<br>300 / 354<br>326 / 370<br>464 / 500 |
 
 <details><summary>Details</summary>
 
@@ -232,7 +232,7 @@ Commercial use: yes.
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` original 384x384: torch.autocast(float16) around the call
-- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` kernels 384x384: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` portable 384x384, kernels 384x384: Full classification API at the checkpoint's native input crop.
 - `coatnet_nano_rw_224.sw_in1k` load / first call: original 0.28 s / 0.539 s, portable 1.37 s / 0.422 s, kernels 2.25 s / 0.45 s
 - `coatnet_rmlp_nano_rw_224.sw_in1k` load / first call: original 0.26 s / 0.187 s, portable 1.36 s / 0.393 s, kernels 2.04 s / 0.311 s
 - `coatnet_0_rw_224.sw_in1k` load / first call: original 0.38 s / 0.312 s, portable 1.37 s / 0.378 s, kernels 1.94 s / 0.285 s
@@ -1088,9 +1088,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.03<br>1.41<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 132<br>113 / 148<br>148 / 200 |
-| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.25<br>0.709<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
-| `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.27<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 76<br>52 / 76<br>86 / 94<br>89 / 114 |
+| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.36<br>1.48<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>85 / 118<br>83 / 140<br>113 / 148<br>148 / 200 |
+| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.44<br>0.765<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 118<br>45 / 118<br>77 / 92<br>78 / 108 |
+| `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.36<br>0.872<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>55 / 66<br>54 / 88<br>86 / 94<br>89 / 114 |
 
 <details><summary>Details</summary>
 
@@ -1110,10 +1110,13 @@ Commercial use: yes.
 - `fastvit_t12.apple_dist_in1k` 256x256, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `fastvit_sa24.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_sa24.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
+- `fastvit_sa24.apple_dist_in1k` portable 256x256, kernels 256x256: Full classification API at the checkpoint's native input crop.
 - `fastvit_t8.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t8.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
+- `fastvit_t8.apple_dist_in1k` portable 256x256, kernels 256x256: Full classification API at the checkpoint's native input crop.
 - `fastvit_t12.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
+- `fastvit_t12.apple_dist_in1k` portable 256x256, kernels 256x256: Full classification API at the checkpoint's native input crop.
 - `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 2.45 s / 0.818 s (256x256), kernels 2.77 s / 0.046 s (256x256)
 - `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 2.1 s / 0.851 s (256x256), kernels 1.83 s / 0.047 s (256x256)
 - `fastvit_t12.apple_dist_in1k` load / first call: original 0.14 s / 0.708 s (256x256), portable 1.81 s / 0.406 s (256x256), kernels 2.01 s / 0.044 s (256x256)
@@ -1852,7 +1855,7 @@ Commercial use: yes.
 | `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>0.805<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>47 / 62<br>78 / 98<br>77 / 90 |
 | `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>0.949<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>57 / 88<br>88 / 128<br>87 / 120 |
 | `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>1.01<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>62 / 112<br>94 / 132<br>92 / 144 |
-| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>1.78<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>68 / 102<br>99 / 138<br>101 / 154 |
+| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.13<br>1.84<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 90<br>68 / 94<br>99 / 138<br>101 / 154 |
 
 <details><summary>Details</summary>
 
@@ -1879,7 +1882,7 @@ Commercial use: yes.
 - `shvit_s3.in1k` original 224x224: torch.autocast(float16) around the call
 - `shvit_s3.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s4.in1k` original 256x256: torch.autocast(float16) around the call
-- `shvit_s4.in1k` kernels 256x256: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `shvit_s4.in1k` portable 256x256, kernels 256x256: Full classification API at the checkpoint's native input crop.
 - `shvit_s1.in1k` load / first call: original 0.31 s / 0.921 s, portable 2.16 s / 0.412 s, kernels 2.91 s / 0.401 s
 - `shvit_s2.in1k` load / first call: original 0.2 s / 0.299 s, portable 2.32 s / 0.478 s, kernels 2.31 s / 0.454 s
 - `shvit_s3.in1k` load / first call: original 0.21 s / 0.566 s, portable 2.8 s / 0.544 s, kernels 2.22 s / 0.452 s
@@ -2090,8 +2093,8 @@ Commercial use: yes.
 | `tiny_vit_5m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.92<br>8.54<br>4.73<br>0.858<br>2.92<br>0.514 | 71 / 84<br>71 / 90<br>52 / 62<br>48 / 78<br>81 / 102<br>86 / 118 |
 | `tiny_vit_11m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.95<br>8.27<br>4.75<br>0.934<br>2.92<br>0.513 | 95 / 112<br>106 / 122<br>64 / 86<br>60 / 84<br>93 / 130<br>98 / 128 |
 | `tiny_vit_21m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.05<br>8.37<br>4.83<br>1.19<br>2.95<br>0.714 | 143 / 158<br>168 / 188<br>87 / 106<br>83 / 106<br>114 / 166<br>153 / 216 |
-| `tiny_vit_21m_384.dist_in22k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.84<br>7.95<br>4.54<br>1.80<br>2.79<br>1.31 | 275 / 298<br>270 / 290<br>157 / 184<br>132 / 178<br>174 / 204<br>255 / 298 |
-| `tiny_vit_21m_512.dist_in22k_ft_in1k` | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>8.13<br>4.46<br>3.13<br>3.14<br>2.13 | 554 / 598<br>525 / 570<br>310 / 344<br>237 / 258<br>314 / 362<br>499 / 518 |
+| `tiny_vit_21m_384.dist_in22k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.84<br>7.95<br>4.68<br>1.87<br>2.79<br>1.31 | 275 / 298<br>270 / 290<br>160 / 194<br>133 / 172<br>174 / 204<br>255 / 298 |
+| `tiny_vit_21m_512.dist_in22k_ft_in1k` | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>8.13<br>4.62<br>3.21<br>3.14<br>2.13 | 554 / 598<br>525 / 570<br>313 / 332<br>238 / 298<br>314 / 362<br>499 / 518 |
 
 <details><summary>Details</summary>
 
@@ -2117,7 +2120,9 @@ Commercial use: yes.
 - `tiny_vit_11m_224.dist_in22k_ft_in1k` original 224x224: torch.autocast(float16) around the call
 - `tiny_vit_21m_224.dist_in22k_ft_in1k` original 224x224: torch.autocast(float16) around the call
 - `tiny_vit_21m_384.dist_in22k_ft_in1k` original 384x384: torch.autocast(float16) around the call
+- `tiny_vit_21m_384.dist_in22k_ft_in1k` portable 384x384, kernels 384x384: Full classification API at the checkpoint's native input crop.
 - `tiny_vit_21m_512.dist_in22k_ft_in1k` original 512x512: torch.autocast(float16) around the call
+- `tiny_vit_21m_512.dist_in22k_ft_in1k` portable 512x512, kernels 512x512: Full classification API at the checkpoint's native input crop.
 - `tiny_vit_5m_224.dist_in22k_ft_in1k` load / first call: original 0.26 s / 1.285 s, portable 2.02 s / 0.262 s, kernels 1.37 s / 0.123 s
 - `tiny_vit_11m_224.dist_in22k_ft_in1k` load / first call: original 0.56 s / 0.598 s, portable 1.83 s / 0.407 s, kernels 1.44 s / 0.109 s
 - `tiny_vit_21m_224.dist_in22k_ft_in1k` load / first call: original 0.37 s / 0.987 s, portable 1.98 s / 0.395 s, kernels 1.45 s / 0.098 s
@@ -2310,10 +2315,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.01<br>4.06<br>5.33<br>3.32 | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>421 / 446 |
-| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
-| `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.6<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
-| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>12.4 | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>1280 / 1306 |
+| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.09<br>4.12<br>5.33<br>3.32 | 426 / 442<br>231 / 242<br>248 / 334<br>243 / 272<br>282 / 302<br>421 / 446 |
+| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>6.11<br>4.51<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>262 / 308<br>241 / 324<br>380 / 392<br>521 / 548 |
+| `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.6<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>671 / 756<br>669 / 718<br>713 / 742<br>1266 / 1290 |
+| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>12.4 | 1299 / 1324<br>668 / 684<br>685 / 886<br>687 / 826<br>714 / 724<br>1280 / 1306 |
 
 <details><summary>Details</summary>
 
@@ -2332,9 +2337,13 @@ Commercial use: yes.
 - `wd-vit-large-tagger-v3` 448x448, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `wd-eva02-large-tagger-v3` 448x448, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `wd-vit-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
+- `wd-vit-tagger-v3` portable 448x448, kernels 448x448: Full classification API at the checkpoint's native input crop.
 - `wd-convnext-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
+- `wd-convnext-tagger-v3` portable 448x448, kernels 448x448: Full classification API at the checkpoint's native input crop.
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
+- `wd-vit-large-tagger-v3` portable 448x448, kernels 448x448: Full classification API at the checkpoint's native input crop.
 - `wd-eva02-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
+- `wd-eva02-large-tagger-v3` portable 448x448, kernels 448x448: Full classification API at the checkpoint's native input crop.
 - `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.25 s / 0.088 s (448x448), kernels 2.47 s / 0.06 s (448x448)
 - `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.34 s / 0.236 s (448x448), kernels 2.5 s / 0.066 s (448x448)
 - `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.56 s / 0.108 s (448x448), kernels 4.5 s / 0.07 s (448x448)

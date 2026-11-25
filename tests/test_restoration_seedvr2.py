@@ -183,6 +183,25 @@ def test_nf4_portable_tiles_preserve_scale_boundaries(monkeypatch: pytest.Monkey
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize("temporal", [False, True])
+def test_banded_upsample_keeps_folded_convolution_halo(monkeypatch: pytest.MonkeyPatch, *, temporal: bool) -> None:
+    """Odd height and width exercise the outer boundaries, internal row seams and the first-frame crop."""
+    from fastforks.restoration.models.seedvr2 import model  # noqa: PLC0415
+
+    torch.manual_seed(53)
+    monkeypatch.setattr(model, "_UPSAMPLE_BAND_BYTES", 8 * 1024)
+    up = vae.Upsample3D(32, temporal=temporal).to_empty(device="cuda").bfloat16().eval()
+    up.upscale_conv.reset_parameters()
+    up.conv.reset_parameters()
+    up.conv.fold_time()
+    x = torch.randn((2, 32, 1, 13, 33), dtype=torch.bfloat16, device="cuda")
+    with torch.inference_mode():
+        expected = up(x, State.DISABLED)
+        got = model._banded_upsample(up, x, State.DISABLED)
+    torch.testing.assert_close(got, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize("frames", [1, 3])
 def test_group_norm_in_bf16_matches_the_float32_norm_rounded(frames: int) -> None:
     torch.manual_seed(2)

@@ -33,11 +33,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels import depthsplat_corr, knn_attention
 from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.multiview.models.depthsplat.model import (
     _chunked_cost_volume,
     _fused_cost_volume,
@@ -50,7 +52,15 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
-from .net.point_transformer import MLP, KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
+from .net.point_transformer import (
+    CHUNK,
+    MLP,
+    KNNAttention,
+    MultViewLowresAttn,
+    PlainPointTransformer,
+    PointLinearWrapper,
+    TransformerBlock,
+)
 from .net.resnet import ResNetFeatureWarpper
 from .render import render, sh_basis
 
@@ -317,28 +327,23 @@ class Net(nn.Module):
         self, g: dict[str, torch.Tensor], images: torch.Tensor, k: torch.Tensor, c2w: torch.Tensor, near: float,
         far: float, steps: int,
     ) -> dict[str, torch.Tensor]:  # fmt: skip
-        """Upstream `forward_update`: `steps` recurrent updates of the Gaussians of `encode`."""
+        """Consume the encoded Gaussian state and condition features over `steps` recurrent updates."""
         p, (v, _, h, w) = self.p, images.shape
         m = p.gaussians_per_point
         dt = g["condition"].dtype
-        state = self.update_proj(g["condition"])
+        state = self.update_proj(g.pop("condition"))
         if p.same_points and m in (4, 16):
             state = F.interpolate(state, scale_factor=round(m**0.5), mode="bilinear", align_corners=True)
         state = state.permute(0, 2, 3, 1).reshape(-1, STATE_CHANNELS)
         hl, wl = h // p.latent, w // p.latent
         fh, fw = (hl * round(m**0.5), wl * round(m**0.5)) if p.same_points and m in (4, 16) else (hl, wl)
-        means, scales, rot = g["means"], g["scales"], g["rotations"]
-        opac, sh = torch.logit(g["opacities"], eps=1e-6)[..., None], g["harmonics"].flatten(2)
-        cur = {
-            "means": means,
-            "scales": scales,
-            "rotations": rot,
-            "opacities": g["opacities"],
-            "harmonics": g["harmonics"],
-        }
+        cur = {name: g.pop(name) for name in ("means", "scales", "rotations", "opacities", "harmonics")}
+        means, scales, rot = cur["means"], cur["scales"], cur["rotations"]
+        opac, sh = torch.logit(cur["opacities"], eps=1e-6)[..., None], cur["harmonics"].flatten(2)
         target = None
         for _ in range(steps):
             rendered = self._render(cur, c2w, k, (h, w), near, far)
+            del cur
             f = self._features(rendered if target is not None else torch.cat((rendered, images.float())), (fh, fw))
             if target is None:
                 f, target = f[:v], f[v:].clone()  # release the rendered-image features after computing the error
@@ -384,14 +389,24 @@ class Net(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Depth `[V, h, w]`, match probability `[V, 1, h', w']` and the Gaussians (view-major `[V, n, ...]`)."""
         g = self.encode(images, k, c2w, near, far)
-        out = {n: g[n] for n in ("means", "scales", "rotations", "opacities", "harmonics")}
         if steps:
             out = self.refine(g, images, k, c2w, near, far, steps)
+        else:
+            out = {n: g[n] for n in ("means", "scales", "rotations", "opacities", "harmonics")}
         return g["depth"], g["confidence"], out
 
 
 def _net(ctx: Context) -> Net:
     sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict(key="state_dict").items()}
+    if ctx.device.type == "cuda" and ctx.dtype == "float16":
+        # The strict checkpoint fills the whole network. Transfer each tensor directly to its final layout and dtype.
+        with skipped_init():
+            net = Net(ctx.params)
+        assign_inference_weights(net, sd, torch.device("cpu"), ())
+        net.eval().requires_grad_(requires_grad=False)
+        return net.to(  # ty: ignore[no-matching-overload] - Module.to accepts the combined dtype and memory format.
+            device=ctx.device, dtype=torch.float16, memory_format=torch.channels_last
+        )
     net = Net(ctx.params)
     net.load_state_dict(sd, strict=True)
     return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
@@ -451,7 +466,7 @@ class _Base(Runner):
             if isinstance(m, MLP):
                 override(m, _point_mlp)
         self.half = ctx.dtype == "float16"
-        if self.half:
+        if self.half and ctx.device.type != "cuda":
             self.net.half().to(memory_format=torch.channels_last)
 
     def _amp(self) -> contextlib.AbstractContextManager[Any]:
@@ -530,6 +545,38 @@ def _indexed_attention(m: KNNAttention, pxo: tuple, knn_idx: torch.Tensor) -> to
     return m.proj(knn_attention.attention(m.qkv(x), knn_idx))
 
 
+def _point_block(m: TransformerBlock, pxo: tuple, knn_idx: torch.Tensor) -> torch.Tensor:
+    """Bound LayerNorm's FP32 working set before projecting all neighbours' QKV."""
+    p, x, o = pxo
+    if x.shape[0] > CHUNK and x.dtype == torch.float16:
+        projection = m.attn.qkv
+        qkv = x.new_empty((x.shape[0], projection.out_features))
+        for part, out in zip(x.split(CHUNK), qkv.split(CHUNK), strict=True):
+            torch.mm(m.norm1(part).half(), projection.weight.t(), out=out)
+        neighbours = knn_attention.attention(qkv, knn_idx)
+        del qkv
+        x = x + m.attn.proj(neighbours)
+        del neighbours
+    else:
+        x = x + m.attn((p, m.norm1(x), o), knn_idx=knn_idx)
+    for part in x.split(CHUNK):
+        part.add_(m.mlp(m.norm2(part)))
+    return x
+
+
+def _point_mlp_cuda(m: MLP, x: torch.Tensor) -> torch.Tensor:
+    """Write each activation tile straight into its output rows."""
+    rows = max(1, _MLP_TILE_BYTES // (m.fc1.out_features * m.fc1.weight.element_size()))
+    if x.shape[0] <= rows:
+        return m.fc2(m.act(m.fc1(x)))
+    result = m.fc2.weight.new_empty((x.shape[0], m.fc2.out_features))
+    for part, out in zip(x.split(rows), result.split(rows), strict=True):
+        hidden = m.act(m.fc1(part))
+        torch.addmm(m.fc2.bias, hidden, m.fc2.weight.t(), out=out)
+        del hidden
+    return result
+
+
 class Kernels(_Base):
     """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, `gsraster`'s CUDA rasteriser (refinement renders) and kNN."""
 
@@ -544,6 +591,10 @@ class Kernels(_Base):
         for m in self.net.modules():
             if isinstance(m, KNNAttention):
                 override(m, _indexed_attention)
+            if isinstance(m, TransformerBlock):
+                override(m, _point_block)
+            if isinstance(m, MLP):
+                override(m, _point_mlp_cuda)
             if isinstance(m, PlainPointTransformer):
                 m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
         knn_attention.load(ctx.device)

@@ -805,10 +805,10 @@ def test_labels_and_unload_hook(pack: Any) -> None:
     assert nodes.model_id(label) == nc
     assert nodes.labels(["depth-anything-v2-s"]) == ["depth-anything-v2-s"]
     nodes.install_unload_hook()  # second install is a no-op
-    nodes._cache["x"] = object()
+    nodes._cache["x"] = types.SimpleNamespace(release_graphs=lambda: pack.calls.append("graphs"))
     pack.calls.clear()
     pack.mm.unload_all_models()
-    assert pack.calls == ["comfy", "empty"]
+    assert pack.calls == ["comfy", "graphs", "empty"]
     assert not nodes._cache
     assert set(pack.NODE_CLASS_MAPPINGS) == set(pack.NODE_DISPLAY_NAME_MAPPINGS)
 
@@ -851,6 +851,20 @@ def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.Mon
     assert list(nodes._cache) == [("new",), ("elsewhere",)]
     mm.free_memory(100, cuda)  # never enough: every model on that device goes, the other device's stays
     assert list(nodes._cache) == [("elsewhere",)]
+
+
+def test_comfyui_unloads_all_models_after_graph_release_error(pack: Any) -> None:
+    def fail() -> None:
+        msg = "graph release failed"
+        raise RuntimeError(msg)
+
+    nodes = pack.nodes
+    nodes._cache["first"] = SimpleNamespace(release_graphs=fail)
+    nodes._cache["second"] = SimpleNamespace(release_graphs=lambda: pack.calls.append("graphs"))
+    pack.calls.clear()
+    nodes.unload_all()
+    assert pack.calls == ["graphs", "empty"]
+    assert not nodes._cache
 
 
 def test_making_room_on_mps_frees_mlx_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -897,10 +911,13 @@ def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.Mon
     loads: list[str] = []
     asked: list[float] = []
     cleared: list[str] = []
+    released: list[str] = []
 
     def fake_load(mid: str, **kw: Any) -> Any:
         loads.append(mid)
-        return types.SimpleNamespace(device=kw["device"], backend="portable", release_graphs=lambda: None)
+        return types.SimpleNamespace(
+            device=kw["device"], backend="portable", release_graphs=lambda: released.append(mid)
+        )
 
     monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
     monkeypatch.setitem(sys.modules, "mlx.core", SimpleNamespace(clear_cache=lambda: cleared.append("mlx")))
@@ -915,9 +932,11 @@ def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.Mon
     assert loads == ids  # each loaded once
     assert asked == [2 * 2**20 + 2**30] * len(ids)  # room asked before each load, never on a cache hit
     assert not cleared
+    assert not released
     monkeypatch.setattr(nodes, "_MAX_CACHED", 2)
     nodes.load("rtdetrv2-r18", "auto", "auto")
     assert [k[0] for k in nodes._cache] == ["realesr-general-x4v3", "rtdetrv2-r18"]  # oldest dropped first
+    assert released == ids[:-1]
     assert cleared == ["mlx"] * (len(ids) - 1)
 
 

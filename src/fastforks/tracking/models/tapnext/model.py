@@ -16,18 +16,25 @@ scan in float32. The GEMM weights are stored in fp16 (autocast would cast them o
 from __future__ import annotations
 
 import contextlib
+import math
+import struct
 import threading
+import zipfile
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.checkpoint import check_fits
+from fastforks._core.checkpoint import check_fits, load_strict
+from fastforks._core.deferred_init import skipped_init
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.model import eager_in_compile
 from fastforks._core.upload import device_tensor
+from fastforks.kernels import tapnext_state
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.tracking._runner import Forward, Runner
@@ -48,15 +55,44 @@ from .net.tapnext import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from fastforks.tracking._runner import Context
 
     Step = Callable[..., tuple[torch.Tensor, torch.Tensor, list]]
 
+_ZIP_LOCAL_HEADER = struct.Struct("<4s22xHH")  # signature, unused fields, filename and extra field lengths
+
+
+def _map_bootstapnext(path: Path) -> dict[str, torch.Tensor]:
+    """Map the verified JAX archive's stored float32 arrays until `from_jax` has copied them."""
+    out = {}
+    storage = np.memmap(path, mode="c", dtype=np.uint8)
+    with zipfile.ZipFile(path) as archive:
+        for part in archive.infolist():
+            msg = f"{path.name}: {part.filename!r} is not a stored little-endian float32 NumPy array"
+            if part.compress_type != zipfile.ZIP_STORED or not part.filename.endswith(".npy"):
+                raise WeightsError(msg)
+            with archive.open(part) as entry:
+                if np.lib.format.read_magic(entry) != (1, 0):
+                    raise WeightsError(msg)
+                shape, fortran, dtype = np.lib.format.read_array_header_1_0(entry)
+                header_size = entry.tell()
+            if fortran or dtype != np.dtype("<f4") or header_size + math.prod(shape) * dtype.itemsize != part.file_size:
+                raise WeightsError(msg)
+            signature, name_size, extra_size = _ZIP_LOCAL_HEADER.unpack_from(storage, part.header_offset)
+            if signature != b"PK\x03\x04":
+                raise WeightsError(msg)
+            offset = part.header_offset + _ZIP_LOCAL_HEADER.size + name_size + extra_size + header_size
+            out[part.filename.removesuffix(".npy")] = torch.from_numpy(np.ndarray(shape, dtype, storage, offset))
+    return out
+
 
 def load_weights(ctx: Context) -> dict[str, torch.Tensor]:
     """The variant's state dict: upstream's JAX `.npz` (BootsTAPNext) or the Lightning checkpoint (TAPNext++)."""
     if ctx.variant.weights[0].name.endswith(".npz"):
+        if ctx.variant.ref == "tapnext@1" and ctx.device.type == "cuda" and ctx.user_weights is None:
+            return from_jax(_map_bootstapnext(ctx.weights()[0]))
         return from_jax(ctx.state_dict(strip=""))
     return ctx.state_dict(key="state_dict", strip="tapnext.")
 
@@ -140,14 +176,23 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        net = TAPNext()
-        sd = load_weights(ctx)
-        check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
-        net.load_state_dict(sd)
+        self.amp = torch.float16 if ctx.dtype == "float16" else None
+        assign = ctx.device.type == "cuda" and self.amp is not None and ctx.user_weights is None
+        if assign:
+            # Keep the large matrix weights off CUDA until they have their inference dtype.
+            with skipped_init():
+                net = TAPNext()
+            sd = {name: weight.contiguous() for name, weight in load_weights(ctx).items()}
+            load_strict(net, sd, f"{ctx.variant.ref} checkpoint", assign=True)
+            cast_gemm_weights(net, torch.float16)
+        else:
+            net = TAPNext()
+            sd = load_weights(ctx)
+            check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+            net.load_state_dict(sd)
         net.eval().requires_grad_(requires_grad=False)
         net.to_inference_device(ctx.device)
-        self.amp = torch.float16 if ctx.dtype == "float16" else None
-        if self.amp is not None:
+        if self.amp is not None and not assign:
             cast_gemm_weights(net, self.amp)
         self.net = net
 
@@ -191,23 +236,6 @@ class _RingState(NamedTuple):
     first: torch.Tensor
 
 
-def _temporal_graph(m: RecurrentBlock, x: torch.Tensor, y: torch.Tensor, state: _RingState) -> torch.Tensor:
-    """Advance the fixed-address state for one captured recurrent frame."""
-    h, history, order, first = state
-    previous = history.index_select(0, order)
-    history.index_copy_(0, order[:1], x)
-    w, b = _t(m.conv_1d.w), _t(m.conv_1d.b)
-    # Match the eager convolution's addition order and keep the state and gate arithmetic in float32.
-    conv = b + (sum(w[i] * previous[i : i + 1] for i in range(CONV_WIDTH - 1)) + w[-1] * x)
-    cell = m.rg_lru
-    gate = torch.sigmoid(cell.input_gate(conv))
-    log_a = -8.0 * torch.sigmoid(cell.a_gate(conv)) * F.softplus(cell.a_param.float())
-    a = log_a.exp()
-    gain = torch.where(first, 1.0, torch.sqrt(1 - (2 * log_a).exp()))
-    h.mul_(a[0]).add_((conv * gate * gain)[0])
-    return (h[None] * y).to(y.dtype)
-
-
 def _reset_state(inputs: tuple[torch.Tensor, ...]) -> None:
     """Reset cached recurrent state in place when starting a new clip."""
     torch._foreach_zero_(inputs[5:])  # batched GPU fill of the recurrent buffers
@@ -219,16 +247,33 @@ def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
 
     wy, by, wx, bx = _w4(m.linear_y.weight), _t(m.linear_y.bias), _w4(m.linear_x.weight), _t(m.linear_x.bias)
     wo, bo = _w4(m.linear_out.weight), _t(m.linear_out.bias)
+    cell = m.rg_lru
+    weight, bias = _t(m.conv_1d.w), _t(m.conv_1d.b)
+    a_param = F.softplus(cell.a_param.detach().float())
 
     def forward(
         x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | _RingState | None, first: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | _RingState]:
         x16 = x.half()
         y = lin(x16, wy, by, act=GELU_TANH)
-        x = lin(x16, wx, bx).float()
+        x = lin(x16, wx, bx)
         if isinstance(cache, _RingState):
-            return lin(_temporal_graph(m, x, y, cache).half(), wo, bo), cache
-        return m.temporal(x, cache, y, lambda v: lin(v.half(), wo, bo), first)
+            hidden, history, order, initial = cache
+            conv = tapnext_state.history_update(x, weight, bias, order, history)
+            value, _ = tapnext_state.recurrent_update(
+                y, conv, cell.input_gate(conv), cell.a_gate(conv), a_param, initial, hidden, inplace=True
+            )
+            return lin(value, wo, bo), cache
+        if x.shape[0] != 1:
+            previous = (cache[0], cache[1].float()) if cache is not None else None
+            value, (hidden, history) = m.temporal(x.float(), previous, y, lambda v: lin(v.half(), wo, bo), first)
+            return value, (hidden, history.half())
+        previous, history = cache if cache is not None else (None, None)
+        conv, history = tapnext_state.history_eager(x, weight, bias, history)
+        value, state = tapnext_state.recurrent_update(
+            y, conv, cell.input_gate(conv), cell.a_gate(conv), a_param, first, previous, inplace=False
+        )
+        return lin(value, wo, bo), (state, history)
 
     return forward
 
@@ -274,6 +319,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable fp16 network with the fused-GEMM forwards (fp16 filters captured in closures)."""
         super().__init__(ctx)
+        tapnext_state.load(ctx.device)
         for m in self.net.modules():
             if isinstance(m, RecurrentBlock):
                 m.forward = _recurrent(m)  # ty: ignore[invalid-assignment]  # per-instance override
@@ -283,7 +329,7 @@ class Kernels(Portable):
                 m.forward = _encoder(m)  # ty: ignore[invalid-assignment]  # per-instance override
         # One graph per query count updates the state in place. When it exists, the first frame resets those same
         # buffers, skipping the eager first frame's separate state allocation. `_lock` isolates each clip.
-        self.steps = GraphCache(self._graph_step, graphs=2) if ctx.params.cuda_graphs else None
+        self.steps = GraphCache(self._graph_step, graphs=2, capture_warmup=False) if ctx.params.cuda_graphs else None
         self._lock = threading.Lock()
         self._ring_origin = 0  # the first replayed frame in the current clip
 

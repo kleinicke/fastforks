@@ -32,6 +32,7 @@ from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -72,8 +73,14 @@ def _net(ctx: Context) -> Pi3:
     if ctx.params.stream and (ctx.device.type != "cuda" or ctx.dtype != "float16"):
         msg = "Pi3 decoder streaming requires CUDA and float16"
         raise OptionsError(msg)
-    net = Pi3()
-    net.load_state_dict(ctx.state_dict(), strict=True)
+    if ctx.device.type == "cuda" and ctx.dtype == "float16" and not ctx.params.stream:
+        with torch.device("meta"):
+            net = Pi3()
+        half = ("encoder.", "decoder.", "point_decoder.", "conf_decoder.", "camera_decoder.", "register_token")
+        assign_inference_weights(net, ctx.state_dict(), ctx.device, half)
+    else:
+        net = Pi3()
+        net.load_state_dict(ctx.state_dict(), strict=True)
     return net.eval().requires_grad_(requires_grad=False)
 
 
@@ -382,17 +389,19 @@ class Kernels(_Fast):
         fastbb.load(ctx.device)
         self.flash, self.check_flash64 = fastbb.Flash64("hh"), fastbb.check_flash64
         enc = self.net.encoder
-        vit = vit_large(
-            img_size=518,
-            patch_size=PATCH,
-            num_register_tokens=4,
-            interpolate_antialias=True,
-            interpolate_offset=0.0,
-            block_chunks=0,
-            init_values=1.0,
-        )
-        vit.half().load_state_dict(enc.state_dict(), strict=False)  # Pi3 deleted the mask token
-        self.encoder = _Encoder(vit.to(ctx.device).eval(), "hh", None)
+        with torch.device("meta"):
+            vit = vit_large(
+                img_size=518,
+                patch_size=PATCH,
+                num_register_tokens=4,
+                interpolate_antialias=True,
+                interpolate_offset=0.0,
+                block_chunks=0,
+                init_values=1.0,
+            )
+        del vit.mask_token  # Pi3's encoder removes the unused masking token.
+        vit.load_state_dict(enc.state_dict(), strict=True, assign=True)
+        self.encoder = _Encoder(vit.eval(), "hh", None)
         self.net.encoder = nn.Identity().eval()  # the fast copy owns the weights now
 
     def patch_tokens(self, x: torch.Tensor) -> torch.Tensor:

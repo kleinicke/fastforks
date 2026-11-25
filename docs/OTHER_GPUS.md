@@ -110,8 +110,9 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | library | families |
 |---|---|
 | `acv_volume` | fast_acvnet |
+| `affine_silu` | sapiens |
 | `box_nms` | retinaface, rtmo, yunet |
-| `cfnet_volume` | cfnet |
+| `cfnet_volume` | cas_gwcnet, cfnet |
 | `cfs` | c_foundationstereo |
 | `cotracker_corr` | cotracker |
 | `crestereo` | crestereo |
@@ -122,10 +123,11 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `deform_conv` | aanet, birefnet |
 | `depthsplat_corr` | depthsplat, resplat |
 | `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nafnet, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam3, sam_hq, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft, waft_stereo |
+| `dpt_resize` | depth_anything_3 |
 | `dual_softmax` | dedode, loftr |
 | `edge_components` | anyline |
-| `ema_warp` | ema_vfi, film |
-| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, restormer, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
+| `ema_warp` | ema_vfi, film, gimm_vfi |
+| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, flowformer, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, restormer, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `flow_upsample` | flowformer, flowseek, gmflow, memfof, recover |
 | `flowseek_corr` | flowseek |
@@ -136,7 +138,8 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `fvm_mb` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_r3` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_seg` | convnext, convnext_features, dinov3_convnext, mask2former, oneformer |
-| `group_silu` | codeformer |
+| `gmflow` | gmflow |
+| `group_silu` | codeformer, depthfm, lotus, marigold, marigold_normals, stablenormal |
 | `gsraster` | resplat |
 | `hitnet` | hitnet |
 | `hitnet_conv` | hitnet |
@@ -162,7 +165,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `pointdit_norm` | pointdit |
 | `pose_warp` | hrnet, rtmo, rtmpose |
 | `raft` | dlnr, raft_stereo |
-| `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
+| `raft_flow` | flowformer, gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
 | `recover_motion` | recover |
 | `resize_cat` | u2net |
 | `rfdetr_input` | rfdetr, rfdetr_keypoint |
@@ -173,16 +176,19 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sam3_resize` | sam3 |
 | `sam3_tracker` | sam3 |
 | `seg_conv` | mmseg, segnext |
-| `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer, segnext |
+| `seg_up` | dinov2_linear, eomt, mask2former, matanyone, mmseg, oneformer, sapiens, segformer, segnext |
 | `shift_windows` | drct, hat, swin2sr, swinir |
 | `smish` | teed |
 | `sparse_conv` | moge |
+| `sr_norm` | dat, drct, hat, swin2sr, swinir |
 | `sr_ops` | compact, realesrgan, span |
 | `stereo_ops` | coex, las2 |
+| `stereo_warp` | monster, monster_plusplus, waft_stereo |
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3, mapanything |
+| `tapnext_state` | tapnext |
 | `vggt_omega` | vggt_omega |
-| `vggt_rotary` | vggt |
+| `vggt_rotary` | megaflow, vggt |
 | `vol_norm` | lineart, nnfoundation, nninteractive, totalsegmentator |
 <!-- libraries:end -->
 

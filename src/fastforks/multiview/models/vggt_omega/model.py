@@ -360,6 +360,10 @@ class _Fast(_Base):
         w_, b_, eps = self.pe_norm
         return F.layer_norm(tok[:, pre:], (c,), w_, b_, eps)
 
+    def _head_tokens(self, frame: torch.Tensor, inter: torch.Tensor) -> torch.Tensor:
+        weights = self.head_norm
+        return self.ln(torch.cat((frame, inter), dim=-1), weights[:2], weights[2])
+
     def aggregate(self, images: torch.Tensor) -> tuple[list[torch.Tensor | None], torch.Tensor]:
         """Retain normalized FP16 patch features and the final FP32 camera and register tokens."""
         agg: Any = self.net.aggregator
@@ -384,8 +388,8 @@ class _Fast(_Base):
                 t4 = torch.cat([cr, fr[:, :, pre:]], 2)
             tokens = t4
             if i in agg.cached_layer_indices:
-                patches = torch.cat((fr[:, :, pre:], t4[:, :, pre:]), dim=-1)
-                out.append(self.ln(patches, self.head_norm[:2], self.head_norm[2]).view(b, s, n - pre, 2 * c))
+                patches = self._head_tokens(fr[:, :, pre:], t4[:, :, pre:])
+                out.append(patches.view(b, s, n - pre, 2 * c))
                 del patches
             else:
                 out.append(None)
@@ -465,6 +469,7 @@ class Kernels(_Fast):
     """kernels: `fastbb` flash attention (fp16 accumulation), fp16-acc GEMMs (not fc2), `vggt_omega` fusions."""
 
     gacc = True
+    dense_chunk = 2  # bound full-resolution features while refining multiple views
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107
         super().__init__(ctx)
@@ -504,6 +509,16 @@ class Kernels(_Fast):
         self._ln_launch("omega_ln_f2h", r * t, x, y, wb[0], wb[1], t, sr, st, c, eps)
         return y
 
+    def _head_tokens(self, frame: torch.Tensor, inter: torch.Tensor) -> torch.Tensor:
+        tokens, width = frame.shape[-2:]
+        a = frame.reshape(-1, tokens, width)
+        b = inter.reshape_as(a)
+        n = a.shape[0] * tokens
+        out = torch.empty((n, 2 * width), dtype=torch.float16, device=a.device)
+        w, bias, eps = self.head_norm
+        self._ln_launch("omega_join_ln", n, a, b, out, w, bias, tokens, *a.stride()[:2], *b.stride()[:2], width, eps)
+        return out
+
     def _qk_attn(self, p: _Blk, qkv: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor] | None, pre: int) -> Any:  # noqa: ANN401
         """`omega_qk_norm_rope` in place on the packed qkv (q / k LayerNorm, RoPE, softmax scale into q), attention."""
         b, n, _, h, d = qkv.shape
@@ -540,7 +555,9 @@ class Kernels(_Fast):
         y = torch.empty(b * n, c, device=x.device, dtype=torch.float16)
         self._ln_launch("omega_add_ln", b * n, x, o, p.g1, x1, y, p.n2[0], p.n2[1], c, p.eps2)
         del o
-        hdn = F.gelu(F.linear(y, p.w1, p.b1))
+        hdn = F.linear(y, p.w1, p.b1)
+        del y
+        torch.ops.aten.gelu_(hdn)
         torch.backends.cuda.matmul.allow_fp16_accumulation = False  # fc2 accumulates in fp32 (`nofc2`)
         o = F.linear(hdn, p.w2, p.b2)
         torch.backends.cuda.matmul.allow_fp16_accumulation = True

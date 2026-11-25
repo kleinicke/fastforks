@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, group_silu
 from fastforks.shared.up_deconv import up_deconv_weight
 
 from .unet import (
@@ -34,7 +34,23 @@ if TYPE_CHECKING:
     from .vae import AttentionBlock, AutoencoderKL
 
 
-def group_norm(x: torch.Tensor, m: torch.nn.GroupNorm, *, silu: bool = False) -> torch.Tensor:
+def _group_affine(x: torch.Tensor, m: torch.nn.GroupNorm) -> tuple[torch.Tensor, torch.Tensor]:
+    """Compute channel-wise affine terms from the complete GroupNorm feature map."""
+    n, c, h, w = x.shape
+    g, cg = m.num_groups, c // m.num_groups
+    var, mean = torch.var_mean(x.permute(0, 2, 3, 1).reshape(n, h * w, g, cg), dim=(1, 3), correction=0)
+    scale = (var + m.eps).rsqrt_()[:, :, None] * m.weight.view(g, cg)
+    shift = torch.addcmul(m.bias.view(g, cg), mean[:, :, None], scale, value=-1)
+    return scale.view(n, c, 1, 1), shift.view(n, c, 1, 1)
+
+
+def _affine_silu(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, *, fused: bool) -> torch.Tensor:
+    if fused and (out := group_silu.affine_silu(x, scale, shift)) is not None:
+        return out
+    return F.silu(torch.addcmul(shift, x, scale), inplace=True)
+
+
+def group_norm(x: torch.Tensor, m: torch.nn.GroupNorm, *, silu: bool = False, fused: bool = False) -> torch.Tensor:
     """`m(x)` (then SiLU) on a channels-last fp16 map, without layout copies.
 
     `F.group_norm` makes a channels-last input contiguous and returns NCHW, which the next conv copies back: two full
@@ -42,17 +58,15 @@ def group_norm(x: torch.Tensor, m: torch.nn.GroupNorm, *, silu: bool = False) ->
     come from the channels-last view (the reduction accumulates in fp32) and are folded into a per-channel scale and
     shift. Few launches (7 with SiLU): on fast cards (L40S) the kernels forward is launch-bound.
     """
-    n, c, h, w = x.shape
-    g, cg = m.num_groups, c // m.num_groups
-    var, mean = torch.var_mean(x.permute(0, 2, 3, 1).reshape(n, h * w, g, cg), dim=(1, 3), correction=0)
-    scale = (var + m.eps).rsqrt_()[:, :, None] * m.weight.view(g, cg)  # [n, g, cg]
-    shift = torch.addcmul(m.bias.view(g, cg), mean[:, :, None], scale, value=-1)
-    y = torch.addcmul(shift.view(n, c, 1, 1), x, scale.view(n, c, 1, 1))
-    return F.silu(y, inplace=True) if silu else y
+    scale, shift = _group_affine(x, m)
+    return _affine_silu(x, scale, shift, fused=fused) if silu else torch.addcmul(shift, x, scale)
 
 
 class Fast:
     """The fp16 channels-last network plus the per-timestep and per-prompt constants."""
+
+    fuse_affine_silu = True
+    vae_tile_bytes = 48 << 20  # bound one high-resolution VAE intermediate
 
     def __init__(
         self,
@@ -88,6 +102,58 @@ class Fast:
         """A 2-D conv as a cuDNN fp16-accumulate graph, channels-last out."""
         return cudnn_hacc.conv_half_acc(x, c.weight, c.bias, list(c.padding), list(c.stride), list(c.dilation))
 
+    def _vae_rows(self, x: torch.Tensor, channels: int) -> int:
+        """Return the stripe height when three or more stripes are needed."""
+        budget = self.vae_tile_bytes
+        b, _, h, w = x.shape
+        row_bytes = b * w * channels * x.element_size()
+        return max(1, budget // row_bytes) if budget and h * row_bytes >= 3 * budget else 0
+
+    def _vae_norm_conv(  # noqa: PLR0913 - the band's convolution and optional residual
+        self,
+        x: torch.Tensor,
+        gn: torch.nn.GroupNorm,
+        conv: torch.nn.Conv2d,
+        rows: int,
+        *,
+        skip: torch.Tensor | None = None,
+        shortcut: torch.nn.Conv2d | None = None,
+    ) -> torch.Tensor:
+        """Apply norm, activation and convolution by row bands using the full-image stats."""
+        b, _, height, width = x.shape
+        scale, shift = _group_affine(x, gn)
+        halo = conv.kernel_size[0] // 2
+        out = skip if shortcut is None else None
+        for start in range(0, height, rows):
+            end = min(start + rows, height)
+            lo, hi = max(0, start - halo), min(height, end + halo)
+            stripe = x[..., lo:hi, :]
+            part = _affine_silu(stripe, scale, shift, fused=self.fuse_affine_silu)
+            tile = self.conv(part, conv)
+            tile = tile[..., start - lo : end - lo, :]
+            del part
+            if skip is not None:
+                skip_part = skip[..., start:end, :]
+                tile.add_(skip_part if shortcut is None else self.conv(skip_part, shortcut))
+            if out is None:
+                out = torch.empty(
+                    (b, tile.shape[1], height, width),
+                    dtype=tile.dtype,
+                    device=tile.device,
+                    memory_format=torch.channels_last,
+                )
+            out[..., start:end, :].copy_(tile)
+            del tile
+        assert out is not None  # noqa: S101 - the feature map has at least one row
+        return out
+
+    def _vae_resnet(self, r: ResnetBlock2D, x: torch.Tensor) -> torch.Tensor:
+        rows = self._vae_rows(x, max(r.conv1.in_channels, r.conv1.out_channels))
+        if not rows:
+            return self.resnet(r, x, None)
+        h = self._vae_norm_conv(x, r.norm1, r.conv1, rows)
+        return self._vae_norm_conv(h, r.norm2, r.conv2, rows, skip=x, shortcut=r.conv_shortcut)
+
     def upconv(self, x: torch.Tensor, c: torch.nn.Conv2d) -> torch.Tensor:
         """`c(nearest_2x(x))` as one fp16-accumulate transposed conv (`shared.up_deconv`).
 
@@ -101,10 +167,10 @@ class Fast:
 
     def resnet(self, r: ResnetBlock2D, x: torch.Tensor, proj: torch.Tensor | None) -> torch.Tensor:
         """`ResnetBlock2D.forward`."""
-        h = self.conv(group_norm(x, r.norm1, silu=True), r.conv1)
+        h = self.conv(group_norm(x, r.norm1, silu=True, fused=self.fuse_affine_silu), r.conv1)
         if proj is not None:
             h = h.add_(proj)
-        h = self.conv(group_norm(h, r.norm2, silu=True), r.conv2)
+        h = self.conv(group_norm(h, r.norm2, silu=True, fused=self.fuse_affine_silu), r.conv2)
         if r.conv_shortcut is not None:
             x = self.conv(x, r.conv_shortcut)
         return h.add_(x)
@@ -184,7 +250,7 @@ class Fast:
             del skips[-len(blk.resnets) :]
             size = tuple(skips[-1].shape[2:]) if odd and blk.upsamplers is not None else None
             x = self.up(blk, x, mine, temb, size)
-        return self.conv(group_norm(x, u.conv_norm_out, silu=True), u.conv_out)
+        return self.conv(group_norm(x, u.conv_norm_out, silu=True, fused=self.fuse_affine_silu), u.conv_out)
 
     def control(self, x: torch.Tensor, t: float) -> tuple[list[torch.Tensor], torch.Tensor]:
         """`ControlNetEncoder.forward` (this `Fast` holds the ControlNet as `unet`)."""
@@ -215,11 +281,11 @@ class Fast:
         x = self.conv(x.contiguous(memory_format=torch.channels_last), e.conv_in)
         for blk in e.down_blocks:
             for r in blk.resnets:  # ty: ignore[not-iterable] - ModuleList
-                x = self.resnet(r, x, None)
+                x = self._vae_resnet(r, x)
             if blk.downsamplers is not None:
                 x = self.conv(F.pad(x, (0, 1, 0, 1)), blk.downsamplers[0].conv)
         x = self.vae_mid(e.mid_block, x)
-        x = self.conv(group_norm(x, e.conv_norm_out, silu=True), e.conv_out)
+        x = self.conv(group_norm(x, e.conv_norm_out, silu=True, fused=self.fuse_affine_silu), e.conv_out)
         return self.conv(x, vae.quant_conv)
 
     def decode(self, vae: AutoencoderKL, z: torch.Tensor) -> torch.Tensor:
@@ -229,7 +295,10 @@ class Fast:
         x = self.vae_mid(d.mid_block, x)
         for blk in d.up_blocks:
             for r in blk.resnets:  # ty: ignore[not-iterable] - ModuleList
-                x = self.resnet(r, x, None)
+                x = self._vae_resnet(r, x)
             if blk.upsamplers is not None:
                 x = self.upconv(x, blk.upsamplers[0].conv)
-        return self.conv(group_norm(x, d.conv_norm_out, silu=True), d.conv_out)
+        rows = self._vae_rows(x, x.shape[1])
+        if rows:
+            return self._vae_norm_conv(x, d.conv_norm_out, d.conv_out, rows)
+        return self.conv(group_norm(x, d.conv_norm_out, silu=True, fused=self.fuse_affine_silu), d.conv_out)

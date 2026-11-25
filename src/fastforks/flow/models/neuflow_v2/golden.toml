@@ -25,13 +25,13 @@ upstream = "https://github.com/neufieldrobotics/NeuFlow_v2@204b5e3744461d90303b9
 settings = "CPU float32, upstream NeuFlow iters_s16=1 iters_s8=8, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."neuflow-v2-sintel@1"]
-kernels = ["raft_flow@a101a33607b6:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+kernels = ["raft_flow@639b3b16ea48:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "65fcd3e040b73d47"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
+date = "2026-11-25"
 mean_px = 0.00084
-p99_px = 0.0046
+p99_px = 0.00438
 
 [validated."neuflow-v2-sintel@1".windows]
 kernels = ["raft_flow@a101a33607b6:sm_120"]
@@ -43,13 +43,13 @@ mean_px = 0.0008
 p99_px = 0.00398
 
 [validated."neuflow-v2-things@1"]
-kernels = ["raft_flow@a101a33607b6:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+kernels = ["raft_flow@639b3b16ea48:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "65fcd3e040b73d47"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
-mean_px = 0.00094
-p99_px = 0.00429
+date = "2026-11-25"
+mean_px = 0.00093
+p99_px = 0.0044
 
 [validated."neuflow-v2-things@1".windows]
 kernels = ["raft_flow@a101a33607b6:sm_120"]
@@ -61,13 +61,13 @@ mean_px = 0.00089
 p99_px = 0.00425
 
 [validated."neuflow-v2@1"]
-kernels = ["raft_flow@a101a33607b6:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+kernels = ["raft_flow@639b3b16ea48:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "65fcd3e040b73d47"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
+date = "2026-11-25"
 mean_px = 0.00075
-p99_px = 0.00425
+p99_px = 0.00409
 
 [validated."neuflow-v2@1".windows]
 kernels = ["raft_flow@a101a33607b6:sm_120"]

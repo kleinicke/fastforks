@@ -6,7 +6,7 @@ from torch import nn, einsum
 
 from fastforks.shared.cuda_softmax import softmax_rows_
 
-_SOFTMAX_GROUP_BYTES = 32 * 1024**2
+_SOFTMAX_MIN_BYTES = 128 * 1024**2
 
 
 def rearrange(t, pattern, **axes):  # fastforks: the four einops patterns used here, in plain torch
@@ -55,12 +55,12 @@ class Attention(nn.Module):
         if (
             sim.is_cuda
             and sim.is_contiguous()
-            and sim.numel() * sim.element_size() >= 4 * _SOFTMAX_GROUP_BYTES
+            and sim.numel() * sim.element_size() >= _SOFTMAX_MIN_BYTES
             and not torch.is_grad_enabled()
-            and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            and not (torch.compiler.is_exporting() or torch.jit.is_tracing())
         ):
             # The recurrence reuses the attention weights. Normalize complete rows in place to retain one matrix.
-            return softmax_rows_(sim, _SOFTMAX_GROUP_BYTES)
+            return softmax_rows_(sim)
         return sim.softmax(dim=-1)
 
 

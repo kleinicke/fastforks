@@ -42,8 +42,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.832, 4.9x | 102, 0.77x |
 | [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.0x | 214, 0.92x |
 | [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 1.9x | 452, 1.1x |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.79x |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.86x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98 | 132, 0.79x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22 | 110, 0.86x |
 | [`dinov3-vitb16`](#dinov3) | yes | 1.36, 4.9x | 210, 1.0x |
 | [`dinov3-vith16plus`](#dinov3) | yes | 8.85, 1.8x | 1670, 0.92x |
 | [`dinov3-vitl16`](#dinov3) | yes | 3.26, 3.4x | 628, 0.98x |

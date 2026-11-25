@@ -184,11 +184,11 @@ extern "C" __global__ void avgpool2(const __half* __restrict__ src, int Hs, int 
 // butterfly reduce-scatter (31 shuffles), after which lane k holds the dot product of position k.
 // Output channel l*(2R+1)^2 + i*(2R+1) + j samples x offset i - R and y offset j - R (torchvision's order); channels
 // up to ostride are zero padding. Level l of the L-level pyramid is [h0 >> l, w0 >> l, C].
-template <int C, int R, int L>
+template <int C, int R, int L, typename Output, bool RoundDots>
 __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, const __half* __restrict__ l0,
                                                  const __half* __restrict__ l1, const __half* __restrict__ l2,
                                                  const __half* __restrict__ l3, int h0, int w0,
-                                                 const float* __restrict__ coords, __half* __restrict__ out,
+                                                 const float* __restrict__ coords, Output* __restrict__ out,
                                                  int ostride, float scale) {
     constexpr int V = C / 32, S = 2 * R + 2, N = S * S, SIDE = 2 * R + 1, NC = (N + 31) / 32;
     __shared__ float sd[8][NC * 32];
@@ -258,19 +258,25 @@ __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, 
                     part[k] = keep + __shfl_xor_sync(0xffffffffu, send, s);
                 }
             }
-            d[ch * 32 + lane] = part[0];
+            d[ch * 32 + lane] = RoundDots ? __half2float(__float2half_rn(part[0])) : part[0];
         }
         __syncwarp();
-        __half* o = out + p * ostride + l * SIDE * SIDE;
+        Output* o = out + p * ostride + l * SIDE * SIDE;
         for (int e = lane; e < SIDE * SIDE; e += 32) {
             const int i = e / SIDE, j = e % SIDE;  // x offset i, y offset j
             const float* q = d + j * S + i;
-            const float v = (1.f - wy) * ((1.f - wx) * q[0] + wx * q[1]) + wy * ((1.f - wx) * q[S] + wx * q[S + 1]);
-            o[e] = __float2half(v);
+            if constexpr (RoundDots) {
+                const float lo = __fadd_rn(__fmul_rn(1.f - wx, q[0]), __fmul_rn(wx, q[1]));
+                const float hi = __fadd_rn(__fmul_rn(1.f - wx, q[S]), __fmul_rn(wx, q[S + 1]));
+                o[e] = __fadd_rn(__fmul_rn(1.f - wy, lo), __fmul_rn(wy, hi));
+            } else {
+                const float v = (1.f - wy) * ((1.f - wx) * q[0] + wx * q[1]) + wy * ((1.f - wx) * q[S] + wx * q[S + 1]);
+                o[e] = __float2half(v);
+            }
         }
         __syncwarp();
     }
-    for (int c = L * SIDE * SIDE + lane; c < ostride; c += 32) out[p * ostride + c] = __float2half(0.f);
+    for (int c = L * SIDE * SIDE + lane; c < ostride; c += 32) out[p * ostride + c] = (Output)0.f;
 }
 
 // raft-large: C = 256, radius 4 (324 channels); raft-small: C = 128, radius 3 (196 channels). blockDim = 256.
@@ -278,29 +284,35 @@ extern "C" __global__ void __launch_bounds__(256) corr_lookup_c256_r4(const __ha
                                                                       const __half* l2, const __half* l3, int h0, int w0,
                                                                       const float* coords, __half* out, int ostride,
                                                                       float scale) {
-    corr_lookup_body<256, 4, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<256, 4, 4, __half, false>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
 }
 extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r3(const __half* f1, const __half* l0, const __half* l1,
                                                                       const __half* l2, const __half* l3, int h0, int w0,
                                                                       const float* coords, __half* out, int ostride,
                                                                       float scale) {
-    corr_lookup_body<128, 3, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<128, 3, 4, __half, false>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
 }
 // MEMFOF: C = 1024, radius 4, four levels (324 channels).
 extern "C" __global__ void __launch_bounds__(256) corr_lookup_c1024_r4(const __half* f1, const __half* l0, const __half* l1,
                                                                        const __half* l2, const __half* l3, int h0, int w0,
                                                                        const float* coords, __half* out, int ostride,
                                                                        float scale) {
-    corr_lookup_body<1024, 4, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<1024, 4, 4, __half, false>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
 }
 // NeuFlow v2: one level, C = 128, radius 4 (81 channels); f1 is the query image's features, l0 the other image's.
 extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r4_l1(const __half* f1, const __half* l0, int h0, int w0,
                                                                          const float* coords, __half* out, int ostride,
                                                                          float scale) {
-    corr_lookup_body<128, 4, 1>(f1, l0, l0, l0, l0, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<128, 4, 1, __half, false>(f1, l0, l0, l0, l0, h0, w0, coords, out, ostride, scale);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// FlowFormer Small: one fp32 level with the integer dot products rounded to fp16 before resampling.
+extern "C" __global__ void __launch_bounds__(256) corr_lookup_flowformer(const __half* f1, const __half* f2,
+                                                                          int h, int w, const float* coords, float* out) {
+    corr_lookup_body<256, 4, 1, float, true>(f1, f2, f2, f2, f2, h, w, coords, out, 81, 1.0f);
+}
+
 extern "C" __global__ void init_coords(float* __restrict__ coords, int W, long long P) {
     GRID_STRIDE(p, P) {
         coords[2 * p] = (float)(p % W);

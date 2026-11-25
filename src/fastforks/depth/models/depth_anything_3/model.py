@@ -574,6 +574,12 @@ def _kernel_block(blk: nn.Module, x: torch.Tensor, backbone: _FastBackbone, i: i
     return backbone.block(blk, i, x, rope)
 
 
+_LARGE_TAIL_BYTES = 256 << 20
+_TAIL_STRIPE_BYTES = 96 << 20
+_FINE_FUSION_BYTES = 64 << 20
+_FINE_FUSION_STRIPE_BYTES = 48 << 20
+
+
 class _FusedHead:
     """The DPT / DualDPT main branch on dense NHWC fp16 tensors with `dpt_fused` convs / GEMMs.
 
@@ -623,10 +629,8 @@ class _FusedHead:
         w, b, pad, stride = c
         return self.k.conv(x, w, b, padding=pad, stride=stride, **kw)
 
-    def _fuse(
-        self, i: int, x0: torch.Tensor, x1: torch.Tensor | None, r: torch.Tensor, size: tuple[int, int]
-    ) -> torch.Tensor:
-        """FeatureFusionBlock: `x0 (+ rcu1(x1))`, rcu2, out_conv, bilinear; `r` = relu(x1), or relu(x0) without x1."""
+    def _fuse_project(self, i: int, x0: torch.Tensor, x1: torch.Tensor | None, r: torch.Tensor) -> torch.Tensor:
+        """Combine the residual units and project before changing the spatial grid."""
         u1, u2, (wo, bo) = self.fusion[i]
         if x1 is not None:
             if u1 is None:
@@ -637,7 +641,55 @@ class _FusedHead:
             x0 = self._conv(t, u1[1], res=x1, res2=x0, y2=r)
         t = self._conv(r, u2[0], act=ACT_RELU)
         z = self._conv(t, u2[1], res=x0)
-        return self.k.bilinear(self.k.gemm(z, wo, bo), size, align_corners=True)
+        return self.k.gemm(z, wo, bo)
+
+    def _fine_project(self, x0: torch.Tensor, x1: torch.Tensor, r: torch.Tensor) -> torch.Tensor:
+        """Limit the finest fusion's four-convolution workspace with a four-row halo."""
+        b, h, w, c = x0.shape
+        if x0.numel() * x0.element_size() < _FINE_FUSION_BYTES:
+            return self._fuse_project(0, x0, x1, r)
+        rows = max(1, _FINE_FUSION_STRIPE_BYTES // (w * c * x0.element_size()))
+        halo = 4  # four consecutive spatial convolutions, each with one row of padding
+        out = x0.new_empty((b, h, w, self.fusion[0][2][0].shape[0]))
+        for batch in range(b):
+            for start in range(0, h, rows):
+                end = min(start + rows, h)
+                lo, hi = max(0, start - halo), min(end + halo, h)
+                inputs = (t[batch : batch + 1, lo:hi] for t in (x0, x1, r))
+                tile = self._fuse_project(0, *inputs)
+                out[batch, start:end].copy_(tile[0, start - lo : end - lo])
+                del tile
+        return out
+
+    def _tail_tiles(self, small: torch.Tensor, size: tuple[int, int]) -> list[torch.Tensor]:
+        """Interpolate rows at the full output scale and preserve a halo for each output convolution."""
+        b, _, _, channels = small.shape
+        h, width = size
+        # The interpolated FP16 stripe, the FP16 convolution and its cast for the final FP32 projection.
+        row_bytes = width * (2 * channels + 6 * max(w.shape[0] for _, w, _ in self.out))
+        rows = max(1, _TAIL_STRIPE_BYTES // row_bytes)
+        maps = [small.new_empty((b, h, width, w.shape[-1]), dtype=torch.float32) for _, w, _ in self.out]
+        axes = None
+        if self.pos_embed:
+            horizontal, vertical = _position_axes(channels, size, width / h, dtype=torch.float32, device=self.device)
+            axes = horizontal.half(), vertical.half()
+        halo = max(c3[2] for c3, _, _ in self.out)
+        for batch in range(b):
+            src = small[batch : batch + 1]
+            for start in range(0, h, rows):
+                stop = min(start + rows, h)
+                lo, hi = max(0, start - halo), min(stop + halo, h)
+                p = dpt_resize.rows(src, size, (lo, hi))
+                if axes is not None:
+                    horizontal, vertical = axes
+                    p[..., : channels // 2].add_(horizontal[None, None])
+                    p[..., channels // 2 :].add_(vertical[None, lo:hi, None])
+                for dest, (c3, w, bias) in zip(maps, self.out, strict=True):
+                    o = self._conv(p, c3, act=ACT_RELU)[0, start - lo : stop - lo].flatten(0, 1).float()
+                    torch.addmm(bias, o, w, out=dest[batch, start:stop].flatten(0, 1))
+                    del o
+                del p
+        return [x.permute(0, 3, 1, 2) for x in maps]
 
     def __call__(self, feats: list[torch.Tensor], ph: int, pw: int) -> dict:
         """Tokens `[B, ph * pw, C]` of the 4 layers -> activated maps `[B, 14 ph, 14 pw]` (fp32)."""
@@ -659,15 +711,24 @@ class _FusedHead:
         l1, l2, l3, l4 = ls
         r1, r2, r3, r4 = rs
         del ls, rs
-        p = self._fuse(3, l4, None, r4, l3.shape[1:3])
+        p = self._fuse_project(3, l4, None, r4)
         del l4, r4
-        p = self._fuse(2, p, l3, r3, l2.shape[1:3])
+        p = k.bilinear(p, l3.shape[1:3], align_corners=True)
+        p = self._fuse_project(2, p, l3, r3)
         del l3, r3
-        p = self._fuse(1, p, l2, r2, l1.shape[1:3])
+        p = k.bilinear(p, l2.shape[1:3], align_corners=True)
+        p = self._fuse_project(1, p, l2, r2)
         del l2, r2
-        p = self._fuse(0, p, l1, r1, (2 * l1.shape[1], 2 * l1.shape[2]))
+        p = k.bilinear(p, l1.shape[1:3], align_corners=True)
+        p = self._fine_project(p, l1, r1)
+        large = (2 * l1.shape[1], 2 * l1.shape[2])
         del l1, r1
-        p = k.bilinear(self._conv(p, self.oc1), hw, align_corners=True)
+        p = k.bilinear(p, large, align_corners=True)
+        p = self._conv(p, self.oc1)
+        if b * math.prod(hw) * p.shape[-1] * p.element_size() >= _LARGE_TAIL_BYTES:
+            maps = self._tail_tiles(p, hw)
+            return _activate(self.dual, maps[0], None if self.dual else maps[1])
+        p = k.bilinear(p, hw, align_corners=True)
         if self.pos_embed:
             # The final resize only needs the two half-precision axes, with no dense position cache.
             channels = p.shape[-1]
@@ -709,6 +770,7 @@ class Kernels(Runner):
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
         self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
         k = load_dpt_fused(ctx.device)
+        dpt_resize.load(ctx.device)
         net = _net(ctx, "cpu")  # converted on the CPU: the GPU holds only the fp16 network
         self.parts = []
         for br in [net.main] + ([net.metric] if net.metric is not None else []):
@@ -738,6 +800,7 @@ from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - sha
     _linear_1x1,
     _resize,
 )
+from fastforks.kernels import dpt_resize  # noqa: E402
 from fastforks.kernels.dpt_fused import ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.kernels.fastbb import Flash64  # noqa: E402

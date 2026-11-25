@@ -114,6 +114,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "calibration": "1080x1920",
     "restoration": "512x512",
     "ocr": "1080x1920",
+    "edges": "1080x1920",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",
@@ -514,13 +515,18 @@ def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
         row["error"] = msg[:600]
 
 
-def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int, int]:  # noqa: ANN401
+def _net_input(model: Any, task: str, full: Callable[[], Any], label: str) -> tuple[int, int, int]:  # noqa: ANN401
     """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
 
     The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection and OCR,
     whose `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel
-    image a submodule gets, if one does (R-CNN: the runner's).
+    image a submodule gets, if one does (R-CNN: the runner's). Flow modules take the public source pair and
+    perform scaling, resizing, padding and output restoration inside the graph.
     """
+    if task == "flow":
+        height, width = (int(side) for side in label.split("x"))
+        return 1, height, width
+
     import torch  # noqa: PLC0415
 
     if model.card.family == "clipseg":
@@ -617,7 +623,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
     label = spec["inputs"][0]["label"]
     row = {**common, "input": label, "scene": "synthetic", "first_call_cold": True}
     try:
-        n, h, w = _net_input(model, spec["task"], calls[0][1])
+        n, h, w = _net_input(model, spec["task"], calls[0][1], label)
         if f"{h}x{w}" != label:
             row["net_input"] = f"{h}x{w}"
         if n > 1:

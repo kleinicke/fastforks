@@ -14,7 +14,7 @@ convolutions in the runner's dtype.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -236,6 +236,68 @@ class _Fusion(torch.nn.Module):
             net = F.leaky_relu(refine(net), 0.2, inplace=True)
         return self.output_conv(net)
 
+    def forward_from_flows(
+        self, images: list[torch.Tensor], features: list[torch.Tensor], flows: list[torch.Tensor], t: torch.Tensor
+    ) -> torch.Tensor:
+        """Write each level's warped channels directly into the next convolution's input."""
+        batch = images[0].shape[0] // 2
+        scale = torch.cat((1 - t, t)).float()
+        levels = len(flows)
+        del images[levels:], features[levels:]
+        net = None
+        for level in range(levels - 1, -1, -1):
+            image, feat, flow = images.pop(), features.pop(), flows.pop() * scale
+            lflow, rflow = flow[batch:], flow[:batch]
+            _, channels, height, width = feat.shape
+            pad = self.pads[level]
+            if net is None:
+                warp = _warper(torch.cat((lflow, rflow)), feat.dtype, other=False, fused=True)
+                wi, wf = warp(image), warp(feat)
+                zeros = wf.new_zeros(()).expand(batch, height, width, pad)
+                net = _nchw(
+                    torch.cat(
+                        (
+                            wi[:batch],
+                            wf[:batch],
+                            wi[batch:],
+                            wf[batch:],
+                            lflow.to(feat.dtype).permute(0, 2, 3, 1),
+                            rflow.to(feat.dtype).permute(0, 2, 3, 1),
+                            zeros,
+                        ),
+                        -1,
+                    )
+                )
+                del wi, wf, warp, image, feat, flow, zeros, lflow, rflow
+                continue
+            index = levels - 2 - level
+            up = cast("torch.nn.Conv2d", self.up[index])
+            up_channels = up.out_channels // 4
+            fixed = 2 * channels + up_channels
+            out = torch.empty(
+                (batch, fixed + 10 + pad, height, width),
+                dtype=feat.dtype,
+                device=feat.device,
+                memory_format=torch.channels_last,
+            )
+            ema_warp.write_rows(feat[:batch], lflow, out[:, :channels])
+            ema_warp.write_rows(feat[batch:], rflow, out[:, channels : 2 * channels])
+            del feat
+            ema_warp.write_rows(image[:batch], lflow, out[:, fixed : fixed + 3])
+            ema_warp.write_rows(image[batch:], rflow, out[:, fixed + 3 : fixed + 6])
+            del image
+            out[:, fixed + 6 : fixed + 8].copy_(lflow)
+            out[:, fixed + 8 : fixed + 10].copy_(rflow)
+            out[:, fixed + 10 :].zero_()
+            del flow, lflow, rflow
+            upsampled = up(F.pad(net, (0, 1, 0, 1)))
+            _shuffle_into(out[:, 2 * channels : fixed].permute(0, 2, 3, 1), upsampled)
+            del upsampled
+            net = F.leaky_relu(self.merge[index](out), 0.2, inplace=True)
+            del out
+            net = F.leaky_relu(self.refine[index](net), 0.2, inplace=True)
+        return self.output_conv(net)
+
 
 class _Head(torch.nn.Module):
     """A `FlowEstimator` whose first conv is split by input: `conv(cat(f, other)) = conv_f(f) + conv_o(other)`."""
@@ -275,6 +337,34 @@ def _predict(
     return net.float()
 
 
+_WARP_TILE_BYTES = 128 << 20  # fixed: target bytes for one pair of warped feature bands
+
+
+def _predict_rows(head: _Head, f: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
+    """Predict from bounded row bands, including the convolutions' receptive fields at the seams."""
+    batch2, channels, height, width = f.shape
+    batch = batch2 // 2
+    rows = max(1, _WARP_TILE_BYTES // (batch2 * width * channels * f.element_size()))
+    if rows >= height:
+        return _predict(head, f, f, _warper(flow, f.dtype, other=True, fused=True))
+    halo = head.own.kernel_size[0] // 2 + sum(
+        part.kernel_size[0] // 2 for part in head.rest.modules() if isinstance(part, torch.nn.Conv2d)
+    )
+    result = f.new_empty((batch2, 2, height, width), dtype=torch.float32)
+    for start in range(0, height, rows):
+        end = min(height, start + rows)
+        lo, hi = max(0, start - halo), min(height, end + halo)
+        warped = torch.empty(
+            (batch2, channels, hi - lo, width), device=f.device, dtype=f.dtype, memory_format=torch.channels_last
+        )
+        ema_warp.write_rows(f[batch:], flow[:batch], warped[:batch], lo)
+        ema_warp.write_rows(f[:batch], flow[batch:], warped[batch:], lo)
+        val = _predict(head, f[..., lo:hi, :], warped, None)
+        result[..., start:end, :].copy_(val[..., start - lo : end - lo, :])
+        del val, warped
+    return result
+
+
 def _residual_flows(flows: _Flows, feats: list[torch.Tensor], *, fused: bool = False) -> list[torch.Tensor]:
     """`PyramidFlowEstimator.forward` of both directions at once: the residual flow pyramid (float32), fine to coarse.
 
@@ -289,7 +379,10 @@ def _residual_flows(flows: _Flows, feats: list[torch.Tensor], *, fused: bool = F
     steps += [(len(heads) - 1 - k, h) for k, h in enumerate(heads)]
     for i, head in steps:
         v = F.interpolate(2 * v, size=feats[i].shape[2:4], mode="bilinear")
-        r = _predict(head, feats[i], feats[i], _warper(v, feats[i].dtype, other=True, fused=fused))
+        if fused and feats[i].numel() * feats[i].element_size() > 2 * _WARP_TILE_BYTES:
+            r = _predict_rows(head, feats[i], v)
+        else:
+            r = _predict(head, feats[i], feats[i], _warper(v, feats[i].dtype, other=True, fused=fused))
         residuals.insert(0, r)
         v = r + v
     return residuals
@@ -330,6 +423,8 @@ def _interpolate(
     release(feats[0])  # MPS: each stage has its own buffer sizes, and the cache of the last one counts (see `release`)
     flows = flow_pyramid_synthesis(_residual_flows(predict, feats, fused=fused))[: net.fusion_pyramid_levels]
     release(feats[0])
+    if fused and feats[0].numel() * feats[0].element_size() > 2 * _WARP_TILE_BYTES:
+        return fuse.forward_from_flows(images, feats, flows, t).float()
     # rows [:b]: frame 1 -> 2 (upstream's forward flow, scaled by 1 - t), [b:]: 2 -> 1 (backward, by t); frame 1 is
     # read with the backward flow and frame 2 with the forward one: sample n reads with the flow of row (n + b) % 2b
     scale = torch.cat((1 - t, t)).float()

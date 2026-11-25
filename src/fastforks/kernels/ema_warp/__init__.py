@@ -1,4 +1,4 @@
-"""Bilinear border warps from EMA-VFI's two pixel-flow fields."""
+"""Bilinear border warps from frame interpolation from pixel-flow fields."""
 
 from pathlib import Path
 
@@ -7,7 +7,19 @@ import torch
 from fastforks._core.kernels import cubin_library
 
 SIGNATURES = {"warp_f16": "ppppiiiillllllllil", "warp_f32": "ppppiiiillllllllil"}
+SIGNATURES["warp_f16x4"] = SIGNATURES["warp_f16"]
+SIGNATURES.update(dict.fromkeys(("warp_write_f16", "warp_write_f32", "warp_write_f16x4"), "ppp" + "i" * 6 + "l" * 11))
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
+
+
+def _packed(*views: torch.Tensor) -> bool:
+    return all(
+        x.dtype == torch.float16
+        and x.stride(1) == 1
+        and x.data_ptr() % 8 == 0
+        and not any(x.stride(i) % 4 for i in (0, 2, 3))
+        for x in views
+    )
 
 
 def _sample(
@@ -30,7 +42,11 @@ def _sample(
         raise ValueError(msg)
     symbol = "warp_f16" if first.dtype == torch.float16 else "warp_f32"
     threads = 256
-    grid = ((w * c + threads - 1) // threads, min(h, 65535), min(n * 2, 65535))
+    packed = c % 4 == 0 and right_offset % 4 == 0 and _packed(first, second, dest)
+    pack = 4 if packed else 1
+    if packed:
+        symbol = "warp_f16x4"
+    grid = ((w * (c // pack) + threads - 1) // threads, min(h, 65535), min(n * 2, 65535))
     load(first.device).launch(
         symbol,
         grid,
@@ -66,6 +82,52 @@ def pair(first: torch.Tensor, second: torch.Tensor, flow: torch.Tensor) -> tuple
     """Warp both frames, accumulating in float32 and storing in their native dtype in channels-last order."""
     out = batch(first, second, flow)
     return out[: first.shape[0]], out[first.shape[0] :]
+
+
+def write_rows(image: torch.Tensor, flow: torch.Tensor, out: torch.Tensor, y0: int = 0) -> None:
+    """Sample a half or float image directly into a channels-last half destination, starting at row y0."""
+    n, c, h, w = image.shape
+    rows = out.shape[-2]
+    if (
+        min(n, c, h, w) < 1
+        or w * c >= 2**32
+        or not image.is_cuda
+        or flow.dtype != torch.float32
+        or out.dtype != torch.float16
+        or image.dtype not in {torch.float16, torch.float32}
+        or flow.shape != (n, 2, h, w)
+        or out.shape != (n, c, rows, w)
+        or image.device != flow.device
+        or image.device != out.device
+        or not (0 <= y0 < y0 + rows <= h)
+        or out.stride(1) != 1
+    ):
+        msg = "Expected a CUDA pixel-flow field and matching FP16 output rows in channels-last layout"
+        raise ValueError(msg)
+    symbol = "warp_write_f16" if image.dtype == torch.float16 else "warp_write_f32"
+    packed = c % 4 == 0 and _packed(image, out)
+    pack = 4 if packed else 1
+    if packed:
+        symbol = "warp_write_f16x4"
+    load(image.device).launch(
+        symbol,
+        ((w * (c // pack) + 255) // 256, min(rows, 65535), min(n, 65535)),
+        (256, 1, 1),
+        image,
+        flow,
+        out,
+        n,
+        c,
+        h,
+        w,
+        y0,
+        rows,
+        *image.stride(),
+        *flow.stride(),
+        out.stride(0),
+        out.stride(2),
+        out.stride(3),
+    )
 
 
 def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:

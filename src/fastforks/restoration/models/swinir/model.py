@@ -20,6 +20,7 @@ import math
 import re
 import warnings
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -30,9 +31,10 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
-from fastforks.kernels.shift_windows import rearrange
+from fastforks.kernels.shift_windows import rearrange, reverse_residual
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.sr_layer_norm import fast_layer_norm
 from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
     pad_heads,
@@ -41,8 +43,10 @@ from fastforks.shared.swin_sr import (
     relative_bias,
     shift_mask,
     shifted_window_regions,
+    stripe_pixelshuffle,
     window_attention,
 )
+from fastforks.shared.swin_sr.window_tiles import WINDOW_STREAM_BYTES, can_stream, window_tiles
 
 from .net import SwinIR
 from .net.network_swinir import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
@@ -201,14 +205,37 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
-def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
-    """Keep the shifted window layout only while attention consumes it."""
+def _transform_window(m: SwinTransformerBlock, raw: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+    attn = m.attn
+    attended = window_attention(
+        m.norm1(raw), attn.qkv, attn.proj, heads=attn.num_heads, scale=attn.scale, bias=bias, mask=None
+    )
+    raw.add_(m.drop_path(attended))
+    return raw.add_(m.drop_path(m.mlp(m.norm2(raw))))
+
+
+def _window_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """Complete attention and the MLP before scattering each group of windows."""
+    if x.numel() * x.element_size() >= WINDOW_STREAM_BYTES and can_stream(x, x_size, m.window_size):
+        bias: torch.Tensor = m.attn.bias  # ty: ignore[invalid-assignment]
+        return window_tiles(
+            x,
+            x_size,
+            window=m.window_size,
+            shift=m.shift_size,
+            qkv_width=m.attn.qkv.out_features,
+            bias=bias,
+            transform=partial(_transform_window, m),
+        )
+    if not m.shift_size:
+        return SwinTransformerBlock.forward(m, x, x_size)
     mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
     windows = rearrange(m.norm1(x), x_size, m.window_size, m.shift_size)
     attended = m.attn(windows, mask=mask)
-    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
-    x = x + m.drop_path(attended)
-    return x + m.drop_path(m.mlp(m.norm2(x)))
+    del windows
+    x = reverse_residual(attended, x, None, x_size, window=m.window_size, shift=m.shift_size)
+    del attended
+    return x.add_(m.drop_path(m.mlp(m.norm2(x))))
 
 
 class Kernels(Portable):
@@ -220,11 +247,14 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fast_layer_norm(self.net, ctx.device)
         for m in self.net.modules():
-            if isinstance(m, SwinTransformerBlock) and m.shift_size:
-                override(m, _shifted_block)
+            if isinstance(m, SwinTransformerBlock):
+                override(m, _window_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
+        if self.net.upsampler == "pixelshuffle":
+            stripe_pixelshuffle(self.net, self.net.upscale)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""

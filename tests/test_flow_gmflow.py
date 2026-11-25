@@ -135,6 +135,22 @@ def test_cuda_local_correlation_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
         torch.testing.assert_close(actual, expected, rtol=1e-5, atol=8e-6)
 
 
+@pytest.mark.gpu
+def test_cuda_local_propagation_strips(monkeypatch: pytest.MonkeyPatch) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    net = _net(2, 0).cuda()
+    gen = torch.Generator(device="cuda").manual_seed(3)
+    feature = torch.randn(2, 128, 13, 17, generator=gen, device="cuda")
+    displacement = torch.randn(2, 2, 13, 17, generator=gen, device="cuda")
+    monkeypatch.setattr(family, "_PROPAGATION_BYTES", 1 << 20)
+
+    with torch.inference_mode():
+        expected = net.feature_flow_attn(feature, displacement, local_window_attn=True, local_window_radius=1)
+        actual = family._propagate_strips(net.feature_flow_attn, feature, displacement, 1)
+    torch.testing.assert_close(actual, expected, rtol=1e-6, atol=1e-6)
+
+
 @pytest.mark.slow
 def test_cpu_attention_exports_dynamic_query_length() -> None:
     """The bounded eager path must not specialize the exported query length."""

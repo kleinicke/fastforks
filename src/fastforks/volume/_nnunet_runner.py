@@ -22,11 +22,11 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_
 from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
-from fastforks.volume._nnunet import Plan, Predictor, UNet, _conv_slabs_, _ConvNormAct, read_plan
+from fastforks.volume._nnunet import Plan, Predictor, UNet, _bias_norm_act, _conv_slabs_, _ConvNormAct, read_plan
 from fastforks.volume._runner import Runner
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from fastforks.volume._runner import Context
 
@@ -93,8 +93,14 @@ def _init_args(path: Path) -> dict[str, Any]:
 
 def _mirror_axes(path: Path, plan: Plan) -> tuple[int, ...]:
     """The checkpoint's `inference_allowed_mirroring_axes` as axes of the 3D window (2D: + 1)."""
-    ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
-    axes = tuple(ckpt.get("inference_allowed_mirroring_axes") or ()) if isinstance(ckpt, dict) else ()
+    if path.suffix.lower() == ".safetensors":
+        from safetensors import safe_open  # noqa: PLC0415 - only for nnU-Net's safetensors checkpoints
+
+        with safe_open(path, framework="pt", device="cpu") as file:
+            axes = json.loads((file.metadata() or {}).get("inference_allowed_mirroring_axes", "null")) or ()
+    else:
+        ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
+        axes = ckpt.get("inference_allowed_mirroring_axes") or () if isinstance(ckpt, dict) else ()
     return tuple(int(a) + (3 - plan.dims) for a in axes)
 
 
@@ -140,6 +146,7 @@ class Portable(Runner):
             labels.append(plan.labels)
         self.class_names = self._names(labels)
         index = {n: k for k, n in self.class_names.items()}
+        self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
         self._luts: list[torch.Tensor | None] = []
         for part, lab in zip(self.parts, labels, strict=True):
             lut = torch.zeros(part.plan.n_labels, dtype=torch.int16)
@@ -149,8 +156,7 @@ class Portable(Runner):
                     raise WeightsError(msg)
                 lut[k] = index[n]
             identity = torch.equal(lut, torch.arange(lut.numel(), dtype=lut.dtype))
-            self._luts.append(None if identity else lut.to(ctx.device))
-        self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
+            self._luts.append(None if identity else lut.to(device=ctx.device, dtype=self._dtype))
 
     def _names(self, labels: Sequence[Mapping[int, str]]) -> dict[int, str]:
         """The merged map's label -> name: every part's names, numbered in order of appearance (one part: its own)."""
@@ -166,7 +172,12 @@ class Portable(Runner):
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         """The network of weight file `index` (a fold checkpoint)."""
         net = UNet(plan, channels)
-        sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
+        if self.ctx.params.checkpoint.lower().endswith(".safetensors"):
+            sd = self.ctx.state_dict(index, strip="")
+            # nnU-Net 2.9 stores training state separately from the flat network tensors.
+            sd.pop("__nnunet_checkpoint_state__", None)
+        else:
+            sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
         load_strict(net, UNet.state_dict_of(sd, plan.dims), f"{self.ctx.variant.ref} checkpoint")
         device = torch.device("cpu") if self.ctx.params.stream else self.ctx.device
         net.eval().requires_grad_(requires_grad=False).to(device, self._dtype_of())
@@ -189,7 +200,7 @@ class Portable(Runner):
             dtype=self._dtype_of(),
         )
 
-    def _forward_patch(self, net: torch.nn.Module, patch: torch.Tensor) -> torch.Tensor:
+    def _forward_patch(self, net: Callable[[torch.Tensor], torch.Tensor], patch: torch.Tensor) -> torch.Tensor:
         """Compile the fold network on fixed-size patches. Resampling and merging stay eager."""
         return net(patch)
 
@@ -200,20 +211,36 @@ class Portable(Runner):
     def segment(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
         """The merged labels of every part on the grid of `volume`."""
 
-        def predict(part: Predictor, lut: torch.Tensor | None) -> torch.Tensor:
+        def predict(part: Predictor) -> torch.Tensor:
             nets = part.nets
             if self.ctx.params.stream:
                 # Keep each fold on device for every window of this part. The host masters stay
                 # immutable, including when two callers run inference on different CUDA streams.
                 nets = [copy.deepcopy(net).to(volume.device) for net in part.nets]
             predictor = replace(part, nets=nets, forward=self._forward_patch)
-            labels = predictor(volume, spacing)
-            return (labels if lut is None else lut[labels.long()]).to(self._dtype)
+            return predictor(volume, spacing)
 
-        out = predict(self.parts[0], self._luts[0])
-        for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):
-            labels = predict(part, lut)
-            torch.where(labels != 0, labels, out, out=out)
+        out = None
+        for part, lut in zip(self.parts, self._luts, strict=True):
+            labels = predict(part)
+            if (
+                part.cuda_kernels
+                and part.plan.regions is None
+                and labels.is_cuda
+                and labels.dtype == self._dtype == torch.uint8
+            ):
+                from fastforks.kernels import vol_norm  # noqa: PLC0415 - compact CUDA labels only
+
+                out = vol_norm.merge_labels(labels, lut, out)
+                continue
+            if lut is None:
+                labels = labels.to(self._dtype)
+            else:
+                # index_select accepts 32-bit indices, halving the full-volume indexing temporary.
+                indices = labels.to(torch.int32, memory_format=torch.contiguous_format).view(-1)
+                labels = lut.index_select(0, indices).view(labels.shape)
+            out = labels if out is None else torch.where(labels != 0, labels, out, out=out)
+        assert out is not None  # noqa: S101 - a runner loads at least one plan
         return out
 
     @host
@@ -242,15 +269,6 @@ def _biased_conv_norm_(self: Any, y: torch.Tensor, depth: int) -> torch.Tensor: 
     return _bias_norm_act(self, _conv_slabs_(self.conv, y, None, depth))
 
 
-def _bias_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
-    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
-
-    conv = self.conv
-    if vol_norm.supported(y):
-        return vol_norm.norm_act_(y, self.norm.weight, self.norm.bias, self.norm.eps, self.slope, conv_bias=conv.bias)
-    return self.norm_act(y.add_(conv.bias.view(1, -1, 1, 1, 1)))
-
-
 class Kernels(Portable):
     """Portable + InstanceNorm + (Leaky)ReLU as one in-place two-pass kernel (`vol_norm`) on the fp16 feature maps."""
 
@@ -261,8 +279,15 @@ class Kernels(Portable):
         vol_norm.load(ctx.device)
         super().__init__(ctx)
 
+    def _predictor(self, plan: Plan, nets: list[torch.nn.Module], mirror: tuple[int, ...]) -> Predictor:
+        predictor = super()._predictor(plan, nets, mirror)
+        predictor.cuda_kernels = self.ctx.dtype == "float16"
+        return predictor
+
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         net = super()._net(index, plan, channels)
+        if isinstance(net, UNet):
+            net.decoder.tile_skip = self.ctx.dtype == "float16"
         for m in net.modules():
             if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")

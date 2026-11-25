@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import torch
 
-from fastforks._core.kernels import checked
+from fastforks._core.kernels import checked, trim_cuda_graph_pool
 from fastforks._core.upload import capture_uploads
 
 if TYPE_CHECKING:
@@ -90,6 +90,14 @@ def capture_stream(device: torch.device | str) -> torch.cuda.Stream:
 def side_stream(device: torch.device | str, i: int = 0) -> torch.cuda.Stream:
     """Side stream `i` of `device`, shared by every model that overlaps work (callers order it both ways)."""
     return _stream(_index(device), i)
+
+
+def empty_graph_cache(device: torch.device, *, released: bool) -> None:
+    """Empty the allocator cache and trim unused driver graph memory after releasing a graph."""
+    torch.cuda.empty_cache()
+    if released and torch.cuda.get_allocator_backend() == "cudaMallocAsync":
+        # CUDA keeps memory nodes in a separate device pool, even after the graphs are destroyed.
+        trim_cuda_graph_pool(_index(device))
 
 
 def _weak(forward: Callable[..., Any]) -> Callable[..., Any]:
@@ -172,7 +180,7 @@ class GraphCache:
         self._failed: OrderedDict[Hashable, None] = OrderedDict()
         self._calls = 0
         self._pool: Any = None
-        self._captured = False  # a graph pool was made since the last `release` (its memory needs an empty_cache)
+        self._pool_device: torch.device | None = None
         self._stream: torch.cuda.Stream | None = None
         self._lock = threading.Lock()
 
@@ -188,7 +196,8 @@ class GraphCache:
         `post(static output)` replaces the copy when it returns new tensors anyway (e.g. a dtype conversion).
         `before_replay(static inputs)` can reset persistent state after the preceding replay is ordered.
         """
-        failed = captured = released = False
+        failed = captured = False
+        released: torch.device | None = None
         result = None
         with self._lock:
             cur = torch.cuda.current_stream(inputs[0].device)
@@ -198,25 +207,32 @@ class GraphCache:
             self._calls += 1
             entry = self.graphs.get(key)
             if entry is None and self.graphs and self._much_larger(inputs[0]):
-                released = self._free_graphs()  # a GPU-bound shape: the small shapes' pools only cost memory next to it
+                released = self._pool_device
+                self._free_graphs()  # a GPU-bound shape: the small shapes' pools only cost memory next to it
             if entry is None and key not in self._failed:
+                had_graphs = bool(self.graphs)
                 entry, failed = self._add(key, inputs)
                 captured = entry is not None
+                if failed and had_graphs and not self.graphs:
+                    released, self._pool_device = self._pool_device, None
             if entry is not None:
                 self._used[key] = self._calls
                 graph, static, out = entry
-                for s, x in zip(static, inputs, strict=True):
-                    if s is not x:
-                        s.copy_(x)
+                for static_input, input_tensor in zip(static, inputs, strict=True):
+                    if static_input is not input_tensor:
+                        static_input.copy_(input_tensor)
+                    del static_input
                 if before_replay is not None:
                     before_replay(static)
                 graph.replay()
                 result = _copy(out) if post is None else post(out)
-        if failed or captured or released:
+                # Give release() sole ownership of the cached tensors before it can take the lock.
+                del entry, graph, static, out
+        if failed or captured or released is not None:
             # outside the lock: the partial pool of a failed capture, or the blocks the eager calls and the capture
             # warm-up cached (the warm-up's on the capture stream, which the caller's stream never reuses): replays
             # allocate nothing, so these blocks only doubled the reserved memory (igev++ 1454 -> 720 MiB)
-            torch.cuda.empty_cache()
+            empty_graph_cache(released or inputs[0].device, released=released is not None)
         return result
 
     def static_inputs(self, key: Hashable) -> tuple[torch.Tensor, ...] | None:
@@ -330,14 +346,14 @@ class GraphCache:
                 graph.capture_end()
         cur.wait_stream(side)
         self._pool = graph.pool()
-        self._captured = True
+        self._pool_device = device
         return graph, static, out
 
     def _much_larger(self, x: torch.Tensor) -> bool:
         """`x` has at least `_LARGER` x the elements of the first input of every held graph."""
         return all(x.numel() >= _LARGER * static[0].numel() for _, static, _ in self.graphs.values())
 
-    def _free_graphs(self) -> bool:
+    def _free_graphs(self) -> None:
         """Drop every graph (the caller's `empty_cache` frees their pool, outside the lock); they capture again."""
         if self._stream is not None:
             self._stream.synchronize()  # the last replay + copy-out are done: the buffers may go
@@ -345,7 +361,7 @@ class GraphCache:
         self._used.clear()
         self._seen.clear()
         self._pool = None
-        return True
+        self._pool_device = None
 
     def _evict(self) -> bool:
         """Drop the least recently used graph if it is stale; False: the cache is busy, run eagerly."""
@@ -360,7 +376,7 @@ class GraphCache:
         return True
 
     def release(self) -> None:
-        """Drop every graph and free the pool on the device (`torch.cuda.empty_cache`)."""
+        """Drop every graph and return its unused pool memory to the device."""
         with self._lock:
             if self.graphs and self._stream is not None:
                 self._stream.synchronize()
@@ -368,12 +384,12 @@ class GraphCache:
             self._used.clear()
             self._seen.clear()
             self._pool = None
-            captured, self._captured = self._captured, False
+            device, self._pool_device = self._pool_device, None
         # a dropped graph pool is only freed by the next empty_cache; without a capture since the last release there is
         # none, and an empty_cache would only make the next eager call allocate again (PP-OCRv5 mobile 1080 x 1920,
         # releasing its recogniser graphs on every large page: 176 -> 163 ms, paired in one process)
-        if captured:
-            torch.cuda.empty_cache()
+        if device is not None:
+            empty_graph_cache(device, released=True)
 
 
 _Output = TypeVar("_Output")

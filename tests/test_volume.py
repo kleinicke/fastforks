@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,6 +23,54 @@ if TYPE_CHECKING:
 
 _PATCH = (16, 16, 16)
 _DNA = "dynamic_network_architectures.architectures.unet"
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_cuda_ct_normalization_preserves_rounding(dtype: torch.dtype) -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    x = torch.linspace(-1500, 2100, 9 * 15 * 21, device="cuda").reshape(9, 15, 21)[:, ::2, 1::2].transpose(0, 2)
+    expected = x.clamp(-741.25, 1121.125).sub_(41.725).div_(93.37).to(dtype)
+    actual = torch.empty_like(x, dtype=dtype)
+    vol_norm.normalize_ct_(actual, x, (-741.25, 1121.125), mean=41.725, std=93.37)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+def test_cuda_label_merge_maps_and_preserves_background() -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    source = torch.arange(8 * 9 * 10, device="cuda").remainder_(4).to(torch.uint8).reshape(8, 9, 10).transpose(0, 2)
+    lut = torch.tensor([0, 11, 0, 29], device="cuda", dtype=torch.uint8)
+    expected = lut[source.long()]
+    first = vol_norm.merge_labels(source, lut)
+    torch.testing.assert_close(first, expected, atol=0, rtol=0)
+    previous = torch.full_like(source, 6)
+    merged = vol_norm.merge_labels(source, lut, previous)
+    assert merged is previous
+    torch.testing.assert_close(merged, torch.where(expected != 0, expected, 6), atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("stride", [(2, 2, 2), (1, 2, 2)])
+def test_cuda_decoder_transpose_bands_match_full_map(stride: tuple[int, int, int]) -> None:
+    """A band beginning between transpose phases reads exactly the same skip and upsampled planes."""
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    channels = 16
+    kwargs = {"device": "cuda", "dtype": torch.float16, "memory_format": torch.channels_last_3d}
+    stage = _nnunet._Stacked(1, 2 * channels, channels, (3, 3, 3), (1, 1, 1), plan).eval().to(**kwargs)
+    up = torch.nn.ConvTranspose3d(channels, channels, stride, stride).eval().to(**kwargs)
+    gen = torch.Generator("cuda").manual_seed(48)
+    source = torch.randn(2, channels, 8, 9, 11, device="cuda", dtype=torch.float16, generator=gen)
+    source = source.contiguous(memory_format=torch.channels_last_3d)
+    with torch.inference_mode():
+        full = up(source)
+        skip = torch.randn(full.shape, device=full.device, dtype=full.dtype, generator=gen)
+        skip = skip.contiguous(memory_format=torch.channels_last_3d)
+        want = _nnunet._decode_into_skip(stage, full, skip.clone(), 5)
+        actual = _nnunet._decode_into_skip(stage, source, skip, 5, up=up)
+    torch.testing.assert_close(actual, want, atol=0, rtol=0)
 
 
 def test_encoder_example_inputs_are_3d_volumes() -> None:
@@ -175,6 +224,162 @@ def test_sliding_window_slabs_equal_full_logits() -> None:
     inner = (slice(None), *(slice(3, -3),) * 3)  # weights cancel (float16 logits); not near the corners, whose
     # float16 weights are near the smallest subnormal (nnU-Net's rounding, kept)
     torch.testing.assert_close(one.float()[inner], direct[inner], rtol=2e-3, atol=2e-3)
+
+
+@pytest.mark.parametrize("heads", [19, 260])
+def test_resampled_labels_keep_first_tie_and_compact_dtype(heads: int) -> None:
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    plan = replace(plan, labels={i: str(i) for i in range(1, heads)})
+    predictor = _nnunet.Predictor(plan, [])
+    logits = torch.zeros(heads, 2, 3, 4)
+    logits[3, 0] = logits[12, 0] = 5
+    logits[-1, 1] = 7
+    shape = (3, 6, 8)
+    source, target = (1.5, 1.5, 1.5), (1.0, 1.0, 1.0)
+    fn, kw = plan.resample_logits
+    expected = _resample.resample(logits, shape, source, target, fn, kw).argmax(0)
+    got = predictor._decide_resampled(logits.half(), shape, source, target)
+    assert torch.equal(got.long(), expected)
+    assert got.dtype == (torch.uint8 if heads < 256 else torch.int16)
+
+
+def test_nnunet_folder_with_safetensors(folder: Path, tmp_path: Path) -> None:
+    from safetensors.torch import save_file  # noqa: PLC0415 - only the safetensors fixture needs the writer
+
+    path = tmp_path / "Dataset002_Tiny" / folder.name
+    fold = path / "fold_0"
+    fold.mkdir(parents=True)
+    for name in ("plans.json", "dataset.json"):
+        (path / name).write_bytes((folder / name).read_bytes())
+    state = dict(_net().state_dict()) | {"__nnunet_checkpoint_state__": torch.zeros(1, dtype=torch.uint8)}
+    save_file(state, fold / "checkpoint_final.safetensors", metadata={"inference_allowed_mirroring_axes": "[0,1,2]"})
+    model = volume.load(path, mode="portable", device="cpu", checkpoint="checkpoint_final.safetensors")
+    reference = volume.load(folder, mode="portable", device="cpu", folds=(0,))
+    ct = torch.arange(16**3, dtype=torch.float32).view(16, 16, 16)
+    opts = {"spacing": (2.0, 1.5, 1.5)}
+    assert model._runner.parts[0].mirror_axes == (0, 1, 2)
+    assert torch.equal(model(ct, **opts).labels, reference(ct, **opts).labels)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("patch", [(1, 37, 103), (16, 16, 16), (31, 48, 19), (192, 192, 192)])
+def test_cuda_gaussian_matches_cpu_half_weights(patch: tuple[int, int, int]) -> None:
+    """Compare complete weights, including zeros rounded away and replaced by the smallest positive weight."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    expected = _nnunet.gaussian(patch, torch.device("cpu"))
+    actual = _nnunet.gaussian(patch, torch.device("cuda"), cuda_kernels=True)
+    assert torch.equal(actual.cpu(), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("channels", [19, 118])
+def test_fused_window_accumulation_preserves_rounding(channels: int) -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    torch.manual_seed(17)
+    mem = {"dtype": torch.float16, "device": "cuda"}
+    logits = torch.randn(8, 9, 13, channels, **mem).permute(3, 0, 1, 2)
+    out = torch.randn(9, 12, 15, channels, **mem).permute(3, 0, 1, 2)
+    reference = out.clone()
+    weight = torch.rand(8, 9, 13, **mem) / 4
+    window = (slice(None), slice(1, 9), slice(2, 11), slice(1, 14))
+    reference[window].add_(logits * weight)
+    vol_norm.accumulate_(out[window], logits, weight)
+    assert torch.equal(out, reference)
+
+
+@pytest.mark.gpu
+def test_fused_volume_labels_match_trilinear_across_slabs() -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    torch.manual_seed(18)
+    scores = torch.randn(11, 13, 17, 118, dtype=torch.float16, device="cuda").permute(3, 0, 1, 2)
+    scores[117].copy_(scores[0])
+    shape = (23, 29, 27)
+    expected = F.interpolate(scores[None].float(), size=shape, mode="trilinear", align_corners=False)[0].argmax(0)
+    actual = torch.empty(shape, dtype=torch.uint8, device="cuda")
+    vol_norm.resize_labels_(actual[:14], scores[:, :7], None, first_src_z=0, first_out_z=0, src_depth=11, dst_depth=23)
+    previous = scores[:, 6].permute(1, 2, 0).contiguous()
+    vol_norm.resize_labels_(
+        actual[14:], scores[:, 7:], previous, first_src_z=7, first_out_z=14, src_depth=11, dst_depth=23
+    )
+    assert torch.equal(actual.long(), expected)
+
+
+@pytest.mark.gpu
+def test_tiled_volume_head_matches_full_projection(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two windows per batch, overlapping depth spans, and a partial final projection tile."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    model = volume.load(folder, mode="kernels", device="cuda", folds=(0,), mirror=False)
+    ct = np.random.default_rng(17).normal(0, 400, (22, 21, 24)).astype(np.float32)
+    spacing = (2.0, 1.5, 1.5)
+    expected = model(ct, spacing=spacing).labels
+    monkeypatch.setattr(_nnunet, "_HEAD_TILE_BYTES", 3 * 3 * 16 * 16 * 2)
+    assert torch.equal(model(ct, spacing=spacing).labels, expected)
+
+
+@pytest.mark.gpu
+def test_tiled_score_ring_preserves_resampled_labels(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Complete and normalize wrapped tiles, including interpolation across a reused score plane."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    model = volume.load(folder, mode="kernels", device="cuda", folds=(0,), mirror=False)
+    part = model._runner.parts[0]
+    x = torch.rand(1, 37, 16, 16, dtype=torch.float16, device="cuda")
+    keep = (slice(1, 36), slice(0, 16), slice(0, 16))
+    with torch.inference_mode():
+        expected = part._stream_resampled(x, keep, (53, 23, 19))
+        monkeypatch.setattr(_nnunet, "_HEAD_TILE_BYTES", 3 * 3 * 16 * 16 * 2)
+        assert torch.equal(part._stream_resampled(x, keep, (53, 23, 19)), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("normalize", [False, True])
+def test_overlapping_decoder_features_preserve_completed_scores(*, normalize: bool) -> None:
+    """Several earlier rows contribute to the same score tile, with two windows per decode batch."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    net = _net().to(device="cuda", dtype=torch.float16, memory_format=torch.channels_last_3d)
+    predictor = _nnunet.Predictor(
+        plan, [net], batch=2, amp=None, channels_last=True, dtype=torch.float16, cuda_kernels=True
+    )
+    gen = torch.Generator("cuda").manual_seed(63)
+    x = torch.rand((1, 39, 23, 25), device="cuda", dtype=torch.float16, generator=gen)
+    predictor._gauss = _nnunet.gaussian(plan.patch_size, x.device, cuda_kernels=True)
+    steps = ((0, 6, 12, 18, 23), (0, 7), (0, 9))
+    tiling = net, 5
+    with torch.inference_mode():
+        expected = torch.cat(
+            [t.clone() for _, t in predictor._completed_head_tiles(x, steps, tiling, 11, normalize=normalize)], dim=1
+        )
+        actual = torch.empty_like(expected)
+        end = 0
+        for at, scores in predictor._completed_feature_overlap(x, steps, tiling, normalize=normalize):
+            assert at == end
+            end += scores.shape[1]
+            actual[:, at:end] = scores
+        assert end == x.shape[1]
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+def test_tiled_decoder_preserves_consumed_skip_halo(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tiled convolution reads the original skip at each boundary and handles its final partial tile."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    model = volume.load(folder, mode="kernels", device="cuda", folds=(0,), mirror=False)
+    ct = np.random.default_rng(29).normal(0, 400, (19, 16, 16)).astype(np.float32)
+    spacing = (2.0, 1.5, 1.5)
+    expected = model(ct, spacing=spacing).labels
+    monkeypatch.setattr(_nnunet, "_DECODER_TILE_BYTES", 3 * 2 * 4 * 16 * 16 * 2)
+    assert torch.equal(model(ct, spacing=spacing).labels, expected)
 
 
 def test_zoom_matches_scipy() -> None:

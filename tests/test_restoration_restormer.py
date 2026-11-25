@@ -13,7 +13,7 @@ from fastforks._core import registry
 from fastforks._core.bench import synthetic_image
 from fastforks._core.errors import WeightsError
 from fastforks.restoration._api import _checkpoint_family
-from fastforks.restoration.models.restormer.model import _fold_head_attention, _gate_ffn, _pad_ffn
+from fastforks.restoration.models.restormer.model import _fold_head_attention, _gate_ffn, _pad_ffn, _tiled_ffn
 from fastforks.restoration.models.restormer.net import Restormer
 from fastforks.restoration.models.restormer.net.restormer_arch import Attention, FeedForward
 
@@ -137,3 +137,16 @@ def test_fused_depthwise_gate(*, bias: bool) -> None:
     x = torch.randn(2, 24, 9, 13, device="cuda", dtype=torch.float16).contiguous(memory_format=torch.channels_last)
     with torch.inference_mode():
         torch.testing.assert_close(layer(x), original(x), rtol=0.002, atol=0.0003)
+
+
+@pytest.mark.gpu
+def test_tiled_ffn_keeps_the_depthwise_halo() -> None:
+    """Exercise internal stripe borders, a partial final stripe and a batch of two images."""
+    torch.manual_seed(2)
+    layer = FeedForward(24, 2.66, bias=True).eval()
+    _pad_ffn(layer)
+    _gate_ffn(layer, "cuda")
+    layer.cuda().half().to(memory_format=torch.channels_last)
+    x = torch.randn(2, 24, 17, 13, device="cuda", dtype=torch.float16).contiguous(memory_format=torch.channels_last)
+    with torch.inference_mode():
+        torch.testing.assert_close(_tiled_ffn(layer, torch.nn.Identity(), x, 5), x + layer(x), atol=0.001, rtol=0.001)

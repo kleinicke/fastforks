@@ -14,6 +14,7 @@ cropped to `ceil(n / stride)` of the input.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -28,6 +29,7 @@ from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
 from fastforks._core.tracing import in_onnx_export
+from fastforks.kernels import vol_norm
 from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet, _ConvNormAct
@@ -142,6 +144,7 @@ class _Attention(nn.Module):
     def __init__(self, dim: int, heads: int) -> None:
         super().__init__()
         self.heads = heads
+        self.fused_rotary = False
         self.q_proj = nn.Linear(dim, dim)
         self.k_proj = nn.Linear(dim, dim, bias=False)
         self.v_proj = nn.Linear(dim, dim)
@@ -157,7 +160,11 @@ class _Attention(nn.Module):
 
         def project(layer: nn.Linear) -> torch.Tensor:
             t = layer(x).view(b, n, h, d).transpose(1, 2)
-            return _rotate_padded(t, sin, cos, pad) if bounded else to_run_dtype(_rotate(t, sin, cos), x.dtype)
+            if bounded:
+                if self.fused_rotary and d == vol_norm.ROTARY_WIDTH:
+                    return vol_norm.rotary_padded66(t, sin, cos)
+                return _rotate_padded(t, sin, cos, pad)
+            return to_run_dtype(_rotate(t, sin, cos), x.dtype)
 
         q, k = project(self.q_proj), project(self.k_proj)
         v = self.v_proj(x).view(b, n, h, d).transpose(1, 2)
@@ -200,8 +207,11 @@ class _Block(nn.Module):
         self.mlp = _Mlp(dim, hidden)
         self.gamma_2 = nn.Parameter(torch.ones(dim))
 
-    def forward(self, x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor, *, owned: bool = False) -> torch.Tensor:
         """`x`: the float32 residual stream (as under autocast); the branches run in the weights' dtype."""
+        if owned:
+            x.addcmul_(self.gamma_1, self.attn(_ln(self.norm1, x), sin, cos))
+            return x.addcmul_(self.gamma_2, self.mlp(_ln(self.norm2, x)))
         x = torch.addcmul(x, to_float32(self.gamma_1), to_float32(self.attn(_ln(self.norm1, x), sin, cos)))
         return torch.addcmul(x, to_float32(self.gamma_2), to_float32(self.mlp(_ln(self.norm2, x))))
 
@@ -237,6 +247,7 @@ class Primus(nn.Module):
         """Build the encoder for a fixed `size^3` input (the absolute position table has one row per patch)."""
         super().__init__()
         self.size, self.grid = size, size // patch
+        self.inplace_residual = False
         self.down_projection = _PatchEmbed(patch, dim, channels)
         self.eva = _Eva(dim, depth, heads, hidden, self.grid**3)
         self.rope_dim = round(dim // heads / 1.5)
@@ -249,8 +260,13 @@ class Primus(nn.Module):
         t = self.down_projection.proj(x).flatten(2).transpose(1, 2)  # "b c w h d -> b (w h d) c"
         t = to_float32(t) + to_float32(self.eva.pos_embed)
         sin, cos = to_float32(cast("torch.Tensor", self.rope_sin)), to_float32(cast("torch.Tensor", self.rope_cos))
-        for blk in self.eva.blocks:
-            t = blk(t, sin, cos)
+        if self.inplace_residual and x.dtype == torch.float16 and _eager_cuda(t):
+            # The position addition creates the private residual; each branch returns a separate projection.
+            for blk in self.eva.blocks:
+                t = blk(t, sin, cos, owned=True)
+        else:
+            for blk in self.eva.blocks:
+                t = blk(t, sin, cos)
         t = _ln(self.eva.norm, t)
         g = self.grid
         return t.transpose(1, 2).reshape(x.shape[0], -1, g, g, g)
@@ -272,6 +288,14 @@ class Portable(EncoderRunner):
         """Build the encoder and load the encoder weights of the checkpoint."""
         super().__init__(ctx)
         arch = ctx.params.arch
+        # The published ViT weights use the encoder's native dtype and layout.
+        assign = (
+            arch == "vit"
+            and self.fused
+            and ctx.device.type == "cuda"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
         if ctx.params.stream and ctx.device.type != "cuda":
             msg = "stream=True requires CUDA for nnFoundation layer transfers"
             raise OptionsError(msg)
@@ -282,14 +306,18 @@ class Portable(EncoderRunner):
             sd = _encoder_keys(weights, ("encoder.",), "encoder.")
             self.strides, self.widths, self.multiple = (1, 2, 4, 8, 16, 32), res_enc_l().features, 32
         elif arch == "vit":
-            net = Primus()
+            with torch.device("meta") if assign else nullcontext():
+                primus = Primus()
+            if assign:
+                primus.rope_sin, primus.rope_cos = _rope(primus.grid, primus.rope_dim)
+            net = primus
             sd = _encoder_keys(weights, ("down_projection.", "eva."))
             self.strides, self.widths, self.multiple = (8,), (1056,), 8
-            self.max_size = net.size
+            self.max_size = primus.size
         else:
             msg = f"{ctx.variant.ref}: unknown nnFoundation arch {arch!r}"
             raise WeightsError(msg)
-        load_strict(net, sd, ctx.variant.ref)
+        load_strict(net, sd, ctx.variant.ref, assign=assign)
         self.arch = arch
         net = net.eval()
         if self.half:
@@ -302,9 +330,13 @@ class Portable(EncoderRunner):
 
     def _prepare(self, net: nn.Module) -> nn.Module:
         """Install inference methods before the host packer moves stage shells to meta."""
-        if self.fused and isinstance(net, Encoder):
+        if self.fused:
+            if isinstance(net, Primus):
+                net.inplace_residual = True
             for module in net.modules():
-                if isinstance(module, _ConvNormAct):
+                if isinstance(module, _Attention):
+                    module.fused_rotary = True
+                elif isinstance(module, _ConvNormAct):
                     override(module, fused_norm_act, "norm_act")
                     if module.conv.bias is not None:
                         override(module, _biased_conv_norm)
@@ -364,16 +396,13 @@ class Portable(EncoderRunner):
 
 
 class Kernels(Portable):
-    """Portable + CNN: InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`); ViT: fp16-accumulate GEMMs."""
+    """In-place convolution normalization for CNN and fused rotary writes and FP16 GEMMs for ViT."""
 
     fused = True
 
     def __init__(self, ctx: Context) -> None:
         """Load the kernels first, then the encoder."""
-        if ctx.params.arch == "cnn":
-            from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
-
-            vol_norm.load(ctx.device)
+        vol_norm.load(ctx.device)
         super().__init__(ctx)
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:

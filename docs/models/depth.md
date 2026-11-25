@@ -15,48 +15,48 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`any2full-b`](#any2full) | yes | – | 17.2, 6.3x | 536, 0.46x |
 | [`any2full-l`](#any2full) | yes | – | 42.3, 6.4x | 1210, 0.43x |
 | [`any2full-s`](#any2full) | yes | – | 9.47, 5.0x | 252, 0.38x |
-| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 45.2, 5.0x | 2590, 0.4x |
-| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.3, 9.6x | 950, 0.33x |
-| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 15.0, 5.7x | 848, 0.35x |
-| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.9, 5.7x | 868, 0.35x |
-| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 59.5, 5.2x | 3198, 0.41x |
+| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 45.2 | 2590 |
+| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.3 | 950 |
+| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 15.0 | 848 |
+| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.9 | 868 |
+| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 59.5 | 3198 |
 | [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.5, 6.0x | 436, 0.46x |
 | [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.1, 4.5x | 1034, 0.44x |
-| [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.8, 5.6x | 396, 0.41x |
-| [`depth-anything-v2-metric-hypersim-l`](#depth_anything_v2) | yes | 0.0491 | 31.7, 4.4x | 1034, 0.44x |
-| [`depth-anything-v2-metric-hypersim-s`](#depth_anything_v2) | yes | 0.0643 | 4.67, 9.3x | 208, 0.5x |
-| [`depth-anything-v2-metric-vkitti-b`](#depth_anything_v2) | yes | 0.1089 | 10.8, 5.6x | 396, 0.41x |
-| [`depth-anything-v2-metric-vkitti-l`](#depth_anything_v2) | yes | 0.0968 | 31.9, 4.4x | 1034, 0.44x |
-| [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67, 7.7x | 208, 0.5x |
+| [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.8 | 396 |
+| [`depth-anything-v2-metric-hypersim-l`](#depth_anything_v2) | yes | 0.0491 | 31.7 | 1034 |
+| [`depth-anything-v2-metric-hypersim-s`](#depth_anything_v2) | yes | 0.0643 | 4.67 | 208 |
+| [`depth-anything-v2-metric-vkitti-b`](#depth_anything_v2) | yes | 0.1089 | 10.8 | 396 |
+| [`depth-anything-v2-metric-vkitti-l`](#depth_anything_v2) | yes | 0.0968 | 31.9 | 1034 |
+| [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67 | 208 |
 | [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
-| [`depth-pro`](#depth_pro) | no | 0.0425 | 277, 2.1x | 3198, 0.74x |
+| [`depth-pro`](#depth_pro) | no | 0.0425 | 277 | 3198 |
 | [`depthfm-v1`](#depthfm) | yes | – | 3555 | 5942 |
-| [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8, 5.5x | 396, 0.41x |
-| [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8, 4.4x | 1034, 0.44x |
-| [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.63, 7.6x | 208, 0.5x |
+| [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8 | 396 |
+| [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8 | 1034 |
+| [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.63 | 208 |
 | [`lingbot-depth`](#lingbot_depth) | yes | – | 161, 1.8x | 1590, 0.68x |
 | [`lingbot-depth-dc`](#lingbot_depth) | yes | – | 161, 1.8x | 1590, 0.68x |
 | [`lotus-normal-d-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
-| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
+| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261 | 2500 |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
 | [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 146, 3.0x | 1486, 0.48x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 146 | 1486 |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
-| [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
+| [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7 | 1208 |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
-| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
-| [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
+| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3 | 1048 |
+| [`moge-3-vitl`](#moge) | yes | 0.0356 | 149 | 1762 |
 | [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
-| [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
-| [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1128 |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 322 |
+| [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5 | 630 |
+| [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3 | 1676 |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 63.4, 6.0x | 1298, 0.4x |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 12.0, 6.2x | 368, 0.42x |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
-| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
+| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0 | 1252 |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.8, 2.1x | 1066, 0.3x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 61.8, 23.3x | 1146, 0.14x |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 62.2, 23.2x | 1146, 0.14x |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -157,7 +157,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Training data: Public academic datasets only (model cards); teacher-student training on synthetic and real multi-view data per the paper
 - Licence note: The Mono and Metric weights are Apache-2.0 but their training data terms are unchecked (a note only); the other variants' weights are CC-BY-NC-4.0 (`no`).
 - Options: `stream` = False (speed only), `long_side` = 504 (>= 14; also `process_res`)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Kernel libraries: `fastbb`, `dpt_fused`, `dpt_resize`
 - Variants: `da3mono-large`, `da3metric-large`, `da3-large-1.1`, `da3-giant-1.1`, `da3nested-giant-large-1.1`
 - Outputs: depth, confidence, intrinsics, mask, sky (in `extras`); kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
@@ -216,11 +216,11 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
@@ -479,7 +479,7 @@ Commercial use: yes.
 - Training data: Stable Diffusion 2.1 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the DepthFM paper (arXiv 2403.13788)
 - Licence note: The UNet is fine-tuned from Stable Diffusion 2.1 (OpenRAIL++-M) and runs with the Stable Diffusion 1.5 VAE (OpenRAIL-M): commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
 - Options: `steps` = 2 (1 to 1000; also `num_steps`), `ensemble` = 4 (>= 1; also `ensemble_size`), `long_side` = 0 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `depthfm-v1`
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -508,7 +508,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depthfm-v1` | 0.01169 / 0.02968 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `depthfm-v1` | 0.00761 / 0.02395 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -600,7 +600,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/EnVision-Research/Lotus/blob/b737e12238d2a41fc582ee8c6c6b1104d318d799/LICENSE (Apache-2.0); https://huggingface.co/jingheya/lotus-normal-g-v1-1/blob/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 base (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 per the Lotus paper (arXiv 2409.18124)
 - Options: `long_side` = 768 (>= 0; also `processing_res`), `seed` = 42
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -631,8 +631,8 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lotus-normal-g-v1-1` | 0.0003 / 0.00125 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `lotus-normal-d-v1-1` | 0.00035 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lotus-normal-g-v1-1` | 0.00022 / 0.00096 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
+| `lotus-normal-d-v1-1` | 0.00036 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -663,7 +663,7 @@ Commercial use: yes.
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the Marigold papers (arXiv 2312.02145, 2505.09358)
 - Licence note: The weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
 - Options: `steps` = 4 (1 to 1000), `long_side` = 768 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `marigold-depth-v1-1`
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 8, resized or padded inside the model
@@ -692,7 +692,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-depth-v1-1` | 0.00013 / 0.00047 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-depth-v1-1` | 0.00016 / 0.00049 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -722,7 +722,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/blob/28214f06633a6a73088b569d1d068c3e48ea7902/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim, Virtual KITTI 2 and other synthetic datasets per the Marigold paper (arXiv 2505.09358), then LCM-distilled
 - Options: `steps` = 1 (1 to 50), `long_side` = 768 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `marigold-normals-lcm-v0-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -749,7 +749,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-normals-lcm-v0-1` | 0.00034 / 0.00146 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-normals-lcm-v0-1` | 0.0003 / 0.0012 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -824,7 +824,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-v2-depth` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@e236d80ba78b:sm_120` |
+| `marigold-v2-depth` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@7c56ba44efe2:sm_120` |
 
 ### Limitations
 
@@ -1103,7 +1103,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@e6b9e4aa818d:sm_120` |
+| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@09f300df0234:sm_120` |
 
 ### Limitations
 
@@ -1195,9 +1195,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>300 / 342<br>236 / 322 |
+| `prompt-depth-anything-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 81.4<br>74.2<br>17.5<br>12.0<br>14.0 (single-image call, CUDA tensor input)<br>9.84 (single-image engine) | 738 / 1026<br>592 / 878<br>306 / 408<br>247 / 368<br>254 / 302<br>336 / 376 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
-| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1082 / 1148<br>1056 / 1128 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 572<br>381<br>112<br>63.4<br>104 (single-image call, CUDA tensor input)<br>67.9 (single-image engine) | 2929 / 4628<br>2544 / 3268<br>1091 / 1390<br>1075 / 1298<br>950 / 1108<br>1631 / 1714 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
@@ -1213,14 +1213,20 @@ Commercial use: yes.
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
+- `prompt-depth-anything-s` 994x1482, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `prompt-depth-anything-s` 756x1008, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
+- `prompt-depth-anything-l` 994x1482, first call: portable + torch.compile 23 s (cold Inductor cache), TensorRT fp16 56 s (ONNX + engine).
 - `prompt-depth-anything-l` 756x1008, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
-- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
+- `prompt-depth-anything-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions in FP32. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions with CUDA FP16 autocast per the reference evaluator. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
-- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
+- `prompt-depth-anything-l` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions in FP32. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-l` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author OpenCV INTER_AREA resize after decode, PromptDA.predict with the matched 124×185 metric prompt, bilinear output restored to external dimensions with CUDA FP16 autocast per the reference evaluator. The author code used its built-in attention fallback with xFormers unavailable.
+- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
-- `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
-- `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
+- `prompt-depth-anything-s` load / first call: original 0.37645419999898877 s / 0.68 s, portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
+- `prompt-depth-anything-l` load / first call: original 4.218828861994552 s / 0.626 s, portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1271,7 +1277,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/Stable-X/StableNormal/blob/594b934630ab3bc71f35c77d14ec7feb98480cd0/LICENSE.txt (Apache-2.0); https://huggingface.co/Stable-X/yoso-normal-v0-3/blob/2202fcb69960d94b437e06c19c556a12ceeb57c0/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on synthetic and real normals datasets (Hypersim, Replica, ScanNet and others per the StableNormal paper, arXiv 2406.16864)
 - Options: `long_side` = 768 (>= 0; also `processing_res`), `seed` = 0
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `stablenormal-turbo`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -1298,7 +1304,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `stablenormal-turbo` | 0.0003 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `stablenormal-turbo` | 0.00023 / 0.00109 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -1431,12 +1437,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1814<br>1441<br>161<br>62.2<br>112 (single-image call, CUDA tensor input)<br>67.7 (single-image engine) | 7223 / 10186<br>5609 / 8422<br>1083 / 1766<br>852 / 1146<br>1263 / 1524<br>988 / 1022 |
 | `video-depth-anything-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>58.4<br>100 (single image)<br>60.3 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1344<br>886 / 914 |
 | `video-depth-anything-s` | TUM RGB-D fr1_room (88x480x640) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5064<br>3786<br>954<br>835<br>762 (full 88-frame clip)<br>524 (full 88-frame clip) | 6030 / 8210<br>4780 / 6794<br>1730 / 1946<br>1796 / 1946<br>2587 / 3260<br>2753 / 3148 |
+| `video-depth-anything-s` | Synthetic 32-frame clip (32x994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>3064<br>824<br>629<br>719 (32-frame clip, decoded CPU RGB to CPU depth)<br>253 (32-frame clip, CUDA tensors in and out) | 7549 / 10186<br>5935 / 8422<br>1368 / 1666<br>1259 / 1636<br>1513 / 1990<br>1995 / 2370 |
 | `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
-| `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-metric-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1812<br>1437<br>161<br>61.8<br>112 (single-image call, CUDA tensor input)<br>67.7 (single-image engine) | 7223 / 10186<br>5609 / 8422<br>1083 / 1764<br>852 / 1146<br>1263 / 1524<br>988 / 1022 |
 | `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
+| `video-depth-anything-metric-s` | Synthetic 32-frame clip (32x994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3900<br>3018<br>822<br>627<br>721 (32-frame clip, decoded CPU RGB to CPU depth)<br>253 (32-frame clip, CUDA tensors in and out) | 7549 / 10186<br>5935 / 8422<br>1368 / 1666<br>1259 / 1636<br>1513 / 1992<br>1995 / 2370 |
 
 <details><summary>Details</summary>
 
@@ -1453,19 +1461,31 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
+- `video-depth-anything-s` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 100 s (ONNX + engine).
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
 - `video-depth-anything-s` 88x480x640, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
+- `video-depth-anything-s` 32x994x1482, first call: portable + torch.compile 63 s (cold Inductor cache), TensorRT fp16 104 s (ONNX + engine).
 - `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
+- `video-depth-anything-metric-s` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 92 s (ONNX + engine).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
-- `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-metric-s` 32x994x1482, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
+- `video-depth-anything-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=True. The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=False (author CUDA autocast). The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `video-depth-anything-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
 - `video-depth-anything-s` original (fp32) 88x480x640, original (fp32) 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=True): uint8 numpy frames in, numpy out (its API)
 - `video-depth-anything-s` original 88x480x640, original 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` portable 88x480x640, kernels 88x480x640, portable 88x1080x1920, kernels 88x1080x1920: Float32 CUDA RGB frames in [0, 1] to depth on the device; 88-frame public video API.
-- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-s` original (fp32) 32x994x1482, original 32x994x1482: Full 32-frame decoded RGB uint8 clip in CPU memory to all float32 maps in CPU memory. Author infer_video_depth, two overlapping 32-frame windows; built-in xFormers-free attention.
+- `video-depth-anything-s` portable 32x994x1482, kernels 32x994x1482: Full 32-frame decoded RGB uint8 clip in CPU memory to all float32 maps in CPU memory. Fastforks public model.video including all input and output conversion.
+- `video-depth-anything-metric-s` original (fp32) 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=True. The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-metric-s` original 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Author infer_video_depth on one decoded frame (one padded 32-frame window), input_size=518, fp32=False (author CUDA autocast). The author code used its built-in attention fallback with xFormers unavailable.
+- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: One decoded RGB uint8 HWC frame in CPU memory to one float32 depth map in CPU memory. Fastforks public one-image call, including CPU input and output conversion.
 - `video-depth-anything-metric-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
-- `video-depth-anything-s` load / first call: original 0.26 s / 12.771 s (88x1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
-- `video-depth-anything-metric-s` load / first call: original 2.74 s / 11.32 s (88x1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
+- `video-depth-anything-metric-s` original (fp32) 32x994x1482, original 32x994x1482: Full 32-frame decoded RGB uint8 clip in CPU memory to all float32 maps in CPU memory. Author infer_video_depth, two overlapping 32-frame windows; built-in xFormers-free attention.
+- `video-depth-anything-metric-s` portable 32x994x1482, kernels 32x994x1482: Full 32-frame decoded RGB uint8 clip in CPU memory to all float32 maps in CPU memory. Fastforks public model.video including all input and output conversion.
+- `video-depth-anything-s` load / first call: original 0.40379490799386986 s / 1.841 s, portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
+- `video-depth-anything-metric-s` load / first call: original 0.38780612900154665 s / 1.832 s, portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1488,7 +1508,7 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `video-depth-anything-s` | 0.00042 / 0.00105 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `video-depth-anything-metric-s` | 0.00273 / 0.00361 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `video-depth-anything-metric-s` | 0.00274 / 0.0036 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

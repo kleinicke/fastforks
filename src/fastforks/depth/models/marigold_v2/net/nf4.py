@@ -68,6 +68,14 @@ class NF4Linear(nn.Module):
         """The fused epilogue kernels, if this layer uses them."""
         return NF4Linear.epi if self.fused and lora is not None else None
 
+    def rms_rope(
+        self, xb: torch.Tensor, weight: torch.Tensor, frequencies: torch.Tensor, out: torch.Tensor, offset: int
+    ) -> None:
+        """Write this projection's RMS-normalized and rotated heads directly into the joint sequence."""
+        assert self.epi is not None
+        y, lora = self._parts(xb)
+        self.epi.lora_rms_rope128(y, lora, weight, frequencies, out, offset=offset)
+
     def forward(self, xb: torch.Tensor, *, keep_bf: bool = False) -> torch.Tensor:
         """bf16 `xb` -> float32 (bf16 GEMM + bf16 LoRA term summed in float32), or bf16 with `keep_bf`."""
         y, lora = self._parts(xb)

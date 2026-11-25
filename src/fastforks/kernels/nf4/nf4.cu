@@ -154,3 +154,43 @@ extern "C" __global__ void nf4_rms_rope_bf16(const float2* __restrict__ x, const
         out[t0 * heads * half + p] = __floats2bfloat162_rn(re, im);
     }
 }
+
+// BF16 base and optional BF16 LoRA projections -> FP32 RMS norm and rotation -> BF16 joint sequence.
+// A warp covers a 128-channel head, four consecutive channels per lane.
+extern "C" __global__ void nf4_lora_rms_rope128(const uint2* __restrict__ base, const uint2* __restrict__ lora,
+                                                const float2* __restrict__ weight, const float2* __restrict__ freq,
+                                                uint2* __restrict__ out, long long rows, int heads, long long t0) {
+    const int lane = threadIdx.x & 31;
+    const long long first = (static_cast<long long>(blockIdx.x) * blockDim.x + threadIdx.x) >> 5;
+    const long long step = static_cast<long long>(gridDim.x) * (blockDim.x >> 5);
+    for (long long row = first; row < rows; row += step) {
+        const long long index = row * 32 + lane;
+        const uint2 b = base[index], l = lora ? lora[index] : make_uint2(0, 0);
+        const unsigned bw[2] = {b.x, b.y}, lw[2] = {l.x, l.y};
+        float x[4];
+        float sum = 0.f;
+#pragma unroll
+        for (int k = 0; k < 2; ++k) {
+            const float lo = __uint_as_float(bw[k] << 16), hi = __uint_as_float(bw[k] & 0xffff0000u);
+            x[2 * k] = lora ? __fadd_rn(lo, __uint_as_float(lw[k] << 16)) : lo;
+            x[2 * k + 1] = lora ? __fadd_rn(hi, __uint_as_float(lw[k] & 0xffff0000u)) : hi;
+            sum = __fadd_rn(sum, __fmul_rn(x[2 * k], x[2 * k]));
+            sum = __fadd_rn(sum, __fmul_rn(x[2 * k + 1], x[2 * k + 1]));
+        }
+#pragma unroll
+        for (int offset = 16; offset > 0; offset >>= 1)
+            sum = __fadd_rn(sum, __shfl_down_sync(0xffffffffu, sum, offset));
+        const float norm = rsqrtf(__fadd_rn(__shfl_sync(0xffffffffu, sum, 0) * (1.f / 128.f), 1e-6f));
+        const long long token = row / heads + t0;
+        unsigned result[2];
+#pragma unroll
+        for (int k = 0; k < 2; ++k) {
+            const int pair = 2 * lane + k;
+            const float2 w = weight[pair], f = freq[token * 64 + pair];
+            const float a = __fmul_rn(__fmul_rn(x[2 * k], norm), w.x);
+            const float b = __fmul_rn(__fmul_rn(x[2 * k + 1], norm), w.y);
+            result[k] = pack2(__fmaf_rn(a, f.x, -__fmul_rn(b, f.y)), __fmaf_rn(b, f.x, __fmul_rn(a, f.y)));
+        }
+        out[t0 * heads * 32 + index] = make_uint2(result[0], result[1]);
+    }
+}

@@ -19,12 +19,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`disk-lightglue`](#lightglue) | yes | 49.2, 2.4x | 778, 0.32x |
 | [`loftr-indoor`](#loftr) | yes | 86.0, 2.8x | 806, 0.42x |
 | [`loftr-outdoor`](#loftr) | yes | 85.8, 2.8x | 806, 0.43x |
-| [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
-| [`loma-b128`](#loma) | yes | 116 | 684, 0.3x |
-| [`loma-b64`](#loma) | yes | 107 | 720, 0.47x |
-| [`loma-g`](#loma) | yes | 307 | 1648, 0.33x |
-| [`loma-l`](#loma) | yes | 273 | 1406, 0.31x |
-| [`loma-r`](#loma) | yes | 262 | 1328, 0.3x |
+| [`loma-b`](#loma) | yes | 261, 1.5x | 1676, 0.48x |
+| [`loma-b128`](#loma) | yes | 113, 2.0x | 860, 0.51x |
+| [`loma-b64`](#loma) | yes | 103, 1.9x | 748, 0.59x |
+| [`loma-g`](#loma) | yes | 305, 1.4x | 1930, 0.47x |
+| [`loma-l`](#loma) | yes | 270, 1.5x | 1732, 0.48x |
+| [`loma-r`](#loma) | yes | 260, 1.5x | 1676, 0.48x |
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
 | [`xfeat`](#xfeat) | yes | 17.1, 0.5x | 352, 2.0x |
@@ -312,12 +312,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>309<br>263<br>287<br>326 (standalone build) | 4176 / 4390<br>1767 / 1878<br>1217 / 1328<br>2870 / 3258<br>1986 / 2010 |
-| `loma-b64` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 317<br>–<br>131<br>107<br>102<br>109 | 1327 / 1530<br>–<br>854 / 962<br>613 / 720<br>1230 / 1356<br>1010 / 1034 |
-| `loma-b128` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 370<br>–<br>150<br>116<br>124<br>144 | 2005 / 2292<br>–<br>878 / 984<br>625 / 684<br>1398 / 1800<br>1062 / 1066 |
-| `loma-l` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1092<br>–<br>320<br>273<br>298<br>336 (standalone build) | 4311 / 4532<br>–<br>1903 / 2012<br>1285 / 1406<br>3006 / 3194<br>2042 / 2066 |
-| `loma-g` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1240<br>–<br>357<br>307<br>331<br>366 | 4852 / 5068<br>–<br>2219 / 2388<br>1509 / 1648<br>3547 / 3890<br>2298 / 2322 |
-| `loma-r` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1037<br>–<br>309<br>262<br>287<br>326 | 4176 / 4390<br>–<br>1767 / 1878<br>1217 / 1328<br>2870 / 3256<br>1986 / 2010 |
+| `loma-b` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1039<br>383<br>308<br>261<br>287<br>326 (standalone build) | 4174 / 4992<br>1853 / 3494<br>1547 / 2546<br>1177 / 1676<br>2870 / 3258<br>1986 / 2010 |
+| `loma-b64` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 316<br>196<br>129<br>103<br>102<br>109 | 1322 / 1730<br>938 / 1276<br>854 / 1210<br>511 / 748<br>1230 / 1356<br>1010 / 1034 |
+| `loma-b128` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 369<br>222<br>150<br>113<br>124<br>144 | 2001 / 2534<br>962 / 1696<br>879 / 1232<br>543 / 860<br>1398 / 1800<br>1062 / 1066 |
+| `loma-l` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1088<br>393<br>318<br>270<br>298<br>336 (standalone build) | 4314 / 5132<br>1993 / 3628<br>1685 / 2680<br>1249 / 1732<br>3006 / 3194<br>2042 / 2066 |
+| `loma-g` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1238<br>433<br>357<br>305<br>331<br>366 | 4851 / 5732<br>2529 / 4076<br>2223 / 3204<br>1518 / 1930<br>3547 / 3890<br>2298 / 2322 |
+| `loma-r` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>383<br>308<br>260<br>287<br>326 | 4174 / 4992<br>1853 / 3494<br>1547 / 2546<br>1177 / 1676<br>2870 / 3256<br>1986 / 2010 |
 
 <details><summary>Details</summary>
 
@@ -339,42 +339,52 @@ Commercial use: yes.
 - `loma-l` 768x1024, first call: portable + torch.compile 134 s (cold Inductor cache), TensorRT bf16 157 s (ONNX + engine).
 - `loma-g` 768x1024, first call: portable + torch.compile 131 s (cold Inductor cache), TensorRT bf16 171 s (ONNX + engine).
 - `loma-r` 768x1024, first call: portable + torch.compile 142 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
-- `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
-- `loma-b64` original (fp32) 768x1024: upstream loma-b64 (mp=False), float32, 2048 keypoints
-- `loma-b128` original (fp32) 768x1024: upstream loma-b128 (mp=False), float32, 2048 keypoints
-- `loma-l` original (fp32) 768x1024: upstream loma-l (mp=False), float32, 2048 keypoints
-- `loma-g` original (fp32) 768x1024: upstream loma-g (mp=False), float32, 2048 keypoints
-- `loma-g` portable 768x1024: Resize the previous descriptor scale after computing the final convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
-- `loma-g` kernels 768x1024: Release each old detector context before running the next convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
-- `loma-r` original (fp32) 768x1024: upstream loma-r (mp=False), float32, 2048 keypoints
-- `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s, kernels 1.61 s / 0.757 s
-- `loma-b64` load / first call: original 4.43 s / 1.508 s, portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
-- `loma-b128` load / first call: original 2.84 s / 0.37 s, portable 0.52 s / 0.636 s, kernels 0.85 s / 0.662 s
-- `loma-l` load / first call: original 10.38 s / 1.087 s, portable 1.49 s / 0.69 s, kernels 3.06 s / 0.758 s
-- `loma-g` load / first call: original 9.48 s / 1.235 s, portable 2.36 s / 0.8 s, kernels 2.19 s / 0.677 s
-- `loma-r` load / first call: original 7.49 s / 1.035 s, portable 2.8 s / 0.733 s, kernels 1.93 s / 0.809 s
+- `loma-b` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-b` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-b` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-b64` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-b64` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-b64` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-b128` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-b128` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-b128` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-l` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-l` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-l` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-g` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-g` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-g` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-r` original (fp32) 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. FP32 with mixed precision disabled.
+- `loma-r` original 768x1024: Original LoMa on the same synthetic pair with 2,048 keypoints per image. Authors' BF16 mixed precision on Ampere and later.
+- `loma-r` portable 768x1024, kernels 768x1024: Full matching API on one synthetic 768 × 1024 pair with 2,048 keypoints per image.
+- `loma-b` load / first call: original 8.0709 s / 0.7796 s, portable 2.53 s / 1.269 s, kernels 1.61 s / 0.757 s
+- `loma-b64` load / first call: original 3.5803 s / 0.9006 s, portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
+- `loma-b128` load / first call: original 3.7091 s / 0.9045 s, portable 0.52 s / 0.636 s, kernels 0.85 s / 0.662 s
+- `loma-l` load / first call: original 8.2423 s / 0.7863 s, portable 1.49 s / 0.69 s, kernels 3.06 s / 0.758 s
+- `loma-g` load / first call: original 9.9204 s / 0.8636 s, portable 2.36 s / 0.8 s, kernels 2.19 s / 0.677 s
+- `loma-r` load / first call: original 8.0216 s / 0.7804 s, portable 2.8 s / 0.733 s, kernels 1.93 s / 0.809 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
-| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 |  |  |  |
-| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
-| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 54.9 / 71.5 / 83.1 |  |  |  |
-| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
-| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 56.2 / 72.0 / 83.7 |  |  |  |
-| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
-| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 57.1 / 72.9 / 84.6 |  |  |  |
-| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
-| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 58.8 / 74.6 / 85.3 |  |  |  |
-| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
-| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 56.9 / 72.4 / 83.6 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 55.1 / 71.2 / 82.2 | 54.9 / 71.7 / 83.1 | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
+| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 55.6 / 72.2 / 84.2 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 | 54.7 / 71.8 / 83.9 |  |  |
+| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 56.4 / 72.1 / 83.1 | 57.1 / 72.7 / 83.3 | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
+| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 | 56.2 / 73.2 / 84.4 | 56.9 / 72.8 / 84.5 | 54.9 / 71.5 / 83.1 | 57.3 / 72.5 / 83.6 |  |  |
+| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 58.8 / 73.6 / 84.2 | 56.6 / 72.5 / 83.8 | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
+| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 | 56.3 / 73.7 / 85.4 | 56.1 / 72.9 / 84.5 | 56.2 / 72.0 / 83.7 | 57.7 / 74.1 / 85.4 |  |  |
+| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 55.4 / 71.8 / 83.2 | 55.2 / 71.3 / 83.2 | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
+| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 | 55.6 / 72.1 / 84.1 | 56.4 / 74.3 / 85.6 | 57.1 / 72.9 / 84.6 | 56.4 / 73.9 / 85.2 |  |  |
+| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 56.8 / 73.0 / 84.5 | 59.5 / 74.8 / 85.2 | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
+| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 | 55.5 / 71.5 / 83.0 | 57.3 / 73.6 / 84.3 | 58.8 / 74.6 / 85.3 | 56.1 / 72.8 / 84.4 |  |  |
+| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 54.9 / 70.5 / 82.1 | 56.9 / 72.9 / 84.1 | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
+| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 | 54.1 / 70.6 / 82.9 | 56.6 / 72.1 / 83.3 | 56.9 / 72.4 / 83.6 | 54.7 / 70.7 / 83.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 8630e98f1 / cb6c4aae6, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 3e1db914b7468c48e59db7f2461bc37e582be1da / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-25; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 3e1db914b7468c48e59db7f2461bc37e582be1da / 8630e98f1 / cb6c4aae6, 2026-11-20 to 2026-11-25; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
 
 ### Parity
 
