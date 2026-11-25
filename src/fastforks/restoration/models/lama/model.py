@@ -114,7 +114,11 @@ class Kernels(Portable):
             if is_base(m, torch.nn.Conv2d) and m.weight.dtype == torch.float16 and m.groups == 1:
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():

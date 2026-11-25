@@ -153,7 +153,9 @@ class Kernels(Runner):
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if p.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._eager, graphs=1, capture_after=after, capture_warmup=False) if p.cuda_graphs else None
+        )
 
     pad = Portable.pad
 
