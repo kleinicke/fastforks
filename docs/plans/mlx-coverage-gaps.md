@@ -465,7 +465,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 0.78, 0.84 (were 2.7, 1.7) | aanet-sceneflow, aanet-plus | done, both auto-routed to MLX: hand-written network, grouped offset convolutions split per group ("Done: AANet and CoEx" below) |
 | 0.89 (was 2.5) | coex-sceneflow | done, auto-routed to MLX: hand-written network, a quarter of the MPS peak ("Done: AANet and CoEx" below) |
 | 0.79, 0.74 (were 2.5, 1.7) | rife-4.25-lite, rife-4.25 | done, all three RIFE refs auto-routed to MLX: hand-written network, the warps and resizes as Metal kernels ("Done: RIFE 4.25 and EMA-VFI" below) |
-| 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
+| 0.63, 0.67 (were 2.2) | loftr-indoor/outdoor | done, both auto-routed to MLX: hand-written matcher, fine matching on the GPU, window attention and layer norm as Metal kernels ("Done: LoFTR" below) |
 | 0.49 (was 2.2) | aliked-lightglue | done, auto-routed to MLX: ALIKED in MLX operations without the full-resolution descriptor map, `MlxLightGlue` ("Done: the LightGlue family" below) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
 | 0.71, 0.66 (were 2.0, 1.9) | mask-rcnn, faster-rcnn r50-fpn | done, both auto-routed to MLX: hand-written network, RoIAlign as one Metal kernel over all levels ("Done: Mask / Faster R-CNN" below) |
@@ -1296,6 +1296,50 @@ Left:
 - gmflow-scale2-* and the regrefine6 refs use the same region-order twin and their goldens pass, but they were not
   re-surveyed. Their rows in the tables are from the old graph.
 - sapiens-seg-1b: the golden passes on the new network; not surveyed.
+
+### Done: LoFTR (2026-11-25)
+
+M1 Pro, 768x1024 (matched at long side 840), all four MLX goldens pass (`tools/speed_survey.py`; MLX/MPS above is
+the float16 row against the best MPS row):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| loftr-indoor | MLX before, fp16 / fp32 | 1549 / 1806 | 3.60 / 3.98 | 3675 / 4296 | – |
+| | MLX now, fp16 / fp32 | 442 / 1101 | 0.50 / 0.70 | 2129 / 3312 | MLX fp16 |
+| | MPS portable, fp16 / fp32 (best MPS row fp16) | 701 / 877 | 0.83 / 1.03 | 3613 / 5768 | |
+| loftr-outdoor | MLX before, fp16 / fp32 | 1526 / 1788 | 3.58 / 4.71 | 3703 / 4095 | – |
+| | MLX now, fp16 / fp32 | 483 / 997 | 0.56 / 0.91 | 2228 / 2809 | MLX fp16 |
+| | MPS portable, fp16 / fp32 (best MPS row fp16) | 723 / 875 | 0.86 / 1.04 | 3614 / 5767 | |
+
+The machine was on 6 % battery while charging and swapping during these surveys: the same row came out anywhere
+from 430 to 950 ms (fp16) and 620 to 1270 ms (fp32) between runs, so the recorded rows are a fast reading for fp16 and
+a slow one for fp32 (fp32 measured 619 / 632 / 641 ms in the fast runs, which would beat MPS too). A same-process
+control (MPS portable fp16 and MLX fp16 loaded together, alternating) gave MPS 1216-1381 ms against MLX 570-597 ms.
+Re-survey both on a quiet, charged machine; only fp16 is auto-routed until then.
+
+Before, `auto` stayed on MPS: the MLX port replayed an exported graph (3.6 s first call) and the fine matching ran in
+PyTorch on the CPU (about 1 s of the call). Now the whole matcher is written in `mlx.core` (`loftr/mlx_net.py`),
+nothing exported:
+
+- `_dense`, compiled per pair of image sizes: the ResNet-FPN (batch norm folded, channels last, the 196-channel maps
+  widened to 224 so MLX's Winograd 3x3 takes them), the coarse transformer, and the dual-softmax as
+  `exp(2 s - logsumexp_rows - logsumexp_columns)` with every reduction along the last axis (the column statistics
+  come from the transposed product); "mutual maximum" is the two argmaxes agreeing.
+- one host read per call (which cells matched), then `_refine`, compiled per bucket of 512 matches (ids padded,
+  the padding's offsets dropped, so the match count does not recompile): window gather, `FinePreprocess`, the fine
+  transformer with both images' windows as one batch in the self layers, the expected offset.
+- the fine attention over 25-token windows is one Metal kernel (`window_attention`, a threadgroup per window and
+  head): the coarse stage's block-diagonal head-mask GEMMs were mostly zeros there (64 -> 12 ms per layer at 7400
+  matches). The layer norms are one Metal kernel with the residual fused (`layer_norm`, a simdgroup per row, float32
+  statistics, float16 in and out): `mx.fast.layer_norm` with float32 weights returns float32 and took 23 ms against
+  2.4 ms on a `[185k, 128]` float16 input. Refine went 380 -> 264 ms (both under contention).
+- float16: the convolutions and the transformers' GEMMs. Float32: the attention sums and normalisers, layer-norm
+  statistics and weights, the position encoding's sum, the similarities, dual-softmax and outputs. Golden at float16:
+  indoor recall 0.9984 (needs 0.998), mean 0.0018; outdoor 0.9994, mean 0.0022 (tolerance 0.0025). A float32 backbone
+  cuts the error by 3-6x (indoor recall unchanged at 0.9985); not needed.
+
+Left: the warm fp32 rows (and the fp16 ones, for a clean reading) on a quiet machine; the coarse attention still uses
+the head-mask GEMMs (two `[L, 256] x [256, 256]` products per layer, cheap at 15k tokens).
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
