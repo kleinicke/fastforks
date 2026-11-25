@@ -466,8 +466,24 @@ FAMILIES = frozenset(
     {
         "alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2", "convnext", "convnextv2", "resnet", "mobilenetv2",
         "efficientnet", "efficientnetv2", "mobilenetv3", "regnet", "mobilenetv1", "starnet", "repvit",
+        "coatnet",
     }
 )  # fmt: skip
+
+
+# `(features, head)` builders of the networks written out here, and of those in their own modules (named by family)
+_BUILDERS = {"mobilenetv1": _mobile_v1, "starnet": _star_net, "repvit": _rep_vit}
+_MODULES = frozenset({"coatnet"})
+
+
+def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
+    # These modules import this one
+    if family != "coatnet":
+        msg = f"No MLX module for {family}"
+        raise ValueError(msg)
+    from .mlx_coatnet import coatnet  # noqa: PLC0415
+
+    return coatnet(net, dtype)
 
 
 class Network:
@@ -490,12 +506,10 @@ class Network:
             features, head = _mobilenet(net, self.dtype), _linear(net.classifier[-1], self.dtype)
         elif ctx.card.family in {"efficientnet", "efficientnetv2", "mobilenetv3", "regnet"}:
             features, head = _gated_cnn(net, self.dtype, regnet=ctx.card.family == "regnet")
-        elif ctx.card.family == "mobilenetv1":
-            features, head = _mobile_v1(net, self.dtype)
-        elif ctx.card.family == "starnet":
-            features, head = _star_net(net, self.dtype)
-        elif ctx.card.family == "repvit":
-            features, head = _rep_vit(net, self.dtype)
+        elif ctx.card.family in _BUILDERS:
+            features, head = _BUILDERS[ctx.card.family](net, self.dtype)
+        elif ctx.card.family in _MODULES:
+            features, head = _module_network(ctx.card.family, net, self.dtype)
         else:
             msg = f"No MLX classifier implementation for {ctx.card.family}"
             raise ValueError(msg)
