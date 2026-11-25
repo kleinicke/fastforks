@@ -311,3 +311,46 @@ extern "C" __global__ void vol_gaussian_fix_h(__half* __restrict__ out, const in
         if (!__half_as_ushort(out[i])) out[i] = fallback;
     }
 }
+
+template <typename T>
+__device__ __forceinline__ T norm_cast(float v) { return T(v); }
+template <>
+__device__ __forceinline__ __half norm_cast<__half>(float v) { return __float2half_rn(v); }
+
+template <typename T>
+__device__ void normalize_ct(const float* __restrict__ src, T* __restrict__ dst,
+        int h, int w, int64_t count, int64_t sd, int64_t sh, int64_t sw,
+        int64_t od, int64_t oh, int64_t ow, float lower, float upper, float mean, float invstd) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        const int64_t row = i / w, x = i % w, y = row % h, z = row / h;
+        const float v = src[z * sd + y * sh + x * sw];
+        const float clipped = isnan(v) ? v : fminf(fmaxf(v, lower), upper);
+        dst[z * od + y * oh + x * ow] = norm_cast<T>(__fmul_rn(__fsub_rn(clipped, mean), invstd));
+    }
+}
+
+extern "C" __global__ void vol_ct_norm_f(const float* src, float* dst, int h, int w, int64_t count,
+        int64_t sd, int64_t sh, int64_t sw, int64_t od, int64_t oh, int64_t ow,
+        float lower, float upper, float mean, float invstd) {
+    normalize_ct(src, dst, h, w, count, sd, sh, sw, od, oh, ow, lower, upper, mean, invstd);
+}
+
+extern "C" __global__ void vol_ct_norm_h(const float* src, __half* dst, int h, int w, int64_t count,
+        int64_t sd, int64_t sh, int64_t sw, int64_t od, int64_t oh, int64_t ow,
+        float lower, float upper, float mean, float invstd) {
+    normalize_ct(src, dst, h, w, count, sd, sh, sw, od, oh, ow, lower, upper, mean, invstd);
+}
+
+extern "C" __global__ void vol_merge_u8(const uint8_t* __restrict__ src, const uint8_t* __restrict__ lut,
+        uint8_t* __restrict__ out, int h, int w, int write_zero, int lut_size, int64_t count,
+        int64_t sd, int64_t sh, int64_t sw, int64_t od, int64_t oh, int64_t ow) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        const int64_t row = i / w, x = i % w, y = row % h, z = row / h;
+        const uint8_t label = src[z * sd + y * sh + x * sw];
+        const uint8_t mapped = lut ? (label < lut_size ? lut[label] : 0) : label;
+        if (write_zero || mapped)
+            out[z * od + y * oh + x * ow] = mapped;
+    }
+}

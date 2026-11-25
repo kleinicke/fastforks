@@ -25,6 +25,33 @@ _PATCH = (16, 16, 16)
 _DNA = "dynamic_network_architectures.architectures.unet"
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_cuda_ct_normalization_preserves_rounding(dtype: torch.dtype) -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    x = torch.linspace(-1500, 2100, 9 * 15 * 21, device="cuda").reshape(9, 15, 21)[:, ::2, 1::2].transpose(0, 2)
+    expected = x.clamp(-741.25, 1121.125).sub_(41.725).div_(93.37).to(dtype)
+    actual = torch.empty_like(x, dtype=dtype)
+    vol_norm.normalize_ct_(actual, x, (-741.25, 1121.125), mean=41.725, std=93.37)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+def test_cuda_label_merge_maps_and_preserves_background() -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    source = torch.arange(8 * 9 * 10, device="cuda").remainder_(4).to(torch.uint8).reshape(8, 9, 10).transpose(0, 2)
+    lut = torch.tensor([0, 11, 0, 29], device="cuda", dtype=torch.uint8)
+    expected = lut[source.long()]
+    first = vol_norm.merge_labels(source, lut)
+    torch.testing.assert_close(first, expected, atol=0, rtol=0)
+    previous = torch.full_like(source, 6)
+    merged = vol_norm.merge_labels(source, lut, previous)
+    assert merged is previous
+    torch.testing.assert_close(merged, torch.where(expected != 0, expected, 6), atol=0, rtol=0)
+
+
 def test_encoder_example_inputs_are_3d_volumes() -> None:
     """The export input has the encoder's channels and all three spatial dimensions."""
     from types import SimpleNamespace  # noqa: PLC0415

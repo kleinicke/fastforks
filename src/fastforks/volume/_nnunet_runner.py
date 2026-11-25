@@ -211,24 +211,36 @@ class Portable(Runner):
     def segment(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
         """The merged labels of every part on the grid of `volume`."""
 
-        def predict(part: Predictor, lut: torch.Tensor | None) -> torch.Tensor:
+        def predict(part: Predictor) -> torch.Tensor:
             nets = part.nets
             if self.ctx.params.stream:
                 # Keep each fold on device for every window of this part. The host masters stay
                 # immutable, including when two callers run inference on different CUDA streams.
                 nets = [copy.deepcopy(net).to(volume.device) for net in part.nets]
             predictor = replace(part, nets=nets, forward=self._forward_patch)
-            labels = predictor(volume, spacing)
-            if lut is None:
-                return labels.to(self._dtype)
-            # index_select accepts 32-bit indices, halving the full-volume indexing temporary.
-            indices = labels.to(torch.int32, memory_format=torch.contiguous_format).view(-1)
-            return lut.index_select(0, indices).view(labels.shape)
+            return predictor(volume, spacing)
 
-        out = predict(self.parts[0], self._luts[0])
-        for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):
-            labels = predict(part, lut)
-            torch.where(labels != 0, labels, out, out=out)
+        out = None
+        for part, lut in zip(self.parts, self._luts, strict=True):
+            labels = predict(part)
+            if (
+                part.cuda_kernels
+                and part.plan.regions is None
+                and labels.is_cuda
+                and labels.dtype == self._dtype == torch.uint8
+            ):
+                from fastforks.kernels import vol_norm  # noqa: PLC0415 - compact CUDA labels only
+
+                out = vol_norm.merge_labels(labels, lut, out)
+                continue
+            if lut is None:
+                labels = labels.to(self._dtype)
+            else:
+                # index_select accepts 32-bit indices, halving the full-volume indexing temporary.
+                indices = labels.to(torch.int32, memory_format=torch.contiguous_format).view(-1)
+                labels = lut.index_select(0, indices).view(labels.shape)
+            out = labels if out is None else torch.where(labels != 0, labels, out, out=out)
+        assert out is not None  # noqa: S101 - a runner loads at least one plan
         return out
 
     @host

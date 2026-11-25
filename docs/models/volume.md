@@ -79,8 +79,8 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
 
 ### Limitations
 
@@ -138,7 +138,7 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
 
 ### Limitations
 
@@ -213,14 +213,14 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-total-6mm` | 0.00045 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-v3-total` | 0.00014 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-v3-total-3mm` | 0.00046 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-v3-total-6mm` | 0.00058 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-v3-total-small` | 0.00038 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-v3-total-small-3mm` | 0.00125 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-total-6mm` | 0.00045 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-v3-total` | 0.00014 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-v3-total-3mm` | 0.00046 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-v3-total-6mm` | 0.00058 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-v3-total-small` | 0.00038 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
+| `totalsegmentator-v3-total-small-3mm` | 0.00125 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@374fb89de8a5:sm_120` |
 
 ### Limitations
 

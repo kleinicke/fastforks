@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vol_norm.cu)
 SIGNATURES = {
+    "vol_ct_norm_f": "ppiilllllllffff",
+    "vol_ct_norm_h": "ppiilllllllffff",
+    "vol_merge_u8": "pppiiiilllllll",
     "in_stats_h": "ppiip",
     "in_final_h": "pppppiiifp",
     "in_apply_h": "ppliifp",
@@ -34,6 +37,55 @@ _GAUSSIAN_BLOCKS = 512  # fixed: bound the number of block minima
 _VECTOR_BYTES = 16
 _V8 = 8
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
+
+
+def normalize_ct_(
+    out: torch.Tensor, image: torch.Tensor, clip: tuple[float, float], *, mean: float, std: float
+) -> None:
+    """Clip and normalize a strided FP32 CT channel directly into its FP32 or FP16 output."""
+    if (
+        image.ndim != 3  # noqa: PLR2004 - a single DHW image channel
+        or not image.is_cuda
+        or image.dtype != torch.float32
+        or out.dtype not in (torch.float16, torch.float32)
+        or out.device != image.device
+        or out.shape != image.shape
+    ):
+        msg = "CT normalization expects matching CUDA DHW tensors with FP32 input and FP16 or FP32 output"
+        raise ValueError(msg)
+    # PyTorch's CUDA scalar division rounds the FP32 reciprocal before multiplying.
+    invstd = torch.tensor(std, dtype=torch.float32, device="cpu").reciprocal().item()
+    name = "vol_ct_norm_h" if out.dtype == torch.float16 else "vol_ct_norm_f"
+    load(image.device).launch(
+        name, *kernels.linear(image.numel()), image, out, *image.shape[1:],
+        image.numel(), *image.stride(), *out.stride(), *clip, mean, invstd,
+    )  # fmt: skip
+
+
+def merge_labels(labels: torch.Tensor, lut: torch.Tensor | None, out: torch.Tensor | None = None) -> torch.Tensor:
+    """Remap one CUDA label volume and overwrite prior labels wherever the mapped label is nonzero."""
+    if labels.ndim != 3 or not labels.is_cuda or labels.dtype != torch.uint8:  # noqa: PLR2004 - DHW labels
+        msg = "Label merging expects uint8 CUDA labels in DHW layout"
+        raise ValueError(msg)
+    if lut is not None and (
+        lut.device != labels.device or lut.dtype != labels.dtype or lut.ndim != 1 or not lut.is_contiguous()
+    ):
+        msg = "Label merging expects a contiguous uint8 lookup table on the label device"
+        raise ValueError(msg)
+    if out is not None and (out.shape != labels.shape or out.dtype != labels.dtype or out.device != labels.device):
+        msg = "The previous labels must match the new labels' shape, dtype and device"
+        raise ValueError(msg)
+    if out is None and lut is None:
+        return labels
+    write_zero = out is None
+    if out is None:
+        out = torch.empty_like(labels)
+    load(labels.device).launch(
+        "vol_merge_u8", *kernels.linear(labels.numel()), labels, lut, out,
+        *labels.shape[1:], int(write_zero), 0 if lut is None else lut.numel(),
+        labels.numel(), *labels.stride(), *out.stride(),
+    )  # fmt: skip
+    return out
 
 
 def gaussian(axes: Sequence[torch.Tensor], device: torch.device) -> torch.Tensor:

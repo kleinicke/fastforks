@@ -685,14 +685,25 @@ def _bbox(nz: torch.Tensor) -> tuple[slice, ...]:
 
 
 def _normalise(
-    x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None, *, dtype: torch.dtype = torch.float32
+    x: torch.Tensor,
+    norms: Sequence[Norm],
+    mask: torch.Tensor | None,
+    *,
+    dtype: torch.dtype = torch.float32,
+    cuda_kernels: bool = False,
 ) -> torch.Tensor:
     """nnU-Net's normalisation schemes per channel, in float32 (`mask`: the hole-filled nonzero mask)."""
     out = torch.empty_like(x, dtype=dtype)
     for c, n in enumerate(norms):
         v = x[c].float()
         if n.scheme == "CTNormalization":
-            v = v.clamp(n.lower, n.upper).sub_(n.mean).div_(max(n.std, 1e-8))
+            std = max(n.std, 1e-8)
+            if cuda_kernels and v.is_cuda and not (math.isnan(n.lower) or math.isnan(n.upper)):
+                from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA preprocessing only
+
+                vol_norm.normalize_ct_(out[c], v, (n.lower, n.upper), mean=n.mean, std=std)
+                continue
+            v = v.clamp(n.lower, n.upper).sub_(n.mean).div_(std)
         elif n.scheme == "ZScoreNormalization":
             if n.use_mask and mask is not None:
                 sel = v[mask].cpu().double()  # float64 on the CPU: MPS has none
@@ -813,7 +824,7 @@ class Predictor:
         fn, kw = p.resample_data
         dtype = (self.dtype or torch.float32) if self.cuda_kernels else torch.float32
         same_grid = tuple(new) == shape or fn == "no_resampling_hack"
-        x = _normalise(x, p.norms, mask, dtype=dtype if same_grid else torch.float32)
+        x = _normalise(x, p.norms, mask, dtype=dtype if same_grid else torch.float32, cuda_kernels=self.cuda_kernels)
         x = _resample.resample(x, new, sp, target, fn, kw)
         return x.to(dtype), box, shape
 
