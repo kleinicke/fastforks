@@ -1223,6 +1223,39 @@ def test_mlx_igev_plusplus_matches_torch():
     torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
 
 
+@pytest.mark.parametrize(("arch", "size"), [("l0", 512), ("xl0", 512)])
+def test_mlx_efficientvit_sam_matches_torch(arch, size):
+    """`efficientvit_sam.mlx_net.MlxEncoder` against `fast.Trunk` and the final norm (random weights and batch norms).
+
+    L0 covers the MBConv / ResBlock stages and the 5 x 5 attention scales, XL0 the fused MBConvs, the 3 x 3 scales and
+    the four-times-expanded neck.
+    """
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.promptable_segmentation.models.efficientvit_sam import mlx_net  # noqa: PLC0415
+    from fastforks.promptable_segmentation.models.efficientvit_sam.fast import Trunk  # noqa: PLC0415
+    from fastforks.promptable_segmentation.models.efficientvit_sam.model import Params, Sam  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    enc = Sam(Params(image_size=1024, arch=arch, input_size=size, cuda_graphs=False)).image_encoder.eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(enc, g)
+    with torch.no_grad():
+        for m in enc.modules():
+            if isinstance(m, torch.nn.LayerNorm):
+                m.weight.uniform_(0.5, 1.5, generator=g)
+                m.bias.normal_(0, 0.1, generator=g)
+    trunk = Trunk(enc, size).eval()
+    x = torch.randn(1, 3, size, size, generator=g)
+    with torch.no_grad():
+        want = enc.norm(trunk(x))
+    got = mlx_net.MlxEncoder(trunk, enc.norm, "float32")(to_mx(x.permute(0, 2, 3, 1)))
+    got = to_torch(got).permute(0, 3, 1, 2)
+    assert got.shape == want.shape
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
 @pytest.mark.parametrize(("scales", "hidden"), [((1.0,), 64), ((2.0, 0.5), 64), ((2.0, 0.5), 576)])
 def test_mlx_lwdetr_matches_torch(scales, hidden):
     """`lwdetr.mlx_net.MlxLWDETR` against the folded PyTorch `model.Network` (random weights, float32).

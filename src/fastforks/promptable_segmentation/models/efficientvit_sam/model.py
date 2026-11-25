@@ -288,8 +288,36 @@ class Kernels(_Sam):
             self.cache.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the image encoder written in MLX operations (`mlx_net`), the prompt side as portable."""
+
+    module = Runner.module  # the MLX encoder is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)  # not `_Sam`'s: no `fastforks._optimize` pass over a trunk MLX replaces
+        from .mlx_net import MlxEncoder  # noqa: PLC0415 - imports mlx
+
+        sam = _sam(ctx)
+        enc = sam.image_encoder
+        self.mlx = MlxEncoder(
+            Trunk(enc, ctx.params.input_size), cast("torch.nn.Module", enc.norm), mlx_wrap.run_dtype(ctx)
+        )
+        del sam.image_encoder, enc
+        self.sam = sam.to(ctx.device)
+
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        y = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
+        return to_torch(y).permute(0, 3, 1, 2).contiguous()
+
+    def networks(self) -> tuple[torch.nn.Module, ...]:
+        """The prompt encoder and mask decoder (the image encoder's weights are MLX arrays)."""
+        return (self.sam,)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="trunk", compile=False),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
