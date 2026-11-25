@@ -18,6 +18,7 @@ The graph is reorganised where exact (same maths, different rounding):
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -37,7 +38,23 @@ _MIN_INV, _MAX_INV = 1e-4, 1e4  # fixed: upstream infer's inverse-depth clamp
 
 def _net(ctx: Context) -> DepthProNet:
     """The network on the CPU in the checkpoint's float16."""
-    return DepthProNet().load(ctx.state_dict(), f"{ctx.variant.ref} checkpoint").eval()
+    if (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.mode == "kernels"
+        and ctx.variant.ref == "depth-pro@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    ):
+        with torch.device("meta"):
+            net = DepthProNet()
+        # The official checkpoint lacks only the three unused, zero-initialized DINOv2 mask tokens.
+        for vit in net.vits():
+            mask = vit.get_parameter("mask_token")
+            vit.mask_token = nn.Parameter(torch.zeros_like(mask, device="cpu"), requires_grad=mask.requires_grad)
+    else:
+        net = DepthProNet()
+    return net.load(ctx.state_dict(), f"{ctx.variant.ref} checkpoint").eval()
 
 
 def compose_deconv_1x1(deconv: Any, conv: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - nn layers
@@ -400,6 +417,7 @@ class _KernelsNet:
         t = torch.empty((self.tok.shape[0], 577, c), device=self.device, dtype=torch.float16)
         t[:, 0] = cls
         torch.add(e[self.tok], pos, out=t[:, 1:])
+        del e, v, x1, x2  # The three ViTs read the gathered tokens and the separately allocated `cols`.
         main = torch.cuda.current_stream(self.device)
         side = self.streams
         g = fz = None
@@ -418,6 +436,7 @@ class _KernelsNet:
                 lat.append(t.view(-1, c)[self.m0])
         rows = t.view(-1, c)
         f0, f1, f2 = (pv.vit.norm(rows[m]) for m in (self.m0, self.m1, self.m2))
+        del rows, t  # The gathered hook outputs and normalized features own their storage.
         if side is not None:
             for st, r in zip(side, (g, fz), strict=True):
                 if r is not None:
@@ -446,30 +465,49 @@ class _KernelsNet:
             v, rr = self._resblock(v, rr, self.res[i][0], res2=feat, relu_out=True, inplace=True)
             del feat
             v, _ = self._resblock(v, rr, self.res[i][1], inplace=True)
-            h, w = v.shape[1:3]
-            feat = k.gemm(v, *self.fdec[i - 1], shuffle=(h, w, 2, 2))
+            if i > 1:
+                h, w = v.shape[1:3]
+                feat = k.gemm(v, *self.fdec[i - 1], shuffle=(h, w, 2, 2))
+            else:
+                feat = v
             del v
         return self._decode_tail(encs.pop(), feat), lowres
 
     def _decode_tail(self, latent: torch.Tensor, feat: torch.Tensor) -> torch.Tensor:
-        """Run the largest decoder level and its depth head by row band, sharing the input feature map."""
+        """Upsample the preceding decoder feature only for the rows consumed by each tail band."""
         k = self.k
-        _, height, width, _ = feat.shape
+        _, source_h, source_w, channels = feat.shape
+        height, width = 2 * source_h, 2 * source_w
         latent_size = SIZE // 16
         up = height // latent_size
         latent = latent.view(latent_size, latent_size, -1)
         out = torch.empty((1, 1, height * 2, width * 2), device=feat.device, dtype=torch.float32)
         halo = 6  # Two residual blocks and the head each apply two 3x3 convolutions.
         rows = 128
+        weights, bias = self.fdec[0]
+        min_source_rows = (height % rows or rows) // 2
+        # The halo boundaries round to the latent grid (a multiple of 2 output rows). Keep the same
+        # GEMM kernel even for the shortest band, so the arithmetic matches the whole-frame shuffle.
+        banded = up % 2 == 0 and k.gemm_cfg(
+            min_source_rows * source_w, weights.shape[0], channels, ACT_NONE
+        ) == k.gemm_cfg(source_h * source_w, weights.shape[0], channels, ACT_NONE)
+        if not banded:
+            feat = k.gemm(feat, weights, bias, shuffle=(source_h, source_w, 2, 2))
+
         for start in range(0, height, rows):
             end = min(height, start + rows)
             lo = max(0, (start - halo) // up)
             hi = min(latent_size, (end + halo + up - 1) // up)
             local = self.up_l0(k, latent[lo:hi].flatten(0, 1), hi - lo, latent_size)
-            x, r = self._resblock(
-                local, [torch.relu(local)], self.res[0][0], res2=feat[:, lo * up : hi * up], relu_out=True, inplace=True
-            )
-            del local
+            top, bottom = lo * up, hi * up
+            if banded:
+                skip = k.gemm(
+                    feat[:, top // 2 : bottom // 2], weights, bias, shuffle=((bottom - top) // 2, source_w, 2, 2)
+                )
+            else:
+                skip = feat[:, top:bottom]
+            x, r = self._resblock(local, [torch.relu(local)], self.res[0][0], res2=skip, relu_out=True, inplace=True)
+            del local, skip
             x, _ = self._resblock(x, r, self.res[0][1], inplace=True)
             decoded = self._head(k.gemm(x, *self.out0))
             out[:, :, 2 * start : 2 * end].copy_(decoded[:, :, 2 * (start - lo * up) : 2 * (end - lo * up)])
@@ -531,7 +569,7 @@ from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - sha
     _conv,
     _linear_1x1,
 )
-from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
+from fastforks.kernels.dpt_fused import ACT_GELU, ACT_NONE, ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 
 
