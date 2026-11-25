@@ -72,25 +72,26 @@ def test_batch_odd_size_scale_and_export(weights: Path) -> None:
 
 
 @pytest.mark.gpu
-def test_attention_softmax_groups_keep_cuda_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A byte budget ending on a misaligned odd row still gives aligned chunks and exact scores."""
+def test_attention_softmax_reuses_odd_cuda_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The contiguous attention matrix can be normalized in place even with odd rows."""
     attention = gma.Attention(16, 1, 16).eval().cuda().half()
     features = torch.randn(1, 16, 7, 147, device="cuda", dtype=torch.float16)
     with torch.inference_mode():
         expected = attention(features)
-        tokens = features.shape[-2] * features.shape[-1]
-        monkeypatch.setattr(gma, "_SOFTMAX_GROUP_BYTES", 18 * tokens * features.element_size())
-        unpatched = torch.Tensor.softmax
-        alignments = []
+        monkeypatch.setattr(gma, "_SOFTMAX_MIN_BYTES", 1)
+        softmax = gma.softmax_rows_
+        calls = 0
 
-        def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
-            alignments.append(x.data_ptr() % 16)
-            return unpatched(x, dim)
+        def checked_softmax(scores: torch.Tensor) -> torch.Tensor:
+            nonlocal calls
+            result = softmax(scores)
+            assert result is scores
+            calls += 1
+            return result
 
-        monkeypatch.setattr(torch.Tensor, "softmax", softmax)
+        monkeypatch.setattr(gma, "softmax_rows_", checked_softmax)
         actual = attention(features)
-    assert len(alignments) > 1
-    assert alignments == [0] * len(alignments)
+    assert calls == 1
     torch.testing.assert_close(actual, expected, atol=0, rtol=0)
 
 
