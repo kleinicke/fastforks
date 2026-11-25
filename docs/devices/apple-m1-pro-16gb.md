@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-25 |
-| rows | 2252 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 2289 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -198,96 +198,96 @@ Note: the original needs flex_gemm, a CUDA-only extension.
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|
-| [`alexnet.tv_in1k`](../models/classification.md#alexnet) | 9.48 | 4.91 | 3.04 | – | unsupported | 1819 | 1567 |
-| [`coatnet_0_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.6 | 20.1 | 22.4 | unsupported | – | 763 | 735 |
-| [`coatnet_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 33.9 | 33.8 | 32.4 | unsupported | – | 1933 | 937 |
-| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 47.9 | 47.0 | 42.4 | unsupported | – | 2091 | 2189 |
-| [`coatnet_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 19.8 | 19.6 | 19.6 | unsupported | – | 596 | 572 |
-| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 37.1 | 36.7 | 34.8 | unsupported | – | 1920 | 937 |
-| [`coatnet_rmlp_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 35.2 | 35.0 | 34.6 | unsupported | – | 940 | 933 |
-| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 52.5 | 51.9 | 45.7 | unsupported | – | 2183 | 2191 |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 51.9 | 51.8 | 45.4 | unsupported | – | 2140 | 2189 |
-| [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.9 | 21.2 | 21.5 | unsupported | – | 1627 | 1596 |
-| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 26.7 | 27.4 | 24.8 | – | unsupported | 2061 | 2307 |
-| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 25.7 | 27.8 | 24.9 | – | unsupported | 2092 | 2308 |
-| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 51.9 | 51.2 | 45.2 | – | unsupported | 2065 | 2309 |
-| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 42.7 | 41.7 | 38.0 | – | unsupported | 2775 | 3485 |
-| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 40.8 | 41.0 | 39.0 | – | unsupported | 2770 | 3485 |
-| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 90.3 | 89.0 | 79.6 | – | unsupported | 2942 | 3494 |
-| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 20.3 | 19.4 | 18.2 | – | unsupported | 881 | 1044 |
-| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 20.3 | 20.0 | 18.7 | – | unsupported | 825 | 1044 |
-| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 34.8 | 33.5 | 31.0 | – | unsupported | 1890 | 1043 |
-| [`convnext_tiny.fb_in1k`](../models/classification.md#convnext) | 12.0 | 11.2 | 10.2 | – | unsupported | 706 | 748 |
-| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 11.8 | 11.6 | 10.8 | – | unsupported | 697 | 748 |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 20.7 | 20.2 | 18.1 | – | unsupported | 1736 | 749 |
-| [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 41.0 | 36.1 | 35.8 | – | unsupported | 2066 | 2323 |
-| [`davit_base.msft_in1k`](../models/classification.md#davit) | 34.5 | 34.0 | 31.8 | unsupported | – | 2060 | 2312 |
-| [`davit_small.msft_in1k`](../models/classification.md#davit) | 26.4 | 25.4 | 25.5 | unsupported | – | 957 | 968 |
-| [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 15.0 | 14.7 | 14.2 | unsupported | – | 738 | 741 |
-| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.5 | 17.0 | 15.7 | – | unsupported | 1147 | 1157 |
-| [`densenet121.tv_in1k`](../models/classification.md#densenet) | 31.5 | 25.4 | 28.9 | – | unsupported | 554 | 708 |
-| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 64.1 | 64.5 | 59.3 | – | unsupported | 3291 | 4443 |
-| [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 12.5 | 8.57 | 9.24 | unsupported | – | 550 | 589 |
-| [`efficientformer_l3.snap_dist_in1k`](../models/classification.md#efficientformer) | 21.6 | 16.0 | 15.5 | unsupported | – | 747 | 909 |
-| [`efficientformer_l7.snap_dist_in1k`](../models/classification.md#efficientformer) | 34.9 | 28.0 | 27.4 | unsupported | – | 1146 | 2494 |
-| [`efficientformerv2_l.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 49.8 | 34.7 | 36.3 | unsupported | – | 763 | 913 |
-| [`efficientformerv2_s0.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 21.0 | 13.9 | 14.9 | unsupported | – | 483 | 510 |
-| [`efficientformerv2_s1.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 24.6 | 17.4 | 18.5 | unsupported | – | 521 | 554 |
-| [`efficientformerv2_s2.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 36.4 | 25.4 | 26.3 | unsupported | – | 575 | 657 |
-| [`efficientnet_b0.tv_in1k`](../models/classification.md#efficientnet) | 17.9 | 13.0 | 13.6 | – | unsupported | 442 | 463 |
-| [`efficientnet_b4.tv_in1k`](../models/classification.md#efficientnet) | 54.0 | 38.3 | 38.5 | – | unsupported | 1676 | 1660 |
-| [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 45.9 | 34.0 | 36.1 | – | unsupported | 638 | 616 |
-| [`efficientvit_b2.r288_in1k`](../models/classification.md#efficientvit) | 25.7 | 18.6 | 20.6 | – | unsupported | 1695 | 1698 |
-| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](../models/classification.md#eva02) | 267 | 267 | 235 | – | unsupported | 3515 | 4094 |
-| [`falconsai-nsfw-vit`](../models/classification.md#nsfw_vit) | 18.8 | 17.0 | 15.9 | – | unsupported | 1121 | 1244 |
-| [`focalnet_base_lrf.ms_in1k`](../models/classification.md#focalnet) | 44.7 | 44.3 | 43.2 | unsupported | – | 2225 | 2364 |
-| [`focalnet_base_srf.ms_in1k`](../models/classification.md#focalnet) | 41.8 | 41.0 | 40.1 | unsupported | – | 2222 | 2354 |
-| [`focalnet_small_lrf.ms_in1k`](../models/classification.md#focalnet) | 35.2 | 34.8 | 33.7 | unsupported | – | 921 | 1025 |
-| [`focalnet_small_srf.ms_in1k`](../models/classification.md#focalnet) | 32.5 | 31.9 | 31.1 | unsupported | – | 1003 | 1017 |
-| [`focalnet_tiny_lrf.ms_in1k`](../models/classification.md#focalnet) | 20.5 | 19.7 | 19.0 | unsupported | – | 762 | 736 |
-| [`focalnet_tiny_srf.ms_in1k`](../models/classification.md#focalnet) | 18.7 | 18.0 | 18.3 | unsupported | – | 755 | 720 |
-| [`hgnetv2_b0.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 11.6 | 6.34 | 7.01 | unsupported | – | 480 | 503 |
-| [`hgnetv2_b1.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 11.0 | 8.49 | 6.58 | unsupported | – | 492 | 550 |
-| [`hgnetv2_b2.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 16.4 | 9.36 | 9.18 | unsupported | – | 571 | 607 |
-| [`hgnetv2_b3.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 19.5 | 14.7 | 10.7 | unsupported | – | 1617 | 1659 |
-| [`hgnetv2_b4.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 20.3 | 12.1 | 11.8 | unsupported | – | 1658 | 1694 |
-| [`hgnetv2_b5.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 32.8 | 19.3 | 18.3 | unsupported | – | 948 | 2029 |
-| [`hgnetv2_b6.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 52.5 | 34.2 | 31.0 | unsupported | – | 2269 | 2335 |
-| [`inception_v3.tv_in1k`](../models/classification.md#inception_v3) | 27.7 | 17.4 | 17.6 | – | unsupported | 730 | 746 |
-| [`mobilenet_v2.tv2_in1k`](../models/classification.md#mobilenetv2) | 12.4 | 6.48 | 8.08 | – | unsupported | 396 | 422 |
-| [`mobilenet_v3_large.tv2_in1k`](../models/classification.md#mobilenetv3) | 13.4 | 8.54 | 8.96 | – | unsupported | 440 | 462 |
-| [`mobilenetv1_100.ra4_e3600_r224_in1k`](../models/classification.md#mobilenetv1) | 8.11 | 4.29 | 5.13 | – | unsupported | 446 | 437 |
-| [`mobilenetv4_conv_medium.e500_r256_in1k`](../models/classification.md#mobilenetv4) | 18.1 | 9.58 | 10.5 | – | unsupported | 544 | 581 |
-| [`regnety_160.tv2_in1k`](../models/classification.md#regnet) | 46.1 | 38.9 | 33.1 | – | unsupported | 2209 | 2030 |
-| [`repvit_m0_9.dist_300e_in1k`](../models/classification.md#repvit) | 24.5 | 11.6 | 13.2 | – | unsupported | 478 | 453 |
-| [`repvit_m0_9.dist_450e_in1k`](../models/classification.md#repvit) | 25.0 | 11.5 | 12.0 | – | unsupported | 479 | 452 |
-| [`repvit_m1_0.dist_300e_in1k`](../models/classification.md#repvit) | 25.1 | 12.0 | 12.3 | – | unsupported | 505 | 469 |
-| [`repvit_m1_0.dist_450e_in1k`](../models/classification.md#repvit) | 24.9 | 12.0 | 12.5 | – | unsupported | 502 | 470 |
-| [`repvit_m1_1.dist_300e_in1k`](../models/classification.md#repvit) | 24.5 | 11.5 | 11.9 | – | unsupported | 511 | 485 |
-| [`repvit_m1_1.dist_450e_in1k`](../models/classification.md#repvit) | 26.1 | 11.6 | 12.0 | – | unsupported | 511 | 486 |
-| [`repvit_m1_5.dist_300e_in1k`](../models/classification.md#repvit) | 40.1 | 19.3 | 19.8 | – | unsupported | 575 | 550 |
-| [`repvit_m1_5.dist_450e_in1k`](../models/classification.md#repvit) | 39.8 | 19.1 | 20.0 | – | unsupported | 575 | 550 |
-| [`repvit_m2_3.dist_300e_in1k`](../models/classification.md#repvit) | 54.1 | 27.3 | 27.9 | – | unsupported | 685 | 692 |
-| [`repvit_m2_3.dist_450e_in1k`](../models/classification.md#repvit) | 53.9 | 27.2 | 27.5 | – | unsupported | 692 | 692 |
-| [`resnet152.tv2_in1k`](../models/classification.md#resnet) | 41.1 | 25.7 | 24.3 | – | unsupported | 1007 | 1101 |
-| [`resnet18.tv_in1k`](../models/classification.md#resnet) | 7.25 | 4.67 | 5.37 | – | unsupported | 466 | 454 |
-| [`resnet50.tv2_in1k`](../models/classification.md#resnet) | 16.8 | 11.2 | 10.2 | – | unsupported | 669 | 667 |
-| [`shufflenet_v2_x1_0.tv_in1k`](../models/classification.md#shufflenetv2) | 12.1 | 6.33 | 6.87 | – | unsupported | 364 | 374 |
-| [`shvit_s1.in1k`](../models/classification.md#shvit) | 17.8 | 10.3 | 12.8 | unsupported | – | 493 | 477 |
-| [`shvit_s2.in1k`](../models/classification.md#shvit) | 18.7 | 10.9 | 11.2 | unsupported | – | 536 | 548 |
-| [`shvit_s3.in1k`](../models/classification.md#shvit) | 20.2 | 11.8 | 12.3 | unsupported | – | 557 | 575 |
-| [`squeezenet1_1.tv_in1k`](../models/classification.md#squeezenet) | 4.03 | 3.79 | 3.72 | – | unsupported | 347 | 340 |
-| [`starnet_s1.in1k`](../models/classification.md#starnet) | 13.0 | 8.33 | 14.0 | – | unsupported | 436 | 424 |
-| [`starnet_s2.in1k`](../models/classification.md#starnet) | 11.4 | 7.23 | 7.21 | – | unsupported | 440 | 437 |
-| [`starnet_s3.in1k`](../models/classification.md#starnet) | 14.4 | 10.2 | 9.55 | – | unsupported | 464 | 469 |
-| [`starnet_s4.in1k`](../models/classification.md#starnet) | 18.8 | 12.7 | 12.8 | – | unsupported | 486 | 483 |
-| [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](../models/classification.md#swin) | 37.5 | 28.2 | 29.6 | – | unsupported | 2062 | 2273 |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 13.2 | 9.49 | 10.7 | – | unsupported | 549 | 524 |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 15.2 | 11.6 | 12.0 | – | unsupported | 679 | 653 |
-| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 12.8 | 8.61 | 9.74 | – | unsupported | 465 | 441 |
-| [`vgg16.tv_in1k`](../models/classification.md#vgg) | 13.6 | 13.8 | 11.7 | – | unsupported | 2438 | 2446 |
-| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 17.4 | 16.9 | 18.7 | – | unsupported | 1258 | 1314 |
-| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 215 | 197 | – | unsupported | 3973 | 3917 |
+| [`alexnet.tv_in1k`](../models/classification.md#alexnet) | 9.48 | 6.28 | 5.93 | – | unsupported | 1819 | 1577 |
+| [`coatnet_0_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.6 | 21.3 | 20.5 | unsupported | unsupported | 763 | 620 |
+| [`coatnet_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 33.9 | 35.9 | 36.0 | unsupported | unsupported | 1933 | 1759 |
+| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 47.9 | 56.1 | 47.5 | unsupported | unsupported | 2091 | 1896 |
+| [`coatnet_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 19.8 | 23.4 | 22.1 | unsupported | unsupported | 596 | 508 |
+| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 37.1 | 39.2 | 36.5 | unsupported | unsupported | 1920 | 772 |
+| [`coatnet_rmlp_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 35.2 | 37.8 | 37.2 | unsupported | unsupported | 940 | 766 |
+| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 52.5 | 57.5 | 46.8 | unsupported | unsupported | 2183 | 1898 |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 51.9 | 57.8 | 47.9 | unsupported | unsupported | 2140 | 1899 |
+| [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.9 | 23.4 | 23.9 | unsupported | unsupported | 1627 | 1534 |
+| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 26.7 | 28.6 | 27.6 | – | unsupported | 2061 | 1973 |
+| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 25.7 | 28.0 | 27.7 | – | unsupported | 2092 | 1973 |
+| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 51.9 | 56.5 | 49.1 | – | unsupported | 2065 | 1975 |
+| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 42.7 | 43.4 | 43.6 | – | unsupported | 2775 | 2756 |
+| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 40.8 | 44.2 | 40.2 | – | unsupported | 2770 | 2732 |
+| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 90.3 | 95.7 | 84.7 | – | unsupported | 2942 | 2732 |
+| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 20.3 | 22.7 | 20.8 | – | unsupported | 881 | 826 |
+| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 20.3 | 22.6 | 20.6 | – | unsupported | 825 | 823 |
+| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 34.8 | 36.8 | 34.2 | – | unsupported | 1890 | 824 |
+| [`convnext_tiny.fb_in1k`](../models/classification.md#convnext) | 12.0 | 13.3 | 12.6 | – | unsupported | 706 | 609 |
+| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 11.8 | 13.7 | 13.1 | – | unsupported | 697 | 609 |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 20.7 | 23.2 | 20.2 | – | unsupported | 1736 | 612 |
+| [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 41.0 | 41.9 | 38.5 | – | unsupported | 2066 | 1974 |
+| [`davit_base.msft_in1k`](../models/classification.md#davit) | 34.5 | 37.5 | 34.5 | unsupported | unsupported | 2060 | 1967 |
+| [`davit_small.msft_in1k`](../models/classification.md#davit) | 26.4 | 27.6 | 26.1 | unsupported | unsupported | 957 | 786 |
+| [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 15.0 | 16.2 | 16.7 | unsupported | unsupported | 738 | 593 |
+| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.5 | 19.4 | 16.5 | – | unsupported | 1147 | 1159 |
+| [`densenet121.tv_in1k`](../models/classification.md#densenet) | 31.5 | 28.7 | 27.7 | – | unsupported | 554 | 704 |
+| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 64.1 | 68.7 | 63.2 | – | unsupported | 3291 | 3268 |
+| [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 12.5 | 9.36 | 9.34 | unsupported | unsupported | 550 | 581 |
+| [`efficientformer_l3.snap_dist_in1k`](../models/classification.md#efficientformer) | 21.6 | 17.5 | 15.4 | unsupported | unsupported | 747 | 835 |
+| [`efficientformer_l7.snap_dist_in1k`](../models/classification.md#efficientformer) | 34.9 | 27.4 | 26.6 | unsupported | unsupported | 1146 | 2245 |
+| [`efficientformerv2_l.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 49.8 | 37.9 | 35.8 | unsupported | unsupported | 763 | 863 |
+| [`efficientformerv2_s0.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 21.0 | 20.4 | 14.6 | unsupported | unsupported | 483 | 538 |
+| [`efficientformerv2_s1.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 24.6 | 19.1 | 18.2 | unsupported | unsupported | 521 | 579 |
+| [`efficientformerv2_s2.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 36.4 | 27.5 | 25.9 | unsupported | unsupported | 575 | 662 |
+| [`efficientnet_b0.tv_in1k`](../models/classification.md#efficientnet) | 17.9 | 14.3 | 13.1 | – | unsupported | 442 | 493 |
+| [`efficientnet_b4.tv_in1k`](../models/classification.md#efficientnet) | 54.0 | 41.1 | 43.0 | – | unsupported | 1676 | 1673 |
+| [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 45.9 | 35.2 | 35.5 | – | unsupported | 638 | 626 |
+| [`efficientvit_b2.r288_in1k`](../models/classification.md#efficientvit) | 25.7 | 20.4 | 19.5 | – | unsupported | 1695 | 1631 |
+| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](../models/classification.md#eva02) | 267 | 273 | 246 | – | unsupported | 3515 | 2937 |
+| [`falconsai-nsfw-vit`](../models/classification.md#nsfw_vit) | 18.8 | 18.1 | 15.8 | – | unsupported | 1121 | 1236 |
+| [`focalnet_base_lrf.ms_in1k`](../models/classification.md#focalnet) | 44.7 | 44.6 | 42.8 | unsupported | unsupported | 2225 | 2012 |
+| [`focalnet_base_srf.ms_in1k`](../models/classification.md#focalnet) | 41.8 | 41.2 | 39.6 | unsupported | unsupported | 2222 | 2005 |
+| [`focalnet_small_lrf.ms_in1k`](../models/classification.md#focalnet) | 35.2 | 35.5 | 33.1 | unsupported | unsupported | 921 | 825 |
+| [`focalnet_small_srf.ms_in1k`](../models/classification.md#focalnet) | 32.5 | 32.3 | 30.6 | unsupported | unsupported | 1003 | 815 |
+| [`focalnet_tiny_lrf.ms_in1k`](../models/classification.md#focalnet) | 20.5 | 19.9 | 18.7 | unsupported | unsupported | 762 | 616 |
+| [`focalnet_tiny_srf.ms_in1k`](../models/classification.md#focalnet) | 18.7 | 18.2 | 17.2 | unsupported | unsupported | 755 | 612 |
+| [`hgnetv2_b0.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 11.6 | 6.50 | 6.12 | unsupported | unsupported | 480 | 483 |
+| [`hgnetv2_b1.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 11.0 | 6.73 | 6.39 | unsupported | unsupported | 492 | 520 |
+| [`hgnetv2_b2.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 16.4 | 9.46 | 9.08 | unsupported | unsupported | 571 | 556 |
+| [`hgnetv2_b3.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 19.5 | 11.9 | 10.5 | unsupported | unsupported | 1617 | 1580 |
+| [`hgnetv2_b4.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 20.3 | 12.4 | 11.6 | unsupported | unsupported | 1658 | 1611 |
+| [`hgnetv2_b5.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 32.8 | 19.5 | 18.0 | unsupported | unsupported | 948 | 1868 |
+| [`hgnetv2_b6.ssld_stage2_ft_in1k`](../models/classification.md#hgnetv2) | 52.5 | 34.4 | 30.8 | unsupported | unsupported | 2269 | 2040 |
+| [`inception_v3.tv_in1k`](../models/classification.md#inception_v3) | 27.7 | 17.4 | 16.5 | – | unsupported | 730 | 780 |
+| [`mobilenet_v2.tv2_in1k`](../models/classification.md#mobilenetv2) | 12.4 | 6.30 | 6.32 | – | unsupported | 396 | 434 |
+| [`mobilenet_v3_large.tv2_in1k`](../models/classification.md#mobilenetv3) | 13.4 | 8.59 | 8.20 | – | unsupported | 440 | 488 |
+| [`mobilenetv1_100.ra4_e3600_r224_in1k`](../models/classification.md#mobilenetv1) | 8.11 | 4.86 | 4.10 | – | unsupported | 446 | 432 |
+| [`mobilenetv4_conv_medium.e500_r256_in1k`](../models/classification.md#mobilenetv4) | 18.1 | 13.8 | 9.82 | – | unsupported | 544 | 563 |
+| [`regnety_160.tv2_in1k`](../models/classification.md#regnet) | 46.1 | 41.2 | 34.0 | – | unsupported | 2209 | 2046 |
+| [`repvit_m0_9.dist_300e_in1k`](../models/classification.md#repvit) | 24.5 | 12.2 | 12.9 | – | unsupported | 478 | 413 |
+| [`repvit_m0_9.dist_450e_in1k`](../models/classification.md#repvit) | 25.0 | 12.4 | 12.7 | – | unsupported | 479 | 411 |
+| [`repvit_m1_0.dist_300e_in1k`](../models/classification.md#repvit) | 25.1 | 12.6 | 12.4 | – | unsupported | 505 | 427 |
+| [`repvit_m1_0.dist_450e_in1k`](../models/classification.md#repvit) | 24.9 | 13.9 | 12.7 | – | unsupported | 502 | 431 |
+| [`repvit_m1_1.dist_300e_in1k`](../models/classification.md#repvit) | 24.5 | 12.8 | 12.2 | – | unsupported | 511 | 439 |
+| [`repvit_m1_1.dist_450e_in1k`](../models/classification.md#repvit) | 26.1 | 12.0 | 12.7 | – | unsupported | 511 | 434 |
+| [`repvit_m1_5.dist_300e_in1k`](../models/classification.md#repvit) | 40.1 | 19.9 | 21.8 | – | unsupported | 575 | 473 |
+| [`repvit_m1_5.dist_450e_in1k`](../models/classification.md#repvit) | 39.8 | 21.4 | 19.6 | – | unsupported | 575 | 491 |
+| [`repvit_m2_3.dist_300e_in1k`](../models/classification.md#repvit) | 54.1 | 28.7 | 28.1 | – | unsupported | 685 | 603 |
+| [`repvit_m2_3.dist_450e_in1k`](../models/classification.md#repvit) | 53.9 | 28.0 | 27.7 | – | unsupported | 692 | 604 |
+| [`resnet152.tv2_in1k`](../models/classification.md#resnet) | 41.1 | 26.2 | 24.1 | – | unsupported | 1007 | 1094 |
+| [`resnet18.tv_in1k`](../models/classification.md#resnet) | 7.25 | 5.15 | 4.86 | – | unsupported | 466 | 471 |
+| [`resnet50.tv2_in1k`](../models/classification.md#resnet) | 16.8 | 11.9 | 10.6 | – | unsupported | 669 | 659 |
+| [`shufflenet_v2_x1_0.tv_in1k`](../models/classification.md#shufflenetv2) | 12.1 | 8.28 | 6.62 | – | unsupported | 364 | 391 |
+| [`shvit_s1.in1k`](../models/classification.md#shvit) | 17.8 | 10.9 | 10.8 | unsupported | unsupported | 493 | 432 |
+| [`shvit_s2.in1k`](../models/classification.md#shvit) | 18.7 | 12.1 | 13.5 | unsupported | unsupported | 536 | 481 |
+| [`shvit_s3.in1k`](../models/classification.md#shvit) | 20.2 | 13.0 | 14.8 | unsupported | unsupported | 557 | 501 |
+| [`squeezenet1_1.tv_in1k`](../models/classification.md#squeezenet) | 4.03 | 3.82 | 3.73 | – | unsupported | 347 | 339 |
+| [`starnet_s1.in1k`](../models/classification.md#starnet) | 13.0 | 8.46 | 8.21 | – | unsupported | 436 | 381 |
+| [`starnet_s2.in1k`](../models/classification.md#starnet) | 11.4 | 7.35 | 7.07 | – | unsupported | 440 | 418 |
+| [`starnet_s3.in1k`](../models/classification.md#starnet) | 14.4 | 9.87 | 9.31 | – | unsupported | 464 | 438 |
+| [`starnet_s4.in1k`](../models/classification.md#starnet) | 18.8 | 12.9 | 12.4 | – | unsupported | 486 | 457 |
+| [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](../models/classification.md#swin) | 37.5 | 28.3 | 25.3 | – | unsupported | 2062 | 1946 |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 13.2 | 9.54 | 9.73 | – | unsupported | 549 | 466 |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 15.2 | 11.8 | 11.3 | – | unsupported | 679 | 537 |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 12.8 | 8.73 | 8.42 | – | unsupported | 465 | 407 |
+| [`vgg16.tv_in1k`](../models/classification.md#vgg) | 13.6 | 13.5 | 11.4 | – | unsupported | 2438 | 2430 |
+| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 17.4 | 17.1 | 15.6 | – | unsupported | 1258 | 1158 |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 215 | 196 | – | unsupported | 3973 | 3916 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
@@ -296,10 +296,10 @@ Note: the card has no kernels mode.
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|
-| [`fastvit_sa24.apple_dist_in1k`](../models/classification.md#fastvit) | 24.8 | 15.8 | 16.9 | – | unsupported | 566 | 665 |
-| [`fastvit_t12.apple_dist_in1k`](../models/classification.md#fastvit) | 12.1 | 9.33 | 8.52 | – | unsupported | 494 | 514 |
-| [`fastvit_t8.apple_dist_in1k`](../models/classification.md#fastvit) | 9.94 | 10.1 | 6.73 | – | unsupported | 433 | 475 |
-| [`shvit_s4.in1k`](../models/classification.md#shvit) | 26.6 | 14.4 | 15.1 | unsupported | – | 627 | 604 |
+| [`fastvit_sa24.apple_dist_in1k`](../models/classification.md#fastvit) | 24.8 | 17.2 | 16.3 | – | unsupported | 566 | 632 |
+| [`fastvit_t12.apple_dist_in1k`](../models/classification.md#fastvit) | 12.1 | 9.25 | 9.06 | – | unsupported | 494 | 473 |
+| [`fastvit_t8.apple_dist_in1k`](../models/classification.md#fastvit) | 9.94 | 8.66 | 7.55 | – | unsupported | 433 | 450 |
+| [`shvit_s4.in1k`](../models/classification.md#shvit) | 26.6 | 16.7 | 15.5 | unsupported | unsupported | 627 | 514 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
@@ -308,8 +308,8 @@ Note: the card has no kernels mode.
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|
-| [`coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 127 | 119 | 99.5 | unsupported | – | 2111 | 2303 |
-| [`tiny_vit_21m_384.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 24.6 | 22.0 | 22.6 | – | unsupported | 1724 | 1669 |
+| [`coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 127 | 130 | 107 | unsupported | unsupported | 2111 | 2013 |
+| [`tiny_vit_21m_384.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 24.6 | 21.5 | 18.8 | – | unsupported | 1724 | 613 |
 
 Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
@@ -318,10 +318,10 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
-| [`wd-convnext-tagger-v3`](../models/classification.md#wd_tagger) | 68.5 | 66.3 | 55.0 | unsupported | 2379 | 2390 |
-| [`wd-eva02-large-tagger-v3`](../models/classification.md#wd_tagger) | 268 | 267 | 235 | unsupported | 3754 | 4195 |
-| [`wd-vit-large-tagger-v3`](../models/classification.md#wd_tagger) | 222 | 221 | 202 | unsupported | 3318 | 4520 |
-| [`wd-vit-tagger-v3`](../models/classification.md#wd_tagger) | 59.6 | 58.9 | 52.5 | unsupported | 2463 | 2438 |
+| [`wd-convnext-tagger-v3`](../models/classification.md#wd_tagger) | 68.5 | 66.7 | 56.0 | unsupported | 2379 | 2013 |
+| [`wd-eva02-large-tagger-v3`](../models/classification.md#wd_tagger) | 268 | 266 | 235 | unsupported | 3754 | 2976 |
+| [`wd-vit-large-tagger-v3`](../models/classification.md#wd_tagger) | 222 | 221 | 201 | unsupported | 3318 | 3304 |
+| [`wd-vit-tagger-v3`](../models/classification.md#wd_tagger) | 59.6 | 58.6 | 52.3 | unsupported | 2463 | 2064 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -329,7 +329,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
-| [`tiny_vit_21m_512.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 38.7 | 34.3 | 34.8 | unsupported | 1818 | 1737 |
+| [`tiny_vit_21m_512.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 38.7 | 34.3 | 29.3 | unsupported | 1818 | 1676 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -590,26 +590,26 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| [`c-radio-v3-b`](../models/features.md#c_radio) | 21.7 | 19.2 | 16.5 | unsupported | – | – | 1841 | 2230 | – |
-| [`c-radio-v3-g`](../models/features.md#c_radio) | 297 | 180 | 145 | unsupported | – | – | 5681 | 9394 | – |
-| [`c-radio-v3-h`](../models/features.md#c_radio) | 121 | 103 | 85.0 | unsupported | – | – | 3596 | 5806 | – |
-| [`c-radio-v3-l`](../models/features.md#c_radio) | 62.3 | 53.3 | 47.9 | unsupported | – | – | 2561 | 3322 | – |
-| [`c-radio-v4-h`](../models/features.md#c_radio) | 98.2 | 99.0 | 86.6 | unsupported | – | – | 3587 | 5808 | – |
-| [`c-radio-v4-so400m`](../models/features.md#c_radio) | 66.7 | 67.0 | 58.5 | unsupported | – | – | 2561 | 3934 | – |
-| [`clip-b16-laion2b`](../models/features.md#clip) | 19.8 | 16.9 | 15.3 | unsupported | – | – | 1348 | 1480 | – |
-| [`clip-b16-openai`](../models/features.md#clip) | 18.5 | 17.5 | 16.1 | unsupported | – | – | 1592 | 1724 | – |
-| [`clip-h14-378-dfn5b`](../models/features.md#clip) | 232 | 132 | 108 | unsupported | – | – | 7408 | 8090 | – |
-| [`clip-h14-dfn5b`](../models/features.md#clip) | 199 | 134 | 109 | unsupported | – | – | 7403 | 8089 | – |
-| [`clip-h14-laion2b`](../models/features.md#clip) | 186 | 122 | 102 | unsupported | – | – | 7403 | 8090 | – |
-| [`clip-l14-336-openai`](../models/features.md#clip) | 86.1 | 63.1 | 58.3 | unsupported | – | – | 4454 | 4429 | – |
-| [`clip-l14-datacompxl`](../models/features.md#clip) | 66.7 | 60.8 | 56.7 | unsupported | – | – | 4450 | 4426 | – |
-| [`clip-l14-dfn2b`](../models/features.md#clip) | 73.5 | 66.4 | 60.1 | unsupported | – | – | 4452 | 4424 | – |
-| [`clip-l14-laion2b`](../models/features.md#clip) | 69.9 | 60.6 | 56.6 | unsupported | – | – | 4449 | 4424 | – |
-| [`clip-l14-openai`](../models/features.md#clip) | 73.5 | 63.0 | 58.3 | unsupported | – | – | 4925 | 4898 | – |
-| [`convnext_base.fb_in22k`](../models/features.md#convnext_features) | 33.0 | 27.5 | 24.5 | unsupported | – | – | 3215 | 2473 | – |
-| [`convnext_large.fb_in22k`](../models/features.md#convnext_features) | 61.6 | 42.1 | 37.5 | unsupported | – | – | 5446 | 3704 | – |
-| [`convnext_small.fb_in22k`](../models/features.md#convnext_features) | 25.2 | 19.6 | 17.9 | unsupported | – | – | 2497 | 1166 | – |
-| [`convnext_tiny.fb_in22k`](../models/features.md#convnext_features) | 14.6 | 11.5 | 9.96 | unsupported | – | – | 2148 | 871 | – |
+| [`c-radio-v3-b`](../models/features.md#c_radio) | 21.7 | 19.9 | 18.5 | unsupported | – | – | 1841 | 1908 | – |
+| [`c-radio-v3-g`](../models/features.md#c_radio) | 297 | 196 | 155 | unsupported | – | – | 5681 | 7659 | – |
+| [`c-radio-v3-h`](../models/features.md#c_radio) | 121 | 109 | 92.9 | unsupported | – | – | 3596 | 4607 | – |
+| [`c-radio-v3-l`](../models/features.md#c_radio) | 62.3 | 56.7 | 50.1 | unsupported | – | – | 2561 | 2477 | – |
+| [`c-radio-v4-h`](../models/features.md#c_radio) | 98.2 | 104 | 90.8 | unsupported | – | – | 3587 | 4600 | – |
+| [`c-radio-v4-so400m`](../models/features.md#c_radio) | 66.7 | 69.7 | 61.8 | unsupported | – | – | 2561 | 2793 | – |
+| [`clip-b16-laion2b`](../models/features.md#clip) | 19.8 | 19.1 | 17.1 | unsupported | – | – | 1348 | 1154 | – |
+| [`clip-b16-openai`](../models/features.md#clip) | 18.5 | 18.4 | 17.9 | unsupported | – | – | 1592 | 1156 | – |
+| [`clip-h14-378-dfn5b`](../models/features.md#clip) | 232 | 137 | 111 | unsupported | – | – | 7408 | 5676 | – |
+| [`clip-h14-dfn5b`](../models/features.md#clip) | 199 | 130 | 110 | unsupported | – | – | 7403 | 5680 | – |
+| [`clip-h14-laion2b`](../models/features.md#clip) | 186 | 129 | 105 | unsupported | – | – | 7403 | 5678 | – |
+| [`clip-l14-336-openai`](../models/features.md#clip) | 86.1 | 66.8 | 61.6 | unsupported | – | – | 4454 | 3267 | – |
+| [`clip-l14-datacompxl`](../models/features.md#clip) | 66.7 | 62.6 | 57.7 | unsupported | – | – | 4450 | 3263 | – |
+| [`clip-l14-dfn2b`](../models/features.md#clip) | 73.5 | 67.3 | 58.7 | unsupported | – | – | 4452 | 3262 | – |
+| [`clip-l14-laion2b`](../models/features.md#clip) | 69.9 | 63.4 | 57.8 | unsupported | – | – | 4449 | 3263 | – |
+| [`clip-l14-openai`](../models/features.md#clip) | 73.5 | 64.3 | 59.4 | unsupported | – | – | 4925 | 3263 | – |
+| [`convnext_base.fb_in22k`](../models/features.md#convnext_features) | 33.0 | 28.1 | 28.6 | unsupported | – | – | 3215 | 2056 | – |
+| [`convnext_large.fb_in22k`](../models/features.md#convnext_features) | 61.6 | 43.3 | 41.4 | unsupported | – | – | 5446 | 2813 | – |
+| [`convnext_small.fb_in22k`](../models/features.md#convnext_features) | 25.2 | 22.7 | 21.2 | unsupported | – | – | 2497 | 883 | – |
+| [`convnext_tiny.fb_in22k`](../models/features.md#convnext_features) | 14.6 | 12.3 | 12.1 | unsupported | – | – | 2148 | 671 | – |
 | [`dinov2-vitb14`](../models/features.md#dinov2) | 28.5 | 26.1 | 24.7 | unsupported | – | – | 998 | 778 | – |
 | [`dinov2-vitb14-reg`](../models/features.md#dinov2) | 51.0 | 48.2 | 46.4 | unsupported | – | – | 1013 | 779 | – |
 | [`dinov2-vitg14`](../models/features.md#dinov2) | 271 | 251 | 218 | unsupported | – | – | 8904 | 4504 | – |
@@ -618,34 +618,34 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 107 | 106 | 95.7 | unsupported | – | – | 3168 | 1566 | – |
 | [`dinov2-vits14`](../models/features.md#dinov2) | 12.8 | 13.6 | 12.7 | unsupported | – | – | 476 | 346 | – |
 | [`dinov2-vits14-reg`](../models/features.md#dinov2) | 24.8 | 25.0 | 23.7 | unsupported | – | – | 476 | 346 | – |
-| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | 32.2 | 25.6 | 23.1 | unsupported | – | – | 1749 | 880 | – |
-| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | 49.1 | 40.6 | 36.9 | unsupported | – | – | 2107 | 2088 | – |
-| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 24.1 | 22.4 | 18.5 | unsupported | – | – | 675 | 612 | – |
-| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | 13.2 | 11.5 | 10.6 | unsupported | – | – | 579 | 431 | – |
+| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | 32.2 | 26.6 | 24.2 | unsupported | – | – | 1749 | 591 | – |
+| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | 49.1 | 44.2 | 38.4 | unsupported | – | – | 2107 | 1927 | – |
+| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 24.1 | 21.4 | 19.3 | unsupported | – | – | 675 | 453 | – |
+| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | 13.2 | 12.1 | 11.3 | unsupported | – | – | 579 | 346 | – |
 | [`dinov3-vitb16`](../models/features.md#dinov3) | 24.9 | 25.0 | 22.5 | unsupported | – | – | 721 | 729 | – |
 | [`dinov3-vith16plus`](../models/features.md#dinov3) | 174 | 167 | 143 | unsupported | – | – | 4593 | 3467 | – |
 | [`dinov3-vitl16`](../models/features.md#dinov3) | 71.2 | 71.7 | 61.5 | unsupported | – | – | 2465 | 1473 | – |
 | [`dinov3-vits16`](../models/features.md#dinov3) | 13.4 | 13.9 | 13.5 | unsupported | – | – | 446 | 352 | – |
-| [`pe-core-b16-224`](../models/features.md#perception_encoder) | 25.2 | 20.0 | 19.5 | 16.0 | 1.6x | 1.2x | 1440 | 1569 | 1571 |
-| [`pe-core-g14-448`](../models/features.md#perception_encoder) | 639 | 368 | 286 | 259 | 2.5x | 1.1x | 16765 | 17853 | 17853 |
-| [`pe-core-l14-336`](../models/features.md#perception_encoder) | 102 | 68.6 | 68.7 | 58.3 | 1.7x | 1.2x | 4553 | 4527 | 4528 |
-| [`pe-core-s16-384`](../models/features.md#perception_encoder) | 24.8 | 10.9 | 11.8 | 10.4 | 2.4x | 1.1x | 632 | 604 | 646 |
-| [`pe-core-t16-384`](../models/features.md#perception_encoder) | 16.3 | 7.38 | 7.95 | 7.25 | 2.3x | 1.0x | 406 | 379 | 388 |
-| [`pe-spatial-b16-512`](../models/features.md#perception_encoder) | 47.1 | 19.2 | 19.0 | 16.1 | 2.9x | 1.2x | 1353 | 1484 | 1486 |
-| [`pe-spatial-g14-448`](../models/features.md#perception_encoder) | 645 | 374 | 288 | 258 | 2.5x | 1.1x | 16536 | 17726 | 17724 |
-| [`pe-spatial-l14-448`](../models/features.md#perception_encoder) | 106 | 68.1 | 68.7 | 57.6 | 1.8x | 1.2x | 4453 | 4426 | 4429 |
-| [`pe-spatial-s16-512`](../models/features.md#perception_encoder) | 24.2 | 9.86 | 10.5 | 8.31 | 2.9x | 1.2x | 608 | 580 | 590 |
-| [`pe-spatial-t16-512`](../models/features.md#perception_encoder) | 16.4 | 6.90 | 7.47 | 5.94 | 2.8x | 1.2x | 402 | 375 | 383 |
-| [`siglip2-b16-256`](../models/features.md#siglip2) | 34.1 | 17.2 | 15.8 | unsupported | – | – | 1432 | 1563 | – |
-| [`siglip2-b16-512`](../models/features.md#siglip2) | 51.1 | 17.2 | 15.8 | unsupported | – | – | 1439 | 1574 | – |
-| [`siglip2-g16-256`](../models/features.md#siglip2) | 227 | 180 | 143 | unsupported | – | – | 11991 | 13674 | – |
-| [`siglip2-g16-384`](../models/features.md#siglip2) | 278 | 180 | 142 | unsupported | – | – | 11329 | 13640 | – |
-| [`siglip2-l16-256`](../models/features.md#siglip2) | 90.5 | 50.0 | 45.9 | unsupported | – | – | 4541 | 4516 | – |
-| [`siglip2-l16-512`](../models/features.md#siglip2) | 114 | 50.3 | 45.5 | unsupported | – | – | 4549 | 4524 | – |
-| [`siglip2-so400m14-224`](../models/features.md#siglip2) | 92.5 | 75.8 | 70.2 | unsupported | – | – | 5572 | 5545 | – |
-| [`siglip2-so400m14-378`](../models/features.md#siglip2) | 117 | 75.9 | 68.6 | unsupported | – | – | 5579 | 5553 | – |
-| [`siglip2-so400m16-256`](../models/features.md#siglip2) | 89.3 | 65.7 | 57.5 | unsupported | – | – | 5574 | 5546 | – |
-| [`siglip2-so400m16-512`](../models/features.md#siglip2) | 118 | 66.2 | 56.8 | unsupported | – | – | 5580 | 5556 | – |
+| [`pe-core-b16-224`](../models/features.md#perception_encoder) | 25.2 | 19.8 | 20.1 | 16.7 | 1.5x | 1.2x | 1440 | 1059 | 1215 |
+| [`pe-core-g14-448`](../models/features.md#perception_encoder) | 639 | 369 | 367 | 313 | 2.0x | 1.2x | 16765 | 10793 | 11495 |
+| [`pe-core-l14-336`](../models/features.md#perception_encoder) | 102 | 69.3 | 69.4 | 58.5 | 1.7x | 1.2x | 4553 | 3314 | 3319 |
+| [`pe-core-s16-384`](../models/features.md#perception_encoder) | 24.8 | 10.4 | 11.0 | 8.80 | 2.8x | 1.2x | 632 | 517 | 557 |
+| [`pe-core-t16-384`](../models/features.md#perception_encoder) | 16.3 | 7.43 | 7.94 | 10.6 | 1.5x | 0.7x | 406 | 362 | 368 |
+| [`pe-spatial-b16-512`](../models/features.md#perception_encoder) | 47.1 | 19.4 | 19.4 | 16.0 | 2.9x | 1.2x | 1353 | 1160 | 1158 |
+| [`pe-spatial-g14-448`](../models/features.md#perception_encoder) | 645 | 376 | 1484 | 2966 | 0.2x | 0.1x | 16536 | 9688 | 11039 |
+| [`pe-spatial-l14-448`](../models/features.md#perception_encoder) | 106 | 70.8 | 83.0 | 69.8 | 1.5x | 1.0x | 4453 | 3265 | 3273 |
+| [`pe-spatial-s16-512`](../models/features.md#perception_encoder) | 24.2 | 12.8 | 12.8 | 8.97 | 2.7x | 1.4x | 608 | 500 | 509 |
+| [`pe-spatial-t16-512`](../models/features.md#perception_encoder) | 16.4 | 7.39 | 8.41 | 6.21 | 2.6x | 1.2x | 402 | 360 | 365 |
+| [`siglip2-b16-256`](../models/features.md#siglip2) | 34.1 | 20.7 | 16.9 | unsupported | – | – | 1432 | 1213 | – |
+| [`siglip2-b16-512`](../models/features.md#siglip2) | 51.1 | 18.8 | 16.5 | unsupported | – | – | 1439 | 1218 | – |
+| [`siglip2-g16-256`](../models/features.md#siglip2) | 227 | 201 | 148 | unsupported | – | – | 11991 | 8847 | – |
+| [`siglip2-g16-384`](../models/features.md#siglip2) | 278 | 181 | 143 | unsupported | – | – | 11329 | 9238 | – |
+| [`siglip2-l16-256`](../models/features.md#siglip2) | 90.5 | 50.9 | 45.9 | unsupported | – | – | 4541 | 3307 | – |
+| [`siglip2-l16-512`](../models/features.md#siglip2) | 114 | 51.8 | 45.6 | unsupported | – | – | 4549 | 3314 | – |
+| [`siglip2-so400m14-224`](../models/features.md#siglip2) | 92.5 | 75.8 | 70.2 | unsupported | – | – | 5572 | 3909 | – |
+| [`siglip2-so400m14-378`](../models/features.md#siglip2) | 117 | 76.0 | 68.9 | unsupported | – | – | 5579 | 3915 | – |
+| [`siglip2-so400m16-256`](../models/features.md#siglip2) | 89.3 | 65.5 | 59.0 | unsupported | – | – | 5574 | 3912 | – |
+| [`siglip2-so400m16-512`](../models/features.md#siglip2) | 118 | 65.5 | 57.2 | unsupported | – | – | 5580 | 3917 | – |
 | [`tipsv2-b14`](../models/features.md#tipsv2) | 31.7 | 25.9 | 24.0 | unsupported | – | – | 930 | 777 | – |
 | [`tipsv2-l14`](../models/features.md#tipsv2) | 78.5 | 72.3 | 61.7 | unsupported | – | – | 3149 | 1574 | – |
 
@@ -725,9 +725,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| [`flowformer-small-chairs`](../models/flow.md#flowformer) | OOM | 25199 | 17028 | unsupported | – | – | – | – | 5818 | – |
-| [`flowformer-small-sintel`](../models/flow.md#flowformer) | OOM | 25087 | 18139 | unsupported | – | – | – | – | 4793 | – |
-| [`flowformer-small-things`](../models/flow.md#flowformer) | OOM | 26660 | 17596 | unsupported | – | – | – | – | 4793 | – |
+| [`flowformer-small-chairs`](../models/flow.md#flowformer) | OOM | 25589 | 17074 | unsupported | – | – | – | – | 4797 | – |
+| [`flowformer-small-sintel`](../models/flow.md#flowformer) | OOM | 25282 | 17045 | unsupported | – | – | – | – | 5821 | – |
+| [`flowformer-small-things`](../models/flow.md#flowformer) | OOM | 25313 | 17023 | unsupported | – | – | – | – | 5822 | – |
 | [`flowseek-t`](../models/flow.md#flowseek) | OOM | 2787 | 2756 | unsupported | – | – | – | – | 8660 | – |
 | [`flowseek-t-things`](../models/flow.md#flowseek) | OOM | 2703 | 2757 | unsupported | – | – | – | – | 10686 | – |
 | [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | OOM | 2694 | 2750 | unsupported | – | – | – | – | 10687 | – |
@@ -769,8 +769,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`waft-a1-kitti`](../models/flow.md#waft) | OOM | 8502 | 7384 | unsupported | unsupported | – | – | – | 7187 | – |
 | [`waft-a1-sintel`](../models/flow.md#waft) | OOM | 8835 | 7430 | unsupported | unsupported | – | – | – | 7187 | – |
 
-Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
+Note: the card has no kernels mode.
 
 ## Matching
 
