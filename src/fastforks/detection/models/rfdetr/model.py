@@ -192,8 +192,25 @@ class Kernels(Portable):
         self.graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`fastforks.shared.rfdetr.mlx_net`)."""
+
+    module = Runner.module  # the network is MLX, not an exportable PyTorch module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network (float32, CPU) and copy its weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.rfdetr import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_net.MlxRFDETR(self.net, mlx_wrap.run_dtype(ctx), MEAN, STD)
+        del self.net  # the PyTorch twin: only its weights were needed
+
+    def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        return self.mlx(image)  # float32 CPU tensors
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
