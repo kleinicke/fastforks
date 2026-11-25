@@ -227,16 +227,32 @@ class Kernels(Runner):
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network on the CPU, convert it to fp16, move it to the device."""
+        """Build the network on the CPU and install its fp16 weights."""
         super().__init__(ctx)
         vit = _network(ctx)
         _init(self, vit)
-        # fp16 in place on the CPU first: an fp32 copy on the device stays reserved by the caching allocator
+        # A resident official ViT-g can convert and transfer its tensors one at a time, bounding CPU fp16 staging.
+        weight_device = (
+            ctx.device
+            if ctx.device.type == "cuda"
+            and ctx.params.arch == "vitg"
+            and not ctx.params.stream
+            and ctx.user_weights is None
+            and ctx.user_state is None
+            else None
+        )
         self.fast = _FastDinov2(
-            vit, _KERNELS_ATTN[ctx.params.arch], None, swiglu=True, fused=dpt_fused.load(ctx.device)
+            vit,
+            _KERNELS_ATTN[ctx.params.arch],
+            None,
+            swiglu=True,
+            fused=dpt_fused.load(ctx.device),
+            weight_device=weight_device,
         )
         self.staged = self.fast.stage_blocks(ctx.device) if ctx.params.stream else None
-        self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
+        if weight_device is None:
+            vit.to(ctx.device)
+        self.fast.pos_fp32 = self.fast.pos_fp32.to(ctx.device)
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
         self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS, enabled=self.staged is None)
 

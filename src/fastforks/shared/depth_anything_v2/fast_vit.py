@@ -74,6 +74,7 @@ class FastViT:
         swiglu: bool = False,
         cache_pos: bool = True,
         fused: DptFused | None = None,
+        weight_device: torch.device | None = None,
     ) -> None:
         """Check the structure, keep the fp32 position table, convert the ViT to fp16 in place.
 
@@ -82,6 +83,7 @@ class FastViT:
         table is interpolated in fp32 on each call, as upstream on an fp16 model).
         `fused`: run the block GEMMs of large calls (`FUSED_ROWS`) with the `dpt_fused` epilogues (bias, GELU,
         LayerScale in fp32 + residual, in place): fewer launches, no FFN-output temporaries.
+        `weight_device`: convert and transfer each tensor in one operation for a resident model.
         """
         if vit.embed_dim % vit.num_heads or vit.embed_dim // vit.num_heads != HEAD_DIM:
             msg = f"fast ViT needs head_dim {HEAD_DIM}, got {vit.embed_dim}/{vit.num_heads}"
@@ -101,7 +103,7 @@ class FastViT:
         self.blocks: list[Any] = blocks
         self.cache_pos = cache_pos  # upstream interpolates the fp32 table (unused without the cache)
         self.pos_fp32 = vit.pos_embed.detach().float().clone() if cache_pos else torch.empty(0)
-        self.vit = vit.half().eval()
+        self.vit = (vit.half() if weight_device is None else vit.to(device=weight_device, dtype=torch.float16)).eval()
         self.attn, self.out_dtype = Flash64(attn), out_dtype  # ValueError on an unknown variant
         self._pos: dict[tuple[int, int], torch.Tensor] = {}
         self.fused = fused
