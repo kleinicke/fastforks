@@ -28,13 +28,13 @@ upstream = "https://github.com/zhengchen1999/DAT@1645c64fad7c94d94abd090bd1319ee
 settings = "CPU float32, dat_model.py test: net_g(img) (no chop), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."dat-2-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@6fb23d8a9b3e:sm_120"]
-symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_240" = "62501dd9da2b448c"}}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@3049893632b0:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_180" = "9e3bd4ffc727d9c3", "sr_norm_torch_240" = "688f7caa0d704364"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
 mean_px = 0.00061
-p99_px = 0.00228
+p99_px = 0.0023
 
 [validated."dat-2-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
@@ -46,8 +46,8 @@ mean_px = 0.00063
 p99_px = 0.00234
 
 [validated."dat-light-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@6fb23d8a9b3e:sm_120"]
-symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_240" = "62501dd9da2b448c"}}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@3049893632b0:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_180" = "9e3bd4ffc727d9c3", "sr_norm_torch_240" = "688f7caa0d704364"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
@@ -64,13 +64,13 @@ mean_px = 0.00051
 p99_px = 0.00195
 
 [validated."dat-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@6fb23d8a9b3e:sm_120"]
-symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_240" = "62501dd9da2b448c"}}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120", "sr_norm@3049893632b0:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_180" = "9e3bd4ffc727d9c3", "sr_norm_torch_240" = "688f7caa0d704364"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
 mean_px = 0.00048
-p99_px = 0.00179
+p99_px = 0.00178
 
 [validated."dat-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]

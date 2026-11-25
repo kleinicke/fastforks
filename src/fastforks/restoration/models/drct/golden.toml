@@ -20,13 +20,13 @@ upstream = "https://github.com/ming053l/DRCT@c0a8b51e69241cf7f8ae598053235ff4985
 settings = "CPU float32, drct_model.py test: reflect padding to a multiple of 16, net_g_ema(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."drct-l-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400", "shift_windows@d57cff0f9bed:sm_120", "sr_norm@6fb23d8a9b3e:sm_120"]
-symbols = {"shift_windows" = {"name" = "606af23b5a3af251", "pack_dense_windows2" = "5c4bc8d3da0f3ca0", "reverse_add2" = "606af23b5a3af251", "reverse_add4" = "606af23b5a3af251", "scatter_windows2" = "2f184d86f0da930f", "stream_window2" = "606af23b5a3af251", "window1" = "c2ca630a9394b631", "window2" = "383e57723bb1e9a9", "window8" = "34b9a473f23a1821", "window_cab_residual2" = "a67236ceea44f23a"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_240" = "62501dd9da2b448c"}}
+kernels = ["cudnn_hacc@cudnn92400", "shift_windows@d57cff0f9bed:sm_120", "sr_norm@3049893632b0:sm_120"]
+symbols = {"shift_windows" = {"name" = "606af23b5a3af251", "pack_dense_windows2" = "5c4bc8d3da0f3ca0", "reverse_add2" = "606af23b5a3af251", "reverse_add4" = "606af23b5a3af251", "scatter_windows2" = "2f184d86f0da930f", "stream_window2" = "606af23b5a3af251", "window1" = "c2ca630a9394b631", "window2" = "383e57723bb1e9a9", "window8" = "34b9a473f23a1821", "window_cab_residual2" = "a67236ceea44f23a"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_180" = "9e3bd4ffc727d9c3", "sr_norm_torch_240" = "688f7caa0d704364"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
 mean_px = 0.00047
-p99_px = 0.00176
+p99_px = 0.00175
 
 [validated."drct-l-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "shift_windows@93b499de1dba:sm_120"]
@@ -38,13 +38,13 @@ mean_px = 0.00047
 p99_px = 0.00174
 
 [validated."drct-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400", "shift_windows@d57cff0f9bed:sm_120", "sr_norm@6fb23d8a9b3e:sm_120"]
-symbols = {"shift_windows" = {"name" = "606af23b5a3af251", "pack_dense_windows2" = "5c4bc8d3da0f3ca0", "reverse_add2" = "606af23b5a3af251", "reverse_add4" = "606af23b5a3af251", "scatter_windows2" = "2f184d86f0da930f", "stream_window2" = "606af23b5a3af251", "window1" = "c2ca630a9394b631", "window2" = "383e57723bb1e9a9", "window8" = "34b9a473f23a1821", "window_cab_residual2" = "a67236ceea44f23a"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_240" = "62501dd9da2b448c"}}
+kernels = ["cudnn_hacc@cudnn92400", "shift_windows@d57cff0f9bed:sm_120", "sr_norm@3049893632b0:sm_120"]
+symbols = {"shift_windows" = {"name" = "606af23b5a3af251", "pack_dense_windows2" = "5c4bc8d3da0f3ca0", "reverse_add2" = "606af23b5a3af251", "reverse_add4" = "606af23b5a3af251", "scatter_windows2" = "2f184d86f0da930f", "stream_window2" = "606af23b5a3af251", "window1" = "c2ca630a9394b631", "window2" = "383e57723bb1e9a9", "window8" = "34b9a473f23a1821", "window_cab_residual2" = "a67236ceea44f23a"}, "sr_norm" = {"sr_norm4_v1" = "2f5e5d15a300d5b8", "sr_norm4_v2" = "481d60873ec516e3", "sr_norm4_v4" = "28e219a788a8afbf", "sr_norm4_v8" = "859f6b9cfab36ae4", "sr_norm8_v1" = "a49b76e55b30b471", "sr_norm8_v2" = "4436503a3db9e8e0", "sr_norm8_v4" = "e7bfd5af561a7159", "sr_norm8_v8" = "0b23cbbcd9827c11", "sr_norm_torch_180" = "9e3bd4ffc727d9c3", "sr_norm_torch_240" = "688f7caa0d704364"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
 mean_px = 0.00044
-p99_px = 0.00159
+p99_px = 0.0016
 
 [validated."drct-x4@1".windows]
 kernels = ["cudnn_hacc@cudnn92400", "shift_windows@93b499de1dba:sm_120"]

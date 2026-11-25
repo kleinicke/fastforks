@@ -64,16 +64,17 @@ __device__ __forceinline__ void torch_output(uint2* out, uint2 values, const uin
     out[i] = packed;
 }
 
+template <int channels>
 __device__ __forceinline__ float torch_inverse_std(float3 m, float eps) {
     // PyTorch's channel count is dynamic and its division rounds to FP32.
-    return rsqrtf(__fdiv_rn(m.y, 240.0f) + eps);
+    return rsqrtf(__fdiv_rn(m.y, static_cast<float>(channels)) + eps);
 }
 
-extern "C" __global__ __launch_bounds__(256) void
-sr_norm_torch_240(const uint2* __restrict__ x, const uint2* __restrict__ alpha, const uint2* __restrict__ beta,
-                  uint2* __restrict__ y, long long rows, float eps) {
-    constexpr int vectors = 240 / 4;
-    __shared__ float3 parts[8];
+template <int channels>
+__device__ __forceinline__ void
+torch_norm_two_warps(const uint2* __restrict__ x, const uint2* __restrict__ alpha, const uint2* __restrict__ beta,
+                     uint2* __restrict__ y, long long rows, float eps, float3* parts) {
+    constexpr int vectors = channels / 4;
     const int warp = threadIdx.x / 32;
     const int lane = threadIdx.x % 32;
     const int index = (warp % 2) * 32 + lane;
@@ -81,15 +82,29 @@ sr_norm_torch_240(const uint2* __restrict__ x, const uint2* __restrict__ alpha, 
     const bool valid = row < rows && index < vectors;
     const uint2 values = valid ? x[row * vectors + index] : uint2{};
     const float3 part = torch_warp_moments(valid ? torch_moments(values) : float3{});
-    // Two Torch warps are empty at 240 channels. Preserve their merges before combining the occupied pair.
+    // Two Torch warps are empty. Preserve their merges before combining the occupied pair.
     if (lane == 0)
         parts[warp] = torch_merge(part, {});
     __syncthreads();
     if (!valid)
         return;
     const float3 total = torch_merge(parts[warp & ~1], parts[warp | 1]);
-    const float inv = torch_inverse_std(total, eps);
+    const float inv = torch_inverse_std<channels>(total, eps);
     torch_output(y + row * vectors, values, alpha, beta, index, total.x, inv);
+}
+
+extern "C" __global__ __launch_bounds__(256) void
+sr_norm_torch_240(const uint2* __restrict__ x, const uint2* __restrict__ alpha, const uint2* __restrict__ beta,
+                  uint2* __restrict__ y, long long rows, float eps) {
+    __shared__ float3 parts[8];
+    torch_norm_two_warps<240>(x, alpha, beta, y, rows, eps, parts);
+}
+
+extern "C" __global__ __launch_bounds__(256) void
+sr_norm_torch_180(const uint2* __restrict__ x, const uint2* __restrict__ alpha, const uint2* __restrict__ beta,
+                  uint2* __restrict__ y, long long rows, float eps) {
+    __shared__ float3 parts[8];
+    torch_norm_two_warps<180>(x, alpha, beta, y, rows, eps, parts);
 }
 
 template <int VPT, int VW, typename Vec>

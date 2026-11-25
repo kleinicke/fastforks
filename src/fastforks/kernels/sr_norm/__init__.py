@@ -6,9 +6,9 @@ import torch
 
 from fastforks._core.kernels import cubin_library
 
-TORCH_ORDER_CHANNELS = 240
+TORCH_ORDER_CHANNELS = (180, 240)
 SIGNATURES = {f"sr_norm{width}_v{vectors}": "pppplifi" for width in (4, 8) for vectors in (1, 2, 4, 8)}
-SIGNATURES["sr_norm_torch_240"] = "pppplf"
+SIGNATURES.update({f"sr_norm_torch_{width}": "pppplf" for width in TORCH_ORDER_CHANNELS})
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 
@@ -58,12 +58,13 @@ def layer_norm(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: f
     return out
 
 
-def layer_norm_240(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: float) -> torch.Tensor:
-    """Apply PyTorch's aligned FP16 LayerNorm reduction to prechecked 240-channel rows."""
-    rows = x.numel() // TORCH_ORDER_CHANNELS
+def layer_norm_ordered(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: float) -> torch.Tensor:
+    """Apply PyTorch's aligned FP16 LayerNorm reduction to prechecked rows."""
+    width = x.shape[-1]
+    rows = x.numel() // width
     out = torch.empty_like(x)
     if rows:
         load(x.device).launch(
-            "sr_norm_torch_240", ((rows + 3) // 4, 1, 1), (256, 1, 1), x, weight, bias, out, rows, eps
+            f"sr_norm_torch_{width}", ((rows + 3) // 4, 1, 1), (256, 1, 1), x, weight, bias, out, rows, eps
         )
     return out

@@ -139,7 +139,7 @@ Platforms, Inc. and affiliates) as modified by the HQ-SAM team (image encoder th
 
 ## PyTorch LayerNorm (BSD-3-Clause)
 
-The `sr_norm` library's width-240 CUDA reduction follows the vectorized LayerNorm in PyTorch at
+The `sr_norm` library's 180- and 240-channel CUDA reductions follow the vectorized LayerNorm in PyTorch at
 [5c4886908584029761b579af026dcfb627c84070](https://github.com/pytorch/pytorch/blob/5c4886908584029761b579af026dcfb627c84070/aten/src/ATen/native/cuda/layer_norm_kernel.cu).
 
 ```text

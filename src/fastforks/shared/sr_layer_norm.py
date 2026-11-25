@@ -16,7 +16,7 @@ def _aligned_half(x: torch.Tensor, affine: torch.Tensor) -> bool:
 
 
 def _layer_norm(m: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
-    torch_order = m.normalized_shape == (sr_norm.TORCH_ORDER_CHANNELS,)
+    torch_order = len(m.normalized_shape) == 1 and m.normalized_shape[0] in sr_norm.TORCH_ORDER_CHANNELS
     if (
         x.is_cuda
         and x.dtype == torch.float16
@@ -32,7 +32,7 @@ def _layer_norm(m: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
             return sr_norm.layer_norm(x, m.get_buffer("_sr_weight"), m.get_buffer("_sr_bias"), m.eps)
         weight, bias = m.weight, m.bias
         if weight is not None and bias is not None and _aligned_half(x, weight) and _aligned_half(x, bias):
-            return sr_norm.layer_norm_240(x, weight, bias, m.eps)
+            return sr_norm.layer_norm_ordered(x, weight, bias, m.eps)
     return nn.LayerNorm.forward(m, x)
 
 
@@ -47,7 +47,7 @@ def fast_layer_norm(net: nn.Module, device: torch.device) -> None:
             and len(m.normalized_shape) == 1
             and sr_norm.supported(m.normalized_shape[0])
         ):
-            if m.normalized_shape != (sr_norm.TORCH_ORDER_CHANNELS,):
+            if m.normalized_shape[0] not in sr_norm.TORCH_ORDER_CHANNELS:
                 m.register_buffer("_sr_weight", m.weight.detach().float(), persistent=False)
                 m.register_buffer("_sr_bias", m.bias.detach().float(), persistent=False)
             override(m, _layer_norm)

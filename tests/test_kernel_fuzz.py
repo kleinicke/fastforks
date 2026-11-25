@@ -441,15 +441,16 @@ def test_restoration_row_layer_norm(dev, seed, record_property):
         _cmp(record_property, "restoration row LayerNorm", got, expected, 5e-3, mag=mag, shape=[rows, channels])
 
 
-def test_restoration_240_layer_norm_fp16_rounding(dev):
+@pytest.mark.parametrize("channels", [180, 240])
+def test_restoration_layer_norm_fp16_rounding(dev, channels):
     """Low-variance, shifted rows keep the exact CUDA PyTorch FP16 result."""
-    rows, channels = 821, 240
+    rows = 821
     generator = _gen(8390)
     x = (_randn(generator, rows * channels + 4) * 0.003 - 7).to(dev).half()[4:].view(rows, channels)
     w, b = (_randn(generator, channels).to(dev).half() for _ in range(2))
     eps = 1e-5 / 64**2
     expected = F.layer_norm(x, (channels,), w, b, eps)
-    actual = sr_norm.layer_norm_240(x, w, b, eps)
+    actual = sr_norm.layer_norm_ordered(x, w, b, eps)
     assert torch.equal(actual.view(torch.int16), expected.view(torch.int16))
 
 
