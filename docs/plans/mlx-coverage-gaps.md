@@ -522,7 +522,8 @@ RealPLKSR (`restoration/models/realplksr/mlx_ops.py`):
   32 / 384: 1307, 1577; 32 / 256: 1397, 1486; 16 / 256: 1591, 1356; 32 / 384 / 128: 1355, 1559;
   32 / 256 / 128: 1484, 1496; 32 / 512 / 512: 1235, 1751. The warm active MLX peak is 862 MB (789 MB with
   `FF_BAND_MB=48` and a 64 MB chunk, at 1078 ms), so the footprint is the base, that peak and the cache.
-- Left: lower the active peak of the Winograd convs at 4x-upsampled width, group norm (about 3 ms x 28). The
+- Left: lower the active peak of the Winograd convs at 4x-upsampled width (re-swept 2026-11-25 with smaller PLK bands
+  and graph chunks, nothing on both axes: "Done: MLX memory peaks" below), group norm (about 3 ms x 28). The
   1x1-as-GEMM rule is off for the kernels port (`gemm1x1=False`): its float16 golden sits on its limit (p99 0.00180
   of 0.0018) and the GEMM's differently rounded result lands at 0.00181, for 1034 to 991 ms.
 
@@ -1106,8 +1107,8 @@ convolutions 4 x 18.5, the `_stack` kernels ~31, the `_up` kernels ~8 (were 81),
 Left:
 
 - EMA-VFI's peak is above the exported graph's (ema-vfi fp16 3386 against 2770 MB, small 1930 against 1587; half
-  of MPS). The phase layout of the transposed convolutions (four times the channels until `_up` reads it) and the
-  padded `_stack` outputs are the candidates; not profiled.
+  of MPS). Profiled since: it is the single `mx.compile` evaluated in one piece, not the phase layout ("Done: MLX
+  memory peaks" below); kept, since splitting it costs 3.5-6% warm time.
 - EMA-VFI is convolution bound now. The 2x2 phase convolutions and the stride-2 ones are not
   MLX's Winograd path; `conv_mlx` was not tried on them.
 - RIFE's two kernels are still a thread per pixel (the work there is the flow accumulation, not the channel
@@ -1355,10 +1356,11 @@ rows need no code change beyond the region-order twin and the hand-written Sapie
 
 Left:
 
-- OneFormer / Mask2Former peak is 0.6-1.1 GB above the exported graph (3.3-3.8 GB against 2.3-2.8 GB), still 35-60%
-  below MPS. Part of it is the 1 GB MLX buffer cache the runner requests (`CACHE_MB`); lowering it was not tried.
-- gmflow-scale2 / regrefine6: the first call is 0.5-1.3 s above MPS's (well inside the auto budget); peak memory is
-  6.4-6.8 GB, the 1080x1920 global matching volume. Not profiled further.
+- OneFormer / Mask2Former: done, the buffer cache is 256 MB (float16) / 512 MB (float32) instead of 1 GB, 0.4-0.8 GB
+  less peak ("Done: MLX memory peaks" below).
+- gmflow-scale2 / regrefine6: done, the peak was not the global matching volume but the scale-2 local lookup, which
+  the MLX export now records in chunks (6.4-6.8 GB to 2.6-2.9 GB, "Done: MLX memory peaks" below). The first call is
+  0.5-1.3 s above MPS's (well inside the auto budget).
 
 ### Done: LoFTR (2026-11-25)
 
@@ -1505,6 +1507,100 @@ its translation and compiles were 1.5-3 s of each first call. Now each network i
   128 -> 128 encoder convs (MLX's half Winograd misses the golden there).
 
 Left: the Spring variants' 512 MB buffer cache was tuned on the exported port; not re-tuned.
+
+### Done: MLX memory peaks (2026-11-25)
+
+M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /
+first call s / peak footprint MB, float16 then float32; the best MPS row is the one with the lowest peak (all
+float16 portable).
+
+| ref | MLX before | MLX now | best MPS peak |
+|---|---|---|---|
+| oneformer-swinl-ade20k | 812 / 0.88 / 3354, 919 / 1.01 / 3838 | 824 / 0.90 / 2587, 924 / 1.06 / 3339 | 1161 / 1.38 / 5559 |
+| mask2former-swinl-ade20k | 596 / 0.65 / 2907, 672 / 0.72 / 3451 | 607 / 0.68 / 2149, 692 / 0.87 / 3017 | 964 / 1.17 / 4503 |
+| gmflow-scale2-things | 4146 / 6.66 / 6363, 5932 / 8.44 / 6408 | 4167 / 6.83 / 2554, 5990 / 8.73 / 2605 | 5982 / 6.28 / 9577 |
+| gmflow-scale2-mixdata | 4097 / 6.57 / 6369, 5903 / 8.84 / 6408 | 4132 / 6.80 / 2559, 5997 / 8.77 / 2586 | 6039 / 5.90 / 9667 |
+| gmflow-scale2-sintel | 4115 / 6.51 / 6357, 5917 / 8.64 / 6446 | 4129 / 6.90 / 2494, 5979 / 8.81 / 2648 | 5725 / 5.89 / 9669 |
+| gmflow-scale2-regrefine6-things | 7460 / 11.10 / 6663, 10122 / 13.19 / 6770 | 6487 / 11.48 / 2834, 9869 / 14.76 / 2884 | 11300 / 11.28 / 9692 |
+| gmflow-scale2-regrefine6-kitti | 7413 / 10.92 / 6732, 9992 / 13.30 / 6724 | 6520 / 11.55 / 2791, 9845 / 15.65 / 2879 | 10998 / 10.95 / 9696 |
+| gmflow-scale2-regrefine6-mixdata | 7455 / 10.73 / 6636, 10070 / 13.20 / 6754 | 6693 / 11.44 / 2789, 9804 / 14.69 / 2899 | 11156 / 11.01 / 9694 |
+| gmflow-scale2-regrefine6-sintelft | 7371 / 10.48 / 6700, 9905 / 13.06 / 6777 | 6491 / 12.44 / 2788, 9787 / 14.55 / 2877 | 10867 / 10.99 / 9689 |
+| gmflow-scale1-mixdata (stale 11-23 row) | 4340 / 6.87 / 12170, 6050 / 8.98 / 11850 | 1820 / 3.19 / 1699, 2482 / 4.00 / 1781 | 2904 / 2.89 / 7113 |
+| realplksr-nomoswebphoto-x4 kernels | 1020 / 2.69 / 1923 | unchanged | 1092 / 1.30 / 1368 |
+| ema-vfi | 1320 / – / 3386, 1741 / – / 4648 | unchanged | 1981 / 2.47 / 6883 |
+| ema-vfi-small | 426 / – / 1930, 538 / – / 2881 | unchanged | 556 / 1.57 / 3587 |
+
+- OneFormer / Mask2Former: the runners requested a 1 GB MLX buffer cache, and the cache is resident memory.
+  `mlx_net.cache_mb` now gives 256 MB for float16 and 512 MB for float32. Same-process sweep, 1024x2048, warm ms /
+  footprint MB at 1024 / 512 / 256 / 128 MB of cache:
+  - OneFormer fp16: 833 / 3370, 837 / 2895, 845 / 2605, 845 / 2481.
+  - OneFormer fp32: 952 / 3790, 958 / 3338, 992 / 3053, 1150 / 2902.
+  - Mask2Former fp16: 607 / 2945, 608 / 2454, 613 / 2190, 620 / 2018.
+  - Mask2Former fp32: 715 / 3530, 713-777 / 3000, 741-841 / 2678, 794-836 / 2550.
+
+  float32 slows sooner as the cache shrinks, hence 512 MB there. The cost is 1-2% warm time, and the peak falls by
+  0.4-0.8 GB.
+- GMFlow scale 2 / regrefine6: the 6.4-6.8 GB peak was the scale-2 local lookup, not the global matching. CUDA / MPS
+  eager already chunks its `grid_sample` at 256 MB, but the MLX export recorded it in one piece: 5.4 GB of float32
+  samples at 1080x1920. Matching runs in float32 for both dtypes. `_local_correlation` now chunks during the export
+  too, with a budget per caller:
+  - 256 MB for the scale-2 lookup (`local_correlation_softmax`, once).
+  - 128 MB for the refinement (`local_correlation_with_flow`, six times).
+
+  Same-process sweep, fp16 / fp32 warm ms:
+  - scale2-things: 4069 / 5942 at 256 MB, 4155 / 6176 at 128, 4189 / 5936 whole.
+  - regrefine6-things: 6395 / 9878 with the split, 7439 / 9907 with 256 for both, 7655 / 10182 whole.
+
+  The peak falls to 2.5-2.9 GB. regrefine6 float16 is also 0.9 s faster. The cost is the first call: up to 0.4 s more
+  for scale2 and 0.4-2.4 s more for regrefine6, because the trace holds more chunks. That is well inside the auto
+  budget (MPS first call 11 s plus 2 x 11 s warm). The eager CUDA / MPS chunking is unchanged.
+- EMA-VFI: profiled, not changed. Per op, eager MLX peaks are at most about 2.4 GB:
+  - MLX's conv workspace at 544x960x128: 394 MB.
+  - The backbone convolutions at 272x480x128: 200-230 MB.
+  - The attention's concatenates: about 270 MB.
+
+  The single `mx.compile` evaluated in one piece reaches 3.56 GB of MLX peak. Compiling the network in two stages with
+  a synchronous evaluation between them cuts the float16 footprint from 3.6-4.0 GB to about 3.0 GB, for 3.5% warm time
+  (1318-1336 to 1365-1386 ms); ema-vfi-small loses 6%. float32 stays at about 4.9 GB. Splitting without a sync, or
+  `mx.async_eval` barriers, saves nothing. It was not adopted: the peak is already half of MPS's.
+- RealPLKSR kernels fp16: re-swept, nothing found that is lean and fast at once. PLK band MB / graph chunk MB / cache MB
+  to warm ms and footprint MB:
+  - 192 / 256 / 1024 (default): 1001-1007, 1922-1953.
+  - 96 / 128 / 1024: 1026-1030, 1851-1920.
+  - 48 / 64 / 1024: 1089-1113, 1776-1803.
+  - 48 / 128 / 896: 1087-1108, 1820-1836.
+  - 96 / 256 / 768: 1107-1110, 1873.
+  - 48 / 64 / 768: 1187-1193, 1715-1726.
+
+  The speed comes from the 1 GB cache, which is resident, so MPS's 1092 ms and its 1368 MB cannot both be had. Portable
+  float16 (1215 MB) is the lean mode.
+
+MLX rows whose peak is above the best MPS peak (the fastest MLX row of each ref and size against the leanest MPS row,
+in MB above it; 51 rows, gmflow-scale1-mixdata dropped out):
+
+- Excluded from this pass (the depth family): stablenormal-turbo +2068, lingbot-depth +702 and lingbot-depth-dc +619
+  (both have a float16 row below MPS), lotus-normal-g / -d +46 / +42.
+- Point tracking:
+  - Above 300 MB: cotracker3-online +771, bootstapir +754, cotracker3-offline +482.
+  - Smaller: locotrack-b +127, tapir +113, track-on2 / track-on-r +38 / +37.
+- Classification and embedding backbones:
+  - Above 300 MB: dinov2_vitl14_lc +690, vit_so400m siglip +574.
+  - 100-300 MB: efficientformer_l7 +211, wd-vit-large-tagger-v3 +200, hgnetv2_b5 +115, deit_base +107,
+    pe-spatial-b16 / s16 +104 / +102, pe-core-s16 / b16 +104 / +99.
+  - Below 100 MB:
+    - tipsv2-l14 +91 (its float16 row is 1038 MB, below MPS)
+    - vgg16 +86, pe-spatial-t16 / pe-core-t16 +77
+    - boq-dinov2 +61, fastvit_sa24 +57, focalnet_small +56, coatnet_rmlp_1 +56
+    - dinov2-vits14 (-reg) +52, coatnet_rmlp_nano +51, coatnet_nano +36, dinov3-vits16 +33, efficientformer_l3 +32
+    - coatnet_rmlp_1_rw2 +31, coatnet_1 +29, davit_tiny +14, tiny_vit_5m +10, coatnet_0 +10, tiny_vit_11m +9,
+      focalnet_tiny +5
+
+  These are mostly the process base: MLX plus torch against torch alone.
+- Other:
+  - totalsegmentator-total-3mm +658 (another agent is on it).
+  - realplksr +555 (above).
+  - gimm-vfi-r +299 and film +276, at 1080p: 12.2 against 11.9 GB and 9.5 against 9.2 GB.
+  - bisenet-face-parsing +167, vitmatte-s +92, parseq-tiny +78, parseq +55.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
