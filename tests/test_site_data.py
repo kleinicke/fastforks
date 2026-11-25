@@ -4,6 +4,75 @@ import json
 from types import SimpleNamespace
 
 import site_data
+from fastforks._core import registry
+
+
+def test_parseq_prefers_word_crop_without_relabeling_page_ocr(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_compile_rows", dict)
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    card, word = registry.resolve_any("parseq")
+    rows = {
+        word.id: [{"input": "32x128", "mode": "portable", "ms": 2}],
+        "ppocrv5-server": [{"input": "1080x1920", "mode": "portable", "ms": 20}],
+    }
+    data = site_data._speed(word, card.task, rows, native=site_data._native_speed_input(card, word))
+    assert data["standard"] == "1080x1920"
+    assert data["preferred"] == "32x128"
+    assert data["inputs"][0]["native"]
+    assert not data["inputs"][0]["standard"]
+
+    card, page = registry.resolve_any("ppocrv5-server")
+    data = site_data._speed(page, card.task, rows, native=site_data._native_speed_input(card, page))
+    assert data["standard"] == data["preferred"] == "1080x1920"
+    assert data["inputs"][0]["standard"]
+    assert not data["inputs"][0]["native"]
+
+
+def test_classification_prefers_measured_native_crop_to_task_standard(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_compile_rows", dict)
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    card, model = registry.resolve_any("coatnet_rmlp_2_rw_384")
+    native = site_data._native_speed_input(card, model)
+    row = {"mode": "portable", "ms": 2}
+    rows = {model.id: [row | {"input": "224x224"}, row | {"input": "384x384"}]}
+    data = site_data._speed(model, card.task, rows, native=native)
+    assert data["preferred"] == "384x384"
+    assert data["standard"] == "224x224"
+    assert [(r["input"], r["standard"], r["native"]) for r in data["inputs"]] == [
+        ("224x224", True, False),
+        ("384x384", False, True),
+    ]
+
+    data = site_data._speed(model, card.task, {model.id: rows[model.id][:1]}, native=native)
+    assert data["preferred"] == "224x224"
+    assert [r["input"] for r in data["inputs"]] == ["224x224"]
+
+
+def test_preferred_speed_falls_back_to_an_existing_input(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_compile_rows", dict)
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    model = SimpleNamespace(id="model")
+    row = {"input": "256x512", "mode": "portable", "ms": 2}
+    assert site_data._speed(model, "segmentation", {model.id: [row]})["preferred"] == "256x512"
+    assert site_data._speed(model, "segmentation", {})["preferred"] is None
+
+
+def test_legacy_original_speed_rows_use_their_recorded_precision(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_compile_rows", dict)
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    model = SimpleNamespace(id="model")
+    rows = {
+        model.id: [
+            {"input": "480x854", "mode": "upstream", "dtype": "float32", "ms": 273},
+            {"input": "480x854", "mode": "upstream", "dtype": "bfloat16", "ms": 203},
+            {"input": "256x256", "mode": "upstream", "ms": 23},
+        ]
+    }
+    data = site_data._speed(model, "tracking", rows)
+    speed = {row["input"]: row["modes"] for row in data["inputs"]}
+    assert speed["480x854"]["original32"] == {"dtype": "float32", "ms": 273}
+    assert speed["480x854"]["original16"] == {"dtype": "bfloat16", "ms": 203}
+    assert speed["256x256"] == {"original16": {"dtype": "float16", "ms": 23}}
 
 
 def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):

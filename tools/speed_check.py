@@ -114,6 +114,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "calibration": "1080x1920",
     "restoration": "512x512",
     "ocr": "1080x1920",
+    "edges": "1080x1920",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",

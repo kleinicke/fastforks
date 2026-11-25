@@ -133,7 +133,8 @@ def _licence(card: ModelCard, v: Variant) -> dict[str, Any]:
 
 def _speed_row(r: dict[str, Any]) -> dict[str, Any]:
     out = {k: r[k] for k in _KEEP_SPEED if k in r}
-    out["dtype"] = _devices.dtype_of(r) if r["mode"] != "upstream" or r.get("dtype") else "float16"
+    dtype = _devices.dtype_of(r)
+    out["dtype"] = "float16" if r["mode"] == "upstream" and dtype == "default" else dtype
     if note := g._note(r):  # noqa: SLF001 - shared docs helper
         out["note"] = note
     if r.get("commit"):
@@ -141,14 +142,32 @@ def _speed_row(r: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any]:
+def _native_speed_input(card: ModelCard, v: Variant) -> str | None:
+    """The input normally shown on a fixed-size model page."""
+    if card.task == "classification" and v.io.crop:
+        return f"{v.io.crop}x{v.io.crop}"
+    if card.task == "ocr" and card.family == "parseq":
+        # PARSeq recognises a single word crop. PP-OCRv5 takes a whole page.
+        return "32x128"
+    return None
+
+
+def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
     rows = speed.get(v.id, [])
     std = g._std_input(task, {})  # noqa: SLF001
     inputs = sorted({r["input"] for r in rows} | g._compiled_inputs(v.id), key=g._pixels)  # noqa: SLF001
+    preferred = next((size for size in (native, std) if size in inputs), inputs[-1] if inputs else None)
     out = []
     for size in inputs:
-        by = {_SPEED_KEY[r["mode"]]: _speed_row(r) for r in rows if r["input"] == size and r["mode"] in _SPEED_KEY}
+        by = {}
+        for r in rows:
+            if r["input"] != size or r["mode"] not in _SPEED_KEY:
+                continue
+            row = _speed_row(r)
+            key = _SPEED_KEY[r["mode"]]
+            # Some historical FP32 rows used `upstream`, including the two LocoTrack checkpoints.
+            by["original32" if key == "original16" and row["dtype"] == "float32" else key] = row
         oom = [_SPEED_KEY[m] for m in _SPEED_KEY if (v.id, m, size) in g._oom()]  # noqa: SLF001
         extra = {}
         for mode in ("compile", "tensorrt"):
@@ -178,8 +197,18 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
             }
         extra |= _pose_parts(v, size)
         scene = next((r.get("scene", "") for r in rows if r["input"] == size), "")
-        out.append({"input": size, "scene": g._scene(scene), "standard": size == std, "modes": by, "oom": oom, **extra})  # noqa: SLF001
-    return {"standard": std, "inputs": out}
+        out.append(
+            {
+                "input": size,
+                "scene": g._scene(scene),  # noqa: SLF001 - shared docs helper
+                "standard": size == std,
+                "native": size == native,
+                "modes": by,
+                "oom": oom,
+                **extra,
+            }
+        )
+    return {"standard": std, "preferred": preferred, "inputs": out}
 
 
 def _pose_parts(v: Variant, size: str) -> dict[str, Any]:
@@ -488,7 +517,7 @@ def _variant(
             if r.tested_max
             else None
         ),
-        "speed": _speed(v, card.task, speed),
+        "speed": _speed(v, card.task, speed, native=_native_speed_input(card, v)),
         "streaming": g.stream_rows().get(v.id, []),
         "devices": _devices_of(v),
         "quality": _quality(card, v, rows),
