@@ -31,7 +31,7 @@ from fastforks.tracking._runner import Forward, Runner
 from .net.track_on import D, Frame, TrackOn2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from fastforks.tracking._runner import Context
 
@@ -87,7 +87,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     params: Params,
     amp: torch.dtype | None,
     *,
-    features: Callable[[torch.Tensor], list[Frame]],
+    features: Callable[[torch.Tensor], Iterable[Frame]],
     step: Callable[[torch.Tensor, torch.Tensor, torch.Tensor, Frame], tuple[torch.Tensor, ...]] | None = None,
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
@@ -153,7 +153,7 @@ class Portable(Runner):
         self.net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
         self.amp = torch.float16 if ctx.dtype == "float16" else None
 
-    def _features(self, video: torch.Tensor) -> list[Frame]:
+    def _features(self, video: torch.Tensor) -> Iterable[Frame]:
         return self.net.features(video)
 
     def _step(  # `TrackOn2.step` with the frame's tensors as arguments: an exportable call
@@ -217,6 +217,9 @@ class Kernels(Portable):
         # the rest of the network kept fp32 weights (requires_grad=False: no autocast weight cache), cast to fp16 by
         # every conv / Linear of every frame; stored in fp16 the outputs are bit-identical (480 x 854: 1128 -> 1101 ms)
         half_weights(self.net, channels_last=False)
+
+    def _features(self, video: torch.Tensor) -> Iterable[Frame]:
+        return self.net.iter_features(video)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor

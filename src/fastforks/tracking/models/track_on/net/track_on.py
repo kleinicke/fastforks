@@ -34,7 +34,7 @@ heads' outputs) are dropped; their parameters stay for strict loading.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -45,6 +45,9 @@ from fastforks._core.mlx_cast import to_float32
 from fastforks._core.tracing import in_onnx_export
 
 from .dinov3 import CONFIGS, PATCH, REGISTERS, DINOv3ViT
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 D = 256  # fixed: upstream args.D
 HEADS = 4  # fixed: Track_On2 nhead
@@ -400,6 +403,7 @@ class Frame:
     value: torch.Tensor  # the 4 levels concatenated (deformable attention value)
     unit: list[torch.Tensor]  # L2-normalised levels `[P_l, D]` (correlation)
     fused: torch.Tensor
+    correlation_map: torch.Tensor | None = None
 
 
 class RerankModule(nn.Module):
@@ -460,19 +464,22 @@ class TrackOn2(nn.Module):
 
     def features(self, video: torch.Tensor) -> list[Frame]:
         """Per-frame features of `[B, 3, H, W]` in `[0, 1]` (resized to the network size, bilinear)."""
+        return list(self.iter_features(video))
+
+    def iter_features(self, video: torch.Tensor) -> Iterator[Frame]:
+        """Yield each frame's decoder inputs after one batched backbone pass."""
         if tuple(video.shape[-2:]) != self.size:
             video = F.interpolate(video, self.size, mode="bilinear", align_corners=False)
         maps = self.backbone(video)
         fused = self.fpn(*maps).flatten(2).transpose(1, 2)
         levels = [m.flatten(2).transpose(1, 2) for m in maps]
         level_sizes = [level.shape[1] for level in levels]
-        out = []
         for b in range(video.shape[0]):
             lv = [lvl[b : b + 1] for lvl in levels]
             unit = [F.normalize(lvl[0].float(), dim=-1) for lvl in lv]
             value = torch.cat(lv, 1)
-            out.append(Frame(list(value.split(level_sizes, dim=1)), value, unit, fused[b : b + 1]))
-        return out
+            yield Frame(list(value.split(level_sizes, dim=1)), value, unit, fused[b : b + 1])
+            del lv, unit, value
 
     def sample(self, frame: Frame, xy: torch.Tensor) -> torch.Tensor:
         """Query features `[N, D]` at `xy` `[N, 2]` in `[0, 1]` (edge-aligned) of the fused map (bilinear, border)."""
