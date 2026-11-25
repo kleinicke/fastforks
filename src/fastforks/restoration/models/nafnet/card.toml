@@ -40,8 +40,6 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-mlx_kernels = ["graph_mlx"]
-mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "nafnet_gate", "dpt_fused"]  # fp16-accumulate dense convolutions
 
 [[papers]]

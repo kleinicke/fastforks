@@ -1328,6 +1328,29 @@ def test_mlx_restormer_matches_torch(norm):
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize(("width", "tlc"), [(16, 32), (3, 0)])
+def test_mlx_nafnet_matches_torch(width, tlc):
+    """The hand-written NAFNet (`nafnet/mlx_net.py`) against the prepared network, float32: TLC windows / global."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.nafnet import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.nafnet import model as nm  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = nm.NAFNet(img_channel=3, width=width, middle_blk_num=1, enc_blk_nums=[1, 2], dec_blk_nums=[1, 1])
+    for name, p in net.named_parameters():  # zero beta / gamma and unit norms would hide folding errors
+        if name.endswith(("beta", "gamma")) or ".norm" in name:
+            p.data.add_(torch.randn_like(p) * 0.5)
+    net.eval()
+    with torch.no_grad():
+        nm._prepare(net, tlc)
+        x = torch.rand(2, 3, 38, 54)  # padded to 40 x 56; TLC: box windows at both levels
+        want = net(x)
+    got = to_torch(mlx_net.MlxNAFNet(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize(("scale", "use_ea", "size"), [(4, True, (50, 62)), (2, False, (17, 23))])
 def test_mlx_realplksr_matches_torch(scale, use_ea, size):
     """The hand-written RealPLKSR (`realplksr/mlx_net.py`) against the vendored network, float32.

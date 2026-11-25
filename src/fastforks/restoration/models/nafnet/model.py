@@ -184,6 +184,21 @@ class _Eps(torch.nn.Module):
         self.eps = eps
 
 
+def _prepare(net: NAFNet, tlc: int) -> None:
+    """Fold the blocks' norms and scales, set the TLC windows (`tlc`: 0 for global attention), scale the stream."""
+    n = len(net.encoders)
+    levels = [*((i, s) for i, s in enumerate(net.encoders)), (n, net.middle_blks)]
+    levels += [(n - 1 - i, s) for i, s in enumerate(net.decoders)]
+    for level, stage in levels:
+        for m in stage:  # ty: ignore[not-iterable]
+            _fold(m)
+            override(m, _block)
+            if tlc:  # upstream's window: (tlc >> level) * (1.5 tlc) // tlc
+                window = (tlc >> level) * (3 * tlc // 2) // tlc
+                m.sca[0] = _LocalMean(window)
+    _scale_stream(net)
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype, channels-last on CUDA."""
 
@@ -199,17 +214,7 @@ class Portable(Runner):
             enc_blk_nums=list(p.enc_blocks), dec_blk_nums=list(p.dec_blocks),
         )  # fmt: skip
         load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
-        n = len(p.enc_blocks)
-        levels = [*((i, s) for i, s in enumerate(self.net.encoders)), (n, self.net.middle_blks)]
-        levels += [(n - 1 - i, s) for i, s in enumerate(self.net.decoders)]
-        for level, stage in levels:
-            for m in stage:  # ty: ignore[not-iterable]
-                _fold(m)
-                override(m, _block)
-                if p.tlc:  # upstream's window: (tlc >> level) * (1.5 tlc) // tlc
-                    window = (p.tlc >> level) * (3 * p.tlc // 2) // p.tlc
-                    m.sca[0] = _LocalMean(window)
-        _scale_stream(self.net)
+        _prepare(self.net, p.tlc)
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
@@ -382,11 +387,30 @@ class Kernels(Portable):
         self._graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the prepared network written in `mlx.core` operations (`mlx_net`)."""
+
+    net: Any  # mlx_net.MlxNAFNet
+    module = Runner.module  # not a PyTorch module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build and prepare the network on the CPU in float32 (`Portable`), then move it to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxNAFNet(self.net, mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The restored batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.net(to_mx(image.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, half_wino_f32=True),
-    "kernels_mlx": mlx_wrap.port(Portable, half_wino_f32=True),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
 }
 
 _BLOCK = re.compile(r"(encoders|decoders)\.(\d+)\.(\d+)\.beta|middle_blks\.(\d+)\.beta")
