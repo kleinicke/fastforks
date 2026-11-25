@@ -1054,6 +1054,8 @@ def _scene_compatible(a: dict | None, b: dict | None) -> bool:
 
 _SCOPE_LABELS = {
     "cpu-ct-to-cpu-labels": "CPU CT to CPU labels",
+    "cpu-ct-to-cpu-labels-nnunet-resampling": "CPU CT to CPU labels with nnU-Net cubic resampling",
+    "cpu-ct-to-cpu-labels-totalseg218": "CPU CT to CPU labels with TotalSegmentator 2.18 resampling",
     "cpu-ct-to-cpu-labels-per-call-load": "CPU CT to CPU labels, weights loaded per call",
     "cuda-volume-to-cuda-labels": "CUDA volume to CUDA labels",
     "cuda-rgb-to-cpu-edge-map": "CUDA RGB to CPU edge map",
@@ -1071,7 +1073,11 @@ def _legacy_ct_scope(row: dict, mode: str, note: str) -> str:
     if mode in {"upstream", "upstream-default"}:
         if "cpu numpy in, labels out; weights load per call" in note:
             return "cpu-ct-to-cpu-labels-per-call-load"
-        return "cpu-ct-to-cpu-labels" if "cpu nifti input and labels out" in note else ""
+        if "cpu nifti input and labels out" in note:
+            if row["ref"].endswith(("-3mm", "-6mm")):
+                return "cpu-ct-to-cpu-labels-nnunet-resampling"
+            return "cpu-ct-to-cpu-labels"
+        return ""
     resident = (
         "gpu-resident input and output" in note
         or "whole public volume call with cuda-resident input and output" in note

@@ -377,11 +377,11 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 | 56.2 / 73.2 / 84.4 | 56.9 / 72.8 / 84.5 | 54.9 / 71.5 / 83.1 | 57.3 / 72.5 / 83.6 |  |  |
 | `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 58.8 / 73.6 / 84.2 | 56.6 / 72.5 / 83.8 | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
 | `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 | 56.3 / 73.7 / 85.4 | 56.1 / 72.9 / 84.5 | 56.2 / 72.0 / 83.7 | 57.7 / 74.1 / 85.4 |  |  |
-| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
+| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 55.4 / 71.8 / 83.2 | 55.2 / 71.3 / 83.2 | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
 | `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 | 55.6 / 72.1 / 84.1 | 56.4 / 74.3 / 85.6 | 57.1 / 72.9 / 84.6 | 56.4 / 73.9 / 85.2 |  |  |
 | `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 56.8 / 73.0 / 84.5 | 59.5 / 74.8 / 85.2 | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
 | `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 | 55.5 / 71.5 / 83.0 | 57.3 / 73.6 / 84.3 | 58.8 / 74.6 / 85.3 | 56.1 / 72.8 / 84.4 |  |  |
-| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
+| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 | 54.9 / 70.5 / 82.1 | 56.9 / 72.9 / 84.1 | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
 | `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 | 54.1 / 70.6 / 82.9 | 56.6 / 72.1 / 83.3 | 56.9 / 72.4 / 83.6 | 54.7 / 70.7 / 83.1 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 3e1db914b7468c48e59db7f2461bc37e582be1da / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-25; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 3e1db914b7468c48e59db7f2461bc37e582be1da / 8630e98f1 / cb6c4aae6, 2026-11-20 to 2026-11-25; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.

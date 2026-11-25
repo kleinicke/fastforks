@@ -536,6 +536,10 @@ def test_ratio_uses_known_timing_boundaries_and_preserves_legacy_rows():
     assert g._ratio(original, resident | {"comparison_scope": host}) == g.DASH
     assert g._ratio(original | {"comparison_scope": host}, resident | {"comparison_scope": host}) == "10.0x"
     assert g._ratio(original | {"comparison_scope": host}, resident) == g.DASH
+    current = original | {"ref": "totalsegmentator-total-3mm", "note": "CPU NIfTI input and labels out"}
+    legacy = resident | {"comparison_scope": "cpu-ct-to-cpu-labels-totalseg218"}
+    assert g._speed_scope(current)["comparison_scope"] == "cpu-ct-to-cpu-labels-nnunet-resampling"
+    assert g._ratio(current, legacy) == g.DASH
 
 
 def test_selected_backend_timings_and_notes_survive_scope_mismatch(monkeypatch):

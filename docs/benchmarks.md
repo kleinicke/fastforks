@@ -2321,6 +2321,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | video-depth-anything-s | 480x640 | 147 ms | 100 ms (single image) | 60.3 ms (single image) | 58.4 ms | 34.8 s | 103 s | 953 / 1146 | 1143 / 1344 | 988 / 1188 | 886 / 914 |
 | video-depth-anything-s | 88x480x640 | 954 ms | 762 ms (full 88-frame clip) | 524 ms (full 88-frame clip) | 835 ms | 51.8 s | 181 s | 1730 / 1946 | 2587 / 3260 | 1796 / 1946 | 2753 / 3148 |
 | video-depth-anything-s | 994x1482 | 161 ms | 112 ms (single-image call, CUDA tensor input) | 67.7 ms (single-image engine) | 62.2 ms | 33.6 s | 100 s | 1083 / 1766 | 1263 / 1524 | 852 / 1146 | 988 / 1022 |
+| video-depth-anything-s | 32x994x1482 | 824 ms | 719 ms (32-frame clip, decoded CPU RGB to CPU depth) | – | 629 ms | 62.9 s | – | 1368 / 1666 | 1513 / 1990 | 1259 / 1636 | – |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 1843 / 1944 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | 1.74 ms | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | 100 / 144 | 158 / 170 |
