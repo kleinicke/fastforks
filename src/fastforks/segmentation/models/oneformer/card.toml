@@ -3,7 +3,7 @@ name = "OneFormer"
 summary = "OneFormer (Jain et al. 2023): Mask2Former-style universal segmentation conditioned on a task token; Swin backbone, run here for the semantic task."
 tier = "stable"
 outputs = ["logits"]
-uses = ["maskformer", "seginfer", "mlx_seg", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["maskformer", "mlx_seg", "seginfer"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/transformers"

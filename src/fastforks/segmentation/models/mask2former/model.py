@@ -20,7 +20,6 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.segmentation._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
 from fastforks.shared.seginfer import (
     mask_semantic,
@@ -33,7 +32,10 @@ from fastforks.shared.seginfer import (
 )
 
 if TYPE_CHECKING:
+    from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
+
+_ROW_CHUNK = 1 << 26  # fixed: mask-logit elements per row chunk of the MLX scores (100 queries: 640 x 2560 in 1)
 
 
 @dataclass(frozen=True)
@@ -103,9 +105,67 @@ class Kernels(Portable):
     module = Runner.module
 
 
+class Mlx(Portable):
+    """Apple MLX: the network written in MLX operations (`shared.maskformer.mlx_net`), the semantic inference too.
+
+    The scores at the resized image size are one kernel (the mask resize to the padded size, the crop and the
+    sigmoid, `mlx_seg.mask_sigmoid_rows`) and one matrix product with the class probabilities per row chunk; the
+    labels' resize and argmax are one kernel.
+    """
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the transformers network on the checkpoint and copy its weights to MLX."""
+        Runner.__init__(self, ctx)
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+        from fastforks.shared.maskformer import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_net.MlxMaskFormer(pretrained(ctx), ctx.dtype)
+        request_cache(self, mlx_net.CACHE_MB)
+
+    def _scores_mlx(self, image: torch.Tensor) -> mx.array:
+        """`_scores` on MLX: `[1, rh, rw, 150]` float32 (computed in the run dtype, as `mask_semantic`)."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - MLX only
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX only (imports mlx)
+
+        h, w = image.shape[-2:]
+        rh, rw = target_size(h, w, self.ctx.params.resize)
+        x = pad_bottom_right(scale(resize(image, (rh, rw), pil=True), self.ctx.io), self.ctx.params.pad)
+        low, classes = self.mlx.raw(to_mx(x))
+        dtype = getattr(mx, self.ctx.dtype)
+        probs = mx.softmax(classes, axis=-1)[:, :-1].astype(dtype)
+        low = low.astype(mx.float32)  # `mask_sigmoid_rows` reads float32 logits
+        mx.eval(low, probs)
+        step = max(1, _ROW_CHUNK // (low.shape[-1] * rw))
+        sizes = (x.shape[-2:], (rh, rw), (rh, rw))
+        parts = []
+        for r0 in range(0, rh, step):
+            parts.append(mlx_seg.mask_sigmoid_rows(low, sizes, (r0, min(r0 + step, rh)), dtype) @ probs)
+            mx.eval(parts[-1])
+        return mx.concatenate(parts).reshape(1, rh, rw, -1).astype(mx.float32)
+
+    def _run(self, image: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - MLX only
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX only (imports mlx)
+
+        out = [
+            to_torch(mlx_seg.resize(self._scores_mlx(im), im.shape[-2:]).transpose(0, 3, 1, 2))
+            for im in image.split(1)
+        ]  # fmt: skip
+        return out[0] if len(out) == 1 else torch.cat(out)
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the scores stay on MLX up to the argmax (one kernel with the resize)."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX only (imports mlx)
+
+        out = [mlx_seg.resize_argmax(self._scores_mlx(im), im.shape[-2:]) for im in image.split(1)]
+        return out[0] if len(out) == 1 else torch.cat(out)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": Mlx,
+    "kernels_mlx": Mlx,
 }

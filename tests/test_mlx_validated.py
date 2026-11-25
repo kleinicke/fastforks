@@ -100,7 +100,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "portable float32",
     ),
     "foundationstereo-vit-s@1": ("kernels float32",),
-    "gmflow-scale2-things@1": ("portable float32",),
     "hgnetv2_b0.ssld_stage2_ft_in1k@1": (
         "kernels float16",
         "kernels float32",
