@@ -255,8 +255,27 @@ class Kernels(Portable):
             self.graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`); resize and PostProcess as `Portable`'s."""
+
+    module = Runner.module  # the network is MLX, not an exportable PyTorch module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network (float32, CPU, BatchNorms folded) and move its weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.detection.models.lwdetr import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net: Any = self.net.net
+        config, state = net.config, net.state_dict()
+        del self.net, net  # the PyTorch twin: `MlxLWDETR` drops each tensor of `state` as it copies it
+        self.mlx = mlx_net.MlxLWDETR(state, config, mlx_wrap.run_dtype(ctx), ctx.params.size)
+
+    def _selected(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        return self.select(*self.mlx(x))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

@@ -139,6 +139,7 @@ class MlxRFDETR:
         self.resolution = int(a.backbone[0].encoder.shape[0])
         self.patch, self.windows, self.vit_heads = cfg.patch_size, cfg.num_windows, cfg.num_attention_heads
         self.side = self.resolution // self.patch
+        self.shapes = [(self.side, self.side)]  # the decoder memory's levels
         self.depth = cfg.num_hidden_layers
         self.global_blocks = frozenset(i for i in range(self.depth) if i not in cfg.window_block_indexes)
         self.out_blocks = tuple(i - 1 for i in cfg.out_indices)  # hidden state i is the output of block i - 1
@@ -262,6 +263,7 @@ class MlxRFDETR:
         prop = np.stack([(gx + 0.5) / n, (gy + 0.5) / n, *([np.full_like(gx, 0.05)] * 2)], -1).reshape(n * n, 4)
         valid = ((prop > _VALID[0]) & (prop < _VALID[1])).all(-1, keepdims=True)
         self.valid = wt.arr(valid.astype(np.float32))
+        self.score_mask: mx.array | None = None
         self.proposals = wt.arr(prop * valid, mx.float32)  # invalid ones are zero (`gen_encoder_output_proposals`)
         self.refpoint = wt.arr(wt.get("refpoint_embed.weight")[: self.num_queries], mx.float32)
         self.query_feat = wt.arr(wt.get("query_feat.weight")[: self.num_queries])
@@ -390,6 +392,8 @@ class MlxRFDETR:
         """Memory `[B, HW, D]` -> the decoder's reference boxes `[B, Q, 4]` (centre, size; float32)."""
         pre = _linear(memory * self.valid, self.enc_output)
         scores = mx.max(_linear(_ln(pre, self.enc_norm, _EPS), self.enc_class), axis=-1)
+        if self.score_mask is not None:  # LW-DETR: invalid proposals score -inf (RF-DETR keeps their scores)
+            scores = scores + self.score_mask
         k = min(self.num_queries, pre.shape[1])
         idx = mx.argsort(-scores, axis=-1)[:, :k]
         tgt = _ln(mx.take_along_axis(pre, idx[..., None], axis=1), self.enc_norm, _EPS)
@@ -413,10 +417,9 @@ class MlxRFDETR:
         e = mx.concatenate([ref[..., 1::-1], ref[..., 2:]], -1)[..., None] * self.sine_scale  # y, x, w, h
         sine = mx.where(self.sine_odd, mx.cos(e), mx.sin(e)).reshape(b, q, -1)
         qpos = _mlp(sine, self.ref_head)
-        nh, pts = self.ca_heads, self.points
+        nh, pts, nl = self.ca_heads, self.points, len(self.shapes)
         xy = ref[:, :, None, None, None, :2]
         scale = ref[:, :, None, None, None, 2:] * (0.5 / pts)
-        shapes = [(self.side, self.side)]
         x = mx.broadcast_to(self.query_feat, (b, q, self.query_feat.shape[-1]))
         d = x.shape[-1]
         kt = mx.broadcast_to(self.kp_init, (b, *self.kp_init.shape)) if self.kp else None
@@ -430,11 +433,11 @@ class MlxRFDETR:
             ).transpose(0, 2, 1, 3).reshape(b, q, d)  # fmt: skip
             x = _ln(x + _linear(att, p["sa_out"]), p["norm1"], _EPS)
             ow = _linear(x + qpos, p["offw"])
-            no = nh * pts * 2
-            off = ow[..., :no].reshape(b, q, nh, 1, pts, 2)
-            aw = mx.softmax(ow[..., no:].reshape(b, q, nh, pts), axis=-1).reshape(b, q, nh, 1, pts)
+            no = nh * nl * pts * 2
+            off = ow[..., :no].reshape(b, q, nh, nl, pts, 2)
+            aw = mx.softmax(ow[..., no:].reshape(b, q, nh, nl * pts), axis=-1).reshape(b, q, nh, nl, pts)
             value = _linear(memory, p["value"]).reshape(b, memory.shape[1], nh, -1)
-            ca = ops.msda(value, xy + off * scale, aw, shapes)
+            ca = ops.msda(value, xy + off * scale, aw, self.shapes)
             x = _ln(x + _linear(ca, p["ca_out"]), p["norm2"], _EPS)
             x = _ln(x + _linear(mx.maximum(_linear(x, p["fc1"]), 0), p["fc2"]), p["norm3"], _EPS)
             if kt is not None and kp_memory is not None:

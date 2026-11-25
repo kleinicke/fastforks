@@ -1223,6 +1223,48 @@ def test_mlx_igev_plusplus_matches_torch():
     torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
 
 
+@pytest.mark.parametrize(("scales", "hidden"), [((1.0,), 64), ((2.0, 0.5), 64), ((2.0, 0.5), 576)])
+def test_mlx_lwdetr_matches_torch(scales, hidden):
+    """`lwdetr.mlx_net.MlxLWDETR` against the folded PyTorch `model.Network` (random weights, float32).
+
+    The cases cover the one-level projector (tiny / small / medium), the two-level one (large) and the pre-conv
+    upsampling branch of encoders wider than 512 (xlarge).
+    """
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    transformers = pytest.importorskip("transformers")
+    from fastforks.detection.models.lwdetr import mlx_net  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection.models.lwdetr import model as lw  # noqa: PLC0415
+
+    size = 256
+    bb = {"hidden_size": hidden, "num_hidden_layers": 4, "num_attention_heads": 4, "image_size": size,
+          "window_block_indices": [0, 2], "out_indices": [2, 4], "model_type": "lw_detr_vit"}  # fmt: skip
+    config = transformers.LwDetrConfig(
+        backbone_config=bb, projector_scale_factors=list(scales), d_model=64, decoder_ffn_dim=128,
+        decoder_cross_attention_heads=4, decoder_self_attention_heads=2, decoder_n_points=2, num_queries=30,
+        num_labels=91,
+    )  # fmt: skip
+    torch.manual_seed(0)
+    net = transformers.LwDetrForObjectDetection(config).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d | torch.nn.BatchNorm1d):
+                m.weight.uniform_(0.5, 1.5)
+                m.bias.normal_(0, 0.1)
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 2.0)
+    assert lw.fold_batch_norms(net)
+    mnet = mlx_net.MlxLWDETR(net.state_dict(), config, "float32", size)
+    x = torch.randint(0, 256, (1, 3, size, size), generator=torch.Generator().manual_seed(1)).float()
+    mean, std = torch.tensor(lw.MEAN).view(1, 3, 1, 1), torch.tensor(lw.STD).view(1, 3, 1, 1)
+    with torch.no_grad():
+        want = lw.Network(net)((x / 255 - mean) / std)
+    got = mnet(x)
+    for name, g, w in zip(("logits", "boxes"), got, want, strict=True):
+        assert g.shape == w.shape, name
+        torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3, msg=name)
+
+
 @pytest.mark.parametrize(
     ("arch", "kernels"),
     [
