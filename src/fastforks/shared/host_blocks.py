@@ -239,6 +239,7 @@ class HostBlocks:
             )
         weakref.finalize(self, _unregister, ptr)  # before the buffer is freed (the finalizer runs first)
         self.dev: list[torch.Tensor] = []
+        self._dev_stream: torch.cuda.Stream | None = None
         self.side: torch.cuda.Stream | None = None
         self.kept: dict[int, torch.Tensor | None] = {}  # `keep`: block -> its device copy (None until the first run)
         self.uploaded = [torch.cuda.Event(), torch.cuda.Event()]
@@ -284,21 +285,24 @@ class HostBlocks:
                 self.kept[i] = self.buf[a : a + n].to(device)
         if not streamed:
             self.dev = []
+            self._dev_stream = None
             return
         size = max(self.sizes[i] for i in streamed)
         if not self.dev or self.dev[0].device != device or self.dev[0].numel() < size:
             self.dev = [torch.empty(size, dtype=torch.uint8, device=device) for _ in range(2)]
+            self._dev_stream = main
             self.side = torch.cuda.Stream(device)
             self.side.wait_stream(main)
             for buf in self.dev:
                 buf.record_stream(self.side)
-        for buf in self.dev:
-            buf.record_stream(main)
+        if main != self._dev_stream:
+            for buf in self.dev:
+                buf.record_stream(main)
 
     def _run(self, device: torch.device) -> Iterable[dict[str, torch.Tensor]]:
         main = torch.cuda.current_stream(device)
         streamed = [i for i in range(len(self)) if i not in self.kept]
-        self._prepare(device, main, streamed)
+        self._prepare(main.device, main, streamed)
         if streamed:
             self._upload(streamed[0], 0)
         s = 0  # streamed blocks so far; streamed block s uses device buffer s % 2

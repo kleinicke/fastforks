@@ -122,11 +122,13 @@ def test_kept_blocks_match_the_streamed_ones() -> None:
     data = {k: torch.randn(shape).to(dt) for spec in specs for k, (dt, shape) in spec.items()}
     hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]), workers=3)  # filled from 3 threads
     device = torch.device("cuda")
+    streams = (torch.cuda.current_stream(device), torch.cuda.Stream(device))
     for budget in (0, hb.sizes[0] * 2, hb.sizes[0] * 5, 0):
         kept = hb.keep(budget)
         assert kept == sum(hb.sizes[i] for i in hb.kept) <= budget
-        for _ in range(2):  # the kept blocks are uploaded once, then reused
-            got = {k: v.cpu() for block in hb.run(device) for k, v in block.items()}
+        for stream in streams:  # reuse the upload buffers and kept blocks from a second inference stream
+            with torch.cuda.stream(stream):
+                got = {k: v.cpu() for block in hb.run(device) for k, v in block.items()}
             assert got.keys() == data.keys()
             assert all(torch.equal(got[k], data[k]) for k in data)
 
