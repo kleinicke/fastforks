@@ -379,8 +379,29 @@ class Kernels(_Sam2):
                 graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the image encoder written in MLX operations (`mlx_net`), the prompt side as portable (float32)."""
+
+    module = Runner.module  # the MLX encoder is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network; the trunk's and neck's weights copied to MLX (and dropped from the twin)."""
+        super().__init__(ctx)
+        from .mlx_net import MlxEncoder  # noqa: PLC0415 - imports mlx
+
+        self.mlx = MlxEncoder(self.trunk, self.neck, self.pos, mlx_wrap.run_dtype(ctx))
+        del self.trunk, self.pos
+
+    def _encode(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        return self.mlx(prepare(image, self.ctx.io, self.ctx.params.image_size))
+
+    def networks(self) -> tuple[torch.nn.Module, ...]:
+        """The prompt side (the encoder's weights live on MLX)."""
+        return (self.net,)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="trunk"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
