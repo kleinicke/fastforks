@@ -26,7 +26,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.mlx import mx, to_mx, to_torch, tuning
+from fastforks._core.mlx import mx, to_mx, to_torch
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -134,14 +134,37 @@ def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, r
     return x + mx.addmm(p[b + "fc2.bias"], h, p[b + "fc2.weight"])
 
 
-def blocks(p: dict[str, mx.array], depth: int, heads: int, eps: float, t: mx.array, layers, rope=None, act=None):
+def blocks(
+    p: dict[str, mx.array],
+    depth: int,
+    heads: int,
+    eps: float,
+    t: mx.array,
+    layers,
+    rope=None,
+    act=None,
+    *,
+    bounded: bool = False,
+):
     """All blocks on the embedded tokens `t`: `(tokens after the last block, [tokens at layers])`.
 
     Layer 0 = `t`, layer `i` = the output of block `i` (1-based, before the final norm), in ascending order.
+
+    `bounded`: evaluate as it goes instead of building one lazy graph (so not inside `mx.compile`): each block is
+    queued (`mx.async_eval`) and the one before it awaited. The GPU stays busy while the next block's graph is built,
+    and only two blocks' activations are alive: one graph of all blocks allocates every block's temporaries before any
+    is freed (ViT-L, 1370 tokens, float16, M1 Pro: 614 MB of transients and 284 ms; bounded 75 MB and 257 ms; at 257
+    tokens the time is equal). `mx.compile` of the whole forward or of each block measured the same as no compile.
     """
     hs = [t] if 0 in layers else []
+    prev = None
     for i in range(depth):
         t = block(p, i, t, heads, eps, rope, act)
+        if bounded:
+            mx.async_eval(t)
+            if prev is not None:
+                mx.eval(prev)
+            prev = t
         if i + 1 in layers:
             hs.append(t)
     return t, hs
@@ -243,7 +266,7 @@ class DinoLinearProbe:
         def forward(x, table) -> mx.array:
             t = patches(x.astype(run_dtype), patch) @ p["patch.weight"] + (table + p["patch.bias"])
             cls = mx.broadcast_to(p["pos.cls"], (x.shape[0], 1, t.shape[-1]))
-            t, _ = blocks(p, depth, heads, eps, mx.concatenate([cls, t], axis=1), ())
+            t, _ = blocks(p, depth, heads, eps, mx.concatenate([cls, t], axis=1), (), bounded=True)
             t = mx.fast.layer_norm(t, p["norm.weight"], p["norm.bias"], eps)
             tokens = t[:, 1:]
             if image_logits:
@@ -251,7 +274,7 @@ class DinoLinearProbe:
                 tokens = mx.concatenate([t[:, 0], pooled], axis=-1)
             return mx.addmm(b, tokens, w)
 
-        self.forward = mx.compile(forward)
+        self.forward = forward  # evaluated block by block (`blocks`), not one compiled graph
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised, patch-aligned NCHW image to logits over images or patch tokens."""
@@ -279,7 +302,6 @@ class DinoLinearProbe:
 EPS = 1e-6  # LayerNorm
 PATCH = 14
 TABLES = 8  # position tables kept (one per grid size, least recently used dropped)
-COMPILED = 8  # compiled forwards kept (one per set of hidden-state layers)
 
 
 def _embed(p: dict[str, mx.array], x: mx.array, table: mx.array) -> mx.array:
@@ -324,13 +346,13 @@ def _feature_forward(
     p: dict[str, mx.array], depth: int, heads: int, layers: tuple[int, ...], x: mx.array, table: mx.array
 ) -> tuple[mx.array, ...]:
     """Normalised `[B, 3, H, W]` -> float32 `(last_hidden_state [B, N, C], *hidden states at layers)`."""
-    t, hs = blocks(p, depth, heads, EPS, _embed(p, x, table), layers)
+    t, hs = blocks(p, depth, heads, EPS, _embed(p, x, table), layers, bounded=True)
     last = mx.fast.layer_norm(t, p["norm.weight"], p["norm.bias"], EPS)
     return tuple(a.astype(mx.float32) for a in (last, *hs))
 
 
 class DinoFeatureEngine:
-    """The MLX network of one loaded model: converted weights, position tables and compiled forwards.
+    """The MLX network of one loaded model: converted weights, position tables and the forward (block by block).
 
     Attributes:
         hidden_size: Channels of every token.
@@ -351,18 +373,15 @@ class DinoFeatureEngine:
         host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos.cls", "pos.grid", "patch.bias")}
         self.pos = torch.cat([host["pos.cls"], host["pos.grid"]])[None]  # fp32 prefix and patch positions
         self.bias = host["patch.bias"]
-        self.p = {k: v.astype(self.dtype) for k, v in p32.items()}
-        p32.clear()
-        mx.eval(self.p)
+        self.p = {}
+        for k in list(p32):  # one by one: a lazy cast keeps its float32 source until it is evaluated
+            self.p[k] = p32.pop(k).astype(self.dtype)
+            mx.eval(self.p[k])
         self.heads = heads
         self.depth = depth_of(self.p)
         self.hidden_size = int(self.p["norm.weight"].shape[0])
         self.registers = self.p["registers"].shape[0] if "registers" in self.p else 0
-        self.compile = tuning().compile_steps
         self.tables: OrderedDict[tuple[int, int], mx.array] = OrderedDict()
-        self.compiled: OrderedDict[tuple[int, ...], Callable[[mx.array, mx.array], tuple[mx.array, ...]]] = (
-            OrderedDict()
-        )
 
     def table(self, h0: int, w0: int) -> mx.array:
         """`[1 + h0 * w0, C]` in the run dtype: row 0 = cls token + its position, the rest = positions + patch bias."""
@@ -378,23 +397,10 @@ class DinoFeatureEngine:
         self.tables.move_to_end(key)
         return self.tables[key]
 
-    def _forward(self, layers: tuple[int, ...]) -> Callable[[mx.array, mx.array], tuple[mx.array, ...]]:
-        if layers not in self.compiled:
-            params, depth, heads = self.p, self.depth, self.heads
-
-            def run(x: mx.array, table: mx.array) -> tuple[mx.array, ...]:
-                return _feature_forward(params, depth, heads, layers, x, table)
-
-            self.compiled[layers] = mx.compile(run) if self.compile else run
-            while len(self.compiled) > COMPILED:
-                self.compiled.popitem(last=False)
-        self.compiled.move_to_end(layers)
-        return self.compiled[layers]
-
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> tuple[torch.Tensor, list[torch.Tensor]]:
         """Normalised `[B, 3, H, W]` CPU tensor -> float32 CPU `(last_hidden_state, hidden states at layers)`."""
         table = self.table(image.shape[2] // PATCH, image.shape[3] // PATCH)
-        out = self._forward(tuple(layers))(to_mx(image), table)
+        out = _feature_forward(self.p, self.depth, self.heads, tuple(layers), to_mx(image), table)
         mx.eval(*out)
         last, *hs = (torch.from_numpy(np.array(a)) for a in out)
         return last, hs
