@@ -51,11 +51,11 @@ upstream = "https://github.com/wasserth/TotalSegmentator@88060518cc3d556fbcf1894
 settings = "example_ct centre 96^3 RAS, CPU float32, torch 2.15.0, task=total_v3, fast=False, fastest=False, model_size=big"
 
 [validated."totalsegmentator-total-3mm@1"]
-kernels = ["vol_norm@c55f9fff92d3:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+kernels = ["vol_norm@bdc5777f8d79:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "c075f830e14e3240", "in_final_h" = "aece8dac53ada5e3", "in_stats_h" = "82a997d14c583546", "vol_accum_h" = "237917a4f7884d3b", "vol_resize_labels_h" = "2d71092b6395a3cd"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 0.00056
 p99_px = 0.0
 
@@ -69,11 +69,11 @@ mean_px = 0.00056
 p99_px = 0.0
 
 [validated."totalsegmentator-total@1"]
-kernels = ["vol_norm@c55f9fff92d3:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+kernels = ["vol_norm@bdc5777f8d79:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "c075f830e14e3240", "in_final_h" = "aece8dac53ada5e3", "in_stats_h" = "82a997d14c583546", "vol_accum_h" = "237917a4f7884d3b", "vol_resize_labels_h" = "2d71092b6395a3cd"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 7e-05
 p99_px = 0.0
 

@@ -7,12 +7,109 @@
 //               stats, in place.
 //   in_apply_h: y = x * scale + shift (fp32), y = y >= 0 ? y : slope * y, stored fp16; 8 channels per thread.
 #include <cuda_fp16.h>
+#include <cassert>
+#include <cmath>
 #include <stdint.h>
 
 union H8 {
     uint4 u;
     __half2 h[4];
 };
+
+template <bool Packed>
+__device__ __forceinline__ void accumulate_h(__half* out, const __half* logits, const __half* gaussian,
+                                             int channels, int d, int h, int w, int64_t oz, int64_t oy, int64_t ox) {
+    const int units = Packed ? channels / 2 : channels;
+    const int64_t count = (int64_t)d * h * w * units;
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < count; i += (int64_t)gridDim.x * blockDim.x) {
+        const int64_t r = i / units, c = i % units;
+        const int64_t row = r / w;
+        const int64_t offset = (row / h) * oz + (row % h) * oy + (r % w) * ox;
+        const __half g = gaussian[r];
+        if constexpr (Packed) {
+            auto* a = reinterpret_cast<__half2*>(out + offset);
+            const __half2 x = reinterpret_cast<const __half2*>(logits)[i];
+            a[c] = __hadd2_rn(a[c], __hmul2_rn(x, __halves2half2(g, g)));
+        } else {
+            out[offset + c] = __hadd_rn(out[offset + c], __hmul_rn(logits[i], g));
+        }
+    }
+}
+
+extern "C" __global__ void vol_accum_h(__half* __restrict__ out, const __half* __restrict__ logits,
+                                       const __half* __restrict__ gaussian, int channels, int d,
+                                       int h, int w, int64_t oz, int64_t oy, int64_t ox, int packed) {
+    if (packed) {
+        accumulate_h<true>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+    } else {
+        accumulate_h<false>(out, logits, gaussian, channels, d, h, w, oz, oy, ox);
+    }
+}
+
+// The same half-pixel coordinates and order of operations as PyTorch's CUDA trilinear upsampling.
+struct SamplingAxis {
+    int base, next;
+    float w0, w1;
+};
+
+static __device__ __forceinline__ SamplingAxis resample_axis(int out, int size, float scale) {
+    const float pos = fmaxf(fmaf(scale, out + 0.5f, -0.5f), 0.0f);
+    const int lo = (int)pos;
+    const float weight = pos - lo;
+    return {lo, lo + (lo < size - 1), 1.f - weight, weight};
+}
+
+static __device__ __forceinline__ float interpolate_plane(const __half* plane, int64_t ys, int64_t xs,
+                                                          SamplingAxis y, SamplingAxis x, int c) {
+    const __half* r0 = plane + y.base * ys + c;
+    const __half* r1 = plane + y.next * ys + c;
+    return y.w0 * (x.w0 * __half2float(r0[x.base * xs]) + x.w1 * __half2float(r0[x.next * xs]))
+         + y.w1 * (x.w0 * __half2float(r1[x.base * xs]) + x.w1 * __half2float(r1[x.next * xs]));
+}
+
+static __device__ __forceinline__ bool larger(float v, int c, float best, int index) {
+    return v > best || (v == best && c < index) || (isnan(v) && (!isnan(best) || c < index));
+}
+
+extern "C" __global__ void vol_resize_labels_h(
+    uint8_t* __restrict__ out, const __half* __restrict__ current, const __half* __restrict__ previous,
+    int channels, int src_d, int src_h, int src_w, int first_src_z, int available_src,
+    int out_h, int out_w, int out_depth, int first_out_z,
+    int64_t zs, int64_t ys, int64_t xs, float zscale, float yscale, float xscale) {
+    const int lane = threadIdx.x % 32, warp = threadIdx.x / 32, warps = blockDim.x / 32;
+    const int64_t points = (int64_t)out_depth * out_h * out_w;
+    for (int64_t i = (int64_t)blockIdx.x * warps + warp; i < points; i += (int64_t)gridDim.x * warps) {
+        const int64_t row = i / out_w;
+        const auto z = resample_axis(first_out_z + row / out_h, src_d, zscale);
+        const auto y = resample_axis(row % out_h, src_h, yscale);
+        const auto x = resample_axis(i % out_w, src_w, xscale);
+        const int d0 = z.base - first_src_z, d1 = z.next - first_src_z;
+        assert(d0 >= -1 && d1 < available_src && (d0 >= 0 || previous));
+        const __half* a = d0 < 0 ? previous : current + zs * d0;
+        const __half* b = d1 < 0 ? previous : current + zs * d1;
+        const int64_t y0 = d0 < 0 ? (int64_t)src_w * channels : ys, x0 = d0 < 0 ? channels : xs;
+        const int64_t y1 = d1 < 0 ? (int64_t)src_w * channels : ys, x1 = d1 < 0 ? channels : xs;
+        float best = -INFINITY;
+        int index = channels;
+        for (int c = lane; c < channels; c += 32) {
+            const auto v = z.w0 * interpolate_plane(a, y0, x0, y, x, c)
+                         + z.w1 * interpolate_plane(b, y1, x1, y, x, c);
+            if (larger(v, c, best, index)) {
+                best = v;
+                index = c;
+            }
+        }
+        for (int delta = 16; delta > 0; delta /= 2) {
+            const auto v = __shfl_down_sync(0xffffffff, best, delta);
+            const auto c = __shfl_down_sync(0xffffffff, index, delta);
+            if (larger(v, c, best, index)) {
+                best = v;
+                index = c;
+            }
+        }
+        if (!lane) out[i] = (uint8_t)index;
+    }
+}
 
 // grid (blocks, N), block (C / 8, rows); shared rows * C * 2 floats
 extern "C" __global__ void in_stats_h(const __half* __restrict__ x, float* __restrict__ stats, int S, int C, const __half* conv_bias) {

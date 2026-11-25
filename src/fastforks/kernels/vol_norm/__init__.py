@@ -1,4 +1,4 @@
-"""Instance norm (affine) + LeakyReLU of channels-last 3D fp16 activations, in place (`vol_norm.cu`; fp32 math).
+"""CUDA normalization and window accumulation for channels-last FP16 volume inference.
 
 `norm_act_`: nnU-Net's conv block epilogue (`InstanceNorm3d` + `LeakyReLU`) in two passes over the activation
 (per-channel shifted sums, then scale / shift / activation), instead of PyTorch's strided reductions and broadcast
@@ -15,11 +15,106 @@ from fastforks._core import kernels
 from fastforks._core.kernels import cubin_library
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vol_norm.cu)
-SIGNATURES = {"in_stats_h": "ppiip", "in_final_h": "pppppiiifp", "in_apply_h": "ppliifp"}
+SIGNATURES = {
+    "in_stats_h": "ppiip",
+    "in_final_h": "pppppiiifp",
+    "in_apply_h": "ppliifp",
+    "vol_accum_h": "pppiiiillli",
+    "vol_resize_labels_h": "pppiiiiiiiiiilllfff",
+}
 _ROWS = 256  # threads per stats block
 _VECTOR_BYTES = 16
 _V8 = 8
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
+
+
+def accumulate_(out: torch.Tensor, logits: torch.Tensor, gaussian: torch.Tensor) -> None:
+    """Add Gaussian-weighted logits in place, rounding the product to FP16 before the addition."""
+    if (
+        out.ndim != 4  # noqa: PLR2004 - [C, D, H, W]
+        or not out.numel()
+        or out.stride(0) != 1
+        or logits.shape != out.shape
+        or not logits.permute(1, 2, 3, 0).is_contiguous()
+        or gaussian.shape != out.shape[1:]
+        or not gaussian.is_contiguous()
+        or any(t.dtype != torch.float16 or t.device != out.device for t in (out, logits, gaussian))
+        or not out.is_cuda
+    ):
+        msg = "Volume accumulation needs CUDA FP16 logits and output in channels-last layout and contiguous weights"
+        raise ValueError(msg)
+    channels, d, h, w = out.shape
+    oz, oy, ox = out.stride()[1:]
+    packed = not ((channels | oz | oy | ox) & 1 or (out.data_ptr() | logits.data_ptr()) & 3)
+    count = out.numel() // (2 if packed else 1)
+    load(out.device).launch(
+        "vol_accum_h", *kernels.linear(count), out, logits, gaussian, channels, d, h, w, oz, oy, ox, int(packed)
+    )
+
+
+def resize_labels_(  # noqa: PLR0913 - source slab and destination position in their respective grids
+    out: torch.Tensor,
+    current: torch.Tensor,
+    previous: torch.Tensor | None,
+    *,
+    first_src_z: int,
+    first_out_z: int,
+    src_depth: int,
+    dst_depth: int,
+) -> None:
+    """Trilinearly resample FP16 scores in FP32 and write uint8 argmax labels on the destination grid."""
+    if (
+        current.ndim != 4  # noqa: PLR2004 - [C, D, H, W]
+        or current.stride(0) != 1
+        or current.dtype != torch.float16
+        or current.device != out.device
+        or out.ndim != 3  # noqa: PLR2004 - [D, H, W]
+        or not out.numel()
+        or not current.numel()
+        or out.dtype != torch.uint8
+        or not out.is_cuda
+        or not out.is_contiguous()
+        or not 1 <= current.shape[0] <= 256  # noqa: PLR2004 - uint8 output
+    ):
+        msg = "Volume label resampling needs CUDA FP16 channels-last scores and a contiguous uint8 output"
+        raise ValueError(msg)
+    channels, available, src_h, src_w = current.shape
+    out_depth, out_h, out_w = out.shape
+    if not (
+        0 <= first_src_z < first_src_z + available <= src_depth
+        and 0 <= first_out_z < first_out_z + out_depth <= dst_depth
+    ):
+        msg = "Source and destination slabs must be within the resampling grids"
+        raise ValueError(msg)
+    if previous is not None and (
+        previous.shape != (src_h, src_w, channels)
+        or previous.dtype != current.dtype
+        or previous.device != current.device
+        or not previous.is_contiguous()
+    ):
+        msg = "Previous score plane must match the current slab's CUDA device, dtype, height, width and channels"
+        raise ValueError(msg)
+    load(out.device).launch(
+        "vol_resize_labels_h",
+        *kernels.linear(out.numel() * 32),
+        out,
+        current,
+        previous,
+        channels,
+        src_depth,
+        src_h,
+        src_w,
+        first_src_z,
+        available,
+        out_h,
+        out_w,
+        out_depth,
+        first_out_z,
+        *current.stride()[1:],
+        src_depth / dst_depth,
+        src_h / out_h,
+        src_w / out_w,
+    )
 
 
 def supported(x: torch.Tensor) -> bool:

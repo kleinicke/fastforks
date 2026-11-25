@@ -213,6 +213,45 @@ def test_nnunet_folder_with_safetensors(folder: Path, tmp_path: Path) -> None:
     assert torch.equal(model(ct, **opts).labels, reference(ct, **opts).labels)
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("channels", [19, 118])
+def test_fused_window_accumulation_preserves_rounding(channels: int) -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    torch.manual_seed(17)
+    mem = {"dtype": torch.float16, "device": "cuda"}
+    logits = torch.randn(8, 9, 13, channels, **mem).permute(3, 0, 1, 2)
+    out = torch.randn(9, 12, 15, channels, **mem).permute(3, 0, 1, 2)
+    reference = out.clone()
+    weight = torch.rand(8, 9, 13, **mem) / 4
+    window = (slice(None), slice(1, 9), slice(2, 11), slice(1, 14))
+    reference[window].add_(logits * weight)
+    vol_norm.accumulate_(out[window], logits, weight)
+    assert torch.equal(out, reference)
+
+
+@pytest.mark.gpu
+def test_fused_volume_labels_match_trilinear_across_slabs() -> None:
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernel only
+
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    torch.manual_seed(18)
+    scores = torch.randn(11, 13, 17, 118, dtype=torch.float16, device="cuda").permute(3, 0, 1, 2)
+    scores[117].copy_(scores[0])
+    shape = (23, 29, 27)
+    expected = F.interpolate(scores[None].float(), size=shape, mode="trilinear", align_corners=False)[0].argmax(0)
+    actual = torch.empty(shape, dtype=torch.uint8, device="cuda")
+    vol_norm.resize_labels_(actual[:14], scores[:, :7], None, first_src_z=0, first_out_z=0, src_depth=11, dst_depth=23)
+    previous = scores[:, 6].permute(1, 2, 0).contiguous()
+    vol_norm.resize_labels_(
+        actual[14:], scores[:, 7:], previous, first_src_z=7, first_out_z=14, src_depth=11, dst_depth=23
+    )
+    assert torch.equal(actual.long(), expected)
+
+
 def test_zoom_matches_scipy() -> None:
     """TotalSegmentator's `change_spacing` zooms (scipy `zoom`, order 1 truncated to int32 / order 0)."""
     ndimage = pytest.importorskip("scipy.ndimage")

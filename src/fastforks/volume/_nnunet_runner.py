@@ -276,6 +276,11 @@ class Kernels(Portable):
         vol_norm.load(ctx.device)
         super().__init__(ctx)
 
+    def _predictor(self, plan: Plan, nets: list[torch.nn.Module], mirror: tuple[int, ...]) -> Predictor:
+        predictor = super()._predictor(plan, nets, mirror)
+        predictor.cuda_kernels = self.ctx.dtype == "float16"
+        return predictor
+
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         net = super()._net(index, plan, channels)
         for m in net.modules():

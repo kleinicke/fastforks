@@ -16,11 +16,11 @@ upstream = "https://github.com/MIC-DKFZ/nnInteractive@6bf57adf42cae092e01957a812
 settings = "CPU float32, nnInteractiveInferenceSession(do_autozoom=True), fold 0, on s0013 ct.nii.gz, crop (96, 128, 128) at (199, 24, 73) (z, y, x) RAS, one positive point at (56, 41, 97), torch 2.10.0+cu130"
 
 [validated."nninteractive@1"]
-kernels = ["vol_norm@c55f9fff92d3:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+kernels = ["vol_norm@bdc5777f8d79:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "c075f830e14e3240", "in_final_h" = "aece8dac53ada5e3", "in_stats_h" = "82a997d14c583546", "vol_accum_h" = "237917a4f7884d3b", "vol_resize_labels_h" = "2d71092b6395a3cd"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-18"
+date = "2026-11-25"
 mean_px = 7e-05
 p99_px = 0.0
 

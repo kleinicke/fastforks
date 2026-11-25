@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import itertools
 import math
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -29,7 +30,7 @@ from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
@@ -661,6 +662,7 @@ class Predictor:
         channels_last: Windows in `channels_last_3d` memory format.
         dtype: Cast the windows to this dtype (networks of that dtype, no autocast), or `None`.
         forward: Replaces `net(x)` (kernels runners); gets `(net, x)`.
+        cuda_kernels: Use the fused accumulation and label-resampling kernels for FP16 CUDA inference.
     """
 
     plan: Plan
@@ -672,6 +674,7 @@ class Predictor:
     channels_last: bool = False
     dtype: torch.dtype | None = None
     forward: Callable[[nn.Module, torch.Tensor], torch.Tensor] | None = None
+    cuda_kernels: bool = False
     _gauss: torch.Tensor = field(default_factory=lambda: torch.ones(()), init=False, repr=False)
 
     def _net(self, net: nn.Module, x: torch.Tensor) -> torch.Tensor:
@@ -735,14 +738,31 @@ class Predictor:
         x, box, cropped = self.preprocess(volume, spacing)
         resample = tuple(x.shape[1:]) != cropped
         x, keep = _pad(x, p.patch_size)
-        logits = self._accumulate(x, full=resample or p.dims == _2D)
-        if logits.dim() == 3:  # noqa: PLR2004 - already labels
-            seg = logits[keep]
+        sp = [spacing[t] for t in p.transpose_forward]
+        current = self.target_spacing(sp)
+        fn, kwargs = p.resample_logits
+        if (
+            resample
+            and self.cuda_kernels
+            and x.is_cuda
+            and self.channels_last
+            and p.dims != _2D
+            and p.regions is None
+            and p.n_labels <= 256  # noqa: PLR2004 - the resampling kernel emits uint8 labels
+            and len(self.nets) == 1
+            and fn == "resample_torch_fornnunet"
+            and not kwargs.get("is_seg")
+            and _resample.lowres_axis(current, sp, kwargs.get("force_separate_z")) is None
+        ):
+            seg = self._stream_resampled(x, keep, cropped)
         else:
-            inner = logits[(slice(None), *keep)]
-            del logits
-            sp = [spacing[t] for t in p.transpose_forward]
-            seg = self._decide_resampled(inner, cropped, self.target_spacing(sp), sp)
+            logits = self._accumulate(x, full=resample or p.dims == _2D)
+            if logits.dim() == 3:  # noqa: PLR2004 - already labels
+                seg = logits[keep]
+            else:
+                inner = logits[(slice(None), *keep)]
+                del logits
+                seg = self._decide_resampled(inner, cropped, current, sp)
         out = torch.zeros(tuple(full[t] for t in p.transpose_forward), dtype=_labels_dtype(p.n_labels), device=x.device)
         out[box] = seg.to(out.dtype)
         return out.permute(*p.transpose_backward)
@@ -789,11 +809,60 @@ class Predictor:
             del values, idx, better
         return labels
 
-    def _windows(self, x: torch.Tensor, starts: Sequence[tuple[int, ...]], nets: Sequence[nn.Module]) -> torch.Tensor:
-        """Gaussian-weighted logits `[folds, B, heads, *patch]` at `starts` (nnU-Net: `prediction *= gaussian`)."""
+    def _stream_resampled(self, x: torch.Tensor, keep: Sequence[slice], shape: Sequence[int]) -> torch.Tensor:
+        """Finalize each target slice once both of its contributing score planes are complete."""
+        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels mode only
+
+        depth = shape[0]
+        src_depth = keep[0].stop - keep[0].start
+        # Compute the higher source index for every target slice with the kernel's FP32 fused multiply-add.
+        scale = torch.tensor(src_depth / depth, dtype=torch.float32, device="cpu").item()
+        z = torch.arange(depth, dtype=torch.float64, device="cpu")
+        coords = ((z + 0.5) * scale - 0.5).float().clamp_min_(0)
+        right = (coords.long() + 1).clamp_max_(src_depth - 1).tolist()
+        self._gauss = gaussian(self.plan.patch_size, x.device)
+        steps = sliding_steps(x.shape[1:], self.plan.patch_size, self.step)
+        out = torch.empty(tuple(shape), dtype=torch.uint8, device=x.device)
+        previous = None
+        next_row = 0
+        for padded_start, scores in self._completed_slabs(x, steps, normalize=True):
+            start = max(padded_start, keep[0].start)
+            end = min(padded_start + scores.shape[1], keep[0].stop)
+            if end <= start:
+                continue
+            current = scores[:, start - padded_start : end - padded_start, keep[1], keep[2]]
+            source_start, source_end = start - keep[0].start, end - keep[0].start
+            available = bisect_right(right, source_end - 1, lo=next_row)
+            if available != next_row:
+                vol_norm.resize_labels_(
+                    out[next_row:available],
+                    current,
+                    previous,
+                    first_src_z=source_start,
+                    first_out_z=next_row,
+                    src_depth=src_depth,
+                    dst_depth=depth,
+                )
+            next_row = available
+            if next_row == depth:
+                break
+            # The next target slab may still interpolate from the last plane before the ring buffer reuses it.
+            previous = current[:, -1].permute(1, 2, 0).clone(memory_format=torch.contiguous_format)
+        if next_row != depth:
+            msg = f"Volume resampling finished {next_row} of {depth} target slices"
+            raise RuntimeError(msg)
+        return out
+
+    def _windows(
+        self,
+        x: torch.Tensor,
+        starts: Sequence[tuple[int, ...]],
+        nets: Sequence[nn.Module],
+    ) -> torch.Tensor:
+        """Window logits `[folds, B, heads, *patch]` at `starts`."""
         k = self.plan.patch_size
         batch = torch.stack([x[:, a : a + k[0], b : b + k[1], c : c + k[2]] for a, b, c in starts])
-        return self._logits(batch, nets).mul_(self._gauss)  # in the logits' dtype, then added to the float16 maps
+        return self._logits(batch, nets)
 
     def _average(self, acc: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
         """nnU-Net's fold average of float16 sums `[folds, heads, ...]`: each fold / `n`, summed, / folds (float16)."""
@@ -813,7 +882,7 @@ class Predictor:
         sums are kept for one window depth (`[folds, heads, patch depth, H, W]`), decided as soon as they are complete
         (one network: on the sums, which differs from upstream only where the float16 division rounds two logits equal).
         """
-        p, k0 = self.plan, self.plan.patch_size[0]
+        p = self.plan
         self._gauss = gaussian(p.patch_size, x.device)
         steps = sliding_steps(x.shape[1:], p.patch_size, self.step)
         d, h, w = x.shape[1:]
@@ -834,24 +903,35 @@ class Predictor:
             if len(self.nets) > 1:
                 out /= len(self.nets)
             return out
+        labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)
+        # For hard labels on the model grid, argmax and sign can use the sums directly for one fold.
+        for start, values in self._completed_slabs(x, steps, normalize=len(self.nets) > 1):
+            labels[start : start + values.shape[1]] = self.decide(values)
+        return labels
+
+    def _completed_slabs(
+        self, x: torch.Tensor, steps: Sequence[Sequence[int]], *, normalize: bool
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Yield complete slabs before reusing their space in the sliding-window ring buffer."""
+        p, k0 = self.plan, self.plan.patch_size[0]
+        d, h, w = x.shape[1:]
+        dt = self._gauss.dtype
+        layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
         acc = torch.empty(
             (len(self.nets), p.n_outputs, k0, h, w), dtype=dt, device=x.device, memory_format=layout
         ).zero_()
-        ensemble = len(self.nets) > 1  # one network: argmax and sign do not need the division by `n`
-        n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if ensemble else None
-        labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)
+        n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if normalize else None
         for i, a in enumerate(steps[0]):
             self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], self.nets)
             end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
             for physical, local in _depth_slices(a, end - a, k0):
                 done = acc[:, :, physical]
                 values = self._average(done, n[physical]) if n is not None else done[0]
-                labels[a + local.start : a + local.stop] = self.decide(values)
+                yield a + local.start, values
                 if i + 1 < len(steps[0]):
                     done.zero_()
                     if n is not None:
                         n[physical].zero_()
-        return labels
 
     def _sweep(
         self,
@@ -866,13 +946,24 @@ class Predictor:
         Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
+        weighted_add = None
+        if self.cuda_kernels and self.channels_last and len(nets) == 1:
+            from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
+
+            weighted_add = accumulate_
         for j in range(0, len(starts), self.batch):
             chunk = starts[j : j + self.batch]
             y = self._windows(x, chunk, nets)
+            fuse = weighted_add is not None and y[0, 0].permute(1, 2, 3, 0).is_contiguous()
+            if not fuse:
+                y.mul_(self._gauss)  # keep the product rounded before adding to the FP16 maps
             for i, (a, b, c) in enumerate(chunk):
                 ys, xs = slice(b, b + k1), slice(c, c + k2)
                 for physical, local in _depth_slices(a, k0, acc.shape[2]):
-                    acc[:, :, physical, ys, xs] += y[:, i, :, local]
+                    if fuse and weighted_add is not None:
+                        weighted_add(acc[0, :, physical, ys, xs], y[0, i, :, local], self._gauss[local])
+                    else:
+                        acc[:, :, physical, ys, xs] += y[:, i, :, local]
                     if n is not None:
                         n[physical, ys, xs] += self._gauss[local]
             del y  # free this batch of window logits before running the next network forward
