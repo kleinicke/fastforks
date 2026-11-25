@@ -282,7 +282,7 @@ class MlxRFDETR:
         c = t.shape[-1]
         t = t.reshape(b, nw, s, nw, s, c).transpose(0, 1, 3, 2, 4, 5).reshape(b * nw * nw, s * s, c)
         t = mx.concatenate([mx.broadcast_to(v["pos.cls"], (b * nw * nw, 1, c)), t], axis=1)
-        feats = []
+        feats, prev = [], None
         for i in range(self.depth):
             if i in self.global_blocks:
                 t = mlx_vit.block(v, i, t.reshape(b, -1, c), self.vit_heads, _EPS_VIT).reshape(b * nw * nw, -1, c)
@@ -291,6 +291,14 @@ class MlxRFDETR:
             if i in self.out_blocks:
                 f = _ln(t[:, 1:], self.vit_norm, _EPS_VIT)
                 feats.append(f.reshape(b, nw, nw, s, s, c).transpose(0, 1, 3, 2, 4, 5).reshape(b, n, n, c))
+            # One block in flight: start this block, wait for the one before. As one lazy graph (or `async_eval` on
+            # each block alone) the transients reached 160-460 MB of MLX peak in float32, the footprint above the
+            # exported port's; waiting on each block idled the GPU (rf-detr-n float16 backbone 12.1 -> 15.2 ms).
+            # Like this: 12.0 ms, peak +10 MB (seg-xl float32 +274 -> +111 MB, 70 -> 68 ms).
+            mx.async_eval(t, *feats)
+            if prev is not None:
+                mx.eval(prev)
+            prev = t
         return mx.concatenate(feats, axis=-1)
 
     def _projector(self, x: mx.array) -> mx.array:
@@ -365,7 +373,9 @@ class MlxRFDETR:
         for dw, db, ln, pw in self.seg_blocks:
             y = ops.depthwise(x, dw, db, (1, 1), (1, 1), (1, 1))
             x = x + mlx_vit.gelu(_linear(_ln(y, ln, _EPS_VIT), pw))
+            mx.eval(x)  # block by block: lazy, the R/4 maps piled up (seg-xl float32 +190 MB of MLX peak, +70-95)
         spatial = _linear(x.reshape(b, m * m, d), self.spatial_proj)
+        mx.eval(spatial)
         hs = hs.astype(self.dtype)
         qf = hs + _linear(mlx_vit.gelu(_linear(_ln(hs, self.qf_norm, _EPS), self.qf_fc1)), self.qf_fc2)
         qf = _linear(qf, self.qf_proj)
