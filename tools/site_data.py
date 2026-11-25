@@ -200,6 +200,8 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
         for mode in ("compile", "tensorrt"):
             c = g._compile_rows().get((v.id, mode, size))  # noqa: SLF001
             if c is None:
+                if reason := planned_reason(v, mode):
+                    extra[mode] = {"fails": reason, "planned": True}
                 continue
             if "fails" in c:
                 reason = planned_reason(v, mode) if c["fails"] == g.PLANNED else None

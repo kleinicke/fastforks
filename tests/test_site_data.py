@@ -57,6 +57,16 @@ def test_preferred_speed_falls_back_to_an_existing_input(monkeypatch):
     assert site_data._speed(model, "segmentation", {})["preferred"] is None
 
 
+def test_unmeasured_planned_backend_reports_card_reason(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_compile_rows", dict)
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    card, variant = registry.resolve_any("mlsd")
+    speed = {variant.id: [{"input": "1080x1920", "mode": "kernels", "ms": 8}]}
+    (result,) = site_data._speed(variant, card.task, speed)["inputs"]
+    assert result["tensorrt"] == {"fails": variant.planned["tensorrt"], "planned": True}
+    assert "compile" not in result
+
+
 def test_legacy_original_speed_rows_use_their_recorded_precision(monkeypatch):
     monkeypatch.setattr(site_data.g, "_compile_rows", dict)
     monkeypatch.setattr(site_data.g, "_oom", set)
