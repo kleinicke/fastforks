@@ -1328,6 +1328,31 @@ def test_mlx_restormer_matches_torch(norm):
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize(("scale", "use_ea", "size"), [(4, True, (50, 62)), (2, False, (17, 23))])
+def test_mlx_realplksr_matches_torch(scale, use_ea, size):
+    """The hand-written RealPLKSR (`realplksr/mlx_net.py`) against the vendored network, float32.
+
+    50 x 62 takes the Winograd path of the 16 -> 32 channel mixer (`conv_mlx.supported`), 17 x 23 `mx.conv2d`.
+    """
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.realplksr import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.realplksr.net import realplksr  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = realplksr(dim=16, n_blocks=2, upscaling_factor=scale, kernel_size=7, use_ea=use_ea)
+    for name, p in net.named_parameters():  # unit norms and zero biases would hide layout errors
+        if "norm" in name:
+            p.data.add_(torch.randn_like(p) * 0.3)
+    net.eval()
+    x = torch.rand(2, 3, *size)
+    with torch.no_grad():
+        want = net(x.clone())
+    got = to_torch(mlx_net.MlxRealPLKSR(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize("given", [False, True])
 def test_mlx_unik3d_matches_torch(monkeypatch, given):
     """The hand-written UniK3D (`unik3d/mlx_net.py`) against the network, float32: four ViT-L blocks, random decoder."""

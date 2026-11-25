@@ -2,7 +2,7 @@ schema = 2
 name = "RealPLKSR"
 summary = "RealPLKSR (neosr; after PLKSR, Lee et al., 2024): a real-world super-resolution CNN of partial large-kernel blocks (3 x 3 channel mixer, a 17 x 17 conv on a quarter of the channels, element-wise attention, GroupNorm) and a pixel-shuffle upsampler. `realplksr-nomoswebphoto-x4` is Philip Hofmann's 4xNomosWebPhoto_RealPLKSR, an x4 model for photos with noise, lens blur and JPEG / WebP compression. `load(path)` reads other RealPLKSR checkpoints with the pixel-shuffle upsampler (any scale, width and depth)."
 tier = "experimental"
-uses = ["group_norm", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["group_norm", "mlx_wrap"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]
@@ -36,7 +36,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-mlx_kernels = ["conv_mlx", "graph_mlx"]  # Winograd F(4,3) 3x3 convolutions (float16; float32 runs as portable), Mish
+mlx_kernels = ["conv_mlx", "graph_mlx"]  # the hand-written MLX network (both modes): Winograd F(4,3) 3x3 convolutions, Mish, GroupNorm statistics
 mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
 

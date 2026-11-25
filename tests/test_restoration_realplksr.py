@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import torch
+import torch.nn.functional as F
 from safetensors.torch import save_file
 
 from fastforks import restoration
@@ -48,23 +49,11 @@ def test_from_checkpoint_rejects_dysample() -> None:
         model.from_checkpoint({**sd, "to_img.init_pos": torch.zeros(1)})
 
 
-def test_mlx_export_op_matches_upstream() -> None:
-    """The MLX twin's large-kernel op (out of place) against upstream's in-place eval path."""
-    from fastforks.restoration.models.realplksr.net.realplksr_arch import PLKConv2d  # noqa: PLC0415
-
-    torch.manual_seed(2)
-    layer = PLKConv2d(4, 7).eval()
-    x = torch.randn(2, 12, 9, 13)
-    with torch.inference_mode():
-        got = model.plk_op(x, layer.conv.weight, layer.conv.bias)
-        torch.testing.assert_close(got, layer(x.clone()), rtol=1e-6, atol=1e-6)
-
-
 @pytest.mark.mlx
 @pytest.mark.parametrize("dtype", ["float16", "float32"])
 @pytest.mark.parametrize("shape", [(1, 16, 17, 40, 56), (2, 4, 7, 9, 13), (1, 6, 3, 5, 4)])
-def test_mlx_large_kernel_matches_the_op(monkeypatch: pytest.MonkeyPatch, dtype: str, shape: tuple[int, ...]) -> None:
-    """The row GEMMs against the PyTorch body: images smaller than the kernel, batches, and bands of rows."""
+def test_mlx_large_kernel_matches_conv2d(monkeypatch: pytest.MonkeyPatch, dtype: str, shape: tuple[int, ...]) -> None:
+    """The row GEMMs against `F.conv2d`: images smaller than the kernel, batches, and bands of rows."""
     b, c, k, h, w = shape
     mx = pytest.importorskip("mlx.core")
     import numpy as np  # noqa: PLC0415
@@ -72,16 +61,15 @@ def test_mlx_large_kernel_matches_the_op(monkeypatch: pytest.MonkeyPatch, dtype:
     from fastforks.restoration.models.realplksr import mlx_ops  # noqa: PLC0415
 
     torch.manual_seed(c + k)
-    x = torch.randn(b, 3 * c, h, w)
+    x = torch.randn(b, c, h, w)
     weight = torch.randn(c, c, k, k) / (c**0.5 * k)
-    bias = torch.randn(c)
-    want = model.plk_op(x, weight, bias).numpy()
+    want = F.conv2d(x, weight, padding=k // 2).permute(0, 2, 3, 1).numpy()
     dt = getattr(mx, dtype)
     tol = 2e-2 if dtype == "float16" else 1e-4
-    args = (mx.array(x.numpy()).astype(dt), mx.array(weight.numpy()), mx.array(bias.numpy()))
+    args = (mx.array(x.permute(0, 2, 3, 1).numpy()).astype(dt), mx.array(weight.numpy()).astype(dt))
     for band in (mlx_ops.BAND_BYTES, 3 * (k + 2) * w * k * c * 4, 1):  # one band, bands of some rows, of one row
         monkeypatch.setattr(mlx_ops, "BAND_BYTES", band)
-        got = mlx_ops._plk(*args)
+        got = mlx_ops.rows_conv(*args)
         assert got.dtype == dt
         np.testing.assert_allclose(np.array(got.astype(mx.float32)), want, atol=tol, rtol=tol)
 
@@ -93,13 +81,13 @@ def test_mlx_mish_matches_torch(dtype: str) -> None:
     mx = pytest.importorskip("mlx.core")
     import numpy as np  # noqa: PLC0415
 
-    from fastforks.restoration.models.realplksr import mlx_ops  # noqa: PLC0415
+    from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415
 
     torch.manual_seed(0)
     x = torch.cat([torch.randn(1, 4, 5, 7).flatten() * 4, torch.tensor([-60.0, -20.0, 0.0, 19.9, 20.1, 60.0, 0.5])])
     x = x.reshape(1, 3, 7, 7).to(getattr(torch, dtype)).float()
-    want = model.mish_op(x).numpy()
-    got = mlx_ops._mish(mx.array(x.numpy()).astype(getattr(mx, dtype)))
+    want = F.mish(x).numpy()
+    got = ops.mish(mx.array(x.numpy()).astype(getattr(mx, dtype)))
     assert got.dtype == getattr(mx, dtype)
     tol = 2e-3 if dtype == "float16" else 1e-5
     np.testing.assert_allclose(np.array(got.astype(mx.float32)), want, atol=tol, rtol=tol)

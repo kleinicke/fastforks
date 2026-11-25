@@ -1,7 +1,4 @@
-"""MLX lowerings of RealPLKSR's export ops: the partial large-kernel convolution (`model.plk_op`) and Mish.
-
-Imported by the MLX port's runner: registers the ops with `fastforks.shared.mlx_graph`. Mish is one Metal kernel
-(`fastforks.kernels.graph_mlx.ops.mish`).
+"""The 17 x 17 partial large-kernel convolution of RealPLKSR on Apple MLX as row GEMMs (`rows_conv`, used by `mlx_net`).
 
 `mx.conv2d` runs the 17 x 17 conv of 16 channels at about 0.7 T multiply-adds per second (M1 Pro, 512 x 512: 26.3 ms
 float16, 31.2 ms float32; 767 of the network's 1958 ms), and a direct Metal kernel is no faster (`conv_mlx.direct`:
@@ -14,13 +11,7 @@ the sum of `KH` of them along the diagonal (row `y + r`, kernel row `r`), again 
 
 from __future__ import annotations
 
-import torch
-
 from fastforks._core.mlx import mx
-from fastforks.kernels.graph_mlx import ops
-from fastforks.shared.mlx_graph import CL_OPS, OPS
-
-from . import model  # noqa: F401 - registers the ops
 
 # The row products are `KH` times the output (147 MB at 512 x 512 in float16, and as much for the GEMM's contiguous
 # windows): computed for bands of output rows of this size, 3 at 512 x 512, at the same speed and 220 MB less peak
@@ -50,26 +41,3 @@ def rows_conv(x: mx.array, w: mx.array) -> mx.array:
     tops = range(0, h, rows)
     bands = [_rows_band(xp[:, y : min(y + rows, h) + kh - 1], weight, min(rows, h - y), kh, co) for y in tops]
     return bands[0] if len(bands) == 1 else mx.concatenate(bands, axis=1)
-
-
-def _plk(x: mx.array, w: mx.array, bias: mx.array | None) -> mx.array:
-    """NCHW views in and out; the data is channels-last."""
-    xl = mx.transpose(x, (0, 2, 3, 1))
-    c = w.shape[0]
-    y = rows_conv(xl[..., :c], w.astype(x.dtype))
-    if bias is not None:
-        y = y + bias.astype(x.dtype)
-    return mx.transpose(mx.concatenate([y, xl[..., c:]], axis=-1), (0, 3, 1, 2))
-
-
-OPS[torch.ops.fastforks.realplksr_plk.default] = CL_OPS[torch.ops.fastforks.realplksr_plk.default] = _plk
-
-
-def _mish(x: mx.array) -> mx.array:
-    """Elementwise: on the channels-last data of a 4-D view (contiguous there), so the kernel copies nothing."""
-    if x.ndim != 4:  # noqa: PLR2004
-        return ops.mish(x)
-    return mx.transpose(ops.mish(mx.transpose(x, (0, 2, 3, 1))), (0, 3, 1, 2))
-
-
-OPS[torch.ops.fastforks.realplksr_mish.default] = CL_OPS[torch.ops.fastforks.realplksr_mish.default] = _mish
