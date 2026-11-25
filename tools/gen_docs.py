@@ -2185,6 +2185,7 @@ _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
     (r"^deferred", DEFERRED),
+    (r"CUDA out of memory\. Tried to allocate ([\d.]+ \w+)", r"CUDA out of memory (requested \1)"),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
     (r"cannot parse .*operator: (\w+)", r"TensorRT parser: \1 node"),
     (r"engine build failed.*\[myelin", "TensorRT bug: Myelin internal error"),

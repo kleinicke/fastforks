@@ -316,6 +316,12 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
         },
         {
             "ref": "model",
+            "mode": "compile",
+            "input": "128x128",
+            "fails": "run: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 GiB.",
+        },
+        {
+            "ref": "model",
             "mode": "tensorrt",
             "input": "96x96",
             "standalone_build": True,
@@ -339,6 +345,7 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     process = sizes["128x128"]["tensorrt"]
     assert process["process_peak_mb"] == 140
     assert process["peak_alloc_mb"] is None
+    assert sizes["128x128"]["compile"] == {"fails": "CUDA out of memory (requested 1.96 GiB)", "oom": True}
     assert g._trt_peak(compiled["model", "tensorrt", "128x128"]) == "140 process"
     assert "32x32" not in sizes
     with_portable = {"model": [{"input": "32x32", "mode": "portable", "ms": 20}]}

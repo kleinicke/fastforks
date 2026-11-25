@@ -2684,11 +2684,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-small-dl3dv | 256x448 | 1361 ms | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1204 / 1658 | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 655 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3500 / 3694 | 3611 / 3856 | 3507 / 3734 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 725 ms | 589 ms | 377 ms | 468 ms | 65.7 s | 187 s | 3130 / 3252 | 3082 / 3154 | 3130 / 3330 | 5657 / 5766 |
-| flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-chairs | 1080x1920 | 4006 ms | fails: CUDA out of memory (requested 15.76 GiB) | fails: CUDA out of memory (requested 15.76 GiB) | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-chairs | 375x1242 | 338 ms | 250 ms | 202 ms | 326 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
-| flowformer-small-sintel | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3958 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-sintel | 1080x1920 | 4003 ms | fails: CUDA out of memory (requested 15.76 GiB) | fails: CUDA out of memory (requested 15.76 GiB) | 3958 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
-| flowformer-small-things | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3950 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-things | 1080x1920 | 4003 ms | fails: CUDA out of memory (requested 15.76 GiB) | fails: CUDA out of memory (requested 15.76 GiB) | 3950 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | 322 ms | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11330 / 11352 |
@@ -2720,8 +2720,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
+| memfof-kitti | 1080x1920 | 2202 ms | fails: CUDA out of memory (requested 1.96 GiB) | – | 1565 ms | – | – | 14515 / 14918 | – | 3805 / 4038 | – |
 | memfof-kitti | 384x1248 | 1526 ms | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | 3285 / 5238 | – | – | 4252 / 5692 |
-| memfof-sintel | 1080x1920 | 2177 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
+| memfof-sintel | 1080x1920 | 2177 ms | fails: CUDA out of memory (requested 1.96 GiB) | fails: CUDA out of memory (requested 3.91 GiB) | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
 | memfof-sintel | 384x1248 | 1528 ms | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | 3285 / 5238 | – | – | 4252 / 5692 |
 | memfof-spring | 1080x1920 | 433 ms | 291 ms | – | 349 ms | 45.4 s | – | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | – |

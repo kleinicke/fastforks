@@ -218,6 +218,15 @@ def _profile_rows(model_id: str, speed: dict[str, list[dict]]) -> tuple[list[dic
     return rows, backends
 
 
+def _backend_failure(v: Variant, mode: str, message: str) -> dict[str, Any]:
+    if message == g.PLANNED and (reason := planned_reason(v, mode)):
+        return {"fails": reason, "planned": True}
+    failure: dict[str, Any] = {"fails": g._fail_reason(message)}  # noqa: SLF001
+    if "cuda out of memory" in message.casefold():
+        failure["oom"] = True
+    return failure
+
+
 def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
     rows, backends = _profile_rows(v.id, speed)
@@ -248,10 +257,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                     extra[mode] = {"fails": reason, "planned": True}
                 continue
             if "fails" in c:
-                reason = planned_reason(v, mode) if c["fails"] == g.PLANNED else None
-                extra[mode] = (
-                    {"fails": reason, "planned": True} if reason else {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
-                )
+                extra[mode] = _backend_failure(v, mode, c["fails"])
                 continue
             profile_rows.append(c)
             if mode == "tensorrt":
