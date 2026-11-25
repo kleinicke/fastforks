@@ -14,6 +14,7 @@ cropped to `ceil(n / stride)` of the input.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -271,6 +272,14 @@ class Portable(EncoderRunner):
         """Build the encoder and load the encoder weights of the checkpoint."""
         super().__init__(ctx)
         arch = ctx.params.arch
+        # The published ViT weights use the encoder's native dtype and layout.
+        assign = (
+            arch == "vit"
+            and self.fused
+            and ctx.device.type == "cuda"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
         if ctx.params.stream and ctx.device.type != "cuda":
             msg = "stream=True requires CUDA for nnFoundation layer transfers"
             raise OptionsError(msg)
@@ -281,14 +290,18 @@ class Portable(EncoderRunner):
             sd = _encoder_keys(weights, ("encoder.",), "encoder.")
             self.strides, self.widths, self.multiple = (1, 2, 4, 8, 16, 32), res_enc_l().features, 32
         elif arch == "vit":
-            net = Primus()
+            with torch.device("meta") if assign else nullcontext():
+                primus = Primus()
+            if assign:
+                primus.rope_sin, primus.rope_cos = _rope(primus.grid, primus.rope_dim)
+            net = primus
             sd = _encoder_keys(weights, ("down_projection.", "eva."))
             self.strides, self.widths, self.multiple = (8,), (1056,), 8
-            self.max_size = net.size
+            self.max_size = primus.size
         else:
             msg = f"{ctx.variant.ref}: unknown nnFoundation arch {arch!r}"
             raise WeightsError(msg)
-        load_strict(net, sd, ctx.variant.ref)
+        load_strict(net, sd, ctx.variant.ref, assign=assign)
         self.arch = arch
         net = net.eval()
         if self.half:
