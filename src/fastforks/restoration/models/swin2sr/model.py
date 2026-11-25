@@ -31,6 +31,7 @@ from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.sr_layer_norm import fast_layer_norm
 from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, patch_unembed, shift_mask, window_attention
 
 from .net import Swin2SR
@@ -229,6 +230,7 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fast_layer_norm(self.net, ctx.device)
         for m in self.net.modules():
             if isinstance(m, SwinTransformerBlock) and m.shift_size:
                 override(m, _shifted_block)

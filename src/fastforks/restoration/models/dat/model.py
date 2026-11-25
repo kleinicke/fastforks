@@ -37,6 +37,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.sr_layer_norm import fast_layer_norm
 from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll, stripe_pixelshuffle
 
 from .net import DAT
@@ -535,6 +536,7 @@ class Kernels(Portable):
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fast_layer_norm(self.net, ctx.device)
         for m in self.net.modules():
             if isinstance(m, Adaptive_Spatial_Attention):
                 override(m, _cuda_spatial)

@@ -177,6 +177,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `shift_windows` | drct, hat, swin2sr, swinir |
 | `smish` | teed |
 | `sparse_conv` | moge |
+| `sr_norm` | dat, drct, hat, swin2sr, swinir |
 | `sr_ops` | compact, realesrgan, span |
 | `stereo_ops` | coex, las2 |
 | `stereo_warp` | waft_stereo |

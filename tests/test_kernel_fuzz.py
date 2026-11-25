@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, vol_norm
+from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, sr_norm, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -412,6 +412,19 @@ def test_vol_norm(dev, seed, record_property):
         assert torch.equal(fused, explicit)
         got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_restoration_row_layer_norm(dev, seed, record_property):
+    """Four- and eight-element vectors agree with an FP32 tokenwise normalization rounded to FP16."""
+    rng, generator, mag = _rng(seed, "sr_norm"), _gen(seed), MAGS[seed % 3]
+    for channels in (60, 144, 180, 240, 308, 536, 1020, 2048):
+        rows = rng.randint(1, 511)
+        x = _randn(generator, rows, channels, mag=mag).to(dev).half()
+        w, b = (_randn(generator, channels).to(dev) for _ in range(2))
+        expected = F.layer_norm(x.float(), (channels,), w, b, 1e-5)
+        got = sr_norm.layer_norm(x, w, b, 1e-5)
+        _cmp(record_property, "restoration row LayerNorm", got, expected, 5e-3, mag=mag, shape=[rows, channels])
 
 
 # --- NF4 dequantization (nf4) ---------------------------------------------------------------------------------------
