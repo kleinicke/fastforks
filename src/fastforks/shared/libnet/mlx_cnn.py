@@ -12,6 +12,7 @@ from torch import nn
 from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks.shared.libnet import build
 from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
+from fastforks.shared.mlx_wrap import lazy_build
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -492,7 +493,8 @@ class Network:
 
     def __init__(self, ctx: Context) -> None:
         """Convert the selected network from timm or torchvision."""
-        net = cast("Any", build(ctx))  # timm and torchvision register architecture-specific layers
+        # timm and torchvision register architecture-specific layers; the weights stay the memory-mapped checkpoint
+        net = cast("Any", lazy_build(lambda: build(ctx)))
         self.dtype = getattr(mx, ctx.dtype)
         if ctx.card.family in {"alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2"}:
             self.forward = mx.compile(_classic(net, ctx.card.family, self.dtype))

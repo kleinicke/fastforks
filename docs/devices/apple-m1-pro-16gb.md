@@ -39,7 +39,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-24 |
+| measured | 2026-11-06 to 2026-11-25 |
 | rows | 2252 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
@@ -224,7 +224,7 @@ Note: the original needs flex_gemm, a CUDA-only extension.
 | [`davit_base.msft_in1k`](../models/classification.md#davit) | 34.5 | 34.0 | 31.8 | unsupported | – | 2060 | 2312 |
 | [`davit_small.msft_in1k`](../models/classification.md#davit) | 26.4 | 25.4 | 25.5 | unsupported | – | 957 | 968 |
 | [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 15.0 | 14.7 | 14.2 | unsupported | – | 738 | 741 |
-| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.5 | 16.9 | 16.4 | – | unsupported | 1147 | 1496 |
+| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.5 | 17.0 | 15.7 | – | unsupported | 1147 | 1157 |
 | [`densenet121.tv_in1k`](../models/classification.md#densenet) | 31.5 | 25.4 | 28.9 | – | unsupported | 554 | 708 |
 | [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 64.1 | 64.5 | 59.3 | – | unsupported | 3291 | 4443 |
 | [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 12.5 | 8.57 | 9.24 | unsupported | – | 550 | 589 |
@@ -287,7 +287,7 @@ Note: the original needs flex_gemm, a CUDA-only extension.
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 12.8 | 8.61 | 9.74 | – | unsupported | 465 | 441 |
 | [`vgg16.tv_in1k`](../models/classification.md#vgg) | 13.6 | 13.8 | 11.7 | – | unsupported | 2438 | 2446 |
 | [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 17.4 | 16.9 | 18.7 | – | unsupported | 1258 | 1314 |
-| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 214 | 197 | – | unsupported | 3973 | 5547 |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 215 | 197 | – | unsupported | 3973 | 3917 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.

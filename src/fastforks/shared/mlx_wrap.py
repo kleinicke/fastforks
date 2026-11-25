@@ -16,7 +16,7 @@ import gc
 import inspect
 import os
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import torch
 
@@ -27,10 +27,12 @@ if TYPE_CHECKING:
 
     from fastforks._core.runner import Context, Runner
 
-__all__ = ["port", "run_dtype", "twin_dtype"]
+__all__ = ["lazy_build", "port", "run_dtype", "twin_dtype"]
 
 POST_ON_MLX: contextvars.ContextVar[bool] = contextvars.ContextVar("mlx_post", default=False)
 """Set while an MLX runner computes: segmentation's logits resize and argmax run on MLX (`fastforks.shared.mlx_seg`)."""
+
+_T = TypeVar("_T")
 
 _RUN_DTYPE: contextvars.ContextVar[str | None] = contextvars.ContextVar("mlx_run_dtype", default=None)
 
@@ -118,6 +120,20 @@ def _lazy_twin() -> Generator[None]:
     finally:
         _local.lazy = False
         _patch_load(-1)
+
+
+def lazy_build(build: Callable[[], _T]) -> _T:
+    """`build()` (a CPU float32 twin for MLX) with its weights the checkpoint's own tensors (`_lazy_twin`).
+
+    A memory-mapped checkpoint then costs no footprint: only the MLX copy the port converts is resident. Built the
+    eager way if a parameter was left without a value (`LazyTwinError`).
+    """
+    try:
+        with _lazy_twin():
+            return build()
+    except LazyTwinError:
+        gc.collect()
+        return build()
 
 
 class _Method(torch.nn.Module):
@@ -233,12 +249,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
             """Build the PyTorch runner in float32 on the CPU, then hand its network(s) to MLX."""
             token = _RUN_DTYPE.set(ctx.dtype)
             try:
-                try:
-                    with _lazy_twin():
-                        super().__init__(dataclasses.replace(ctx, dtype="float32"))
-                except LazyTwinError:
-                    gc.collect()
-                    super().__init__(dataclasses.replace(ctx, dtype="float32"))
+                lazy_build(lambda: super(Mlx, self).__init__(dataclasses.replace(ctx, dtype="float32")))
             finally:
                 _RUN_DTYPE.reset(token)
             cache = _per_variant(cache_mb, ctx.variant.id)

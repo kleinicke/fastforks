@@ -170,4 +170,7 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}
+# MLX: BootsTAPIR's graph checkpoints every 64 MB of new activations instead of 256 MB, fewer of the per-chunk
+# transients live at once (24 frames at 480 x 854, float32, same session: 2110 ms / 2612 MB -> 2049 ms / 1960 MB).
+# TAPIR keeps 256 MB: at 64 it saves 217 MB but runs 1492 -> 1946 ms.
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable, chunk_mb={"bootstapir": 64})}

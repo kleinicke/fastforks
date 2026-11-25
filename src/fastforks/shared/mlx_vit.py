@@ -143,15 +143,31 @@ def blocks(p: dict[str, mx.array], depth: int, heads: int, eps: float, t: mx.arr
     return t, hs
 
 
-def transformer_params(state: dict[str, torch.Tensor]) -> dict[str, mx.array]:
-    """Convert timm or DINO transformer blocks, folding LayerScale where the checkpoint has it."""
+def _putter(out: dict[str, mx.array], dtype: mx.Dtype | None) -> Callable[[str, np.ndarray], None]:
+    """`put(name, value)`: `value` as a float32 array into `out`, or cast to `dtype` and evaluated one by one.
+
+    Cast as it goes, only the run-dtype copy accumulates (a lazy cast keeps its float32 source until the dict is
+    evaluated: the DINOv2-L probe held 1.2 GB of float32 beside its 0.6 GB of float16).
+    """
+
+    def put(k: str, v: np.ndarray) -> None:
+        a = mx.array(np.ascontiguousarray(v, dtype=np.float32))
+        if dtype is not None and dtype != mx.float32:
+            a = a.astype(dtype)
+            mx.eval(a)
+        out[k] = a
+
+    return put
+
+
+def transformer_params(state: dict[str, torch.Tensor], dtype: mx.Dtype | None = None) -> dict[str, mx.array]:
+    """Convert timm or DINO transformer blocks, folding LayerScale where the checkpoint has it (`dtype`: `_putter`)."""
     out: dict[str, mx.array] = {}
 
     def take(k: str) -> np.ndarray:
         return state.pop(k).double().numpy()
 
-    def put(k: str, v: np.ndarray) -> None:
-        out[k] = mx.array(np.ascontiguousarray(v, dtype=np.float32))
+    put = _putter(out, dtype)
 
     depth = 1 + max(int(k.split(".")[1]) for k in state if k.startswith("blocks."))
     for i in range(depth):
@@ -172,7 +188,7 @@ def transformer_params(state: dict[str, torch.Tensor]) -> dict[str, mx.array]:
     return out
 
 
-def dinov2_params(state: dict[str, torch.Tensor], patch: int) -> dict[str, mx.array]:
+def dinov2_params(state: dict[str, torch.Tensor], patch: int, dtype: mx.Dtype | None = None) -> dict[str, mx.array]:
     """DINOv2 checkpoint tensors (hub names) -> the float32 arrays of this layout, plus the embedding's.
 
     Exact in real arithmetic (float64, stored float32): LayerScale folded, the patch convolution as
@@ -180,15 +196,15 @@ def dinov2_params(state: dict[str, torch.Tensor], patch: int) -> dict[str, mx.ar
     (the patch positions), `registers` if the checkpoint has them, `norm.*`. Takes its keys out of `state` as it
     goes: ViT-g is 4.4 GB, and two float32 copies plus float64 temporaries would not fit.
 
-    Layout changes require new cache versions in the DINOv2, TIPSv2 and Depth Anything V2 ports.
+    Layout changes require new cache versions in the DINOv2, TIPSv2 and Depth Anything V2 ports. `dtype`: the arrays
+    in that dtype instead, cast one by one (`_putter`).
     """
     out: dict[str, mx.array] = {}
 
     def take(k: str) -> np.ndarray:
         return state.pop(k).double().numpy()
 
-    def put(k: str, v: np.ndarray) -> None:
-        out[k] = mx.array(np.ascontiguousarray(v, dtype=np.float32))
+    put = _putter(out, dtype)
 
     put("patch.weight", take("patch_embed.proj.weight").transpose(2, 3, 1, 0).reshape(patch * patch * 3, -1))
     put("patch.bias", take("patch_embed.proj.bias"))
@@ -197,7 +213,7 @@ def dinov2_params(state: dict[str, torch.Tensor], patch: int) -> dict[str, mx.ar
     put("pos.grid", pos[1:])
     if "register_tokens" in state:
         put("registers", take("register_tokens")[0])
-    out.update(transformer_params(state))
+    out.update(transformer_params(state, dtype))
     put("norm.weight", take("norm.weight"))
     put("norm.bias", take("norm.bias"))
     return out
@@ -212,7 +228,7 @@ class DinoLinearProbe:
         self.pos = vit.pos_embed.detach()[:, 1:].float()
         self.offset = getattr(vit, "interpolate_offset", 0.0)
         self.dtype = getattr(mx, dtype)
-        p = {k: v.astype(self.dtype) for k, v in dinov2_params(vit.state_dict(), self.patch).items()}
+        p = dinov2_params(vit.state_dict(), self.patch, self.dtype)
         del p["pos.grid"]
         depth, heads, eps = depth_of(p), vit.blocks[0].attn.num_heads, vit.norm.eps
         w, b = to_mx(weight.T).astype(self.dtype), to_mx(bias).astype(self.dtype)

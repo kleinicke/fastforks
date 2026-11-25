@@ -8,7 +8,7 @@ import types
 import pytest
 import torch
 
-from fastforks._core.deferred_init import deferred_init, deferred_library_inits
+from fastforks._core.deferred_init import deferred_init, deferred_library_inits, skipped_init
 
 
 class _Net(torch.nn.Module):
@@ -221,6 +221,15 @@ def test_library_inits_are_deferred_and_restored() -> None:
         loaded.copy_(torch.arange(64.0))  # what a checkpoint load does
     assert torch.equal(loaded, torch.arange(64.0))
     assert 3 < float(unloaded.mean()) < 7  # the whole initialiser ran at the end, its shift included
+
+
+def test_library_inits_inside_skipped_init_do_nothing() -> None:
+    lib = _library()
+    t = torch.full((64,), 7.0)
+    with skipped_init() as skipped, deferred_init(), deferred_library_inits([lib], ("shifted_normal_",)):
+        lib.shifted_normal_(t, mean=5.0)  # no memset either: the lazy twin assigns every such tensor
+    assert torch.equal(t, torch.full((64,), 7.0))
+    assert id(t) in skipped  # recorded: the caller rejects a tensor still at its skipped version
 
 
 def test_library_inits_outside_a_block_run_at_once() -> None:
