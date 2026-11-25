@@ -21,8 +21,9 @@ runs fused `scaled_dot_product_attention` (as upstream) with its LayerScales fol
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -360,10 +361,77 @@ def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tenso
     return dedode_sparse.sample(net.descriptor, image, keypoints, blend=loma_descriptor.blend)
 
 
+class _MlxPortable(Portable):
+    """`Portable` for MLX: detector, descriptor, keypoint sampling and matcher in MLX operations (`mlx_net`).
+
+    The two image resizes are PyTorch's on the CPU (bicubic with antialiasing, as `Matcher._resize`); the keypoints
+    and descriptions stay on MLX between `describe` and `match` within a call, and only the match decisions are read
+    on the host. The PyTorch networks are released once their weights are copied.
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch networks on the CPU and copy their weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self._mlx = mlx_net.MlxLoMa(self.net, mlx_wrap.run_dtype(ctx))
+        for name in ("detector", "descriptor", "matcher", "dinov2"):  # their MLX copies hold the weights now
+            setattr(self.net, name, None)
+
+    def _features(self, image: torch.Tensor) -> tuple[Any, Any]:
+        """Queue the keypoints (normalised) and descriptions of one image on MLX."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+
+        net, p = self.net, self.net.params
+        image = image.float()
+        h, w = image.shape[-2:]
+        scale = p.long_side / max(h, w)
+        det = net._resize(image, (int(scale * h) // STRIDE * STRIDE, int(scale * w) // STRIDE * STRIDE))  # noqa: SLF001
+        det = to_mx((det - net.mean) / net.std).transpose(0, 2, 3, 1)
+        kpts = self._mlx.keypoints(det, p.max_keypoints, SUBPIXEL_TEMP)
+        mx.async_eval(kpts)
+        resized = net._resize(image, (p.size, p.size))  # noqa: SLF001 - on the CPU while the keypoints are sampled
+        if p.normalize_descriptor:
+            resized = (resized - net.mean) / net.std
+        desc = self._mlx.descriptions(to_mx(resized).transpose(0, 2, 3, 1), kpts)
+        mx.async_eval(desc)
+        return kpts, desc
+
+    def _result(self, image1: torch.Tensor, image2: torch.Tensor, f1: Any, f2: Any) -> dict[str, torch.Tensor]:  # noqa: ANN401
+        from fastforks._core.mlx import mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        m0, scores = self._mlx.match(f1[0], f2[0], f1[1], f2[1], self.net.params.threshold)
+        mx.eval(m0, scores, f1[0], f2[0])
+        m0, scores = np.array(m0).astype(np.int64), np.array(scores)
+        idx = np.flatnonzero(m0 > -1)
+        return {
+            "keypoints1": self.net.to_input(to_torch(f1[0]), image1),
+            "keypoints2": self.net.to_input(to_torch(f2[0]), image2),
+            "pairs": torch.from_numpy(np.stack([idx, m0[idx]], axis=-1)),
+            "scores": torch.from_numpy(scores[idx]),
+        }
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Keypoints of both images, the index pairs of their matches and the match scores (CPU tensors)."""
+        return self._result(image1, image2, self._features(image1), self._features(image2))
+
+    def describe(self, image: torch.Tensor) -> Described:
+        """Keypoints (normalised) and descriptions of one image as CPU tensors."""
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - imports mlx
+
+        kpts, desc = self._features(image)
+        return to_torch(kpts), to_torch(desc)
+
+    def match(self, image1: torch.Tensor, image2: torch.Tensor, described: tuple[Described, Described]) -> dict:
+        """`__call__` with the two images' `describe` results."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        f1, f2 = ((to_mx(k), to_mx(d)) for k, d in described)
+        return self._result(image1, image2, f1, f2)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(
-        Portable, attrs=("net.detector", "net.descriptor", "net.matcher"), half_wino_f32=True
-    ),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

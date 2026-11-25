@@ -1256,6 +1256,50 @@ def test_mlx_efficientvit_sam_matches_torch(arch, size):
     torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
 
 
+def test_mlx_loma_matches_torch():
+    """`loma.mlx_net.MlxLoMa` against the PyTorch `Matcher` (random weights and batch norms, float32).
+
+    DaD's detector logits and keypoints, the small DeDoDe-B descriptor sampled at the same keypoints and the matcher's
+    mutual matches on the same keypoints and descriptions (DeDoDe-G's DINOv2 is `mlx_vit`'s, tested there).
+    """
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matching.models.loma import mlx_net  # noqa: PLC0415
+    from fastforks.matching.models.loma.model import SUBPIXEL_TEMP, Matcher, Params  # noqa: PLC0415
+    from fastforks.matching.models.loma.net.dad import sample_keypoints  # noqa: PLC0415
+    from fastforks.matching.models.loma.net.loma import filter_matches  # noqa: PLC0415
+    from fastforks.shared.dedode import describe_keypoints  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    params = Params(
+        dim=64, input_dim=32, descriptor="dedode_b_vgg11", normalize_descriptor=True, heads=2, layers=4,
+        threshold=0.0, long_side=192, size=128, max_keypoints=256,
+    )  # fmt: skip
+    net = Matcher(params).eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(net, g)
+    det = torch.randn(1, 3, 128, 192, generator=g)
+    res = torch.randn(1, 3, 128, 128, generator=g)
+    with torch.no_grad():
+        logits = net.detector(det)
+        kp = sample_keypoints(logits, params.max_keypoints, 3, SUBPIXEL_TEMP)
+        desc = describe_keypoints(net.descriptor(res), kp)
+        kp1 = torch.roll(kp, 3, 0) * 0.9
+        desc1 = torch.roll(desc, 3, 0) + 0.1 * torch.randn(desc.shape, generator=g)
+        want_m, want_s = filter_matches(net.matcher(kp[None], kp1[None], desc[None], desc1[None]), 0.0)
+    m = mlx_net.MlxLoMa(net, "float32")
+    nhwc = to_mx(det).transpose(0, 2, 3, 1)
+    torch.testing.assert_close(to_torch(m.detector(nhwc)), logits[0, 0], atol=1e-3, rtol=1e-3)
+    got_kp = to_torch(m.keypoints(nhwc, params.max_keypoints, SUBPIXEL_TEMP))
+    torch.testing.assert_close(got_kp, kp, atol=1e-4, rtol=0)
+    got_desc = to_torch(m.descriptions(to_mx(res).transpose(0, 2, 3, 1), to_mx(kp)))
+    torch.testing.assert_close(got_desc, desc, atol=1e-3, rtol=1e-3)
+    got_m, got_s = (to_torch(t) for t in m.match(*(to_mx(t) for t in (kp, kp1, desc, desc1)), 0.0))
+    torch.testing.assert_close(got_s, want_s, atol=1e-5, rtol=1e-3)
+    assert (got_m == want_m).float().mean() > 0.99
+
+
 @pytest.mark.parametrize(("scales", "hidden"), [((1.0,), 64), ((2.0, 0.5), 64), ((2.0, 0.5), 576)])
 def test_mlx_lwdetr_matches_torch(scales, hidden):
     """`lwdetr.mlx_net.MlxLWDETR` against the folded PyTorch `model.Network` (random weights, float32).
