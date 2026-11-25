@@ -261,19 +261,40 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
-# The SimCC head runs as a float32 graph: its 1D-bin argmax flips half-pixel bins on float16 logits (face6-s
-# keypoints mean 0.065 px vs tol 0.061 with a float16 head).
-_Mlx = mlx_wrap.port(
-    Portable,
-    attrs=(),
-    methods=("net.features", "net.head.forward"),
-    fp32_methods=("net.head.forward",),
-    prune=True,
-)
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), crops and decoding as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network (BatchNorm folded), its weights copied to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_net.MlxRTMPose(self.net, mlx_wrap.run_dtype(ctx))
+        self.net = None  # the MLX copy replaces it
+
+    def logits(self, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """float32 SimCC logits (x `[P, K, 2 w]`, y `[P, K, 2 h]`) of crops `[P, 3, h, w]` in 0..255."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        x = (crops.float() - self.mean) / self.std
+        p = x.shape[0]
+        if self.ctx.params.flip_test:
+            x = torch.cat([x, x.flip(-1)])
+        mx_x, mx_y = self.mlx(to_mx(x.permute(0, 2, 3, 1)))
+        mx.eval(mx_x, mx_y)
+        sx, sy = to_torch(mx_x), to_torch(mx_y)
+        if not self.ctx.params.flip_test:
+            return sx, sy
+        fx = sx[p:].index_select(1, self.flip).flip(-1)
+        fy = sy[p:].index_select(1, self.flip)
+        return (sx[:p] + fx) * 0.5, (sy[:p] + fy) * 0.5
+
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": _Mlx,
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
