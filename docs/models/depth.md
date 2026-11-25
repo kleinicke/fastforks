@@ -157,7 +157,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Training data: Public academic datasets only (model cards); teacher-student training on synthetic and real multi-view data per the paper
 - Licence note: The Mono and Metric weights are Apache-2.0 but their training data terms are unchecked (a note only); the other variants' weights are CC-BY-NC-4.0 (`no`).
 - Options: `stream` = False (speed only), `long_side` = 504 (>= 14; also `process_res`)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Kernel libraries: `fastbb`, `dpt_fused`, `dpt_resize`
 - Variants: `da3mono-large`, `da3metric-large`, `da3-large-1.1`, `da3-giant-1.1`, `da3nested-giant-large-1.1`
 - Outputs: depth, confidence, intrinsics, mask, sky (in `extras`); kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
@@ -216,11 +216,11 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `dpt_resize@89c4f68fd798:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

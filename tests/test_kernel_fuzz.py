@@ -669,3 +669,16 @@ def test_vggt_omega_join_layer_norm(dev, tokens, width):
         1e-6,
     )
     torch.testing.assert_close(out, expected, rtol=1e-3, atol=5e-4)
+
+
+@pytest.mark.parametrize(("shape", "size"), [((2, 7, 11, 32), (17, 37)), ((2, 1, 5, 8), (1, 13))])
+def test_dpt_resize_rows(dev, shape, size):
+    from fastforks.kernels import dpt_fused, dpt_resize  # noqa: PLC0415 - CUDA kernels only
+
+    generator = torch.Generator(device=dev).manual_seed(81)
+    image = torch.randn(shape, dtype=torch.float16, generator=generator, device=dev)
+    full = dpt_fused.load(dev).bilinear(image, size, align_corners=True)
+    for start in range(0, size[0], 5):
+        stop = min(start + 5, size[0])
+        stripe = dpt_resize.rows(image, size, (start, stop))
+        torch.testing.assert_close(stripe, full[:, start:stop], rtol=0, atol=0)

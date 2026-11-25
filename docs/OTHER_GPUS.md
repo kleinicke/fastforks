@@ -122,6 +122,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `deform_conv` | aanet, birefnet |
 | `depthsplat_corr` | depthsplat, resplat |
 | `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nafnet, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam3, sam_hq, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft, waft_stereo |
+| `dpt_resize` | depth_anything_3 |
 | `dual_softmax` | dedode, loftr |
 | `edge_components` | anyline |
 | `ema_warp` | ema_vfi, film, gimm_vfi |
