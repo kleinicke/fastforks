@@ -90,29 +90,30 @@ def pinhole_rays(k: torch.Tensor, h: int, w: int) -> torch.Tensor:
 
 def rsh_cart_3(xyz: torch.Tensor) -> torch.Tensor:
     """Real spherical harmonics of degree 1-3 (upstream `rsh_cart_3` without the constant one) `[..., 15]`."""
-    x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
+    return torch.stack(rsh_terms(xyz[..., 0], xyz[..., 1], xyz[..., 2]), -1)
+
+
+def rsh_terms(x: Any, y: Any, z: Any) -> list[Any]:  # noqa: ANN401 - torch tensors or mx arrays (arithmetic only)
+    """The 15 terms of `rsh_cart_3` of the coordinates `x`, `y`, `z` (also the MLX port's)."""
     x2, y2, z2 = x**2, y**2, z**2
     xy, xz, yz = x * y, x * z, y * z
-    return torch.stack(
-        [
-            -0.48860251190292 * y,
-            0.48860251190292 * z,
-            -0.48860251190292 * x,
-            1.09254843059208 * xy,
-            -1.09254843059208 * yz,
-            0.94617469575756 * z2 - 0.31539156525252,
-            -1.09254843059208 * xz,
-            0.54627421529604 * x2 - 0.54627421529604 * y2,
-            -0.590043589926644 * y * (3.0 * x2 - y2),
-            2.89061144264055 * xy * z,
-            0.304697199642977 * y * (1.5 - 7.5 * z2),
-            1.24392110863372 * z * (1.5 * z2 - 0.5) - 0.497568443453487 * z,
-            0.304697199642977 * x * (1.5 - 7.5 * z2),
-            1.44530572132028 * z * (x2 - y2),
-            -0.590043589926644 * x * (x2 - 3.0 * y2),
-        ],
-        -1,
-    )
+    return [
+        -0.48860251190292 * y,
+        0.48860251190292 * z,
+        -0.48860251190292 * x,
+        1.09254843059208 * xy,
+        -1.09254843059208 * yz,
+        0.94617469575756 * z2 - 0.31539156525252,
+        -1.09254843059208 * xz,
+        0.54627421529604 * x2 - 0.54627421529604 * y2,
+        -0.590043589926644 * y * (3.0 * x2 - y2),
+        2.89061144264055 * xy * z,
+        0.304697199642977 * y * (1.5 - 7.5 * z2),
+        1.24392110863372 * z * (1.5 * z2 - 0.5) - 0.497568443453487 * z,
+        0.304697199642977 * x * (1.5 - 7.5 * z2),
+        1.44530572132028 * z * (x2 - y2),
+        -0.590043589926644 * x * (x2 - 3.0 * y2),
+    ]
 
 
 def fourier_features(x: torch.Tensor, dim: int, max_freq: int) -> torch.Tensor:
@@ -120,6 +121,13 @@ def fourier_features(x: torch.Tensor, dim: int, max_freq: int) -> torch.Tensor:
     bands = dim // x.shape[-1]
     scales = 2.0 ** torch.linspace(0.0, math.log2(max_freq), steps=bands, device=x.device, dtype=x.dtype)
     return (x.unsqueeze(-1) * scales * math.pi).sin().flatten(-2)
+
+
+def pos_table(pe: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """Upstream `interpolate_pos_encoding` of the position table `pe` `[1, 1 + m * m, C]` to an `h x w` grid."""
+    m = math.isqrt(pe.shape[1] - 1)
+    p = F.interpolate(pe[:, 1:].reshape(1, m, m, -1).permute(0, 3, 1, 2), size=(h, w), mode="bicubic")
+    return torch.cat([pe[:, :1], p.permute(0, 2, 3, 1).reshape(1, h * w, -1)], 1)
 
 
 # ------------------------------------------------------------------------------------------------ layers
@@ -397,10 +405,7 @@ class UniK3DNet(nn.Module):
 
     def pos_table(self, h: int, w: int) -> torch.Tensor:
         """Upstream `interpolate_pos_encoding` of an `h x w` grid: fp32 bicubic by output size, `[1, 1 + hw, C]`."""
-        pe = self.pixel_encoder.pos_embed.float()
-        m = math.isqrt(pe.shape[1] - 1)
-        p = F.interpolate(pe[:, 1:].reshape(1, m, m, -1).permute(0, 3, 1, 2), size=(h, w), mode="bicubic")
-        return torch.cat([pe[:, :1], p.permute(0, 2, 3, 1).reshape(1, h * w, -1)], 1)
+        return pos_table(self.pixel_encoder.pos_embed.float(), h, w)
 
     def encode(self, x: torch.Tensor) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Normalised image `[B, 3, H, W]` -> per level the normed tokens `[B, h, w, C]` and cls token `[B, 1, C]`."""
