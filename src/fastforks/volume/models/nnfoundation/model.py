@@ -206,8 +206,11 @@ class _Block(nn.Module):
         self.mlp = _Mlp(dim, hidden)
         self.gamma_2 = nn.Parameter(torch.ones(dim))
 
-    def forward(self, x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor, *, owned: bool = False) -> torch.Tensor:
         """`x`: the float32 residual stream (as under autocast); the branches run in the weights' dtype."""
+        if owned:
+            x.addcmul_(self.gamma_1, self.attn(_ln(self.norm1, x), sin, cos))
+            return x.addcmul_(self.gamma_2, self.mlp(_ln(self.norm2, x)))
         x = torch.addcmul(x, self.gamma_1.float(), self.attn(_ln(self.norm1, x), sin, cos).float())
         return torch.addcmul(x, self.gamma_2.float(), self.mlp(_ln(self.norm2, x)).float())
 
@@ -243,6 +246,7 @@ class Primus(nn.Module):
         """Build the encoder for a fixed `size^3` input (the absolute position table has one row per patch)."""
         super().__init__()
         self.size, self.grid = size, size // patch
+        self.inplace_residual = False
         self.down_projection = _PatchEmbed(patch, dim, channels)
         self.eva = _Eva(dim, depth, heads, hidden, self.grid**3)
         self.rope_dim = round(dim // heads / 1.5)
@@ -255,8 +259,13 @@ class Primus(nn.Module):
         t = self.down_projection.proj(x).flatten(2).transpose(1, 2)  # "b c w h d -> b (w h d) c"
         t = t.float() + self.eva.pos_embed.float()
         sin, cos = self.rope_sin.float(), self.rope_cos.float()
-        for blk in self.eva.blocks:
-            t = blk(t, sin, cos)
+        if self.inplace_residual and x.dtype == torch.float16 and _eager_cuda(t):
+            # The position addition creates the private residual; each branch returns a separate projection.
+            for blk in self.eva.blocks:
+                t = blk(t, sin, cos, owned=True)
+        else:
+            for blk in self.eva.blocks:
+                t = blk(t, sin, cos)
         t = _ln(self.eva.norm, t)
         g = self.grid
         return t.transpose(1, 2).reshape(x.shape[0], -1, g, g, g)
@@ -321,6 +330,8 @@ class Portable(EncoderRunner):
     def _prepare(self, net: nn.Module) -> nn.Module:
         """Install inference methods before the host packer moves stage shells to meta."""
         if self.fused:
+            if isinstance(net, Primus):
+                net.inplace_residual = True
             for module in net.modules():
                 if isinstance(module, _Attention):
                     module.fused_rotary = True
