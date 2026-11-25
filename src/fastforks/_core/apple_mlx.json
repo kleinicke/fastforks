@@ -227,7 +227,7 @@
   "anycalib-pinhole@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -4379,6 +4379,9 @@
    }
   },
   "geocalib-pinhole@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
