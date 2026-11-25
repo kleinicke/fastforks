@@ -1280,7 +1280,7 @@ def test_mlx_dinov2_engine_matches_torch(registers, ffn):
     with torch.no_grad():
         t = vit.prepare_tokens_with_masks(x)
         want = []
-        for blk in vit.blocks:
+        for blk in vit.blocks:  # ty: ignore[not-iterable]
             t = blk(t)
             want.append(t)
         last = vit.norm(t)
@@ -1308,7 +1308,7 @@ def test_mlx_dino_linear_probe_matches_torch(image_logits):
     x = torch.randn(2, 3, 56, 56)
     with torch.no_grad():
         t = vit.prepare_tokens_with_masks(x)
-        for blk in vit.blocks:
+        for blk in vit.blocks:  # ty: ignore[not-iterable]
             t = blk(t)
         t = vit.norm(t)
         tokens = torch.cat([t[:, 0], t[:, 1:].mean(1)], -1) if image_logits else t[:, 1:]
@@ -1368,7 +1368,7 @@ def test_mlx_c_radio_engine_matches_torch(layer_scale):
         t = vit.patch_embed.proj(x).flatten(2).transpose(1, 2) + model._resample(pos, 3, 5, align_corners=False)
         t = torch.cat([tok.expand(2, -1, -1), t], 1)
         want = []
-        for blk in vit.blocks:
+        for blk in vit.blocks:  # ty: ignore[not-iterable]
             t = blk(t)
             want.append(t)
     got = engine(x, (1, 2))
