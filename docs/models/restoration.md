@@ -458,8 +458,8 @@ CPU, float32: max |diff| <= 0.003 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nafnet-gopro` | 0.01006 / 0.4662 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@0f6b8c6466e8:sm_120` |
-| `nafnet-sidd` | 0.00028 / 0.00103 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@0f6b8c6466e8:sm_120` |
+| `nafnet-gopro` | 0.01006 / 0.4662 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@95f8dd127200:sm_120` |
+| `nafnet-sidd` | 0.00028 / 0.00103 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@95f8dd127200:sm_120` |
 
 </details>
 

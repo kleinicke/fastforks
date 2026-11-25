@@ -112,6 +112,26 @@ def test_fused_depthwise_gate(n: int, c: int, h: int, w: int) -> None:
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize("offset", [0, 1])
+def test_depthwise_gate_writes_only_requested_rows(offset: int) -> None:
+    from fastforks.kernels.nafnet_gate import depthwise_gate, depthwise_gate_rows  # noqa: PLC0415
+
+    torch.manual_seed(19)
+    batch, channels, height, width = 2, 64, 21, 47
+    opts = {"device": "cuda", "dtype": torch.float16}
+    x = torch.randn(batch, height, width, 2 * channels, **opts).permute(0, 3, 1, 2)
+    weight, bias = torch.randn(9, 2 * channels, **opts), torch.randn(2 * channels, **opts)
+    expected = depthwise_gate(x, weight, bias)
+    storage = torch.empty(batch * height * width * channels + offset, **opts)
+    actual = storage[offset:].view(batch, height, width, channels).permute(0, 3, 1, 2).fill_(-421)
+    for start, end in ((0, 4), (4, 10), (10, height)):
+        lo, hi = max(0, start - 1), min(height, end + 1)
+        depthwise_gate_rows(x[:, :, lo:hi], weight, bias, actual, src_top=start - lo, dst_top=start, rows=end - start)
+        assert torch.equal(actual[:, :, :end], expected[:, :, :end])
+        assert torch.all(actual[:, :, end:] == -421)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize("channels", [64, 128, 256, 512, 1024])
 def test_channel_norm(channels: int) -> None:
     from fastforks.kernels.nafnet_gate import channel_norm  # noqa: PLC0415

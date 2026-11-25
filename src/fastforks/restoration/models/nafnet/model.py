@@ -73,6 +73,7 @@ def _replicate_pad(kh: int, kw: int) -> tuple[int, int, int, int]:
 
 
 _BOX_BUFFER_BYTES = 16 * 1024**2
+_DEPTHWISE_TILE_BYTES = 128 << 20  # fixed: bound the first gate's expanded pointwise projection
 _FFN_TILE_BYTES = 128 << 20  # fixed: bound the CUDA gate projection of large feature maps
 _FFN_TILE_ROWS = 256  # fixed: cap the number of rows in a CUDA gate tile
 
@@ -270,10 +271,47 @@ def _kernel_norm(x: torch.Tensor, eps: float) -> torch.Tensor:
     return _norm(x, eps)
 
 
+def _depthwise_features(m: NAFBlock, inp: torch.Tensor, fused: dpt_fused.DptFused) -> torch.Tensor:
+    """Keep the complete gated map for attention, but build it with bounded 3x3 halo stripes."""
+
+    def project(x: torch.Tensor) -> torch.Tensor:
+        return _pointwise(m.conv1, _kernel_norm(x, m.norm1.eps), fused)
+
+    def gate(x: torch.Tensor) -> torch.Tensor:
+        return nafnet_gate.depthwise_gate(project(x), m.gate_weight, m.conv2.bias)  # ty: ignore[invalid-argument-type]
+
+    b, c, h, w = inp.shape
+    projected = m.conv1.out_channels
+    max_rows = _DEPTHWISE_TILE_BYTES // (b * w * projected * inp.element_size())
+    if h <= max(1, max_rows):
+        return gate(inp)
+    rows = max(1, max_rows - 2)  # account for the two halo rows in an interior stripe
+    bands = (h + rows - 1) // rows
+    # Keep the full-frame GEMM algorithm even for the shortest stripe. The rule is monotone in the row count.
+    if fused.gemm_cfg(b * (h // bands) * w, projected, c, dpt_fused.ACT_NONE) != fused.gemm_cfg(
+        b * h * w, projected, c, dpt_fused.ACT_NONE
+    ):
+        return gate(inp)
+
+    out = torch.empty((b, projected // 2, h, w), device=inp.device, dtype=inp.dtype, memory_format=torch.channels_last)
+    for i in range(bands):
+        start, end = i * h // bands, (i + 1) * h // bands
+        lo, hi = max(0, start - 1), min(h, end + 1)
+        nafnet_gate.depthwise_gate_rows(
+            project(inp[:, :, lo:hi]),
+            m.gate_weight,  # ty: ignore[invalid-argument-type] - installed in Kernels.__init__
+            m.conv2.bias,  # ty: ignore[invalid-argument-type] - NAFBlock constructs a biased conv
+            out,
+            src_top=start - lo,
+            dst_top=start,
+            rows=end - start,
+        )
+    return out
+
+
 def _fused_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
     fused = dpt_fused.load(inp.device)
-    x = _pointwise(m.conv1, _kernel_norm(inp, m.norm1.eps), fused)
-    x = nafnet_gate.depthwise_gate(x, m.gate_weight, m.conv2.bias)  # ty: ignore[invalid-argument-type]
+    x = _depthwise_features(m, inp, fused)
     y = _pointwise(m.conv3, _scale_features(m, x), fused, inp)
     del x
     height, width = y.shape[-2:]
