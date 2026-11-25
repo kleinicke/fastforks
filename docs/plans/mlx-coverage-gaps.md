@@ -1749,6 +1749,36 @@ Left: peaks of l / x above the exported port's (l fp32 1307 vs 976, x fp32 1675 
 of it: the torch network and its MLX copy coexist while the weights are copied); tiny / s / m lower or level; all
 0.4-1.1 GB under MPS. 5 refs, hand-written.
 
+### Done: RTMO (2026-11-25)
+
+M1 Pro, 1080x1920 images (letterboxed to 640 / 416), MLX goldens pass (fp16 and fp32). `auto` now takes MLX portable
+float16 for all four (MPS before: the exported port's 1.4-1.6 s first call was over the 0.6-1.0 s budget).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| rtmo-t | MLX before, portable fp16 / fp32 | 14.4 / 16.2 | 1.39 / 1.36 | 596 / 673 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 11.7 / 12.3) | 11.8 / 12.3 | 0.05 / 0.06 | 486 / 534 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 19.9 / 21.0 | 0.68 / 0.69 | 1506 / 1523 | |
+| rtmo-s | MLX before, portable fp16 / fp32 | 25.6 / 33.8 | 1.47 / 1.46 | 763 / 818 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 18.6 / 21.7) | 19.0 / 21.2 | 0.05 / 0.07 | 607 / 679 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 31.0 / 32.1 | 0.37 / 0.35 | 1560 / 1577 | |
+| rtmo-m | MLX before, portable fp16 / fp32 | 45.0 / 53.2 | 1.54 / 1.47 | 999 / 1074 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 34.7 / 38.9) | 35.1 / 38.7 | 0.06 / 0.08 | 917 / 1039 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 43.9 / 47.6 | 0.24 / 0.24 | 1802 / 1879 | |
+| rtmo-l | MLX before, portable fp16 / fp32 | 71.9 / 88.9 | 1.64 / 1.60 | 1171 / 1235 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 54.5 / 62.1) | 55.0 / 62.0 | 0.07 / 0.09 | 1188 / 1280 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 61.9 / 68.8 | 0.36 / 0.27 | 1829 / 1869 | |
+
+`pose/models/rtmo/mlx_net.py` writes the 6 x 6 stem, CSPDarknet, the hybrid encoder (the post-norm transformer layer
+on the stride-32 map, the CSPRep top-down / bottom-up passes) and the head in `mlx.core` on the cspnext layers; the
+person logit's 1 x 1 conv float32 and float16 Winograd convs in float32 (`half_wino_f32`) as the exported port, SiLU
+in the run dtype (`csp.run_dtype_silu`: the float32 one put rtmo-t float16 past its golden limit). Each stage, neck
+block and head level a depth-1 step: the whole network as one compiled graph peaked at 1282 / 1536 MB for rtmo-l.
+The DCC stays PyTorch. Warm -18 to -37 %, first call 1.4-1.6 -> 0.05-0.09 s.
+
+Left: rtmo-l peaks +17 / +45 MB over the exported port's; t / s / m 80-140 MB lower; all 0.6-1.0 GB under MPS.
+4 refs, hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /
