@@ -277,7 +277,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
 - Options: `cuda_graphs` = True (speed only), `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: `image_normalize`
+- Kernel libraries: `image_normalize`, `seg_up`
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -307,7 +307,7 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `image_normalize@592f5511307a:sm_120`, `seg_up@3e44e71200cd:sm_120` |
 
 ### Limitations
 

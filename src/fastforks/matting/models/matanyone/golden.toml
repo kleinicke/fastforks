@@ -15,11 +15,11 @@ upstream = "https://github.com/pq-yang/MatAnyone@e5ddc534c1fff9bb9e54cf476095d29
 settings = "CPU float32, process_video loop on frames in memory (mask gen_dilate / gen_erosion 10, 10 warm-up frames, float alpha without uint8 rounding); tests/synth.py clip() + disk mask; torch 2.14.1+cu130"
 
 [validated."matanyone@1"]
-kernels = ["image_normalize@592f5511307a:sm_120"]
-symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+kernels = ["image_normalize@592f5511307a:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
-date = "2026-11-17"
+torch = "2.14.1+cu130"
+date = "2026-11-25"
 mean_px = 5e-05
 p99_px = 0.0
 

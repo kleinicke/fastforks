@@ -173,7 +173,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sam3_resize` | sam3 |
 | `sam3_tracker` | sam3 |
 | `seg_conv` | mmseg, segnext |
-| `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer, segnext |
+| `seg_up` | dinov2_linear, eomt, mask2former, matanyone, mmseg, oneformer, sapiens, segformer, segnext |
 | `shift_windows` | drct, hat, swin2sr, swinir |
 | `smish` | teed |
 | `sparse_conv` | moge |
