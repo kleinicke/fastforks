@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1695 rows, measured 2026-11-19 to 2026-11-25.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1700 rows, measured 2026-11-19 to 2026-11-25.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -391,13 +391,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | – | 62.7 ms · portable fp16 | 57.4 ms · portable fp16 | – | – | – | – | 2.57 ms · kernels fp16 |
 | [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | – | 44.0 ms · portable fp32 | 37.1 ms · portable fp16 | 4.56 ms · kernels fp16 | 2.76 ms · kernels fp16 | 4.88 ms · kernels fp16 | 4.74 ms · kernels fp16 | 2.21 ms · kernels fp16 |
 | [`rtdetrv2-x-coco`](models/detection.md#rtdetrv2) | – | 109 ms · portable fp16 | 118 ms · portable fp16 | 10.1 ms · kernels fp16 | 4.89 ms · kernels fp16 | 10.4 ms · kernels fp16 | 8.11 ms · kernels fp16 | 4.07 ms · kernels fp16 |
-| [`rtmdet-l-coco`](models/detection.md#rtmdet) | – | 75.8 ms · portable fp16 | 74.9 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-m-coco`](models/detection.md#rtmdet) | – | 51.4 ms · portable fp16 | 50.1 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-m-person`](models/detection.md#rtmdet) | – | 48.8 ms · portable fp16 | 47.7 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-nano-person`](models/detection.md#rtmdet) | – | 17.8 ms · portable fp16 | 8.87 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 25.9 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | 24.4 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | 126 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-l-coco`](models/detection.md#rtmdet) | – | 75.8 ms · portable fp16 | 63.9 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-m-coco`](models/detection.md#rtmdet) | – | 51.4 ms · portable fp16 | 43.7 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-m-person`](models/detection.md#rtmdet) | – | 48.8 ms · portable fp16 | 41.5 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-nano-person`](models/detection.md#rtmdet) | – | 17.8 ms · portable fp16 | 6.69 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 22.3 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | 19.7 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | 113 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | 69.6 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | 44.6 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 20.8 ms · kernels fp16 | – | – | – | – | – |
