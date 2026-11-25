@@ -3,20 +3,26 @@
 
 // NHWC input, kernel-major weights [9, 2C]. Neighboring lanes load neighboring
 // channels. Each output thread accumulates one channel from each gate operand.
-extern "C" __global__ void depthwise_gate(const half* input, const half* weight, const half* bias,
-        half* output, int h, int w, int c, int64_t count) {
+template<bool cropped>
+__device__ __forceinline__ void gate_scalar(const half* input, const half* weight, const half* bias,
+        half* output, int h, int w, int c, int64_t count, int core, int src_top, int dst_h, int dst_top) {
     for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
          i += int64_t(gridDim.x) * blockDim.x) {
         const int ch = i % c;
         const int64_t pixel = i / c;
-        const int x = pixel % w, y = pixel / w % h;
+        const int x = pixel % w;
+        const int64_t row = pixel / w;
+        const int rel = cropped ? row % core : row % h;
+        const int64_t sample = cropped ? row / core : 0;
+        const int y = rel + src_top;
+        const int64_t src_pixel = cropped ? (sample * h + y) * w + x : pixel;
         float a = 0.f, b = 0.f;
         #pragma unroll
         for (int dy = -1; dy <= 1; ++dy) {
             #pragma unroll
             for (int dx = -1; dx <= 1; ++dx) {
                 if (unsigned(y + dy) < unsigned(h) && unsigned(x + dx) < unsigned(w)) {
-                    const int64_t p = (pixel + int64_t(dy) * w + dx) * (2 * c) + ch;
+                    const int64_t p = (src_pixel + int64_t(dy) * w + dx) * (2 * c) + ch;
                     const int k = ((dy + 1) * 3 + dx + 1) * (2 * c) + ch;
                     a = fmaf(__half2float(input[p]), __half2float(weight[k]), a);
                     b = fmaf(__half2float(input[p + c]), __half2float(weight[k + c]), b);
@@ -25,21 +31,36 @@ extern "C" __global__ void depthwise_gate(const half* input, const half* weight,
         }
         const half left = __float2half_rn(a + __half2float(bias[ch]));
         const half right = __float2half_rn(b + __half2float(bias[ch + c]));
-        output[i] = __hmul(left, right);
+        const int64_t dest = cropped ? ((sample * dst_h + dst_top + rel) * w + x) * c + ch : i;
+        output[dest] = __hmul(left, right);
     }
+}
+
+extern "C" __global__ void depthwise_gate(const half* input, const half* weight, const half* bias,
+        half* output, int h, int w, int c, int64_t count) {
+    gate_scalar<false>(input, weight, bias, output, h, w, c, count, h, 0, h, 0);
+}
+
+extern "C" __global__ void depthwise_gate_rows(const half* input, const half* weight, const half* bias,
+        half* output, int h, int w, int c, int core, int src_top, int dst_h, int dst_top, int64_t count) {
+    gate_scalar<true>(input, weight, bias, output, h, w, c, count, core, src_top, dst_h, dst_top);
 }
 
 // A warp covers 64 channels of four adjacent pixels. The six overlapping taps
 // of each input row are loaded once for all four outputs.
-extern "C" __global__ void depthwise_gate_tile(const half2* input, const half2* weight,
-        const half2* bias, half2* output, int h, int w, int c, int64_t rows) {
+template<bool cropped>
+__device__ __forceinline__ void gate_vector(const half2* input, const half2* weight,
+        const half2* bias, half2* output, int h, int w, int c, int64_t rows, int core, int src_top, int dst_h, int dst_top) {
     const int tiles = (w + 15) / 16;
     const int64_t row = blockIdx.x / tiles;
     if (row >= rows) return;
     const int x0 = (blockIdx.x % tiles) * 16 + threadIdx.y * 4;
     if (x0 >= w) return;
     const int k = blockIdx.y * 32 + threadIdx.x;
-    const int y = row % h;
+    const int rel = cropped ? row % core : row % h;
+    const int64_t sample = cropped ? row / core : 0;
+    const int y = rel + src_top;
+    const int64_t src_row = cropped ? sample * h + y : row;
     float2 a[4] = {}, b[4] = {};
     #pragma unroll
     for (int dy = -1; dy <= 1; ++dy) {
@@ -55,7 +76,7 @@ extern "C" __global__ void depthwise_gate_tile(const half2* input, const half2* 
         for (int i = 0; i < 6; ++i) {
             const int x = x0 + i - 1;
             if (unsigned(x) >= unsigned(w)) continue;
-            const int64_t off = ((row + dy) * w + x) * 2 * c + k;
+            const int64_t off = ((src_row + dy) * w + x) * 2 * c + k;
             const float2 va = __half22float2(input[off]), vb = __half22float2(input[off + c]);
             #pragma unroll
             for (int j = 0; j < 4; ++j) {
@@ -70,13 +91,25 @@ extern "C" __global__ void depthwise_gate_tile(const half2* input, const half2* 
         }
     }
     const float2 ba = __half22float2(bias[k]), bb = __half22float2(bias[k + c]);
+    const int64_t dest_row = cropped ? sample * dst_h + dst_top + rel : row;
     #pragma unroll
     for (int j = 0; j < 4; ++j) {
         if (x0 + j >= w) break;
         const half2 l = __floats2half2_rn(a[j].x + ba.x, a[j].y + ba.y);
         const half2 r = __floats2half2_rn(b[j].x + bb.x, b[j].y + bb.y);
-        output[(row * w + x0 + j) * c + k] = __hmul2(l, r);
+        output[(dest_row * w + x0 + j) * c + k] = __hmul2(l, r);
     }
+}
+
+extern "C" __global__ void depthwise_gate_tile(const half2* input, const half2* weight,
+        const half2* bias, half2* output, int h, int w, int c, int64_t rows) {
+    gate_vector<false>(input, weight, bias, output, h, w, c, rows, h, 0, h, 0);
+}
+
+extern "C" __global__ void depthwise_gate_rows_tile(const half2* input, const half2* weight,
+        const half2* bias, half2* output, int h, int w, int c, int core, int src_top, int dst_h, int dst_top,
+        int64_t rows) {
+    gate_vector<true>(input, weight, bias, output, h, w, c, rows, core, src_top, dst_h, dst_top);
 }
 
 __device__ __forceinline__ float warp_sum(float value) {

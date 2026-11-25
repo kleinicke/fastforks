@@ -27,8 +27,8 @@ upstream = "https://github.com/megvii-research/NAFNet@2b4af71ebe098a92a75910c233
 settings = "CPU float32, NAFNet, net_g(lq), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."nafnet-gopro@1"]
-kernels = ["cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "nafnet_gate@0f6b8c6466e8:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "nafnet_gate" = {"channel_norm" = "65874b99cf5e1834", "depthwise_gate" = "fe804f21712c14c9", "depthwise_gate_tile" = "91eebf7bc235bd04", "scale_replicate" = "1950cc16d322179a"}}
+kernels = ["cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "nafnet_gate@95f8dd127200:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "nafnet_gate" = {"channel_norm" = "65874b99cf5e1834", "depthwise_gate" = "a5accb8d43d185a4", "depthwise_gate_rows" = "f73afee74c72664c", "depthwise_gate_rows_tile" = "725e0a3b64e01b4e", "depthwise_gate_tile" = "95c22ebee61dd853", "scale_replicate" = "1950cc16d322179a"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
@@ -45,8 +45,8 @@ mean_px = 0.01257
 p99_px = 0.67507
 
 [validated."nafnet-sidd@1"]
-kernels = ["cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "nafnet_gate@0f6b8c6466e8:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "nafnet_gate" = {"channel_norm" = "65874b99cf5e1834", "depthwise_gate" = "fe804f21712c14c9", "depthwise_gate_tile" = "91eebf7bc235bd04", "scale_replicate" = "1950cc16d322179a"}}
+kernels = ["cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "nafnet_gate@95f8dd127200:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "nafnet_gate" = {"channel_norm" = "65874b99cf5e1834", "depthwise_gate" = "a5accb8d43d185a4", "depthwise_gate_rows" = "f73afee74c72664c", "depthwise_gate_rows_tile" = "725e0a3b64e01b4e", "depthwise_gate_tile" = "95c22ebee61dd853", "scale_replicate" = "1950cc16d322179a"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"
