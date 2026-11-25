@@ -78,6 +78,20 @@ def test_edges_compile_and_tensorrt_use_the_task_standard_input():
     assert all([inp["label"] for inp in j["inputs"]] == ["1080x1920"] for j in jobs)
 
 
+@pytest.mark.parametrize(
+    ("family", "label", "shape"),
+    [("memfof", "375x1242", (1, 375, 1242)), ("sea_raft", "1080x1920", (1, 1080, 1920))],
+)
+def test_flow_export_uses_source_geometry(family, label, shape):
+    """An optical-flow export performs the runner's resize itself."""
+    model = Namespace(card=Namespace(family=family))
+
+    def capture_runner_input():
+        pytest.fail("runner input shape has already been transformed")
+
+    assert speed_check._net_input(model, "flow", capture_runner_input, label) == shape
+
+
 def test_timing_export_preserves_clip_scope(tmp_path, capsys):
     """Keep the job key and measured clip shape available to downstream report generation."""
     frames = Namespace(shape=(8, 3, 256, 256))
