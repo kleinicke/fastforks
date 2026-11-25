@@ -327,7 +327,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md#license-and-disclaimer>
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `fvm_conv`
+- Kernel libraries: `fvm_conv`, `tapnext_state`
 - Variants: `tapnext`, `tapnext-pp`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -359,8 +359,8 @@ CPU, float32: max |diff| <= 4.6e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `tapnext` | 0.00369 / 0.02116 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
-| `tapnext-pp` | 0.00415 / 0.02383 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+| `tapnext` | 0.00369 / 0.02116 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `tapnext_state@be3777b468c9:sm_120` |
+| `tapnext-pp` | 0.00415 / 0.02383 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `tapnext_state@be3777b468c9:sm_120` |
 
 ### Limitations
 

@@ -33,7 +33,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation
+kernels = ["fvm_conv", "tapnext_state"]  # fused GEMMs and FP32 state updates from a compact FP16 projection history
 
 [options]
 cuda_graphs = { default = true, effect = "speed" }  # kernels: replay recurrent frames for repeated query counts

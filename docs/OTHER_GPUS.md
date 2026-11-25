@@ -181,6 +181,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `stereo_ops` | coex, las2 |
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3, mapanything |
+| `tapnext_state` | tapnext |
 | `vggt_omega` | vggt_omega |
 | `vggt_rotary` | vggt |
 | `vol_norm` | lineart, nnfoundation, nninteractive, totalsegmentator |

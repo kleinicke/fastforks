@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.model import eager_in_compile
 from fastforks._core.upload import device_tensor
+from fastforks.kernels import tapnext_state
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.tracking._runner import Forward, Runner
@@ -191,23 +192,6 @@ class _RingState(NamedTuple):
     first: torch.Tensor
 
 
-def _temporal_graph(m: RecurrentBlock, x: torch.Tensor, y: torch.Tensor, state: _RingState) -> torch.Tensor:
-    """Advance the fixed-address state for one captured recurrent frame."""
-    h, history, order, first = state
-    previous = history.index_select(0, order)
-    history.index_copy_(0, order[:1], x)
-    w, b = _t(m.conv_1d.w), _t(m.conv_1d.b)
-    # Match the eager convolution's addition order and keep the state and gate arithmetic in float32.
-    conv = b + (sum(w[i] * previous[i : i + 1] for i in range(CONV_WIDTH - 1)) + w[-1] * x)
-    cell = m.rg_lru
-    gate = torch.sigmoid(cell.input_gate(conv))
-    log_a = -8.0 * torch.sigmoid(cell.a_gate(conv)) * F.softplus(cell.a_param.float())
-    a = log_a.exp()
-    gain = torch.where(first, 1.0, torch.sqrt(1 - (2 * log_a).exp()))
-    h.mul_(a[0]).add_((conv * gate * gain)[0])
-    return (h[None] * y).to(y.dtype)
-
-
 def _reset_state(inputs: tuple[torch.Tensor, ...]) -> None:
     """Reset cached recurrent state in place when starting a new clip."""
     torch._foreach_zero_(inputs[5:])  # batched GPU fill of the recurrent buffers
@@ -219,16 +203,33 @@ def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
 
     wy, by, wx, bx = _w4(m.linear_y.weight), _t(m.linear_y.bias), _w4(m.linear_x.weight), _t(m.linear_x.bias)
     wo, bo = _w4(m.linear_out.weight), _t(m.linear_out.bias)
+    cell = m.rg_lru
+    weight, bias = _t(m.conv_1d.w), _t(m.conv_1d.b)
+    a_param = F.softplus(cell.a_param.detach().float())
 
     def forward(
         x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | _RingState | None, first: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | _RingState]:
         x16 = x.half()
         y = lin(x16, wy, by, act=GELU_TANH)
-        x = lin(x16, wx, bx).float()
+        x = lin(x16, wx, bx)
         if isinstance(cache, _RingState):
-            return lin(_temporal_graph(m, x, y, cache).half(), wo, bo), cache
-        return m.temporal(x, cache, y, lambda v: lin(v.half(), wo, bo), first)
+            hidden, history, order, initial = cache
+            conv = tapnext_state.history_update(x, weight, bias, order, history)
+            value, _ = tapnext_state.recurrent_update(
+                y, conv, cell.input_gate(conv), cell.a_gate(conv), a_param, initial, hidden, inplace=True
+            )
+            return lin(value, wo, bo), cache
+        if x.shape[0] != 1:
+            previous = (cache[0], cache[1].float()) if cache is not None else None
+            value, (hidden, history) = m.temporal(x.float(), previous, y, lambda v: lin(v.half(), wo, bo), first)
+            return value, (hidden, history.half())
+        previous, history = cache if cache is not None else (None, None)
+        conv, history = tapnext_state.history_eager(x, weight, bias, history)
+        value, state = tapnext_state.recurrent_update(
+            y, conv, cell.input_gate(conv), cell.a_gate(conv), a_param, first, previous, inplace=False
+        )
+        return lin(value, wo, bo), (state, history)
 
     return forward
 
@@ -274,6 +275,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable fp16 network with the fused-GEMM forwards (fp16 filters captured in closures)."""
         super().__init__(ctx)
+        tapnext_state.load(ctx.device)
         for m in self.net.modules():
             if isinstance(m, RecurrentBlock):
                 m.forward = _recurrent(m)  # ty: ignore[invalid-assignment]  # per-instance override

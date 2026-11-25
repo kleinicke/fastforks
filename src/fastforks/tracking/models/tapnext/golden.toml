@@ -26,11 +26,11 @@ gpu_p99 = 0.032
 gpu_extra = [["visibility", 0.0003, 0.0025]]
 
 [validated."tapnext-pp@1"]
-kernels = ["fvm_conv@f1d064e539e1:sm_120"]
-symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "tapnext_state" = {"history_eager" = "e572f0209b60fefb", "history_update" = "dc4f1e44a7be0ff4", "recurrent_update" = "74021181d045e381"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
+date = "2026-11-25"
 mean_px = 0.00415
 p99_px = 0.02383
 
@@ -44,11 +44,11 @@ mean_px = 0.00372
 p99_px = 0.01805
 
 [validated."tapnext@1"]
-kernels = ["fvm_conv@f1d064e539e1:sm_120"]
-symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "tapnext_state" = {"history_eager" = "e572f0209b60fefb", "history_update" = "dc4f1e44a7be0ff4", "recurrent_update" = "74021181d045e381"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
+date = "2026-11-25"
 mean_px = 0.00369
 p99_px = 0.02116
 
