@@ -79,13 +79,27 @@ class LKPAN(nn.Module):
 
     def forward(self, x: list[torch.Tensor]) -> torch.Tensor:
         in2, in3, in4, in5 = (conv(c) for conv, c in zip(self.ins_conv, x, strict=True))
-        out4 = in4 + up(in5, 2)
-        out3 = in3 + up(out4, 2)
-        out2 = in2 + up(out3, 2)
-        f2, f3, f4, f5 = (conv(c) for conv, c in zip(self.inp_conv, (out2, out3, out4, in5), strict=True))
-        pan3 = f3 + self.pan_head_conv[0](f2)
-        pan4 = f4 + self.pan_head_conv[1](pan3)
-        pan5 = f5 + self.pan_head_conv[2](pan4)
-        p = [lat(f) for lat, f in zip(self.pan_lat_conv, (f2, pan3, pan4, pan5), strict=True)]
-        p2, p3, p4, p5 = (incl(t) for incl, t in zip(self.incl, p, strict=True))
+        # Release each projection as its replacement is computed, keeping the same operations and order.
+        in4 = in4 + up(in5, 2)
+        in3 = in3 + up(in4, 2)
+        in2 = in2 + up(in3, 2)
+        p2 = self.inp_conv[0](in2)
+        del in2
+        p3 = self.inp_conv[1](in3)
+        del in3
+        p4 = self.inp_conv[2](in4)
+        del in4
+        p5 = self.inp_conv[3](in5)
+        del in5
+        p3 = p3 + self.pan_head_conv[0](p2)
+        p4 = p4 + self.pan_head_conv[1](p3)
+        p5 = p5 + self.pan_head_conv[2](p4)
+        p2 = self.pan_lat_conv[0](p2)
+        p3 = self.pan_lat_conv[1](p3)
+        p4 = self.pan_lat_conv[2](p4)
+        p5 = self.pan_lat_conv[3](p5)
+        p2 = self.incl[0](p2)
+        p3 = self.incl[1](p3)
+        p4 = self.incl[2](p4)
+        p5 = self.incl[3](p5)
         return torch.cat([up(p5, 8), up(p4, 4), up(p3, 2), p2], 1)
