@@ -20,10 +20,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "portable float32",
     ),
     "foundationstereo-vit-s@1": ("kernels float32",),
-    "hrnet-w48-fcn-ade20k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "segformer-b5-face-parsing@1": (
         "kernels float16",
         "kernels float32",
