@@ -117,6 +117,9 @@ class _Net(torch.nn.Module):
         inv_freq = None if rope is None else rope.inv_freq.detach().clone().float()
         for layer in model.layers:
             _fold_layer(layer, self.s)
+            if kernels:
+                # The packed buffers own these projections. The MLP's first linear is kept as ff_fc1.
+                del layer.attention, layer.mlp
         if self.s != 1:
             for ln in [m for layer in model.layers for m in (layer.norm1, layer.norm2)] + [model.layernorm]:
                 ln.eps = ln.eps / self.s**2
