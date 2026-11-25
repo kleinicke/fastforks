@@ -144,9 +144,30 @@ class Net(nn.Module):
 
 
 def _net(ctx: Context) -> Net:
-    sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict().items()}  # bf16 + fp32: cast on copy
-    net = Net()
-    net.load_state_dict(sd, strict=True)
+    sd = {k.removeprefix("encoder."): v for k, v in ctx.state_dict().items()}
+    if ctx.device.type == "cuda":
+        with torch.device("meta"):
+            net = Net()
+        expected = net.state_dict()
+        half = ctx.dtype != "float32"
+        half_prefixes = ("aggregator.", "depth_head.", "gaussian_param_head.")
+        for name, source in sd.items():
+            target = expected.get(name)
+            if target is None or source.shape != target.shape:
+                continue  # let the strict loader report invalid keys or shapes
+            weight = source
+            dtype = target.dtype
+            if half and name.startswith(half_prefixes) and target.is_floating_point():
+                # An FP32 intermediate is exact for the published weights. Custom weights preserve the
+                # constructor's casting step if that intermediate could change the final rounding.
+                if dtype != torch.float32 or weight.dtype not in {torch.float16, torch.bfloat16, torch.float32}:
+                    weight = weight.to(dtype=dtype)
+                dtype = torch.float16
+            sd[name] = weight.to(device=ctx.device, dtype=dtype)
+        net.load_state_dict(sd, strict=True, assign=True)
+    else:
+        net = Net()
+        net.load_state_dict(sd, strict=True)
     return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
 
 
