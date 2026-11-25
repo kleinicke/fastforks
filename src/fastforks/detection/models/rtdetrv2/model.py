@@ -76,8 +76,12 @@ class Kernels(base.Kernels, Portable):
     GraphCache = GraphCache
 
 
+class _MlxPortable(base.MlxPortable, Portable):
+    """Apple MLX: the network hand-written in MLX operations (`detection._rtdetr_mlx`)."""
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

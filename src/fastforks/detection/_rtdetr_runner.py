@@ -101,6 +101,27 @@ class Portable(Runner):
         return self.net(x)
 
 
+class MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`_rtdetr_mlx`); resize and postprocess as `Portable`'s.
+
+    A family's MLX runner is `class _MlxPortable(base.MlxPortable, Portable)` wrapped by `mlx_wrap.port(attrs=())`.
+    """
+
+    module = Runner.module  # the network is MLX, not an exportable PyTorch module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network (float32, CPU, BatchNorm folded) and copy its weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.detection import _rtdetr_mlx  # noqa: PLC0415 - imports mlx
+
+        net = self.net
+        del self.net  # the PyTorch twin: only its weights move to MLX
+        self.mlx = _rtdetr_mlx.build(net, mlx_wrap.run_dtype(ctx))
+
+    def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.mlx(x)
+
+
 _MULTIPLE = 32  # fixed: the encoder's stride, as `size_range()` (`module()` takes multiples; the model call pads)
 
 

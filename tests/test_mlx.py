@@ -1371,6 +1371,65 @@ def test_mlx_lwdetr_matches_torch(scales, hidden):
         torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3, msg=name)
 
 
+_RTDETR_ARCHS = {
+    # RT-DETRv2-S's basic blocks; a bottleneck PResNet that stops before the last decoder layer
+    "rtdetrv2-basic": {"blocks": [1, 1, 1, 1], "bottleneck": False, "enc_dim": 64, "enc_ffn": 128, "expansion": 0.5,
+                       "dec_layers": 3, "eval_layers": 3},
+    "rtdetrv2-bottleneck": {"blocks": [1, 1, 1, 1], "bottleneck": True, "enc_dim": 64, "enc_ffn": 128,
+                            "expansion": 1.0, "dec_layers": 3, "eval_layers": 2},
+}  # fmt: skip
+_DFINE_BASE = {"stem": [16, 16], "mid": [16, 32, 64, 128], "out": [64, 128, 256, 512], "blocks": [1, 1, 2, 1],
+               "layers": 3, "lab": True, "levels": 3, "enc_dim": 64, "dec_dim": 64, "enc_ffn": 128, "dec_ffn": 128,
+               "csp_blocks": 1, "expansion": 0.5, "dec_layers": 3, "points": [3, 6, 3], "reg_scale": 4.0,
+               "act": "relu"}  # fmt: skip
+_DFINE_ARCHS = {
+    "dfine-ragged": _DFINE_BASE,  # D-FINE-S..X: three levels, 3 / 6 / 3 points
+    # D-FINE-N: two levels, a narrower decoder (the decoder input projection); DEIM's SiLU heads
+    "dfine-nano-silu": {**_DFINE_BASE, "levels": 2, "dec_dim": 32, "points": [6, 6], "act": "silu", "lab": False},
+}
+
+
+@pytest.mark.parametrize("arch", [*_RTDETR_ARCHS, *_DFINE_ARCHS])
+def test_mlx_rtdetr_matches_torch(arch):
+    """`detection._rtdetr_mlx` against the PyTorch `RtDetr` / `DFine` (random weights, float32; float16 run)."""
+    mx = pytest.importorskip("mlx.core")
+    if not mx.metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks.detection import _rtdetr_mlx  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection._attention import Attention  # noqa: PLC0415
+    from fastforks.detection.models.dfine import net as dfine  # noqa: PLC0415
+    from fastforks.detection.models.rtdetrv2 import net as rtdetr  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    common = {"num_queries": 50, "num_classes": 7}
+    if arch in _RTDETR_ARCHS:
+        net = rtdetr.RtDetr(rtdetr.Arch(**_RTDETR_ARCHS[arch], **common)).eval()
+    else:
+        net = dfine.DFine(dfine.Arch(**_DFINE_ARCHS[arch], **common)).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, Attention):  # its projection is `torch.empty` (filled by the checkpoint)
+                torch.nn.init.xavier_uniform_(m.in_proj_weight)
+                m.in_proj_bias.normal_(0, 0.02)
+            elif arch in _DFINE_ARCHS and isinstance(m, dfine.Lab):
+                m.scale.uniform_(0.5, 1.5)
+                m.bias.normal_(0, 0.1)
+    x = torch.rand(1, 3, 192, 256, generator=torch.Generator().manual_seed(1))
+    with torch.no_grad():
+        want = net(x)
+    got = _rtdetr_mlx.build(net, "float32")(x)
+    assert [t.shape for t in got] == [t.shape for t in want]
+    torch.testing.assert_close(got[0], want[0], atol=2e-3, rtol=2e-3)
+    # random weights score neighbouring anchors almost alike: the top-k may swap them (same box, shifted along a
+    # row or a column) or swap the last selected one for the next, so each wanted box looks for its match anywhere
+    near = (got[1][:, :, None] - want[1][:, None]).abs().amax(-1).amin(1)
+    assert (near < 2e-3).float().mean() >= 0.95, near.max()
+    # float16: the query ranking may swap near ties, so compare the sets of the best queries' boxes
+    half = _rtdetr_mlx.build(net, "float16")(x)
+    assert all(t.dtype == torch.float32 and torch.isfinite(t).all() for t in half)
+    torch.testing.assert_close(half[0].amax(1), want[0].amax(1), atol=0.05, rtol=0.05)
+
+
 @pytest.mark.parametrize(
     ("arch", "kernels"),
     [
