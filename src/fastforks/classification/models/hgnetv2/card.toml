@@ -40,7 +40,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-mlx_kernels = ["graph_mlx"]
+mlx_kernels = ["cnn_mlx"]  # the network written in MLX (`libnet.mlx_hgnetv2`), its global pool a Metal kernel
 mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
