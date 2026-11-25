@@ -674,7 +674,9 @@ class Model:
         """Free the CUDA graphs a kernels runner keeps for small input shapes (RT-MonSter++, DINOv3); else a no-op."""
         release = getattr(self._runner, "release_graphs", None)
         if release is not None:
-            release()
+            # Some runners use graph-owned tensors downstream of the replay, until the inference call ends.
+            with _GPU_CALLS if self._device.type == "cuda" else contextlib.nullcontext(), self._lock:
+                release()
 
     def example_inputs(
         self, height: int | None = None, width: int | None = None, *, batch: int = 1

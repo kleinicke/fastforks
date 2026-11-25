@@ -26,7 +26,7 @@ from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, free_captured
+from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, empty_graph_cache, free_captured
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
@@ -343,6 +343,7 @@ class Kernels(Runner):
                 else:
                     self._cg_done.synchronize()
                     self.cg = None
+                    empty_graph_cache(b.device, released=True)
             if self.cg is None:
                 if self._cg_seen != b.shape:
                     self._cg_seen = b.shape
@@ -360,6 +361,7 @@ class Kernels(Runner):
             if self.cg is not None:
                 self._cg_done.synchronize()
                 self.cg = None
+                empty_graph_cache(self.ctx.device, released=True)
 
     def _mono(self, image01: torch.Tensor) -> torch.Tensor:
         h, w = image01.shape[-2:]

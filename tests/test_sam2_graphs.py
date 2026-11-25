@@ -35,7 +35,9 @@ def test_kernels_graphs_match_eager() -> None:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     try:
-        model = promptable_segmentation.load("sam2.1-hiera-tiny", mode="kernels", device="cuda")
+        model = promptable_segmentation.load(
+            "sam2.1-hiera-tiny", mode="kernels", device="cuda", cuda_graphs_encoder=True
+        )
     except WeightsError as e:
         pytest.skip(f"sam2.1-hiera-tiny weights not available: {e}")
     r = model._runner
@@ -89,6 +91,8 @@ def test_kernels_graphs_match_eager() -> None:
     model.release_graphs()
     assert not enc.graphs
     assert not dec.graphs
-    off = promptable_segmentation.load("sam2.1-hiera-tiny", mode="kernels", device="cuda", cuda_graphs=False)
+    off = promptable_segmentation.load(
+        "sam2.1-hiera-tiny", mode="kernels", device="cuda", cuda_graphs=False, cuda_graphs_encoder=True
+    )
     assert off._runner.encoder_graph is None
     assert off._runner.decode_graphs is None

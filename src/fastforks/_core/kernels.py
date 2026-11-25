@@ -232,6 +232,14 @@ def driver_version() -> tuple[int, int]:
     return v.value // 1000, v.value % 1000 // 10
 
 
+def trim_cuda_graph_pool(device_index: int) -> None:
+    """Return unused CUDA graph allocator memory on this device to the driver."""
+    lib = _libcuda()
+    device = ctypes.c_int()
+    _check(lib.cuDeviceGet(ctypes.byref(device), device_index), "cuDeviceGet")
+    _check(lib.cuDeviceGraphMemTrim(device), "cuDeviceGraphMemTrim")
+
+
 # Linux driver branch that first supports a CUDA toolkit (for the remedy in `binary`'s error).
 _MIN_DRIVER = {(12, 8): 570, (12, 9): 575, (13, 0): 580}
 
