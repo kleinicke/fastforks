@@ -24,7 +24,6 @@ import torch.nn.functional as F
 
 from fastforks._core.tracing import in_onnx_export
 from fastforks.segmentation._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
 from fastforks.shared.seginfer import pad_bottom_right, pretrained, resize, target_size
 
@@ -159,27 +158,38 @@ class Kernels(Portable):
     module = Runner.module
 
 
-class Mlx(mlx_wrap.port(Portable)):  # ty: ignore[unsupported-base]
-    """Apple MLX: the network by the exported-graph translation, the semantic inference in MLX operations.
+class Mlx(Portable):
+    """Apple MLX: the network written in MLX operations (`shared.maskformer.mlx_net`), the semantic inference too.
 
     The scores of a row chunk are one kernel (both mask resizes and the sigmoid, `mlx_seg.mask_sigmoid_rows`) and one
     matrix product with the class probabilities, so the masks never leave MLX and are never image-size.
     """
 
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the transformers network on the checkpoint and copy its weights to MLX."""
+        Runner.__init__(self, ctx)
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+        from fastforks.shared.maskformer import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_net.MlxMaskFormer(pretrained(ctx), ctx.dtype, task_inputs=ctx.params.task_tokens)
+        request_cache(self, mlx_net.CACHE_MB)
+
     def _rows_mlx(self, image: torch.Tensor) -> Iterator[tuple[int, mx.array]]:
         """`_rows` on MLX: `(row, [rows * W, 150])` scores in the run dtype (evaluated chunk by chunk by the caller)."""
-        from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - MLX only
         from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX only (imports mlx)
 
         h, w = image.shape[-2:]
         rh, rw = target_size(h, w, self.ctx.params.resize)
         x = pad_bottom_right(scale(resize(image, (rh, rw), pil=True), self.ctx.io), self.ctx.params.pad)
-        masks, classes = self.net.raw(x)
+        low, classes = self.mlx.raw(to_mx(x))
         dtype = getattr(mx, self.ctx.dtype)
-        low = mx.contiguous(masks[0].transpose(1, 2, 0))
-        probs = mx.softmax(classes[0], axis=-1)[:, :-1].astype(dtype)  # as `mask_semantic`
+        probs = mx.softmax(classes, axis=-1)[:, :-1].astype(dtype)  # as `mask_semantic`
+        low = low.astype(mx.float32)  # `mask_sigmoid_rows` reads float32 logits
         mx.eval(low, probs)
-        del masks, classes
+        del classes
         step = max(1, _ROW_CHUNK // (low.shape[-1] * w))
         sizes = (x.shape[-2:], (rh, rw), (h, w))
         for r0 in range(0, h, step):

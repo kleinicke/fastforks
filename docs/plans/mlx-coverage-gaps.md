@@ -473,7 +473,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 0.76, 0.65 (were 1.7) | dlnr-sceneflow, raft-stereo-middlebury | done, all five refs of the two families auto-routed to MLX: hand-written networks, first calls 1.7 / 2.7 s ("Done: DLNR and RAFT-Stereo" below) |
 | 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
 | 0.78, 0.34, 0.65, 0.67 (were 1.6, 1.6, 1.4, 1.6) | lineart, anyline, segnext-mscan-b/l | done, all seven refs of the three families auto-routed to MLX: hand-written networks, 0.07-0.22 s first calls ("Done: line art, AnyLine and SegNeXt" below) |
-| 0.80, 0.83, 0.70 (were 1.5-1.6) | sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | done: sapiens and gmflow-scale1 auto-routed to MLX; oneformer faster and leaner on MLX but its 8 s exported first call is over the auto budget ("Done: Sapiens, OneFormer, GMFlow" below) |
+| 0.80, 0.70, 0.70 (were 1.5-1.6) | sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | done: all auto-routed to MLX; oneformer and mask2former share a hand-written network (0.9 s first call), gmflow-scale2* and sapiens-seg-1b re-surveyed ("Done: Sapiens, OneFormer, GMFlow" below) |
 
 Also: survey the six TotalSegmentator
 refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
@@ -1257,29 +1257,95 @@ row; best MPS is the fastest MPS row of either mode:
 | | | MLX now | 1485 | 1.98 | 4545 | MLX |
 | | | best MPS | 2988 | 3.06 | 4766 | |
 | oneformer-swinl-ade20k | float16 | MLX before | 1441 | 6.62 | 5416 | – |
-| | | MLX now | 961 | 8.12 | 2265 | MPS (first call) |
+| | | MLX export | 961 | 8.12 | 2265 | MPS (first call) |
+| | | MLX now | 812 | 0.88 | 3354 | MLX |
 | | | best MPS | 1161 | 1.38 | 5559 | |
 | | float32 | MLX before | 1588 | 7.56 | 6397 | – |
-| | | MLX now | 1109 | 7.49 | 2802 | MPS (first call) |
+| | | MLX export | 1109 | 7.49 | 2802 | MPS (first call) |
+| | | MLX now | 919 | 1.01 | 3838 | MLX |
 | | | best MPS | 1127 | 1.49 | 9492 | |
+| mask2former-swinl-ade20k | float16 | MLX before | 850 | 6.12 | 3614 | MPS (first call) |
+| | | MLX now | 596 | 0.65 | 2907 | MLX |
+| | | best MPS | 964 | 1.17 | 4503 | |
+| | float32 | MLX before | 1033 | 6.50 | 4310 | MPS (first call) |
+| | | MLX now | 672 | 0.72 | 3451 | MLX |
+| | | best MPS | 909 | 1.21 | 6661 | |
 | gmflow-scale1-things | float16 | MLX before | 3871 | 6.06 | 9100 | – |
 | | | MLX now | 1934 | 3.51 | 1698 | MLX |
 | | | best MPS | 2756 | 2.90 | 7112 | |
 | | float32 | MLX before | 5909 | 8.08 | 8885 | – |
 | | | MLX now | 2627 | 4.53 | 1706 | MLX |
 | | | best MPS | 3780 | 4.05 | 8183 | |
+| gmflow-scale2-mixdata | float16 | MLX before | 8276 | 12.78 | 11508 | – |
+| | | MLX now | 4097 | 6.57 | 6369 | MLX |
+| | | best MPS | 6039 | 5.90 | 9667 | |
+| | float32 | MLX before | 12373 | 18.85 | 11132 | – |
+| | | MLX now | 5903 | 8.84 | 6408 | MLX |
+| | | best MPS | 8494 | 8.34 | 10716 | |
+| gmflow-scale2-sintel | float16 | MLX before | 8283 | 12.25 | 11046 | – |
+| | | MLX now | 4115 | 6.51 | 6357 | MLX |
+| | | best MPS | 5725 | 5.89 | 9669 | |
+| | float32 | MLX before | 13073 | 17.52 | 11100 | – |
+| | | MLX now | 5917 | 8.64 | 6446 | MLX |
+| | | best MPS | 8697 | 8.28 | 11737 | |
+| gmflow-scale2-things | float16 | MLX before | 8261 | 12.74 | 11819 | – |
+| | | MLX now | 4146 | 6.66 | 6363 | MLX |
+| | | best MPS | 5982 | 6.28 | 9577 | |
+| | float32 | MLX before | 13356 | 18.19 | 11126 | – |
+| | | MLX now | 5932 | 8.44 | 6408 | MLX |
+| | | best MPS | 8489 | 8.25 | 10738 | |
+| gmflow-scale2-regrefine6-kitti | float16 | MLX before | 11251 | 16.38 | 11324 | – |
+| | | MLX now | 7413 | 10.92 | 6732 | MLX |
+| | | best MPS | 10998 | 10.95 | 9696 | |
+| | float32 | MLX before | 16667 | 23.48 | 11033 | – |
+| | | MLX now | 9992 | 13.30 | 6724 | MLX |
+| | | best MPS | 14645 | 14.19 | 11791 | |
+| gmflow-scale2-regrefine6-mixdata | float16 | MLX before | 11296 | 16.11 | 10699 | – |
+| | | MLX now | 7455 | 10.73 | 6636 | MLX |
+| | | best MPS | 11156 | 11.01 | 9694 | |
+| | float32 | MLX before | 16974 | 22.77 | 11313 | – |
+| | | MLX now | 10070 | 13.20 | 6754 | MLX |
+| | | best MPS | 14901 | 14.09 | 10778 | |
+| gmflow-scale2-regrefine6-sintelft | float16 | MLX before | 10975 | 15.59 | 12341 | – |
+| | | MLX now | 7371 | 10.48 | 6700 | MLX |
+| | | best MPS | 10867 | 10.99 | 9689 | |
+| | float32 | MLX before | 16766 | 22.10 | 10885 | – |
+| | | MLX now | 9905 | 13.06 | 6777 | MLX |
+| | | best MPS | 14622 | 14.16 | 10775 | |
+| gmflow-scale2-regrefine6-things | float16 | MLX before | 11280 | 15.47 | 10551 | – |
+| | | MLX now | 7460 | 11.10 | 6663 | MLX |
+| | | best MPS | 11300 | 11.28 | 9692 | |
+| | float32 | MLX before | 16556 | 21.87 | 10591 | – |
+| | | MLX now | 10122 | 13.19 | 6770 | MLX |
+| | | best MPS | 14869 | 14.11 | 11645 | |
+| sapiens-seg-1b-goliath | float16 | MLX before | 4110 | 36.67 | 6692 | – |
+| | | MLX now | 2679 | 2.81 | 4541 | MLX |
+| | | best MPS | 3113 | 3.24 | 6340 | |
+| | float32 | MLX before | 5247 | 45.76 | 8762 | – |
+| | | MLX now | 3594 | 3.76 | 7747 | MLX |
+| | | best MPS | 5099 | 5.25 | 9794 | |
+
+"MLX export" is the exported graph with the deformable-attention custom op (an intermediate state of this work);
+"MLX now" for OneFormer / Mask2Former is the hand-written network. The gmflow-scale2 and sapiens-seg-1b "MLX now"
+rows need no code change beyond the region-order twin and the hand-written Sapiens network below.
 
 - Sapiens (`sapiens/mlx_net.py`): a hand-written network, so nothing is exported and the first call is the shader
   builds only. The ViT is `mlx_vit.patches` + `mlx_vit.block` compiled as one function. The decoder's 4x4
   stride-2 transposed convolutions are four phase GEMMs, interleaved. InstanceNorm + SiLU is one Metal kernel on the
   `channel_stats` statistics, and the 1x1 convolutions are `mx.addmm`. The labels come from
   `mlx_seg.resize_argmax`. sapiens-seg-1b shares the runner.
-- OneFormer / Mask2Former (`shared/maskformer`): multi-scale deformable attention is one custom op
-  (`fastforks::msda`). It runs only under the MLX export; its torch body is the pure-torch `grid_sample` form. It
-  lowers to one Metal kernel (`graph_mlx.msda`) through `shared/maskformer/mlx_ops.py`, in place of a gather graph of
-  hundreds of nodes per layer. OneFormer's semantic inference is `mlx_seg.mask_sigmoid_rows`, one kernel for the
-  sigmoid of the upsampled mask rows, followed by a GEMM with the class probabilities. This avoids storing the
-  [queries, H, W] masks. Peak memory is less than half of MPS.
+- OneFormer / Mask2Former (`shared/maskformer/mlx_net.py`, `MlxMaskFormer`): one hand-written network for both,
+  so nothing is exported and the first call is the shader builds only (0.65-1.0 s against 6-8 s exported). Swin-L:
+  each layer is one Metal kernel for LayerNorm + the gather into (shifted) windows by a cached index table, the
+  window attention (`ops.window_attention` on the fused qkv in float16: the relative-position bias for all windows,
+  the shift mask added only for the border windows, which come last; SDPA with an additive bias in float32), one Metal kernel
+  for the inverse gather + residual + LayerNorm, and the GELU MLP. The pixel decoder's six deformable-attention
+  layers use one GEMM for the offsets and weights, the softmax and sampling locations in float32 and `ops.msda`;
+  GroupNorm is `ops.channel_stats` with a float32 affine. The transformer decoder computes the attention masks per
+  level from the bilinearly resized mask features and passes a boolean mask to SDPA. OneFormer's task token (once) and
+  query transformer run in float32 (the float32-stage trap does not apply: nothing is replayed).
+  Inference stays `mlx_seg.mask_sigmoid_rows` + a GEMM with the class probabilities, the labels
+  `mlx_seg.resize_argmax`. The custom op `fastforks::msda` and `shared/maskformer/mlx_ops.py` are gone.
 - GMFlow (`_MlxTwin`, used by every GMFlow ref on MLX): the shifted-window Swin layers run in region order. The
   token permutations into plain and shifted windows are constants, built outside the export's fake mode
   (`unset_fake_temporarily`, because the lru cache would otherwise keep fake tensors). Each layer is one
@@ -1289,13 +1355,10 @@ row; best MPS is the fastest MPS row of either mode:
 
 Left:
 
-- OneFormer's first call is 7.5-8.1 s, almost all of it the export and translation of the Swin-L + pixel decoder +
-  transformer decoder graph. The auto budget is about 3.7 s, so auto keeps MPS even though MLX is 17% faster in
-  float16 and uses less than half the memory. A hand-written network, or a cached translated graph, would move it
-  over. Mask2Former shares the deformable-attention kernel; it was not re-surveyed.
-- gmflow-scale2-* and the regrefine6 refs use the same region-order twin and their goldens pass, but they were not
-  re-surveyed. Their rows in the tables are from the old graph.
-- sapiens-seg-1b: the golden passes on the new network; not surveyed.
+- OneFormer / Mask2Former peak is 0.6-1.1 GB above the exported graph (3.3-3.8 GB against 2.3-2.8 GB), still 35-60%
+  below MPS. Part of it is the 1 GB MLX buffer cache the runner requests (`CACHE_MB`); lowering it was not tried.
+- gmflow-scale2 / regrefine6: the first call is 0.5-1.3 s above MPS's (well inside the auto budget); peak memory is
+  6.4-6.8 GB, the 1080x1920 global matching volume. Not profiled further.
 
 ### Done: LoFTR (2026-11-25)
 
