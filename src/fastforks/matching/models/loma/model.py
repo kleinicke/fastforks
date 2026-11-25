@@ -28,6 +28,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
 from fastforks._core.upload import device_tensor
@@ -210,20 +212,45 @@ def split_checkpoint(sd: dict[str, torch.Tensor]) -> dict[str, dict[str, torch.T
     return parts
 
 
+def _build_matcher(ctx: Context, *, assign: bool) -> Matcher:
+    if assign:
+        with skipped_init():
+            net = Matcher(ctx.params)
+    else:
+        net = Matcher(ctx.params)
+    parts = split_checkpoint(ctx.state_dict(0))
+    modules = dict(net.named_modules())
+    for name, sd in parts.items():
+        if not sd and name not in modules:
+            continue
+        part = net.get_submodule(name)
+        if assign:
+            contiguous = {key: weight.contiguous() for key, weight in sd.items()}
+            load_strict(part, contiguous, f"LoMa {name} weights", assign=True)
+        else:
+            part.load_state_dict(sd, strict=True)
+    return net.eval().requires_grad_(requires_grad=False)
+
+
 def load_matcher(ctx: Context) -> Matcher:
     """The matcher with the variant's weights (one file: detector, descriptor, DINOv2, matcher) on `ctx.device`."""
-    p = ctx.params
-    net = Matcher(p)
-    parts = split_checkpoint(ctx.state_dict(0))
-    for name, sd in parts.items():
-        if not sd and name not in dict(net.named_modules()):
-            continue
-        net.get_submodule(name).load_state_dict(sd, strict=True)
-    net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    amp = None if ctx.dtype == "float32" else ctx.torch_dtype
+    direct = (
+        ctx.device.type == "cuda"
+        and ctx.params.descriptor == "dedode_g"
+        and amp is not None
+        and ctx.user_weights is None
+    )
+    net = _build_matcher(ctx, assign=direct)
+    if direct and net.dinov2 is not None:
+        # Fold in float32 on the host before placing the DINO weights in their compute dtype.
+        fold_layer_scale(net.dinov2)
+        net.dinov2.to(device=ctx.device, dtype=amp)
+    net.to(ctx.device)
     if net.dinov2 is not None:
         sdpa_attention(net.dinov2)
     if ctx.device.type == "cuda":  # not on CPU: the float32 reference parity
-        if net.dinov2 is not None:
+        if net.dinov2 is not None and not direct:
             fold_layer_scale(net.dinov2)
         fold_batch_norms(net)
         for m in net.modules():
@@ -231,7 +258,7 @@ def load_matcher(ctx: Context) -> Matcher:
                 m.to(memory_format=torch.channels_last)
         net.detector.encoder.to(memory_format=torch.channels_last)
         net.descriptor.encoder.to(memory_format=torch.channels_last)
-    net.set_amp(None if ctx.dtype == "float32" else ctx.torch_dtype)
+    net.set_amp(amp)
     return net
 
 
