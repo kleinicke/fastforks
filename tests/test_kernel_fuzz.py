@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, sr_norm, vol_norm
+from fastforks.kernels import affine_silu, cudnn_hacc, fastbb, nf4, seg_up, sr_norm, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -46,6 +46,20 @@ def dev():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     return torch.device("cuda", torch.cuda.current_device())
+
+
+@pytest.mark.parametrize(("batch", "channels", "height", "width"), [(1, 32, 53, 37), (2, 192, 127, 103)])
+def test_affine_silu_fp16_rounding(dev, batch, channels, height, width):
+    """Keep the FP16 rounding point between the affine transform and SiLU."""
+    x = _randn(_gen(473), batch, channels, height, width).to(device=dev, dtype=torch.float16, memory_format=CL)
+    variance, mean = torch.var_mean(x, dim=(2, 3), keepdim=True, unbiased=False)
+    inverse_std = (variance.float() + 1e-5).rsqrt()
+    scale, bias = inverse_std.half(), (-mean.float() * inverse_std).half()
+    expected = x.clone(memory_format=CL)
+    F.silu(torch.addcmul(bias, expected, scale, out=expected), inplace=True)
+    actual = affine_silu.apply_(x, scale, bias)
+    assert actual is x
+    assert torch.equal(actual.permute(0, 2, 3, 1).view(torch.int16), expected.permute(0, 2, 3, 1).view(torch.int16))
 
 
 def _rng(seed: int, name: str) -> random.Random:

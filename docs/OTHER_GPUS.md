@@ -110,6 +110,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | library | families |
 |---|---|
 | `acv_volume` | fast_acvnet |
+| `affine_silu` | sapiens |
 | `box_nms` | retinaface, rtmo, yunet |
 | `cfnet_volume` | cas_gwcnet, cfnet |
 | `cfs` | c_foundationstereo |
