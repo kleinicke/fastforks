@@ -5,7 +5,6 @@ from fastforks.shared.cuda_softmax import softmax_rows_
 
 from ...ffops import rearrange  # modified: torch-only inference helper
 
-_SOFTMAX_GROUP_BYTES = 32 * 1024**2
 _SOFTMAX_MIN_BYTES = 512 * 1024**2
 
 
@@ -83,8 +82,8 @@ class Attention(nn.Module):
             and sim.numel() * sim.element_size() >= _SOFTMAX_MIN_BYTES
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
         ):
-            # The decoder reuses these weights. Normalize rows in groups without retaining a second full matrix.
-            return softmax_rows_(sim, _SOFTMAX_GROUP_BYTES)
+            # The decoder reuses these weights. Normalize them in their existing storage.
+            return softmax_rows_(sim)
         return sim.softmax(dim=-1)
 
 

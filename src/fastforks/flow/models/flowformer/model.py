@@ -404,7 +404,7 @@ def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ..
     k = k.flatten(2).transpose(1, 2).half()
     b, n = q.shape[:2]
     rows = min(n, GMA_CUDA_MATRIX_BYTES // (b * n * q.element_size()))
-    matrix = softmax_rows_(torch.bmm(q[:, :rows], k.transpose(1, 2)), 32 << 20)
+    matrix = softmax_rows_(torch.bmm(q[:, :rows], k.transpose(1, 2)))
     if rows == n:
         return (matrix,)
     return matrix, q[:, None, rows:].contiguous(), k[:, None].contiguous()
