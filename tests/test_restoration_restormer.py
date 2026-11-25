@@ -19,6 +19,7 @@ from fastforks.restoration.models.restormer.model import (
     _gate_ffn,
     _mlx_gate_ffn,
     _pad_ffn,
+    _tiled_ffn,
     dw_gate_op,
     token_gram_op,
 )
@@ -145,3 +146,16 @@ def test_fused_depthwise_gate(*, bias: bool) -> None:
     x = torch.randn(2, 24, 9, 13, device="cuda", dtype=torch.float16).contiguous(memory_format=torch.channels_last)
     with torch.inference_mode():
         torch.testing.assert_close(layer(x), original(x), rtol=0.002, atol=0.0003)
+
+
+@pytest.mark.gpu
+def test_tiled_ffn_keeps_the_depthwise_halo() -> None:
+    """Exercise internal stripe borders, a partial final stripe and a batch of two images."""
+    torch.manual_seed(2)
+    layer = FeedForward(24, 2.66, bias=True).eval()
+    _pad_ffn(layer)
+    _gate_ffn(layer, "cuda")
+    layer.cuda().half().to(memory_format=torch.channels_last)
+    x = torch.randn(2, 24, 17, 13, device="cuda", dtype=torch.float16).contiguous(memory_format=torch.channels_last)
+    with torch.inference_mode():
+        torch.testing.assert_close(_tiled_ffn(layer, torch.nn.Identity(), x, 5), x + layer(x), atol=0.001, rtol=0.001)

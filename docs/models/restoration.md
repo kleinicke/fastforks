@@ -689,8 +689,8 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `restormer-deblur` | 0.00015 / 0.00054 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
-| `restormer-derain` | 0.00021 / 0.00081 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
-| `restormer-sidd` | 0.00019 / 0.00071 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `restormer-derain` | 0.00021 / 0.00079 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `restormer-sidd` | 0.00019 / 0.0007 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
