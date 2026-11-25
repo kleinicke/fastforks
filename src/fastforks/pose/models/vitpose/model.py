@@ -17,12 +17,14 @@ another keypoint's heatmap); here they keep their argmax: the score says they we
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import cublas_gemms, fp16_accumulate
 from fastforks._core.patch import override
@@ -44,6 +46,7 @@ UPSAMPLE_OUT = 4  # fixed: architecture (heatmaps at 1/4 of the network input)
 RADIUS = 5  # fixed: reference DARK blur radius (kernel 11)
 CLIP = (0.001, 50.0)  # fixed: reference DARK clip before the log
 GELU = 5  # fixed: fused-GEMM epilogue code of the exact (erf) GELU (`fastforks._optimize.transformer`)
+_MAPPED_CHECKPOINTS = frozenset(("vitpose-plus-large@1", "vitpose-plus-huge@1"))
 # kernels: people per call padded to the next of these, so a CUDA graph per bucket serves every count up to the last
 # (the calls are launch bound there: 192 tokens per person); more people run eagerly in one batch
 
@@ -139,8 +142,22 @@ class Portable(TopDown):
         if a.stream and ctx.device.type != "cuda":
             msg = "ViTPose stream=True requires CUDA for weight transfers"
             raise OptionsError(msg)
-        net = ViTPose(a)
-        net.load_state_dict(convert(ctx.state_dict(strip=""), a))
+        assign = (
+            ctx.device.type == "cuda"
+            and not a.stream
+            and ctx.variant.ref in _MAPPED_CHECKPOINTS
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
+        with torch.device("meta") if assign else nullcontext():
+            net = ViTPose(a)
+        sd = convert(ctx.state_dict(strip=""), a)
+        if assign:
+            # The published tensors and the folded projections already have the CPU weights' layout and dtype.
+            load_strict(net, sd, f"{ctx.variant.ref} checkpoint", assign=True)
+        else:
+            net.load_state_dict(sd)
+        del sd
         if a.stream:
             net.eval().to(ctx.torch_dtype)
             if ctx.mode == "kernels":
