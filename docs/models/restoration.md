@@ -426,6 +426,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/LICENSE ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/GoPro.md ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/SIDD.md
 - Training data: GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs) (options/train/GoPro/NAFNet-width64.yml: GoPro train (2103 blurred / sharp pairs), 256 x 256 crops.)
   - `nafnet-sidd`: Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos) (options/train/SIDD/NAFNet-width64.yml: SIDD-Medium sRGB (320 noisy / clean pairs), 256 x 256 crops.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`, `nafnet_gate`, `dpt_fused`
 - Variants: `nafnet-gopro`, `nafnet-sidd`
 - Outputs: image
@@ -532,6 +533,7 @@ Commercial use: yes.
 - Weights licence: BSD-3-Clause
 - Licence evidence: https://github.com/xinntao/Real-ESRGAN/blob/a4abfb2979a7bbff3f69f58f58ae324608821e27/LICENSE ; https://github.com/xinntao/Real-ESRGAN/releases ; https://github.com/XPixelGroup/BasicSR/blob/8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a/LICENSE.txt
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN) (docs/Training.md: DF2K (DIV2K + Flickr2K) + OST, HR images only; the anime model: anime images (not named).)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`, `sr_ops`
 - Variants: `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`
 - Outputs: image
@@ -648,6 +650,7 @@ Commercial use: yes.
 - Training data: GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs) (Motion_Deblurring/Options/Deblurring_Restormer.yml: GoPro train (2103 blurred / sharp pairs), progressive patch sizes 128 to 384.)
   - `restormer-derain`: Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set) (Deraining/Options/Deraining_Restormer.yml: Rain13K (13712 synthetic rainy / clean pairs), progressive patch sizes 128 to 384.)
   - `restormer-sidd`: Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos) (Denoising/Options/RealDenoising_Restormer.yml: SIDD-Medium sRGB (320 noisy / clean pairs), progressive patch sizes 128 to 384.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`, `fastbb`
 - Variants: `restormer-deblur`, `restormer-derain`, `restormer-sidd`
 - Outputs: image

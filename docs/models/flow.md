@@ -87,7 +87,7 @@ Commercial use: yes.
   - `flowformer-small-chairs`: FlyingChairs (Freiburg)
   - `flowformer-small-things`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `flowformer-small-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark
-- Options: `iters` = 32 (>= 1)
+- Options: `cuda_graphs` = True (speed only), `iters` = 32 (>= 1)
 - Kernel libraries: `flow_upsample`
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
@@ -450,7 +450,7 @@ Commercial use: yes.
 - Training data: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingThings3D (part of SceneFlow), starting from SKFlow's FlyingChairs + FlyingThings3D checkpoint, as upstream's train.sh)
   - `memflow-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (as memflow, then fine-tuned on a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (upstream stage 'sintel'))
   - `memflow-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (as memflow-sintel, then fine-tuned on KITTI 2015)
-- Options: `iters` = 15 (>= 1)
+- Options: `cuda_graphs` = True (speed only), `iters` = 15 (>= 1)
 - Kernel libraries: `raft_flow`
 - Variants: `memflow`, `memflow-sintel`, `memflow-kitti`
 - Outputs: flow
@@ -955,7 +955,7 @@ Commercial use: yes.
 - Training data: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (TartanAir pretraining, FlyingChairs, then FlyingThings3D (part of SceneFlow), as the checkpoint name tar-c-t says; the Depth Anything V2 Small inside was trained by its authors on synthetic and pseudo-labelled real images)
   - `waft-a1-kitti`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT))
   - `waft-a1-sintel`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH))
-- Options: `iters` = 5 (>= 1)
+- Options: `cuda_graphs` = True (speed only), `iters` = 5 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`
 - Outputs: flow

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.2.1)
+## Unreleased (0.3.0)
 
 No model family is new in this release; the changes are backends, platforms and the ComfyUI packs.
 
@@ -32,6 +32,9 @@ No model family is new in this release; the changes are backends, platforms and 
   or Any2Full kernels model releases its CUDA graph allocations when the last reference goes away.
 - CUDA graph caches run a new shape's first inference request eagerly, even when a request repeats an internal
   stage. OMNI-DC also defers solver capture until the same solve shape recurs.
+- CUDA graph replay is available for 37 more model variants. Eligible shapes capture after repeated requests
+  and use bounded caches. Fifteen variants reuse those eager calls to shorten capture on the native CUDA
+  allocator. WAFT keeps fewer intermediate tensors live and applies its graph limit to the padded input size.
 - TAPNext resets and updates its recurrent state in one graph per query count. ALIKED-LightGlue captures the
   feature extractor and leaves the score workspace available to the eager allocator.
 - SAM prompt graphs share compatible embedding buffers. SAM 2.1 captures the prompt decoder by default and
@@ -42,7 +45,7 @@ No model family is new in this release; the changes are backends, platforms and 
 - Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for
   commercial use): 24 nodes, one per task, with a model dropdown and automatic weight download
   (`docs/comfyui.md`); fastforks-commercial has 22 (no Parse or Video matte, whose models are non-commercial).
-  Both require fastforks 0.2.1; on Apple silicon their requirements also install `mlx`.
+  Both require fastforks 0.3.0; on Apple silicon their requirements also install `mlx`.
 - The `backend` dropdown has the same four entries on every platform: `auto`, `portable`, `kernels`, `mlx` (the model's
   MLX port, Apple silicon only), so a saved workflow validates everywhere. An entry the machine or the model cannot run
   fails with a message. A workflow saved with the earlier `mlx portable` entry loads as `mlx`.

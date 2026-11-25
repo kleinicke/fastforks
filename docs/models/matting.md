@@ -46,6 +46,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md ; https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/LICENSE
 - Training data: DIS5K (dichotomous image segmentation), Prama LLC proprietary segmentation data (BEN2 card: "BEN2 was trained on the DIS5k and our 22K proprietary segmentation dataset"; it implies DIS-VD stayed out of training ("RMBG 2.0 did not preserve the DIS 5k validation dataset"). Only the weights licence (MIT) counts for the commercial flag.)
+- Options: `cuda_graphs` = False (speed only)
 - Kernel libraries: `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `ben2`
 - Outputs: alpha
@@ -275,7 +276,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Weights licence: LicenseRef-noncommercial
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
-- Options: `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
+- Options: `cuda_graphs` = True (speed only), `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
 - Kernel libraries: `image_normalize`
 - Variants: `matanyone`
 - Outputs: alpha
@@ -397,6 +398,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/hustvl/vitmatte-small-composition-1k/blob/6a58ad7646403c1df626fbd746900aec7361ea1d/README.md ; https://huggingface.co/hustvl/vitmatte-base-composition-1k/blob/bf486d01a7d9e3dbcc8400f7942835caf0eaf76e/README.md ; https://github.com/hustvl/ViTMatte/blob/8cd7ef068380977c3962c4cb733cb1fe7f2241a5/LICENSE
 - Training data: Composition-1k (Adobe Deep Image Matting) (The HF cards: "ViTMatte model trained on Composition-1k". Adobe Deep Image Matting (Composition-1k) is released for non-commercial research on request; only the weights licence (Apache-2.0) counts for the commercial flag.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `dpt_fused`, `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `vitmatte-s`, `vitmatte-b`
 - Outputs: alpha

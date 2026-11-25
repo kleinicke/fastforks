@@ -1070,6 +1070,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: https://github.com/princeton-vl/OMNI-DC/blob/main/LICENSE (BSD-3-Clause, also on the Hugging Face card zuoym15/OMNI-DC); the checkpoint's depth_module is the frozen Depth Anything V2 Large (upstream loads depth_anything_v2_vitl.pth, CC-BY-NC-4.0)
 - Training data: Synthetic RGB-D datasets with virtual sparse patterns per the paper (arXiv 2411.19278)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `omni_cg`
 - Variants: `omni-dc`
 - Public ONNX / TensorRT export is unavailable for `omni-dc` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
@@ -1206,7 +1207,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/DepthAnything/PromptDA/blob/9161547ca7151e14fcc8f490ad3cc02fa9437483/README.md and the Hugging Face model cards (license: apache-2.0)
 - Training data: Synthetic and real RGB-D data (including pseudo-labelled real images) per the paper (arXiv 2412.14015)
-- Options: `max_size` = 1008 (>= 14)
+- Options: `cuda_graphs` = True (speed only), `max_size` = 1008 (>= 14)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `prompt-depth-anything-s`, `prompt-depth-anything-l`
 - Outputs: depth; kind: `metric`

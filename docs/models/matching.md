@@ -50,7 +50,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/cvg/FlexGlue/blob/99920296d082c9405ebfd612d674efe288e74881/README.md#license ; https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE
 - Training data: FlexGlue: the README states no training data and the training code is not released (see the paper). The DINOv3 ConvNeXt-B backbone was pretrained on LVD-1689M (Meta, not released); ALIKED was trained on MegaDepth.
 - Licence note: The checkpoint includes the DINOv3 ConvNeXt-B backbone weights (`extractor.backbone.*`): the DINOv3 License (Meta: attribution and conditions apply) covers them; read it before commercial use.
-- Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0), `size` = 512 (>= 32)
+- Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0), `size` = 512 (>= 32), `cuda_graphs` = False (speed only)
 - Kernel libraries: `image_normalize`
 - Variants: `aliked-flexglue`
 - Outputs: keypoints1, keypoints2, pairs, scores
@@ -156,7 +156,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
-- Kernels (ALIKED) keep a CUDA graph of the dense maps per detection size: ~170 MiB more reserved at 768 x 1024 (568 vs 402 MiB, also the first call's peak); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels (ALIKED) cache CUDA graphs of the feature extractor for repeated detection sizes. The score and NMS workspace stays outside the graph pool. `cuda_graphs=false` disables replay and `release_graphs()` frees the cached graphs.
 - No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 - ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.
 - Computing DISK descriptors only at selected keypoints also changed pose outcomes. On a 100-pair MegaDepth check, both the PyTorch and TensorRT sparse projections changed a previously solved pair from 25.78 degrees to the 90-degree failure value, despite identical detected keypoints.

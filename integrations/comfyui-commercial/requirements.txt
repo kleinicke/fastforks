@@ -1,2 +1,2 @@
-fastforks-core[timm,transformers]>=0.2.1
+fastforks-core[timm,transformers]>=0.3.0
 mlx>=0.30; sys_platform == 'darwin' and platform_machine == 'arm64'

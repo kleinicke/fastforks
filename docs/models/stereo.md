@@ -329,6 +329,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/alibaba/cascade-stereo/blob/2ae7da65515c82025383a0fbee8d6fe063dc7101/CasStereoNet/README.md#L17-L19>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow`
 - Public TensorRT export is unavailable for `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow` (TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime).
@@ -390,6 +391,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/gallenszl/CFNet/blob/982230dd360583fc35743d0b7ed528982fe5fd38/README.md#L72>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cfnet_volume`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `cfnet-sceneflow`
 - Outputs: disparity
@@ -945,6 +947,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/xy-guo/GwcNet/blob/0987074f48b098c6e975a58ca5aacf233b0fb0eb/README.md#L27>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `gwcnet-gc-sceneflow`, `gwcnet-g-sceneflow`
 - Outputs: disparity
@@ -1173,7 +1176,7 @@ Commercial use: yes.
   - `igev-stereo-eth3d`: ETH3D two-view stereo, not stated by the authors (ETH3D submission model: fine-tuned on ETH3D; the rest of its training is not stated)
   - `igev-stereo-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 submission model))
   - `igev-stereo-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 submission model))
-- Options: `iters` = 32 (>= 1)
+- Options: `cuda_graphs` = True (speed only), `iters` = 32 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `igev-stereo-sceneflow`, `igev-stereo-middlebury`, `igev-stereo-eth3d`, `igev-stereo-kitti12`, `igev-stereo-kitti15`
 - Outputs: disparity
@@ -1557,6 +1560,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/JiaRenChang/PSMNet/blob/87ac9093afbf6545c093bd9d26c5ffd66e49a7b8/README.md#L96-L98>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `psmnet-sceneflow`
 - Outputs: disparity
@@ -1822,7 +1826,7 @@ Commercial use: yes.
   - `selective-igev-middlebury-train`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), Middlebury stereo (2014) (SceneFlow, then fine-tuned on Middlebury (first fine-tune stage; Selective-Stereo README training commands, 'middlebury_train' stage))
   - `selective-igev-eth3d-finetune`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), ETH3D two-view stereo (SceneFlow, then fine-tuned on ETH3D (final fine-tune stage; Selective-Stereo README training commands, 'eth3d_finetune' stage))
   - `selective-igev-eth3d-train`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), ETH3D two-view stereo (SceneFlow, then fine-tuned on ETH3D (first fine-tune stage; Selective-Stereo README training commands, 'eth3d_train' stage))
-- Options: `iters` = 32 (>= 1)
+- Options: `cuda_graphs` = True (speed only), `iters` = 32 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `selective-igev-sceneflow`, `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-finetune`, `selective-igev-eth3d-train`
 - Outputs: disparity

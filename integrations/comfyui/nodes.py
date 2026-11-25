@@ -398,7 +398,7 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
     return model
 
 
-_PLAN_ENV = "FASTFORKS_MLX_PLAN_CACHE"  # the library's on-disk MLX plan cache (fastforks >= 0.2.1; ignored before)
+_PLAN_ENV = "FASTFORKS_MLX_PLAN_CACHE"  # the library's on-disk MLX plan cache (fastforks >= 0.3.0; ignored before)
 
 
 def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platform: str = sys.platform) -> None:

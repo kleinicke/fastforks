@@ -367,7 +367,7 @@ CPU, float32: max |diff| <= 4.6e-05 vs the original. GPU, float16 (the default),
 - Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.
 - Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.
 - One video per call; all queries of a call share the video.
-- Kernels mode replays frames from CUDA graphs (per query count): 24 frames, 256 queries, 480x854, RTX 5060 Ti, Windows: 600 -> 395 ms, peak reserved 1074 -> 1722 MiB. One model tracks one video at a time. `cuda_graphs=False` turns this off, `release_graphs()` frees it.
+- Kernels mode can replay frames from one CUDA graph per query count. The first clip for a query count runs eagerly. Later clips reset and update the graph's tracking buffers in place. `cuda_graphs=False` turns graphs off and `release_graphs()` frees the cached graphs.
 
 </details>
 
