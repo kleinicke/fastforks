@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastforks._core.mlx import mx, to_mx
+from fastforks._core.patch import base_type
 from fastforks.shared.cspnext import mlx_net as csp
 
 from .net import FFN, HEADS, HIDDEN, STRIDES
@@ -75,7 +76,7 @@ def _rep(layer: Any, d: mx.Dtype) -> Layer:
 def _stage(stage: Any, d: mx.Dtype) -> Layer:
     """The stride-2 conv, the SPP (last stage), the `CSPLayer`."""
     build = {"CSPLayer": csp.csp_layer, "SPP": csp.spp}
-    return csp.chain(*(build.get(type(m).__name__, csp.conv_act)(m, d, GRAPH) for m in stage))
+    return csp.chain(*(build.get(base_type(m).__name__, csp.conv_act)(m, d, GRAPH) for m in stage))
 
 
 class MlxRTMO:
