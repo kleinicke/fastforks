@@ -111,6 +111,19 @@ def _init(runner: Runner, vit: Any) -> None:  # noqa: ANN401 - DINOv2 module
     runner.num_prefix_tokens = 1 + vit.num_register_tokens
 
 
+def _giant_weight_device(ctx: Context) -> torch.device | None:
+    """The official resident CUDA ViT-g checkpoints can cast and transfer one tensor at a time."""
+    if (
+        ctx.device.type == "cuda"
+        and ctx.params.arch == "vitg"
+        and not ctx.params.stream
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    ):
+        return ctx.device
+    return None
+
+
 def _attention(a: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - vendored DINOv2 attention
     """SDPA attention + projection; its temporaries (qkv, the attention output) are freed on return."""
     b, n, c = y.shape
@@ -152,15 +165,22 @@ class Portable(Runner):
         self.half = ctx.dtype == "float16"
         self.acc = self.half and ctx.params.fp16_accumulate
         net = _network(ctx)
+        weight_device = _giant_weight_device(ctx) if self.half else None
         if self.half:  # fp16 weights (no per-call autocast casts); the position table stays fp32, as upstream uses it
             pos = net.pos_embed.detach().clone()
-            net.half().pos_embed = torch.nn.Parameter(pos, requires_grad=False)
+            if weight_device is None:
+                net.half()
+            else:
+                net.pos_embed = None  # only the FP32 position table is needed on the device
+                net.to(device=weight_device, dtype=torch.float16)
+                pos = pos.to(weight_device)
+            net.pos_embed = torch.nn.Parameter(pos, requires_grad=False)
         _init(self, net)
         if ctx.params.stream:
             for block in net.blocks:
                 override(block, _block)
             net.blocks = StreamedModuleList(net.blocks, ctx.device)
-        self.net = net.to(ctx.device)
+        self.net = net.to(ctx.device) if weight_device is None else net
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         net = self.net
@@ -231,16 +251,7 @@ class Kernels(Runner):
         super().__init__(ctx)
         vit = _network(ctx)
         _init(self, vit)
-        # A resident official ViT-g can convert and transfer its tensors one at a time, bounding CPU fp16 staging.
-        weight_device = (
-            ctx.device
-            if ctx.device.type == "cuda"
-            and ctx.params.arch == "vitg"
-            and not ctx.params.stream
-            and ctx.user_weights is None
-            and ctx.user_state is None
-            else None
-        )
+        weight_device = _giant_weight_device(ctx)
         self.fast = _FastDinov2(
             vit,
             _KERNELS_ATTN[ctx.params.arch],
