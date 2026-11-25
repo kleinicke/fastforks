@@ -1103,7 +1103,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@e6b9e4aa818d:sm_120` |
+| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@09f300df0234:sm_120` |
 
 ### Limitations
 
