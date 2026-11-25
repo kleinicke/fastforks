@@ -1635,6 +1635,35 @@ spherical harmonics and the position-table resize are shared with the torch netw
 Left: fp16 peaks 118 MB (6 %) above the exported port's, the MLX weights at load (as for RF-DETR and mmseg); fp32 warm
 +3 % in run 2 and +14 % in run 1 (the shared Mac; fp32 peak -351 MB). 1 ref, hand-written.
 
+### Done: Restormer (2026-11-25)
+
+M1 Pro, 512x512, MLX goldens pass (fp16 and fp32). `auto` now takes MLX portable float16 for all three (it took MPS:
+the exported port's 3.5-4.0 s first call was over the 3.1-3.5 s budget).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| restormer-sidd | MLX before, portable fp16 / fp32 | 665.2 / 1235.5 | 3.52 / 4.26 | 2136 / 2570 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 549.3 / 795.1) | 550.7 / 796.1 | 0.57 / 0.80 | 2264 / 3110 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 1132.1 / 1112.0 | 1.24 / 1.29 | 3675 / 5777 | |
+| restormer-deblur | MLX before, portable fp16 / fp32 | 600.7 / 1132.1 | 3.49 / 4.05 | 2046 / 2706 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 554.9 / 804.2) | 553.8 / 808.8 | 0.59 / 0.87 | 2195 / 3075 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 990.4 / 988.8 | 1.10 / 1.16 | 3651 / 4726 | |
+| restormer-derain | MLX before, portable fp16 / fp32 | 736.5 / 1547.5 | 4.03 / 4.39 | 2048 / 2658 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 553.4 / 807.3) | 551.5 / 805.9 | 0.57 / 0.83 | 2262 / 3078 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 987.6 / 995.2 | 1.10 / 1.16 | 3653 / 4728 | |
+
+`restoration/models/restormer/mlx_net.py` writes the U-Net in `mlx.core`: the LayerNorms on the shared row kernel
+(new `center=False` for the BiasFree norm) with their affines folded into the 1 x 1 convs after them, MDTA's `q^T k`
+and norms as one kernel (`token_gram`) with `project_out` multiplied into the `[C, C]` attention, GDFN's depthwise
+conv + gelu + product as one kernel (`dw_gate`), the 3 x 3 convs through `mlx_graph._conv2d`. Each block's attention
+and FFN halves are depth-1 steps (`_step`): the blocks as unbounded `async_eval` steps held 3466-3546 MB per sidd
+fp32 call, the halves 2982 MB, synchronous 2600-2829 MB but 1050 ms. `restormer/mlx_ops.py` (the export's op
+overrides) is gone.
+
+Left: peaks +130-220 MB fp16 and +370-540 MB fp32 above the exported port's (sidd fp32 call footprint 2982 vs
+2443-2500 MB in one process): the level-1 transients (qkv, its depthwise output, the 2.66x FFN hidden) of two halves
+in flight; still 1.6-2.7 GB under MPS. Warm -8 to -48 %. 3 refs, hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /

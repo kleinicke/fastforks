@@ -1144,3 +1144,25 @@ def test_mlx_unik3d_matches_torch(monkeypatch, given):
     got = mlx_net.MlxUniK3D(net, "float32")(x, rays)
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(g, w, atol=2e-4, rtol=2e-4)
+
+
+@pytest.mark.parametrize("norm", ["WithBias", "BiasFree"])
+def test_mlx_restormer_matches_torch(norm):
+    """The hand-written Restormer (`restormer/mlx_net.py`) against the vendored upstream network, float32."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.restormer import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.restormer.net import Restormer  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = Restormer(dim=8, num_blocks=[1, 1, 2, 2], num_refinement_blocks=1, heads=[1, 2, 2, 4], LayerNorm_type=norm)
+    for name, p in net.named_parameters():  # init: unit norms and temperatures would hide folding errors
+        if ".norm" in name or name.endswith("temperature"):
+            p.data.add_(torch.randn_like(p) * 0.5)
+    net.eval()
+    x = torch.rand(2, 3, 48, 40)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.MlxRestormer(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)

@@ -887,7 +887,8 @@ _ROW_LN = metal_kernel(
     input_names=["x", "w", "b", "eps"],
     output_names=["out"],
     source="""
-        // one simdgroup per row of C (<= 32 * NPL) elements held in registers: float32 mean, then the centred variance
+        // one simdgroup per row of C (<= 32 * NPL) elements held in registers: float32 mean, then the centred variance;
+        // !CENTER: the row divided by its standard deviation, not centred (Restormer's BiasFree norm)
         uint lane = thread_index_in_simdgroup;
         size_t row = size_t(threadgroup_position_in_grid.x) * SG + simdgroup_index_in_threadgroup;
         if (row >= size_t(ROWS)) return;
@@ -911,7 +912,7 @@ _ROW_LN = metal_kernel(
         for (int i = 0; i < NPL; ++i) {
             uint c = lane + 32 * i;
             if (c < uint(C)) {
-                float y = (v[i] - mean) * rstd;
+                float y = (CENTER ? v[i] - mean : v[i]) * rstd;
                 if (HAS_W) y *= float(w[c]);
                 if (HAS_B) y += float(b[c]);
                 o[c] = T(y);
@@ -925,8 +926,10 @@ ROW_LN_MAX = 512
 512; at 768 `mx.fast.layer_norm` is 15 % faster)."""
 
 
-def row_layer_norm(x: mx.array, w: mx.array | None, b: mx.array | None, eps: float) -> mx.array:
+def row_layer_norm(x: mx.array, w: mx.array | None, b: mx.array | None, eps: float, *, center: bool = True) -> mx.array:
     """Layer norm over the last axis for narrow rows (`C <= ROW_LN_MAX`): one simdgroup per row.
+
+    `center=False`: `x / sqrt(var + eps)` (the variance still about the mean), Restormer's BiasFree norm.
 
     `mx.fast.layer_norm` is several times slower at many such widths (47M float16 elements: C = 180 8.1 against 1.3
     ms, C = 384 5.8 against 1.3 ms, C = 96 25 against 1.3 ms). `w` and `b` are read in `x`'s dtype.
@@ -939,7 +942,7 @@ def row_layer_norm(x: mx.array, w: mx.array | None, b: mx.array | None, eps: flo
         inputs=[mx.contiguous(x), w if w is not None else dummy, b if b is not None else dummy,
                 mx.array([eps], mx.float32)],
         template=[("T", x.dtype), ("C", c), ("NPL", -(-c // 32)), ("SG", sg), ("ROWS", rows),
-                  ("HAS_W", w is not None), ("HAS_B", b is not None)],
+                  ("HAS_W", w is not None), ("HAS_B", b is not None), ("CENTER", center)],
         grid=(-(-rows // sg) * 32 * sg, 1, 1), threadgroup=(32 * sg, 1, 1),
         output_shapes=[x.shape], output_dtypes=[x.dtype],
     )[0]  # fmt: skip
