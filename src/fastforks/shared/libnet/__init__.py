@@ -318,7 +318,7 @@ class Mlx(Runner):
 
         written = not os.environ.get("FASTFORKS_MLX_GRAPH")
         if ctx.card.family in mlx_cnn.FAMILIES and written:
-            self.net = mlx_cnn.Network(ctx)
+            self.net = mlx_cnn.Network(ctx, lazy_build(lambda: self.network(ctx)))  # the family's adapted build
             return
         if ctx.card.family in VIT_FAMILIES and written:
             from . import mlx_vit_cls  # noqa: PLC0415 - optional MLX dependency

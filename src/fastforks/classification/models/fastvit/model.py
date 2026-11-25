@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class Mlx(libnet.Mlx):
-    """MLX runner of the re-parameterized network (as `_optimize` runs it on the other devices).
+    """MLX runner of the re-parameterized network (as `_optimize` runs it), written in MLX (`libnet.mlx_fastvit`).
 
     Each RepMixer block computes `x + scale * (mixer(x) - norm(x))`: two nearly equal branches whose difference loses
     its digits in float16 (t8 logits mean |diff| 0.14 against a 0.023 bound). Folded into one conv in float32 at

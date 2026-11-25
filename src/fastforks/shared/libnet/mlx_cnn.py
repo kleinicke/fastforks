@@ -20,7 +20,12 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context
 
 
-def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype) -> Callable:
+def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype, *, dw_kernel: bool = False) -> Callable:
+    """Conv (+ eval batch norm) on NHWC.
+
+    `dw_kernel`: a depthwise one as `graph_mlx`'s kernel (float32 accumulation, and never slower than
+    `mx.conv2d(groups=C)`, which falls off its fast path at some channel counts).
+    """
     folded = torch.nn.utils.fuse_conv_bn_eval(conv, bn) if bn is not None else conv
     bias = to_mx(folded.bias).astype(dtype) if folded.bias is not None else mx.zeros((conv.out_channels,), dtype)
     stride = (conv.stride[0], conv.stride[1])
@@ -31,6 +36,18 @@ def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype) -> Callab
         matrix = to_mx(folded.weight[:, :, 0, 0].t().contiguous()).astype(dtype)
         mx.eval(matrix, bias)
         return lambda x: conv1x1(x, matrix, bias)
+    if (
+        dw_kernel
+        and groups == conv.in_channels == conv.out_channels
+        and groups % 4 == 0
+        and conv.kernel_size[0] * conv.kernel_size[1] > 1
+        and conv.dilation == (1, 1)
+    ):
+        from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - Metal only
+
+        taps = to_mx(folded.weight[:, 0].permute(1, 2, 0)).astype(dtype)
+        mx.eval(taps, bias)
+        return lambda x: ops.depthwise(x, taps, bias, stride, padding, (1, 1))
     weight = to_mx(folded.weight.permute(0, 2, 3, 1)).astype(dtype)
     mx.eval(weight, bias)
 
@@ -38,6 +55,11 @@ def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype) -> Callab
         return mx.conv2d(x, weight, stride=stride, padding=padding, groups=groups) + bias
 
     return apply
+
+
+def _conv_k(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype) -> Callable:
+    """`_conv` with the depthwise kernel (the newer ports' default)."""
+    return _conv(conv, bn, dtype, dw_kernel=True)
 
 
 def _residual(block: Any, dtype: mx.Dtype) -> Callable:
@@ -147,6 +169,15 @@ def _grn(layer: Any, dtype: mx.Dtype) -> Callable:
 
 def _gelu(x: mx.array) -> mx.array:
     return x * (0.5 + 0.5 * mx.erf(x * 0.7071067811865476))
+
+
+def _gelu_f32(x: mx.array) -> mx.array:
+    """GELU computed in float32 (`0.5 + 0.5 * erf` of a negative float16 input cancels), rounded once."""
+    y = x.astype(mx.float32)
+    return (y * (0.5 + 0.5 * mx.erf(y * 0.7071067811865476))).astype(x.dtype)
+
+
+_gelu_f32 = mx.compile(_gelu_f32, shapeless=True)
 
 
 def _convnext_block(block: Any, dtype: mx.Dtype) -> Callable:
@@ -472,22 +503,45 @@ FAMILIES = frozenset(
     {
         "alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2", "convnext", "convnextv2", "resnet", "mobilenetv2",
         "efficientnet", "efficientnetv2", "mobilenetv3", "regnet", "mobilenetv1", "starnet", "repvit",
-        "coatnet", "efficientformerv2", "hgnetv2", "focalnet", "swin", "davit",
+        "coatnet", "efficientformerv2", "hgnetv2", "focalnet", "swin", "davit", "tinyvit", "mobilenetv4",
+        "inception_v3", "efficientvit", "shvit", "efficientformer", "fastvit",
     }
 )  # fmt: skip
 
 
 # `(features, head)` builders of the networks written out here, and of those in their own modules (named by family)
 _BUILDERS = {"mobilenetv1": _mobile_v1, "starnet": _star_net, "repvit": _rep_vit}
-_MODULES = frozenset({"coatnet", "efficientformerv2", "hgnetv2", "focalnet", "swin", "davit"})
 
 
-def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
-    # These modules import this one
+# Families whose ports live in their own modules (which import this one, so they load lazily)
+_MODULES = frozenset(
+    {
+        "coatnet",
+        "efficientformerv2",
+        "hgnetv2",
+        "focalnet",
+        "swin",
+        "davit",
+        "tinyvit",
+        "mobilenetv4",
+        "inception_v3",
+        "efficientvit",
+        "shvit",
+        "efficientformer",
+        "fastvit",
+    }
+)
+
+
+def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:  # noqa: C901, PLR0911
     if family == "coatnet":
         from .mlx_coatnet import coatnet  # noqa: PLC0415
 
         return coatnet(net, dtype)
+    if family == "efficientformerv2":
+        from .mlx_efficientformerv2 import efficientformerv2  # noqa: PLC0415
+
+        return efficientformerv2(net, dtype)
     if family == "hgnetv2":
         from .mlx_hgnetv2 import hgnetv2  # noqa: PLC0415
 
@@ -500,9 +554,33 @@ def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, C
         from . import mlx_windowed  # noqa: PLC0415
 
         return getattr(mlx_windowed, family)(net, dtype)
-    from .mlx_efficientformerv2 import efficientformerv2  # noqa: PLC0415
+    if family == "tinyvit":
+        from .mlx_tinyvit import tinyvit  # noqa: PLC0415
 
-    return efficientformerv2(net, dtype)
+        return tinyvit(net, dtype)
+    if family == "mobilenetv4":
+        from .mlx_mobilenetv4 import mobilenetv4  # noqa: PLC0415
+
+        return mobilenetv4(net, dtype)
+    if family == "inception_v3":
+        from .mlx_inception import inception  # noqa: PLC0415
+
+        return inception(net, dtype)
+    if family == "efficientvit":
+        from .mlx_efficientvit import efficientvit  # noqa: PLC0415
+
+        return efficientvit(net, dtype)
+    if family == "shvit":
+        from .mlx_shvit import shvit  # noqa: PLC0415
+
+        return shvit(net, dtype)
+    if family == "efficientformer":
+        from .mlx_efficientformer import efficientformer  # noqa: PLC0415
+
+        return efficientformer(net, dtype)
+    from .mlx_fastvit import fastvit  # noqa: PLC0415
+
+    return fastvit(net, dtype)
 
 
 class Network:

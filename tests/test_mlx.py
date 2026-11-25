@@ -1430,6 +1430,80 @@ def test_mlx_rtdetr_matches_torch(arch):
     torch.testing.assert_close(half[0].amax(1), want[0].amax(1), atol=0.05, rtol=0.05)
 
 
+def _randomize_timm(net):
+    """Random batch-norm statistics, attention biases and layer scales (their inits are trivial)."""
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d | torch.nn.BatchNorm1d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+                m.weight.uniform_(0.5, 1.5)
+                m.bias.normal_(0, 0.1)
+            elif hasattr(m, "attention_biases"):
+                m.attention_biases.normal_(0, 0.5)
+            elif isinstance(getattr(m, "gamma", None), torch.nn.Parameter):  # layer scales (init 1e-5)
+                m.gamma.uniform_(0.2, 1.0)
+
+
+@pytest.mark.parametrize(
+    ("family", "arch", "size"),
+    [
+        ("tinyvit", "tiny_vit_5m_224", 224),
+        ("tinyvit", "tiny_vit_21m_224", 200),  # pads the windows
+        ("mobilenetv4", "mobilenetv4_conv_medium", 224),
+        ("mobilenetv4", "mobilenetv4_conv_small", 160),
+        ("inception", "inception_v3", 299),
+        ("efficientvit", "efficientvit_b2", 288),
+        ("efficientvit", "efficientvit_b0", 160),
+        ("shvit", "shvit_s1", 224),
+        ("shvit", "shvit_s4", 256),
+        ("efficientformer", "efficientformer_l1", 224),
+        ("fastvit", "fastvit_t8", 256),
+        ("fastvit", "fastvit_sa12", 224),  # the attention stage
+    ],
+)
+def test_mlx_timm_port_matches_timm(family, arch, size):
+    """The `libnet` hand ports against the timm network (random weights, batch-norm statistics, attention biases)."""
+    mx = pytest.importorskip("mlx.core")
+    if not mx.metal.is_available():
+        pytest.skip("needs Apple Metal")
+    import importlib  # noqa: PLC0415
+
+    import timm  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415
+
+    port = getattr(importlib.import_module(f"fastforks.shared.libnet.mlx_{family}"), family)
+    torch.manual_seed(0)
+    if family == "inception":  # torchvision's, with the input remap of its ImageNet weights
+        from torchvision.models import inception_v3  # noqa: PLC0415
+
+        net = inception_v3(aux_logits=False, transform_input=True, num_classes=11, init_weights=False).eval()
+    else:
+        net = timm.create_model(arch, pretrained=False, num_classes=11).eval()
+    _randomize_timm(net)
+    x = torch.randn(2, 3, size, size, generator=torch.Generator().manual_seed(1))
+    if family == "mobilenetv4":  # random statistics blow its activations past float16 (1e8): the batch's own instead
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.reset_running_stats()
+                m.momentum = None
+        with torch.no_grad():
+            net.train()(x)
+        net.eval()
+    with torch.no_grad():
+        want = net(x)
+    if family == "fastvit":  # the port takes the re-parameterized network, as the family's runner builds it
+        from fastforks._optimize.fold import reparam  # noqa: PLC0415
+
+        reparam(net)
+    for dtype, tol in ((mx.float32, 2e-3), (mx.float16, 5e-2)):
+        features, head = port(net, dtype)
+        y = features(to_mx(x.permute(0, 2, 3, 1)).astype(dtype))
+        got = to_torch(head(mx.mean(y.astype(mx.float32), axis=(1, 2)).astype(dtype)).astype(mx.float32))
+        torch.testing.assert_close(got, want, atol=tol * want.abs().max().item(), rtol=tol, msg=str(dtype))
+
+
 @pytest.mark.parametrize(
     ("arch", "kernels"),
     [
