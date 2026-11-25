@@ -72,6 +72,12 @@ def test_supplemental_tracking_row_is_not_scheduled():
     assert all(len(inp["label"].split("x")) == 2 for j in jobs for inp in j["inputs"])
 
 
+def test_edges_compile_and_tensorrt_use_the_task_standard_input():
+    jobs = speed_check.jobs(["hed"], modes=("compile", "tensorrt"))
+    assert {j["mode"] for j in jobs} == {"compile", "tensorrt"}
+    assert all([inp["label"] for inp in j["inputs"]] == ["1080x1920"] for j in jobs)
+
+
 def test_timing_export_preserves_clip_scope(tmp_path, capsys):
     """Keep the job key and measured clip shape available to downstream report generation."""
     frames = Namespace(shape=(8, 3, 256, 256))

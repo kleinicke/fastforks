@@ -152,6 +152,31 @@ def _native_speed_input(card: ModelCard, v: Variant) -> str | None:
     return None
 
 
+def _speed_workload(ref: str, task: str, size: str, rows: list[dict]) -> dict[str, Any]:
+    """Preserve recorded workload geometry without changing the comparison key."""
+    legacy: dict[str, Any] = {}
+    synthetic = all((r.get("scene") or "synthetic").casefold().startswith("synthetic") for r in rows)
+    if task == "volume":
+        fields = ("volume_shape", "spacing_mm")
+        if synthetic and ref.startswith("totalsegmentator-") and size == "200x200":
+            # Legacy speed rows used volume.bench_inputs: [H, W, W] at 1.5 mm.
+            legacy = {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
+    elif task == "tracking":
+        fields = ("frames", "queries")
+        if synthetic and ref in {"locotrack-b", "locotrack-s"}:
+            if size == "480x854":
+                legacy = {"frames": 24, "queries": 256}  # tracking.bench_inputs
+            elif size == "8x480x854":
+                legacy = {"frames": 8, "queries": 16}  # matched export workload
+    else:
+        return {}
+
+    recorded = {k: [row[k] for row in rows if row.get(k) is not None] for k in fields}
+    if any(value != legacy[k] for k in legacy for value in recorded[k]):
+        legacy = {}  # A different recorded workload cannot inherit the legacy assumptions.
+    return legacy | {k: values[0] for k, values in recorded.items() if values and all(v == values[0] for v in values)}
+
+
 def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
     rows = speed.get(v.id, [])
@@ -160,9 +185,11 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
     preferred = next((size for size in (native, std) if size in inputs), inputs[-1] if inputs else None)
     out = []
     for size in inputs:
+        profile_rows = [r for r in rows if r["input"] == size]
+        scene = next((r.get("scene", "") for r in profile_rows), "")
         by = {}
-        for r in rows:
-            if r["input"] != size or r["mode"] not in _SPEED_KEY:
+        for r in profile_rows:
+            if r["mode"] not in _SPEED_KEY:
                 continue
             row = _speed_row(r)
             key = _SPEED_KEY[r["mode"]]
@@ -180,6 +207,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                     {"fails": reason, "planned": True} if reason else {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
                 )
                 continue
+            profile_rows.append(c)
             if mode == "tensorrt":
                 alloc, reserved = g._trt_peaks(c) or (None, None)  # noqa: SLF001 - shared docs helper
             else:
@@ -195,8 +223,10 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
                 "date": c.get("date"),
             }
+            if task == "volume" and mode == "tensorrt" and c.get("net_input"):
+                extra[mode]["engine_input"] = c["net_input"]
         extra |= _pose_parts(v, size)
-        scene = next((r.get("scene", "") for r in rows if r["input"] == size), "")
+        workload = _speed_workload(v.id, task, size, profile_rows)
         out.append(
             {
                 "input": size,
@@ -205,6 +235,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 "native": size == native,
                 "modes": by,
                 "oom": oom,
+                **({"workload": workload} if workload else {}),
                 **extra,
             }
         )

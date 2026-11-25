@@ -160,6 +160,50 @@ def test_published_clip_timings_match_exported_workloads():
             assert standard["tensorrt"]["part"] == "single image"
         else:
             assert "tensorrt" not in standard
+            assert standard["workload"] == {"frames": 24, "queries": 256}
+            assert clip["workload"] == {"frames": 8, "queries": 16}
+
+
+def test_volume_workload_keeps_source_key_and_reports_patch_engine_shape(monkeypatch):
+    _, model = registry.resolve_any("totalsegmentator-total-3mm")
+    engine = {
+        "ref": model.id,
+        "mode": "tensorrt",
+        "input": "200x200",
+        "ms": 22,
+        "volume_shape": [200, 200, 200],
+        "net_input": "2x1x112x112x128",
+        "backend_part": "patch network, standalone build",
+    }
+    monkeypatch.setattr(site_data.g, "_compile_rows", lambda: {(model.id, "tensorrt", "200x200"): engine})
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    rows = {
+        model.id: [
+            {"input": "200x200", "mode": "portable", "ms": 60, "scene": "synthetic"},
+            {
+                "input": "422x255x255",
+                "mode": "portable",
+                "ms": 100,
+                "scene": "CT scan",
+                "volume_shape": [422, 255, 255],
+                "spacing_mm": [1.0, 0.8, 0.8],
+            },
+        ]
+    }
+    site = site_data._speed(model, "volume", rows)
+    profiles = {profile["input"]: profile for profile in site["inputs"]}
+    assert site["standard"] == site["preferred"] == "200x200"
+    assert profiles["200x200"]["workload"] == {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
+    assert profiles["200x200"]["tensorrt"]["engine_input"] == "2x1x112x112x128"
+    assert profiles["200x200"]["tensorrt"]["part"] == "patch network, standalone build"
+    assert profiles["422x255x255"]["workload"] == {"volume_shape": [422, 255, 255], "spacing_mm": [1.0, 0.8, 0.8]}
+
+
+def test_workload_inference_is_limited_to_known_legacy_inputs():
+    assert site_data._speed_workload("other-tracker", "tracking", "480x854", [{}]) == {}
+    assert site_data._speed_workload("locotrack-b", "tracking", "480x854", [{"scene": "TAP-Vid DAVIS"}]) == {}
+    assert site_data._speed_workload("locotrack-b", "tracking", "480x854", [{"frames": 16}]) == {"frames": 16}
+    assert site_data._speed_workload("locotrack-s", "tracking", "8x480x854", [{}]) == {"frames": 8, "queries": 16}
 
 
 def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tmp_path, monkeypatch):
