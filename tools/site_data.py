@@ -233,6 +233,36 @@ def _backend_failure(v: Variant, mode: str, message: str) -> dict[str, Any]:
     return failure
 
 
+def _backend_speed_row(row: dict[str, Any], task: str) -> dict[str, Any]:
+    engine = row["mode"] == "tensorrt"
+    if engine:
+        alloc, reserved = g._trt_peaks(row) or (None, None)  # noqa: SLF001 - shared docs helper
+    else:
+        alloc, reserved = row.get("peak_alloc_mb"), row.get("peak_reserved_mb")
+    timing = {
+        "ms": row["ms"],
+        "peak_alloc_mb": alloc,
+        "peak_reserved_mb": reserved,
+        "device_mb": row.get("device_mb"),
+        "process_peak_mb": row.get("nvml_peak_mb"),
+        "engine_dtype": row.get("engine_dtype", "float16") if engine else None,
+        "part": g._backend_part(row).strip(" ()"),  # noqa: SLF001 - shared docs helper
+        "standalone": bool(row.get("standalone_build")),
+        "setup_s": g._setup_seconds(row),  # noqa: SLF001 - shared docs helper
+        "engine_load_s": row.get("engine_load_s") if engine else None,
+        "first_call_s": row.get("engine_first_call_s", row.get("first_call_s")) if engine else row.get("first_call_s"),
+        "date": row.get("date"),
+        "torch": row.get("torch"),
+        **_speed_metadata(row),
+        **({"compare_to_original": False} if row.get("compare_to_original") is False else {}),
+    }
+    if not engine:
+        timing.update(dtype=_devices.dtype_of(row), load_s=row.get("load_s"))
+    if engine and task == "volume" and row.get("net_input"):
+        timing["engine_input"] = row["net_input"]
+    return timing
+
+
 def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
     rows, backends = _profile_rows(v.id, speed)
@@ -266,29 +296,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
                 extra[mode] = _backend_failure(v, mode, c["fails"])
                 continue
             profile_rows.append(c)
-            if mode == "tensorrt":
-                alloc, reserved = g._trt_peaks(c) or (None, None)  # noqa: SLF001 - shared docs helper
-            else:
-                alloc, reserved = c.get("peak_alloc_mb"), c.get("peak_reserved_mb")
-            extra[mode] = {
-                "ms": c["ms"],
-                "peak_alloc_mb": alloc,
-                "peak_reserved_mb": reserved,
-                "device_mb": c.get("device_mb"),
-                "process_peak_mb": c.get("nvml_peak_mb"),
-                "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
-                "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
-                "standalone": bool(c.get("standalone_build")),
-                "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
-                "engine_load_s": c.get("engine_load_s") if mode == "tensorrt" else None,
-                "first_call_s": c.get("engine_first_call_s", c.get("first_call_s")) if mode == "tensorrt" else None,
-                "date": c.get("date"),
-                "torch": c.get("torch"),
-                **_speed_metadata(c),
-                **({"compare_to_original": False} if c.get("compare_to_original") is False else {}),
-            }
-            if task == "volume" and mode == "tensorrt" and c.get("net_input"):
-                extra[mode]["engine_input"] = c["net_input"]
+            extra[mode] = _backend_speed_row(c, task)
         extra |= _pose_parts(v, size)
         shown = (
             *by.values(),

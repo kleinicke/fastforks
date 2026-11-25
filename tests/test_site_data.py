@@ -143,7 +143,15 @@ def test_legacy_original_speed_rows_use_their_recorded_precision(monkeypatch):
 def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     ref = "nninteractive"
     portable = {"mode": "portable", "input": "200x200", "ms": 215, "dtype": "float16"}
-    compiled = {"mode": "compile", "input": "200x200", "ms": 162}
+    compiled = {
+        "mode": "compile",
+        "input": "200x200",
+        "ms": 162,
+        "backend": {"dtype": "bfloat16"},
+        "load_s": 1.24,
+        "first_call_s": 32.75,
+        "compile_s": 32.75,
+    }
     engine = {"ref": ref, "mode": "tensorrt", "input": "192x192", "ms": 262, "export_and_build_s": 32}
     failed = {"ref": ref, "mode": "tensorrt", "input": "200x200", "fails": "OutOfMemoryError"}
     monkeypatch.setattr(
@@ -162,7 +170,11 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     assert sizes["192x192"]["tensorrt"]["ms"] == 262
     assert sizes["192x192"]["tensorrt"]["setup_s"] == 32
     assert "compile" not in sizes["192x192"]
-    assert sizes["200x200"]["compile"]["ms"] == 162
+    compile_row = sizes["200x200"]["compile"]
+    assert compile_row["ms"] == 162
+    assert compile_row["dtype"] == "bfloat16"
+    assert compile_row["load_s"] == 1.24
+    assert compile_row["first_call_s"] == compile_row["setup_s"] == 32.75
     assert "fails" in sizes["200x200"]["tensorrt"]
 
     lines = site_data.g._compile_block().splitlines()
