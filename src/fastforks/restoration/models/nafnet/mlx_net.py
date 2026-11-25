@@ -6,8 +6,8 @@ TLC windows of `NAFNetLocal`), channels last. Written out instead of replayed fr
 translation and segment tuning were ~2-3 s of a 2.2-3.3 s first call at 512 x 512.
 
 - each block is one `mx.compile`d function per level (its weights arguments, so the 36 blocks of a level share a
-  trace): the channel LayerNorm (`mx.fast.layer_norm`, no affine), the 1 x 1 convs as matrix products, the depthwise
-  3 x 3 the shared depthwise kernel, SimpleGate and the channel attention fused around them;
+  trace): the channel LayerNorm (no affine; written out below 256 channels), the 1 x 1 convs as matrix products,
+  the depthwise 3 x 3 the shared depthwise kernel, SimpleGate and the channel attention fused around them;
 - the TLC channel attention (`nafnet-gopro`): box means of the gated map over the level's window, from float32
   running sums along each axis (upstream's integral image, one axis at a time), projected by the attention's 1 x 1
   conv before the replicate padding (the same 1 x 1 at every pixel: `Kernels._scale_features`);
@@ -51,6 +51,18 @@ def _gate(x: mx.array) -> mx.array:
     return x[..., :c] * x[..., c:]
 
 
+def _layer_norm(x: mx.array, eps: float) -> mx.array:
+    """The channel LayerNorm without affine, float32 statistics.
+
+    Written out below 256 channels, where `mx.fast.layer_norm` is 4-6x slower than this fused into the block.
+    """
+    if x.shape[-1] >= 256:  # noqa: PLR2004
+        return mx.fast.layer_norm(x, None, None, eps)
+    xf = x.astype(mx.float32)
+    d = xf - xf.mean(axis=-1, keepdims=True)
+    return (d * mx.rsqrt(mx.square(d).mean(axis=-1, keepdims=True) + eps)).astype(x.dtype)
+
+
 def _box_mean(x: mx.array, k1: int, k2: int) -> mx.array:
     """Means of every `k1` x `k2` window of an NHWC map (valid positions), from float32 running sums."""
     s = mx.cumsum(x.astype(mx.float32), axis=1)
@@ -77,13 +89,13 @@ def _block_fn(window: int, eps: float, depthwise: bool) -> Callable[..., mx.arra
 
     def block(inp: mx.array, *w: mx.array) -> mx.array:
         w1, b1, wd, bd, ws, bs, w3, b3, w4, b4, w5, b5 = w
-        x = mx.addmm(b1, mx.fast.layer_norm(inp, None, None, eps), w1)
+        x = mx.addmm(b1, _layer_norm(inp, eps), w1)
         x = ops.depthwise(x, wd, bd, ONE, ONE, ONE) if depthwise else mx.conv2d(x, wd, padding=1, groups=wd.shape[0])
         x = x if depthwise else x + bd
         g = _gate(x)
         g = g * _attention_scale(g, ws, bs, window or max(g.shape[1], g.shape[2]))
         y = inp + mx.addmm(b3, g, w3)
-        return y + mx.addmm(b5, _gate(mx.addmm(b4, mx.fast.layer_norm(y, None, None, eps), w4)), w5)
+        return y + mx.addmm(b5, _gate(mx.addmm(b4, _layer_norm(y, eps), w4)), w5)
 
     return mx.compile(block)
 
