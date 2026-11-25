@@ -51,6 +51,13 @@ INTERP_LEN = 8  # fixed: upstream infer settings
 STEP = INFER_LEN - OVERLAP
 DECODE_BATCH = 4  # fixed: the upstream head's decoder micro-batch size
 _OUTPUT_BATCH = 2  # fixed: bound the eager full-resolution output convolution workspace
+_ENCODER_BATCH_BYTES = 192 << 20
+_LARGE_FRAME_BYTES = 48 << 20
+_ENCODER_BATCH = 8
+_LARGE_ENCODER_BATCH = 4
+_DIRECT_OUTPUT_BYTES = 128 << 20
+_TEMPORAL_CUDA_BYTES = 128 << 20
+_TEMPORAL_CHUNK_BYTES = 64 << 20
 ALIGN = OVERLAP - INTERP_LEN  # frames 0 and 1 of a window: keyframes 0 and 12 of the previous one
 MAX_RATIO = 1.78  # fixed: upstream: "process video with ratio smaller than 16:9 due to memory limitation"
 _CONFIGS = {  # fixed: upstream run.py model_configs (per `arch`)
@@ -125,13 +132,18 @@ class _WorkspaceGEGLU(GEGLU):
 
 
 class _ChunkedFeedForward(FeedForward):
-    """MPS: token chunks of a 64 MB inner projection (the whole `[tokens, 8 C]` one fragments the 1 GB heaps)."""
+    """Bound the GEGLU projection workspace while retaining all temporal attention tokens."""
+
+    cuda_bands = False
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        """`FeedForward.forward`, row blocks into one output on MPS."""
+        """Apply the independent token MLP in chunks into the final output."""
         x = hidden_states.reshape(-1, hidden_states.shape[-1])
-        rows = max(1, (64 << 20) // (8 * x.shape[-1] * x.element_size()))
-        if x.shape[0] <= rows or not (x.device.type == "mps" and _eager_gpu(x)):
+        # GEGLU projects both gates to 4 C each.
+        row_bytes = 8 * x.shape[-1] * x.element_size()
+        rows = max(1, _TEMPORAL_CHUNK_BYTES // row_bytes)
+        large_cuda = self.cuda_bands and x.is_cuda and x.shape[0] * row_bytes >= _TEMPORAL_CUDA_BYTES
+        if x.shape[0] <= rows or not ((x.device.type == "mps" or large_cuda) and _eager_gpu(x)):
             return super().forward(hidden_states)
         out = x.new_empty(x.shape[0], cast("nn.Linear", self.net[-1]).out_features)
         for i in range(0, x.shape[0], rows):
@@ -160,6 +172,7 @@ def _cpu_net(ctx: Context) -> Net:
             m.__class__ = _WorkspaceGEGLU
         elif isinstance(m, FeedForward):
             m.__class__ = _ChunkedFeedForward
+            cast("_ChunkedFeedForward", m).cuda_bands = ctx.mode == "kernels"
     if ctx.dtype == "float16":
         net.head.scratch.output_conv2.__class__ = _DepthOutput
     return net.eval()
@@ -221,6 +234,23 @@ class _Video(Runner):
         d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN, return_hidden_states=False)[0]
         return F.relu(d[:valid, 0]).float()  # upstream resizes to (h, w) first: the same size, an exact copy
 
+    def _encode_frames(self, image: torch.Tensor | Clip, ids: list[int], size: tuple[int, int]) -> list[torch.Tensor]:
+        frames = F.interpolate(image[ids], size, mode="bicubic", align_corners=False)
+        return self._encode(scale(frames, self.ctx.io))
+
+    def _write_window(
+        self, out: torch.Tensor, depth: torch.Tensor, reference: list[torch.Tensor], start: int, *, more: bool
+    ) -> None:
+        depth = F.interpolate(depth[:, None], out.shape[-2:], mode="bilinear", align_corners=True)[:, 0]
+        if reference:
+            factor, shift = _blend(out, depth, reference, start, metric=self.ctx.params.metric)
+            if more:
+                reference[1] = (depth[KEYFRAMES[1]] * factor + shift).clamp_min(0)
+        else:
+            out[: depth.shape[0]] = depth
+            if more:
+                reference.extend((depth[0].clone(), depth[KEYFRAMES[1]].clone()))
+
     def _video(self, image: torch.Tensor | Clip) -> torch.Tensor:
         """`[L, 3, H, W]` RGB in `[0, 1]` (one video in time order) -> aligned float32 depth `[L, H, W]`.
 
@@ -245,10 +275,9 @@ class _Video(Runner):
             new = [i for i in uniq if i not in cache_ids]
             pool_ids, pool = cache_ids + new, cache
             if new:  # the last window may hold only seen frames (keyframes and padding)
-                x = F.interpolate(image[new], (h, w), mode="bicubic", align_corners=False)
-                fresh = self._encode(scale(x, self.ctx.io))
+                fresh = self._encode_frames(image, new, (h, w))
                 pool = [torch.cat((c, f)) for c, f in zip(cache, fresh, strict=True)] if cache else fresh
-                del x, fresh
+                del fresh
             pos = {f: k for k, f in enumerate(pool_ids)}
             if ids == pool_ids:
                 window = pool
@@ -263,15 +292,7 @@ class _Video(Runner):
             del pool
             d = self._window(window, h, w, valid)
             del window
-            d = F.interpolate(d[:, None], (hh, ww), mode="bilinear", align_corners=True)[:, 0]
-            if ref:
-                s, b = _blend(out, d, ref, start, metric=self.ctx.params.metric)
-                if more:
-                    ref[1] = (d[KEYFRAMES[1]] * s + b).clamp_min(0)
-            else:
-                out[:valid] = d
-                if more:
-                    ref = [d[0].clone(), d[KEYFRAMES[1]].clone()]
+            self._write_window(out, d, ref, start, more=more)
             del d
         return out
 
@@ -372,6 +393,49 @@ class Kernels(_Video):
         use_fast_vit(self.net.pretrained)
         pure_half(self.net.head, fp32=[self.net.head.scratch.output_conv2])
         self.net.head.fastforks_layout = torch.channels_last  # token maps as the convs store them
+
+    def _encode_frames(self, image: torch.Tensor | Clip, ids: list[int], size: tuple[int, int]) -> list[torch.Tensor]:
+        # Clip reads convert each requested RGB frame to float32. Bound that full-resolution copy as well as the
+        # encoder's intermediate activations.
+        frame_bytes = math.prod(image.shape[1:]) * torch.float32.itemsize
+        batch = _LARGE_ENCODER_BATCH if frame_bytes >= _LARGE_FRAME_BYTES else _ENCODER_BATCH
+        if len(ids) <= batch or len(ids) * frame_bytes <= _ENCODER_BATCH_BYTES:
+            return super()._encode_frames(image, ids, size)
+        output = []
+        for start in range(0, len(ids), batch):
+            part = super()._encode_frames(image, ids[start : start + batch], size)
+            if not output:
+                output = [t.new_empty((len(ids), *t.shape[1:])) for t in part]
+            for dst, src in zip(output, part, strict=True):
+                dst[start : start + src.shape[0]].copy_(src)
+        return output
+
+    def _write_window(
+        self, out: torch.Tensor, depth: torch.Tensor, reference: list[torch.Tensor], start: int, *, more: bool
+    ) -> None:
+        size = out.shape[-2:]
+        frames = depth.shape[0]
+        if frames * math.prod(size) * out.element_size() < _DIRECT_OUTPUT_BYTES or not _eager_gpu(out):
+            super()._write_window(out, depth, reference, start, more=more)
+            return
+        target = out[start : start + frames]
+        if not reference:
+            torch.ops.aten.upsample_bilinear2d.out(depth[:, None], size, align_corners=True, out=target[:, None])
+            if more:
+                reference.extend((target[0].clone(), target[KEYFRAMES[1]].clone()))
+            return
+
+        # Alignment and overlap blending still consume the original resized values. Only the unblended tail writes
+        # directly into the result.
+        overlap = F.interpolate(depth[:OVERLAP, None], size, mode="bilinear", align_corners=True)[:, 0]
+        factor, shift = _blend(out, overlap, reference, start, metric=self.ctx.params.metric)
+        if frames > OVERLAP:
+            tail = target[OVERLAP:]
+            torch.ops.aten.upsample_bilinear2d.out(depth[OVERLAP:, None], size, align_corners=True, out=tail[:, None])
+            tail.mul_(factor).add_(shift).clamp_min_(0)
+        if more:
+            # Keyframe 12 falls after the blended overlap and is already aligned in the written tail.
+            reference[1] = target[KEYFRAMES[1]].clone()
 
     def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
         """Use the shortened per-frame decoder for the last, possibly padded window."""
