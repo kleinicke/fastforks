@@ -164,7 +164,7 @@ class _MlxPortable(Runner):
         return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
 
 
-_MLX = mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=2048)
+_MLX = mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=512)
 
 RUNNERS = {
     "portable": Portable,
