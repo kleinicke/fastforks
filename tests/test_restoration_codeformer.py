@@ -68,3 +68,17 @@ def test_group_silu_strided_tiles(channels: int, inplace: bool) -> None:  # noqa
     if not inplace:
         assert torch.equal(x, saved)
     torch.testing.assert_close(got, expected, rtol=0.001, atol=3e-4)
+
+
+@pytest.mark.gpu
+def test_affine_silu_preserves_half_rounding_on_row_views() -> None:
+    """The fused epilogue preserves the half rounding of the affine before applying SiLU."""
+    from fastforks.kernels.group_silu import affine_silu  # noqa: PLC0415
+
+    g = torch.Generator(device="cuda").manual_seed(72)
+    x = torch.randn(2, 64, 19, 23, device="cuda", dtype=torch.float16, generator=g)
+    x = x.contiguous(memory_format=torch.channels_last)[..., 3:15, :]
+    scale, shift = (torch.randn(2, 64, 1, 1, device=x.device, dtype=x.dtype, generator=g) for _ in range(2))
+    expected = torch.nn.functional.silu(torch.addcmul(shift, x, scale))
+    actual = affine_silu(x, scale, shift)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)

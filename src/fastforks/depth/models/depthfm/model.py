@@ -27,7 +27,7 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, config_globals
 from fastforks._core.mps import release
 from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, group_silu
 from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 from fastforks.shared.sd2 import LATENT_SCALE, Noise, SD2Net, old_attention_names
@@ -210,6 +210,13 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self._run(image))
 
 
+class _DepthFMFast(Fast):
+    """Use bounded VAE bands and a fused GroupNorm affine pass at native image resolution."""
+
+    fuse_affine_silu = True
+    vae_tile_bytes = 192 << 20
+
+
 class Kernels(Runner):
     """float16 channels-last, cuDNN fp16-accumulate convs, constants of the prompt and the flow times computed once."""
 
@@ -220,11 +227,12 @@ class Kernels(Runner):
         """Build the network, convert it and precompute the constants."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        group_silu.load(ctx.device)
         net, self.alpha_bar = build(ctx)
         self.net = net.half().to(memory_format=torch.channels_last)
         self.grid = times(ctx.params.steps)
         with torch.inference_mode():
-            self.fast = Fast(self.net.unet, self.net.empty_text.half(), self.grid[:-1])
+            self.fast = _DepthFMFast(self.net.unet, self.net.empty_text.half(), self.grid[:-1])
         self.noise = Noise(ctx.params.seed)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused

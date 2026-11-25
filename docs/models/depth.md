@@ -479,7 +479,7 @@ Commercial use: yes.
 - Training data: Stable Diffusion 2.1 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the DepthFM paper (arXiv 2403.13788)
 - Licence note: The UNet is fine-tuned from Stable Diffusion 2.1 (OpenRAIL++-M) and runs with the Stable Diffusion 1.5 VAE (OpenRAIL-M): commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
 - Options: `steps` = 2 (1 to 1000; also `num_steps`), `ensemble` = 4 (>= 1; also `ensemble_size`), `long_side` = 0 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `depthfm-v1`
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -508,7 +508,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depthfm-v1` | 0.01169 / 0.02968 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `depthfm-v1` | 0.00761 / 0.02395 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -631,8 +631,8 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lotus-normal-g-v1-1` | 0.0003 / 0.00125 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `lotus-normal-d-v1-1` | 0.00035 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lotus-normal-g-v1-1` | 0.00022 / 0.00096 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lotus-normal-d-v1-1` | 0.00036 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 ### Limitations
 
@@ -692,7 +692,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-depth-v1-1` | 0.00013 / 0.00047 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-depth-v1-1` | 0.00016 / 0.00049 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 ### Limitations
 
@@ -749,7 +749,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-normals-lcm-v0-1` | 0.00034 / 0.00146 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-normals-lcm-v0-1` | 0.0003 / 0.0012 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 ### Limitations
 
@@ -1298,7 +1298,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `stablenormal-turbo` | 0.0003 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `stablenormal-turbo` | 0.00023 / 0.00109 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 ### Limitations
 

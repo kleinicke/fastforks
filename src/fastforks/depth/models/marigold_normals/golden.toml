@@ -19,9 +19,9 @@ kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-12"
-mean_px = 0.00034
-p99_px = 0.00146
+date = "2026-11-25"
+mean_px = 0.0003
+p99_px = 0.0012
 
 [validated."marigold-normals-lcm-v0-1@1".windows]
 kernels = ["cudnn_hacc@cudnn92400"]

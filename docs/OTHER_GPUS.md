@@ -136,7 +136,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `fvm_mb` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_r3` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_seg` | convnext, convnext_features, dinov3_convnext, mask2former, oneformer |
-| `group_silu` | codeformer |
+| `group_silu` | codeformer, depthfm |
 | `gsraster` | resplat |
 | `hitnet` | hitnet |
 | `hitnet_conv` | hitnet |

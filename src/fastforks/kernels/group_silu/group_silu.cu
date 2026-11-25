@@ -75,3 +75,29 @@ extern "C" __global__ void normalize_silu(const half* x, half* out, const float2
         out[i] = __float2half_rn(y / (1.f + expf(-y)));
     }
 }
+
+// Apply group statistics already folded into FP16 scale and shift. The
+// normalized value is rounded exactly once before the SiLU evaluation.
+extern "C" __global__ void affine_silu_h(const half* x, const half* scale, const half* shift, half* out,
+                                       int channels, int64_t spatial, int64_t batch_stride, int64_t count) {
+    const int packs = channels / 8;
+    const int64_t sample = spatial * packs;
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count; i += int64_t(gridDim.x) * blockDim.x) {
+        int64_t batch = i / sample, local = i % sample, a = batch * packs + local % packs;
+        uint4 xv = *reinterpret_cast<const uint4*>(x + batch * batch_stride + local * 8);
+        uint4 sv = reinterpret_cast<const uint4*>(scale)[a];
+        uint4 bv = reinterpret_cast<const uint4*>(shift)[a];
+        uint4 output;
+        const half* values = reinterpret_cast<const half*>(&xv);
+        const half* weights = reinterpret_cast<const half*>(&sv);
+        const half* biases = reinterpret_cast<const half*>(&bv);
+        half* result = reinterpret_cast<half*>(&output);
+        #pragma unroll
+        for (int c = 0; c < 8; ++c) {
+            float f = fmaf(__half2float(values[c]), __half2float(weights[c]), __half2float(biases[c]));
+            float r = __half2float(__float2half_rn(f));
+            result[c] = __float2half_rn(r / (1.f + expf(-r)));
+        }
+        reinterpret_cast<uint4*>(out)[i] = output;
+    }
+}

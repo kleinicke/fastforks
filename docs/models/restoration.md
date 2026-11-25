@@ -147,7 +147,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `codeformer` | 0.00161 / 0.01737 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `group_silu@fbe0379e0a19:sm_120`, `igev@f075827d68c6:sm_120` |
+| `codeformer` | 0.00161 / 0.01737 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `group_silu@a8f4e21c9df2:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
