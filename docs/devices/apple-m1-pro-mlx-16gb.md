@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1572 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1584 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -159,15 +159,15 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | [`alexnet.tv_in1k`](../models/classification.md#alexnet) | 3.71 | 2.85 | – | – | – | 1024 | – |
-| [`coatnet_0_rw_224.sw_in1k`](../models/classification.md#coatnet) | 12.0 | 9.66 | 11.3 | 9.65 | 1.0x | 735 | 745 |
-| [`coatnet_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 20.2 | 16.0 | 22.2 | 16.0 | 1.0x | 966 | 970 |
-| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 30.4 | 23.5 | 32.0 | 23.0 | 1.0x | 1288 | 1311 |
-| [`coatnet_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 9.29 | 7.62 | 9.35 | 7.88 | 1.0x | 600 | 605 |
-| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 24.8 | 16.3 | 22.0 | 16.3 | 1.0x | 968 | 969 |
-| [`coatnet_rmlp_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.2 | 16.1 | 21.1 | 16.1 | 1.0x | 968 | 975 |
-| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 30.9 | 23.3 | 32.3 | 23.3 | 1.0x | 1306 | 1324 |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 30.3 | 23.2 | 30.6 | 23.0 | 1.0x | 1303 | 1322 |
-| [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 9.96 | 8.28 | 9.82 | 8.05 | 1.0x | 622 | 625 |
+| [`coatnet_0_rw_224.sw_in1k`](../models/classification.md#coatnet) | 9.12 | 8.30 | 9.14 | 8.35 | 1.0x | 712 | 713 |
+| [`coatnet_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 15.2 | 13.3 | 14.9 | 13.5 | 1.0x | 884 | 885 |
+| [`coatnet_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 21.3 | 18.3 | 21.4 | 18.3 | 1.0x | 1156 | 1140 |
+| [`coatnet_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 6.93 | 6.68 | 7.01 | 8.27 | 1.0x | 560 | 613 |
+| [`coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 14.7 | 13.2 | 14.8 | 13.4 | 1.0x | 890 | 891 |
+| [`coatnet_rmlp_1_rw_224.sw_in1k`](../models/classification.md#coatnet) | 14.6 | 13.3 | 15.1 | 13.3 | 1.0x | 883 | 883 |
+| [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 21.4 | 18.2 | 21.3 | 18.2 | 1.0x | 1163 | 1144 |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.5 | 18.2 | 21.4 | 18.4 | 1.0x | 1158 | 1160 |
+| [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 7.21 | 6.71 | 7.16 | 6.72 | 1.0x | 564 | 565 |
 | [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 19.2 | 16.2 | 19.6 | 16.5 | 1.0x | 1212 | 1212 |
 | [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 19.3 | 16.9 | 19.7 | 16.2 | 1.0x | 1212 | 1212 |
 | [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 39.0 | 34.1 | 39.2 | 35.2 | 1.0x | 1210 | 1212 |
@@ -190,10 +190,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 5.70 | 5.22 | – | – | – | 534 | – |
 | [`efficientformer_l3.snap_dist_in1k`](../models/classification.md#efficientformer) | 9.99 | 8.92 | – | – | – | 779 | – |
 | [`efficientformer_l7.snap_dist_in1k`](../models/classification.md#efficientformer) | 19.1 | 17.2 | – | – | – | 1357 | – |
-| [`efficientformerv2_l.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 13.5 | 11.7 | – | – | – | 718 | – |
-| [`efficientformerv2_s0.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 4.78 | 4.22 | – | – | – | 421 | – |
-| [`efficientformerv2_s1.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 6.41 | 5.66 | – | – | – | 466 | – |
-| [`efficientformerv2_s2.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 9.48 | 8.50 | – | – | – | 551 | – |
+| [`efficientformerv2_l.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 10.4 | 11.5 | 10.5 | 11.6 | 1.0x | 752 | 750 |
+| [`efficientformerv2_s0.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 3.79 | 3.91 | 3.80 | 3.93 | 1.0x | 391 | 391 |
+| [`efficientformerv2_s1.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 4.71 | 5.72 | 5.12 | 5.01 | 0.9x | 435 | 436 |
+| [`efficientformerv2_s2.snap_dist_in1k`](../models/classification.md#efficientformerv2) | 6.95 | 7.45 | 7.02 | 7.94 | 1.0x | 547 | 545 |
 | [`efficientnet_b0.tv_in1k`](../models/classification.md#efficientnet) | 4.79 | 3.80 | 4.07 | 3.64 | 1.0x | 360 | 358 |
 | [`efficientnet_b4.tv_in1k`](../models/classification.md#efficientnet) | 18.1 | 16.8 | 17.8 | 16.0 | 1.1x | 645 | 649 |
 | [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 19.0 | 17.1 | 19.1 | 16.7 | 1.0x | 553 | 552 |
@@ -237,10 +237,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`shvit_s2.in1k`](../models/classification.md#shvit) | 5.76 | 5.11 | – | – | – | 509 | – |
 | [`shvit_s3.in1k`](../models/classification.md#shvit) | 6.58 | 5.69 | – | – | – | 538 | – |
 | [`squeezenet1_1.tv_in1k`](../models/classification.md#squeezenet) | 2.34 | 1.96 | – | – | – | 297 | – |
-| [`starnet_s1.in1k`](../models/classification.md#starnet) | 5.95 | 3.15 | – | – | – | 342 | – |
-| [`starnet_s2.in1k`](../models/classification.md#starnet) | 5.08 | 2.74 | – | – | – | 348 | – |
-| [`starnet_s3.in1k`](../models/classification.md#starnet) | 5.28 | 3.31 | – | – | – | 375 | – |
-| [`starnet_s4.in1k`](../models/classification.md#starnet) | 5.93 | 4.37 | – | – | – | 397 | – |
+| [`starnet_s1.in1k`](../models/classification.md#starnet) | 2.90 | 2.83 | unsupported | – | – | 357 | – |
+| [`starnet_s2.in1k`](../models/classification.md#starnet) | 2.73 | 2.47 | unsupported | – | – | 364 | – |
+| [`starnet_s3.in1k`](../models/classification.md#starnet) | 3.35 | 3.06 | unsupported | – | – | 388 | – |
+| [`starnet_s4.in1k`](../models/classification.md#starnet) | 4.26 | 3.89 | unsupported | – | – | 416 | – |
 | [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](../models/classification.md#swin) | 22.3 | 19.2 | – | – | – | 1366 | – |
 | [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 5.95 | 5.22 | – | – | – | 516 | – |
 | [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 8.75 | 7.44 | – | – | – | 639 | – |
@@ -264,7 +264,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 82.2 | 56.8 | 84.1 | 57.5 | 1.0x | 1543 | 1560 |
+| [`coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 55.6 | 45.2 | 55.4 | 45.2 | 1.0x | 1362 | 1359 |
 | [`tiny_vit_21m_384.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 19.8 | 15.4 | – | – | – | 779 | – |
 
 ### Classification, synthetic, 448x448

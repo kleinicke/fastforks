@@ -1409,14 +1409,14 @@ the head-mask GEMMs (two `[L, 256] x [256, 256]` products per layer, cheap at 15
 ## First calls over the auto budget (2026-11-25)
 
 `auto` takes MLX only when its first call is at most the MPS first call plus twice the MPS warm time
-(`tools/gen_auto_mode.py`, `cold=True`). 203 refs have an MLX row that wins warm (and on memory) against the MPS path
+(`tools/gen_auto_mode.py`, `cold=True`). 203 refs had an MLX row that wins warm (and on memory) against the MPS path
 `auto` would replace, but miss that budget (2026-11-25 rows, M1 Pro 16 GB). Per family: refs, the MLX / MPS warm ratio,
-the MLX first call, and how far over the budget it is:
+the MLX first call, and how far over the budget it is (185 left: coatnet, efficientformerv2 and starnet are
+now in, see below):
 
 | family | refs | warm MLX / MPS | first call s | over budget s |
 |---|---|---|---|---|
 | clip | 10 | 0.84-1.03 | 0.68-1.81 | 0.60-1.23 |
-| coatnet | 10 | 0.37-0.57 | 0.86-2.86 | 0.51-2.38 |
 | dfine | 10 | 0.72-0.97 | 1.52-9.11 | 1.17-8.68 |
 | rfdetr | 10 | 0.57-0.74 | 1.82-2.56 | 1.57-1.91 |
 | rtmpose | 10 | 0.90-1.05 | 1.25-1.65 | 0.73-1.05 |
@@ -1426,12 +1426,10 @@ the MLX first call, and how far over the budget it is:
 | lwdetr | 5 | 0.61-1.01 | 1.89-2.71 | 1.63-2.23 |
 | rtdetrv2 | 5 | 0.84-1.03 | 1.54-2.12 | 1.18-1.58 |
 | tinyvit | 5 | 0.54-0.78 | 0.97-1.18 | 0.83-1.09 |
-| efficientformerv2 | 4 | 0.30-0.34 | 1.39-2.29 | 1.33-2.18 |
 | grounding_dino | 4 | 0.69-0.89 | 5.64-9.16 | 2.08-5.45 |
 | mmseg | 4 | 0.77-0.97 | 1.61-3.64 | 0.04-2.84 |
 | segformer | 4 | 0.54-0.91 | 1.05-5.57 | 0.33-5.10 |
 | shvit | 4 | 0.43-0.54 | 1.19-1.46 | 0.89-1.29 |
-| starnet | 4 | 0.35-0.38 | 0.53-0.55 | 0.39-0.45 |
 | wd_tagger | 4 | 0.85-0.89 | 0.68-2.24 | 0.48-1.49 |
 | davit | 3 | 0.56-0.59 | 1.10-1.88 | 0.53-1.66 |
 | efficientformer | 3 | 0.56-0.61 | 1.01-1.56 | 0.98-1.48 |
@@ -1601,6 +1599,78 @@ in MB above it; 51 rows, gmflow-scale1-mixdata dropped out):
   - realplksr +555 (above).
   - gimm-vfi-r +299 and film +276, at 1080p: 12.2 against 11.9 GB and 9.5 against 9.2 GB.
   - bisenet-face-parsing +167, vitmatte-s +92, parseq-tiny +78, parseq +55.
+
+### Done: CoAtNet, EfficientFormerV2 and StarNet (2026-11-25)
+
+M1 Pro, 224x224 (384x384 for `rmlp_2_rw_384`), all MLX goldens pass; second of two surveys recorded (the two agreed
+within 3 % except one noisy first-pass row). `auto` now takes MLX for all 18 refs; none did before.
+
+| ref | | warm ms fp16 / fp32 | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| coatnet_nano_rw_224 | MLX before | 7.6 / 9.3 | 1.22 / 1.39 | 600 / 680 | – |
+| | MLX now | 6.7 / 6.9 | 0.03 / 0.04 | 560 / 613 | MLX fp16 |
+| | best MPS (fp16) | 19.6 | 0.24 | 572 | |
+| coatnet_rmlp_nano_rw_224 | MLX before | 8.3 / 10.0 | 1.23 / 1.10 | 622 / 715 | – |
+| | MLX now | 6.7 / 7.2 | 0.03 / 0.04 | 564 / 622 | MLX fp16 |
+| | best MPS (fp16) | 21.5 | 0.21 | 574 | |
+| coatnet_0_rw_224 | MLX before | 9.7 / 12.0 | 0.86 / 0.82 | 735 / 863 | – |
+| | MLX now | 8.3 / 9.1 | 0.03 / 0.05 | 712 / 792 | MLX fp16 |
+| | best MPS (fp32) | 20.1 | 0.20 | 735 | |
+| coatnet_1_rw_224 | MLX before | 16.0 / 20.2 | 1.48 / 1.38 | 966 / 1094 | – |
+| | MLX now | 13.3 / 15.2 | 0.04 / 0.04 | 884 / 1027 | MLX fp16 |
+| | best MPS (fp16) | 32.4 | 0.23 | 937 | |
+| coatnet_rmlp_1_rw_224 | MLX before | 16.1 / 21.2 | 1.64 / 1.70 | 968 / 1080 | – |
+| | MLX now | 13.3 / 14.6 | 0.04 / 0.04 | 883 / 1023 | MLX fp16 |
+| | best MPS (fp16) | 34.6 | 0.23 | 933 | |
+| coatnet_rmlp_1_rw2_224 (in12k) | MLX before | 16.3 / 24.8 | 1.67 / 1.92 | 968 / 1102 | – |
+| | MLX now | 13.2 / 14.7 | 0.04 / 0.04 | 890 / 1031 | MLX fp16 |
+| | best MPS (fp16) | 34.8 | 0.24 | 937 | |
+| coatnet_2_rw_224 (in12k) | MLX before | 23.5 / 30.4 | 1.67 / 1.60 | 1288 / 1498 | – |
+| | MLX now | 18.3 / 21.3 | 0.04 / 0.04 | 1156 / 1376 | MLX fp16 |
+| | best MPS (fp16) | 42.4 | 0.23 | 2189 | |
+| coatnet_rmlp_2_rw_224 (in1k, in12k alike) | MLX before | 23.2 / 30.3 | 1.61 / 1.52 | 1303 / 1502 | – |
+| | MLX now | 18.2 / 21.5 | 0.04 / 0.05 | 1158 / 1379 | MLX fp16 |
+| | best MPS (fp16) | 45.4 | 0.24 | 2189 | |
+| coatnet_rmlp_2_rw_384 (in12k) | MLX before | 56.8 / 82.2 | 2.86 / 2.83 | 1543 / 1895 | – |
+| | MLX now | 45.2 / 55.6 | 0.06 / 0.10 | 1362 / 1695 | MLX fp16 |
+| | best MPS (fp16) | 99.5 | 0.28 | 2303 | |
+| efficientformerv2_s0 | MLX before | 4.2 / 4.8 | 1.42 / 1.39 | 421 / 449 | – |
+| | MLX now | 3.9 / 3.8 | 0.03 / 0.04 | 392 / 391 | MLX fp32 |
+| | best MPS (fp32) | 13.9 | 0.02 | 510 | |
+| efficientformerv2_s1 | MLX before | 5.7 / 6.4 | 1.39 / 1.37 | 466 / 512 | – |
+| | MLX now | 5.7 / 4.7 | 0.03 / 0.04 | 434 / 435 | MLX fp32 |
+| | best MPS (fp32) | 17.4 | 0.02 | 554 | |
+| efficientformerv2_s2 | MLX before | 8.5 / 9.5 | 1.76 / 1.70 | 551 / 634 | – |
+| | MLX now | 7.5 / 7.0 | 0.03 / 0.04 | 554 / 547 | MLX fp32 |
+| | best MPS (fp32) | 25.4 | 0.03 | 657 | |
+| efficientformerv2_l | MLX before | 11.7 / 13.5 | 2.29 / 2.26 | 718 / 824 | – |
+| | MLX now | 11.5 / 10.4 | 0.04 / 0.05 | 761 / 752 | MLX fp32 |
+| | best MPS (fp32) | 34.7 | 0.04 | 913 | |
+| starnet_s1 / s2 / s3 / s4 | MLX before (fp16) | 3.1 / 2.7 / 3.3 / 4.4 | 0.53-0.55 | 342-397 | – |
+| | MLX now (fp16) | 2.8 / 2.5 / 3.1 / 3.9 | 0.015-0.017 | 357-416 | MLX fp16 |
+| | best MPS | 8.3 / 7.2 / 9.5 / 12.7 | 0.06-0.14 | 400-491 | |
+
+Kernels mode (the cards now name `cnn_mlx`, the global pool a Metal kernel) measures within noise of portable;
+`auto` picks whichever row is faster.
+
+- CoAtNet (`libnet/mlx_coatnet.py`): timm's `MaxxVit` written in MLX channels last, built into `mlx_cnn.Network`
+  (FAMILIES; `_MODULES` for builders in their own modules). MBConv batch norms fold into the 1x1 convs; transformer
+  stages are full-map attention with the relative-position bias (`RelPosBias` table or `RelPosMlp`) computed once in
+  PyTorch for the model's input size; exact GELU and the SE mean in float32. In float16 the depthwise conv's norm is
+  not folded: the in12k weights scale its output by up to 5e2 on activations of 5e3 (folded, the float16 products
+  overflowed to NaN; a 1.4e4 norm output fits), so the conv runs float16 and the affine float32. On random-noise
+  inputs `rmlp_2_rw_224.sw_in12k_ft_in1k` float16 still reaches inf (the old graph port and MPS float16 too); the
+  golden image does not.
+- EfficientFormerV2 (`libnet/mlx_efficientformerv2.py`): ConvNorms folded, LayerScales folded into the convs before
+  them, `Attention2d`'s talking heads folded into one head mix with the attention bias, precise softmax, the
+  distillation head averaged into the classifier. float32 is as fast as float16 here, so `auto` takes float32.
+- Left: `efficientformerv2_l` float16 peaks at 761 MB, above the graph port's 718 (float32: 752, was 824; s0, s1,
+  s2 are lower or equal). The load is ~100 MB above the graph port's, and the run's MLX transients are 128 MB
+  against 54 (MLX peak 178 vs 105 MB) although the activations are ~1 MB; eager, each block's transient is about
+  its own weights' size, so some op seems to copy its weights per call. `auto` takes float32 there, so no routed
+  row regresses; the float16 copy is not yet found.
+- StarNet was already a hand-written network (`mlx_cnn._star_net`); its 2026-11-19 rows predated later first-call
+  fixes. Re-surveyed, it fits the budget without a code change.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
