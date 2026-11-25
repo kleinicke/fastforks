@@ -31,7 +31,7 @@ from torch import nn
 
 from fastforks._core.kernels import linear
 from fastforks._core.patch import base_type, override
-from fastforks.kernels import dpt_fused, igevpp
+from fastforks.kernels import dpt_fused, igevpp, stereo_warp
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, conv_fused, cutlass, epilogue, fused_cfg
@@ -240,17 +240,17 @@ def _update_mix_fast(
 
 
 def _corr_flaw(
-    geo: torch.Tensor, fr0f: torch.Tensor, fl0f: torch.Tensor, disp: torch.Tensor, buf: torch.Tensor
+    geo: torch.Tensor, feature_right: torch.Tensor, feature_left: torch.Tensor, disp: torch.Tensor, buf: torch.Tensor
 ) -> torch.Tensor:
     """[geo lookup | warp(fr0, disp) - fl0 | 0] as one fp16 NHWC buffer (channels padded to a multiple of 8)."""
     g = geo.shape[1]
     if buf is None:
-        c = (g + fl0f.shape[1] + 7) // 8 * 8
-        buf = torch.zeros((1, c, geo.shape[2], geo.shape[3]), device=geo.device, dtype=torch.float16).contiguous(
-            memory_format=CL
-        )
+        c = (g + feature_left.shape[1] + 7) // 8 * 8
+        buf = torch.empty(
+            (1, c, geo.shape[2], geo.shape[3]), device=geo.device, dtype=torch.float16, memory_format=CL
+        ).zero_()
     buf[:, :g].copy_(geo)
-    buf[:, g : g + fl0f.shape[1]].copy_(warp(fr0f, disp) - fl0f)
+    stereo_warp.flaw_into(feature_right, feature_left, disp, buf[:, g : g + feature_left.shape[1]])
     return buf
 
 
@@ -372,7 +372,7 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
 
     geo_fn = GeoLookup(match_left, match_right, geo_encoding_volume, self.args.corr_radius)
     del geo_encoding_volume, match_left, match_right
-    fl0f, fr0f = fl0.float(), fr0.float()  # warps in fp32 (fp16 sampling coordinates are too coarse)
+    feature_left, feature_right = _h16(fl0), _h16(fr0)  # The warp and subtraction still run in FP32.
     del fl0, fr0
 
     b, _, h, w = init_disp.shape
@@ -392,8 +392,8 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
                     scale, shift = compute_scale_shift(disp_mono_4x[i].clone().squeeze(1), disp[i].clone().squeeze(1))
                     disp_mono_4x[i] = scale * disp_mono_4x[i] + shift
             dm_h.copy_(disp_mono_4x)
-            cs = _corr_flaw(geo_feat, fr0f, fl0f, disp, cs)
-            cm = _corr_flaw(geo_fn(disp_mono_4x), fr0f, fl0f, disp_mono_4x, cm)
+            cs = _corr_flaw(geo_feat, feature_right, feature_left, disp, cs)
+            cm = _corr_flaw(geo_fn(disp_mono_4x), feature_right, feature_left, disp_mono_4x, cm)
             mask_feat_4, delta_disp = _update_mix_fast(
                 self.update_block_mix_stereo, net_list, ctx_ms, disp_h, cs, dm_h, cm, last
             )
@@ -405,7 +405,7 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
         disp = disp + delta_disp.float()
         del geo_feat, delta_disp
 
-    del geo_fn, fl0f, fr0f, net_list, net_mono, ctx, ctx_ms, ctx_mm, cs, cm, init_disp, disp_h, dm_h
+    del geo_fn, feature_left, feature_right, net_list, net_mono, ctx, ctx_ms, ctx_mm, cs, cm, init_disp, disp_h, dm_h
 
     def up(dl: torch.Tensor, mask: torch.Tensor, stem: torch.Tensor) -> torch.Tensor:
         xspx = self.spx_2_gru(mask, stem)

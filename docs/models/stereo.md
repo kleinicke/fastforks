@@ -1393,7 +1393,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `monster-mix-all`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, ETH3D two-view stereo, Middlebury stereo (2014), TartanAir, CREStereo synthetic stereo dataset (Megvii), NVIDIA Falling Things (FAT), InStereo2K, MPI Sintel stereo, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (mix of all the datasets the README lists; the README recommends it for zero-shot use)
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`, `stereo_warp`
 - Variants: `monster-sceneflow`, `monster-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -1425,8 +1425,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
-| `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `monster-sceneflow` | 0.00106 / 0.00722 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@5da764f89213:sm_120` |
+| `monster-mix-all` | 0.00098 / 0.00536 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@5da764f89213:sm_120` |
 
 ### Limitations
 
@@ -1454,7 +1454,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: <https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34>
 - Training data: mix_all: 'all the datasets we collect over 2M image pairs' (README), not listed
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
+- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`, `stereo_warp`
 - Variants: `monster-plusplus-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -1481,7 +1481,7 @@ CPU, float32: max |diff| <= 0.2 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
+| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120`, `stereo_warp@5da764f89213:sm_120` |
 
 </details>
 
@@ -1954,8 +1954,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-stereo-s` | 0.0014 / 0.00415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@946e47c45162:sm_120` |
-| `waft-stereo-b` | 0.0013 / 0.0043 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@946e47c45162:sm_120` |
+| `waft-stereo-s` | 0.0014 / 0.00415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@5da764f89213:sm_120` |
+| `waft-stereo-b` | 0.0013 / 0.0043 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `stereo_warp@5da764f89213:sm_120` |
 
 ### Limitations
 

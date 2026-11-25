@@ -8,6 +8,7 @@ from fastforks._core.kernels import cubin_library, linear
 
 SIGNATURES = dict.fromkeys(("window1", "window2", "window8"), "ppiiiiiil")
 SIGNATURES.update(dict.fromkeys(("reverse_add2", "reverse_add4"), "ppppiiiiiifi"))
+SIGNATURES["stream_window2"] = "ppp" + "i" * 9 + "l"
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 
@@ -43,16 +44,17 @@ def rearrange(
 def reverse_residual(  # noqa: PLR0913 - three inputs and the window geometry
     windows: torch.Tensor,
     shortcut: torch.Tensor,
-    conv: torch.Tensor,
+    conv: torch.Tensor | None,
     size: tuple[int, int],
     *,
     window: int,
     shift: int,
-    scale: float,
+    scale: float = 0.0,
 ) -> torch.Tensor:
-    """Reverse the window partition and add HAT's two residuals with FP16 rounding at each step."""
+    """Reverse the window partition and add the shortcut and optional scaled residual in FP16."""
     h, w = size
     b, hw, c = shortcut.shape
+    tensors = (windows, shortcut) if conv is None else (windows, shortcut, conv)
     if (
         min(b, c, h, w, window) < 1
         or hw != h * w
@@ -60,24 +62,24 @@ def reverse_residual(  # noqa: PLR0913 - three inputs and the window geometry
         or w % window
         or not 0 <= shift < window
         or windows.shape != (b * hw // window**2, window**2, c)
-        or conv.shape != shortcut.shape
+        or (conv is not None and conv.shape != shortcut.shape)
         or not shortcut.is_cuda
-        or any(t.device != shortcut.device or t.dtype != torch.float16 for t in (windows, shortcut, conv))
+        or any(t.device != shortcut.device or t.dtype != torch.float16 for t in tensors)
     ):
         msg = "Window and residual tensors must be CUDA FP16 and cover the same grid"
         raise ValueError(msg)
-    conv_channels = conv.stride(1)
+    conv_channels = c if conv is None else conv.stride(1)
     if (
         c % 2
         or conv_channels % 2
         or not windows.is_contiguous()
         or not shortcut.is_contiguous()
-        or conv.stride(-1) != 1
-        or (b > 1 and conv.stride(0) != hw * conv_channels)
-        or any(t.data_ptr() % 4 for t in (windows, shortcut, conv))
+        or (conv is not None and (conv.stride(-1) != 1 or (b > 1 and conv.stride(0) != hw * conv_channels)))
+        or any(t.data_ptr() % 4 for t in tensors)
         or b * hw * max(c, conv_channels) >= 2**31
     ):
-        return shortcut + rearrange(windows, size, window, shift, reverse=True) + conv * scale
+        result = shortcut + rearrange(windows, size, window, shift, reverse=True)
+        return result if conv is None else result + conv * scale
     pack = 4 if c % 4 == 0 and conv_channels % 4 == 0 else 2
     out = torch.empty_like(shortcut)
     count = out.numel() // pack

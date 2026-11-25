@@ -58,3 +58,33 @@ extern "C" __global__ void stereo_warp4(
     }
 }
 
+extern "C" __global__ void stereo_flaw2(
+    const half2* source, const half2* reference, const float* disp, half2* out,
+    int height, int width, int half_channels, int out_stride, int64_t dy, int64_t dx, float rh, float rw) {
+    const unsigned lane = blockIdx.x * blockDim.x + threadIdx.x;
+    const int pixel = lane / half_channels, channel = lane % half_channels;
+    if (pixel >= width) return;
+    for (int row = blockIdx.y; row < height; row += gridDim.y) {
+        const float d = disp[row * dy + pixel * dx];
+        const float x = fminf(width - 1, fmaxf(0.f, coordinate(__fsub_rn(float(pixel), d), width, rw)));
+        const float y = fminf(height - 1, fmaxf(0.f, coordinate(float(row), height, rh)));
+        const int x0 = __float2int_rd(x), y0 = __float2int_rd(y);
+        const int x1 = min(x0 + 1, width - 1), y1 = min(y0 + 1, height - 1);
+        const float xl = (x0 + 1) - x, xr = x - x0;
+        const float yt = (y0 + 1) - y, yb = y - y0;
+        const int64_t pos = int64_t(row) * width + pixel;
+        const float2 nw = __half22float2(source[(int64_t(y0) * width + x0) * half_channels + channel]);
+        const float2 ne = __half22float2(source[(int64_t(y0) * width + x1) * half_channels + channel]);
+        const float2 sw = __half22float2(source[(int64_t(y1) * width + x0) * half_channels + channel]);
+        const float2 se = __half22float2(source[(int64_t(y1) * width + x1) * half_channels + channel]);
+        const float2 left = __half22float2(reference[pos * half_channels + channel]);
+        float2 value = make_float2((xl * yt) * nw.x, (xl * yt) * nw.y);
+        value.x = fmaf(xr * yt, ne.x, value.x);
+        value.y = fmaf(xr * yt, ne.y, value.y);
+        value.x = fmaf(xl * yb, sw.x, value.x);
+        value.y = fmaf(xl * yb, sw.y, value.y);
+        value.x = __fsub_rn(fmaf(xr * yb, se.x, value.x), left.x);
+        value.y = __fsub_rn(fmaf(xr * yb, se.y, value.y), left.y);
+        out[pos * out_stride + channel] = __floats2half2_rn(value.x, value.y);
+    }
+}

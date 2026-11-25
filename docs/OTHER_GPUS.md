@@ -180,7 +180,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sr_norm` | dat, drct, hat, swin2sr, swinir |
 | `sr_ops` | compact, realesrgan, span |
 | `stereo_ops` | coex, las2 |
-| `stereo_warp` | waft_stereo |
+| `stereo_warp` | monster, monster_plusplus, waft_stereo |
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3, mapanything |
 | `tapnext_state` | tapnext |

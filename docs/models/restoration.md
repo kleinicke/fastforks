@@ -273,8 +273,8 @@ CPU, float32: max |diff| <= 2e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `drct-x4` | 0.00044 / 0.00159 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `drct-l-x4` | 0.00047 / 0.00176 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `drct-x4` | 0.00044 / 0.00159 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `drct-l-x4` | 0.00047 / 0.00176 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
 
 </details>
 
@@ -399,9 +399,9 @@ CPU, float32: max |diff| <= 3e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hat-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `hat-s-x4` | 0.0005 / 0.00185 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `real-hat-gan-x4` | 0.00045 / 0.00158 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `hat-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `hat-s-x4` | 0.0005 / 0.00185 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `real-hat-gan-x4` | 0.00045 / 0.00158 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
 
 </details>
 
@@ -894,9 +894,9 @@ CPU, float32: max |diff| <= 1.4e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `swin2sr-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `swin2sr-x2` | 0.00064 / 0.00233 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `swin2sr-x4-real` | 0.00038 / 0.0014 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swin2sr-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swin2sr-x2` | 0.00064 / 0.00233 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swin2sr-x4-real` | 0.00038 / 0.0014 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
 
 ### Limitations
 
@@ -968,10 +968,10 @@ CPU, float32: max |diff| <= 1.4e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `swinir-m-x4` | 0.00052 / 0.00191 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `swinir-m-x2` | 0.00039 / 0.00139 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `swinir-m-x4-real` | 0.00127 / 0.00502 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
-| `swinir-l-x4-real` | 0.00082 / 0.00405 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@312df7686323:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swinir-m-x4` | 0.00052 / 0.00191 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swinir-m-x2` | 0.00039 / 0.00139 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swinir-m-x4-real` | 0.00127 / 0.00502 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
+| `swinir-l-x4-real` | 0.00082 / 0.00405 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@7bceaf274d5e:sm_120`, `sr_norm@0f824e9b8062:sm_120` |
 
 </details>
 

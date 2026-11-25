@@ -602,3 +602,25 @@ def test_vol_norm_repeatable() -> None:
     expected = vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01)
     for _ in range(3):
         assert torch.equal(vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01), expected)
+
+
+@pytest.mark.parametrize(("height", "width", "channels"), [(2, 3, 6), (11, 17, 96), (249, 372, 96)])
+def test_stereo_fused_feature_flaw(dev, height, width, channels):
+    from fastforks.kernels.stereo_warp import flaw_into  # noqa: PLC0415 - CUDA kernel only
+    from fastforks.stereo.models.monster.net.inference import warp  # noqa: PLC0415 - reference warp
+
+    g = torch.Generator(device=dev).manual_seed(28)
+
+    def features() -> torch.Tensor:
+        return torch.randn(1, height, width, channels, device=dev, dtype=torch.float16, generator=g).permute(0, 3, 1, 2)
+
+    right, left = features(), features()
+    disp = torch.randn(1, 1, height, width * 2, device=dev, generator=g)[..., ::2].mul_(width / 3)
+    disp[..., 0, 0] = -2 * width
+    disp[..., -1, -1] = 2 * width
+    out = torch.ones(1, height, width, channels + 8, device=dev, dtype=torch.float16).permute(0, 3, 1, 2)
+    flaw_into(right, left, disp, out[:, 2 : 2 + channels])
+    expected = (warp(right.float(), disp) - left.float()).half()
+    torch.testing.assert_close(out[:, 2 : 2 + channels], expected, atol=0, rtol=0)
+    assert torch.all(out[:, :2] == 1)
+    assert torch.all(out[:, 2 + channels :] == 1)

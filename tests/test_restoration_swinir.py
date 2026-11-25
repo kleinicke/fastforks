@@ -128,3 +128,38 @@ def test_pixelshuffle_stripes_keep_convolution_context(scale: int, monkeypatch: 
         swin_sr.stripe_pixelshuffle(net, scale)
         actual = net.conv_last(net.upsample(x))
     torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width", "window", "shift", "channels"), [(16, 20, 4, 0, 8), (12, 16, 4, 2, 12)])
+def test_window_groups_write_the_same_raster(height: int, width: int, window: int, shift: int, channels: int) -> None:
+    from fastforks._core.kernels import linear  # noqa: PLC0415 - CUDA kernel only
+    from fastforks.kernels.shift_windows import load, rearrange  # noqa: PLC0415 - CUDA kernel only
+
+    g = torch.Generator("cuda").manual_seed(71)
+    grid = (height, width)
+    gen = {"device": "cuda", "dtype": torch.float16, "generator": g}
+    x = torch.randn(2, height * width, channels, **gen)
+    out = torch.empty_like(x)
+    rows, cols = height // window, width // window
+    tiled = rearrange(x, grid, window, shift).view(2, rows, cols, window**2, channels)
+    updates = torch.randn(tiled.shape, **gen)
+    library = load(x.device)
+    for b in range(x.shape[0]):
+        # The regions cover the raster once, with partial final groups.
+        for y0, group_rows in ((0, rows - 1), (rows - 1, 1)):
+            for x0, group_cols in ((0, cols - 1), (cols - 1, 1)):
+                ys, xs = slice(y0, y0 + group_rows), slice(x0, x0 + group_cols)
+                region = tiled[b, ys, xs].reshape(-1, window**2, channels)
+                delta = updates[b, ys, xs].reshape_as(region).contiguous()
+                for first in range(0, len(region), 3):
+                    pack = torch.empty(region[first : first + 3].shape, device=x.device, dtype=x.dtype)
+                    threads = pack.numel() // 2
+                    geometry = height, width, channels // 2, window, shift, y0, x0, group_cols, first, threads
+                    library.launch("stream_window2", *linear(threads), x[b], None, pack, *geometry)
+                    torch.testing.assert_close(pack, region[first : first + 3], atol=0, rtol=0)
+                    library.launch(
+                        "stream_window2", *linear(threads), delta[first : first + 3], x[b], out[b], *geometry
+                    )
+    expected = x + rearrange(updates.flatten(0, 2), grid, window, shift, reverse=True)
+    torch.testing.assert_close(out, expected, atol=0, rtol=0)

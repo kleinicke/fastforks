@@ -28,7 +28,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
-from fastforks.kernels.shift_windows import rearrange
+from fastforks.kernels.shift_windows import rearrange, reverse_residual
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.sr_layer_norm import fast_layer_norm
@@ -215,16 +215,16 @@ def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, 
     mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
     windows = rearrange(x, x_size, m.window_size, m.shift_size)
     attended = m.attn(windows, mask=mask)
-    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
-    x = x + m.drop_path(m.norm1(attended))
-    return x + m.drop_path(m.norm2(m.mlp(x)))
+    del windows
+    x = reverse_residual(m.norm1(attended), x, None, x_size, window=m.window_size, shift=m.shift_size)
+    del attended
+    return x.add_(m.drop_path(m.norm2(m.mlp(x))))
 
 
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
-    strip_nearest_reconstruction = False  # keep the whole-image cuDNN convolution plans
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""

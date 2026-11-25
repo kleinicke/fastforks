@@ -42,10 +42,13 @@ __device__ void reverse_add(const __half2* src, const __half2* shortcut, const _
         int raster = (token / area * h + row) * w + col;
         #pragma unroll
         for (int p = 0; p < P; ++p) {
-            float2 value = __half22float2(conv[raster * conv_channels + lane + p]);
-            __half2 scaled = __floats2half2_rn(value.x * scale, value.y * scale);
             __half2 residual = __hadd2(shortcut[raster * channels + lane + p], src[i * P + p]);
-            dst[raster * channels + lane + p] = __hadd2(residual, scaled);
+            if (conv) {
+                const float2 value = __half22float2(conv[raster * conv_channels + lane + p]);
+                const __half2 scaled = __floats2half2_rn(value.x * scale, value.y * scale);
+                residual = __hadd2(residual, scaled);
+            }
+            dst[raster * channels + lane + p] = residual;
         }
     }
 }
@@ -58,3 +61,20 @@ extern "C" __global__ void name(const __half2* src, const __half2* shortcut, con
 }
 RESIDUAL(reverse_add2, 1)
 RESIDUAL(reverse_add4, 2)
+
+extern "C" __global__ void stream_window2(
+    const __half2* src, const __half2* skip, __half2* dst,
+    int h, int w, int channels, int win, int shift, int y0, int x0, int region_cols, int first, int64_t count) {
+    for (int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x; i < count;
+         i += int64_t(gridDim.x) * blockDim.x) {
+        int64_t token = i / channels;
+        int tile = first + token / (win * win);
+        int y = (y0 + tile / region_cols) * win + (token / win) % win + shift;
+        int x = (x0 + tile % region_cols) * win + token % win + shift;
+        y = y >= h ? y - h : y;
+        x = x >= w ? x - w : x;
+        int64_t raster = (int64_t(y) * w + x) * channels + i % channels;
+        if (skip) dst[raster] = __hadd2(skip[raster], src[i]);
+        else dst[i] = src[raster];
+    }
+}

@@ -26,9 +26,10 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.kernels import linear
 from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc, shift_windows
+from fastforks.kernels import cudnn_hacc, shift_windows, sr_norm
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.sr_layer_norm import fast_layer_norm
@@ -73,6 +74,9 @@ class _NoMask:
 _NO_MASK = _NoMask()
 _LARGE_IMAGE_PIXELS = 256**2
 _WORKSPACE_BYTES = 64 * 1024**2
+_WINDOW_BYTES = 64 << 20
+_WINDOW_STREAM_THRESHOLD = 256 << 20
+_MLP_BYTES = 192 << 20
 
 
 @dataclass(frozen=True)
@@ -168,12 +172,20 @@ def _forward(m: DRCT, image: torch.Tensor) -> torch.Tensor:
     return _strip_reconstruction(m, x, rows) / m.img_range + mean
 
 
-def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int], *, reuse_outputs: bool = False) -> torch.Tensor:
     """`RDG.forward` with the 1 x 1 `adjust` convs as `F.linear` on the tokens (upstream: on an unembedded map)."""
     feats = [x]
     for k in range(1, 5):
-        feats.append(F.leaky_relu(_adjust(m, k, torch.cat(feats, -1) if k > 1 else x, xsize), 0.2))
-    return _adjust(m, 5, torch.cat(feats, -1), xsize) * 0.2 + x  # the last `adjust` has no LeakyReLU
+        part = _adjust(m, k, torch.cat(feats, -1) if k > 1 else x, xsize)
+        feats.append(F.leaky_relu(part, 0.2, inplace=reuse_outputs))
+    dense = torch.cat(feats, -1)
+    del feats, part
+    result = _adjust(m, 5, dense, xsize)  # the last `adjust` has no LeakyReLU
+    return result.mul_(0.2).add_(x) if reuse_outputs else result * 0.2 + x
+
+
+def _cuda_rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+    return _rdg(m, x, xsize, reuse_outputs=True)
 
 
 def _adjust(m: RDG, k: int, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
@@ -284,15 +296,71 @@ def _boundary_attention(
     return out.reshape_as(windows)
 
 
+def _stream_window_residual(m: SwinTransformerBlock, x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Pack, normalize and attend to each group of windows before writing its updated shortcut."""
+    h, w = size
+    width = x.shape[-1]
+    win, shift = m.window_size, m.shift_size
+    nr, nc = h // win, w // win
+    regions = ((0, 0, nr, nc),)
+    masks = None
+    if shift:
+        masks = shift_mask(2 * win, 2 * win, win, shift, x.device, dtype=x.dtype)
+        regions = ((0, 0, nr - 1, nc - 1), (0, nc - 1, nr - 1, 1), (nr - 1, 0, 1, nc - 1), (nr - 1, nc - 1, 1, 1))
+    k = shift_windows.load(x.device)
+    out = torch.empty_like(x)
+    step = max(1, _WINDOW_BYTES // (win * win * m.attn.qkv.out_features * x.element_size()))
+    nw, nb = m.norm1.get_buffer("_sr_weight"), m.norm1.get_buffer("_sr_bias")
+    for kind, (r0, c0, rows, cols) in enumerate(regions):
+        bias: torch.Tensor = m.attn.bias  # ty: ignore[invalid-assignment]
+        if masks is not None and kind:
+            bias = bias + masks[kind]
+        for b in range(x.shape[0]):
+            for first in range(0, rows * cols, step):
+                count = min(step, rows * cols - first)
+                windows = x.new_empty((count, win * win, width))
+                threads = windows.numel() // 2
+                geometry = (h, w, width // 2, win, shift, r0, c0, cols, first, threads)
+                k.launch("stream_window2", *linear(threads), x[b], None, windows, *geometry)
+                windows = sr_norm.layer_norm(windows, nw, nb, m.norm1.eps)
+                result = window_attention(
+                    windows, m.attn.qkv, m.attn.proj, heads=m.attn.num_heads, scale=m.attn.scale, bias=bias, mask=None
+                )
+                del windows
+                k.launch("stream_window2", *linear(threads), result, x[b], out[b], *geometry)
+                del result
+    return out
+
+
 def _window_block(m: SwinTransformerBlock, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
-    """Pack shifted windows and reverse them directly; keep the checkpoint's exact shifted-window mask."""
-    windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
-    attended = (
-        _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size) if m.shift_size else m.attn(windows)
-    )
-    tokens = shift_windows.rearrange(attended, xsize, m.window_size, m.shift_size, reverse=True)
-    x = x + m.drop_path(tokens)
-    return x + m.drop_path(m.mlp(m.norm2(x)))
+    """Keep wide shifted-window temporaries bounded on large inputs."""
+    large = x.numel() * x.element_size() >= _WINDOW_STREAM_THRESHOLD
+    if (
+        large
+        and x.is_contiguous()
+        and x.data_ptr() % 4 == 0
+        and x.shape[1] == math.prod(xsize)
+        and all(side % m.window_size == 0 for side in xsize)
+        and hasattr(m.norm1, "_sr_weight")
+    ):
+        x = _stream_window_residual(m, x, xsize)
+    else:
+        windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
+        attended = (
+            _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size)
+            if m.shift_size
+            else m.attn(windows)
+        )
+        del windows
+        x = shift_windows.reverse_residual(attended, x, None, xsize, window=m.window_size, shift=m.shift_size)
+        del attended
+    mm = m.mlp
+    rows = max(1, _MLP_BYTES // (mm.fc1.out_features * x.element_size()))
+    for part in x.flatten(0, 1).split(rows):
+        z = torch.ops.aten.gelu_(mm.fc1(m.norm2(part)), approximate=mm.act.approximate)
+        part.add_(m.drop_path(mm.drop(mm.fc2(mm.drop(z)))))
+        del z
+    return x
 
 
 class Kernels(Portable):
@@ -307,6 +375,8 @@ class Kernels(Portable):
         fast_layer_norm(self.net, ctx.device)
         shift_windows.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, RDG):
+                override(m, _cuda_rdg)
             if isinstance(m, SwinTransformerBlock):
                 del m.attn_mask
                 override(m, _window_block)
