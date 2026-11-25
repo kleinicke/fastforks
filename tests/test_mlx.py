@@ -1121,6 +1121,28 @@ def test_mlx_mmseg_matches_torch(arch, kernels):
     torch.testing.assert_close(got, want, atol=2e-4 * scale, rtol=1e-3)
 
 
+@pytest.mark.parametrize("norm", ["WithBias", "BiasFree"])
+def test_mlx_restormer_matches_torch(norm):
+    """The hand-written Restormer (`restormer/mlx_net.py`) against the vendored upstream network, float32."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.restormer import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.restormer.net import Restormer  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = Restormer(dim=8, num_blocks=[1, 1, 2, 2], num_refinement_blocks=1, heads=[1, 2, 2, 4], LayerNorm_type=norm)
+    for name, p in net.named_parameters():  # init: unit norms and temperatures would hide folding errors
+        if ".norm" in name or name.endswith("temperature"):
+            p.data.add_(torch.randn_like(p) * 0.5)
+    net.eval()
+    x = torch.rand(2, 3, 48, 40)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.MlxRestormer(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize("given", [False, True])
 def test_mlx_unik3d_matches_torch(monkeypatch, given):
     """The hand-written UniK3D (`unik3d/mlx_net.py`) against the network, float32: four ViT-L blocks, random decoder."""
@@ -1144,28 +1166,6 @@ def test_mlx_unik3d_matches_torch(monkeypatch, given):
     got = mlx_net.MlxUniK3D(net, "float32")(x, rays)
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(g, w, atol=2e-4, rtol=2e-4)
-
-
-@pytest.mark.parametrize("norm", ["WithBias", "BiasFree"])
-def test_mlx_restormer_matches_torch(norm):
-    """The hand-written Restormer (`restormer/mlx_net.py`) against the vendored upstream network, float32."""
-    if not pytest.importorskip("mlx.core").metal.is_available():
-        pytest.skip("needs Apple Metal")
-    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
-    from fastforks.restoration.models.restormer import mlx_net  # noqa: PLC0415
-    from fastforks.restoration.models.restormer.net import Restormer  # noqa: PLC0415
-
-    torch.manual_seed(0)
-    net = Restormer(dim=8, num_blocks=[1, 1, 2, 2], num_refinement_blocks=1, heads=[1, 2, 2, 4], LayerNorm_type=norm)
-    for name, p in net.named_parameters():  # init: unit norms and temperatures would hide folding errors
-        if ".norm" in name or name.endswith("temperature"):
-            p.data.add_(torch.randn_like(p) * 0.5)
-    net.eval()
-    x = torch.rand(2, 3, 48, 40)
-    with torch.no_grad():
-        want = net(x)
-    got = to_torch(mlx_net.MlxRestormer(net, "float32")(to_mx(x)))
-    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -1218,3 +1218,28 @@ def test_mlx_yolox_matches_torch(graph, dtype):
     tol = 1e-4 if dtype == "float32" else 2e-2
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g).permute(0, 3, 1, 2), w, atol=tol * w.abs().max().item(), rtol=tol * 10)
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+def test_mlx_rtmo_matches_torch(dtype):
+    """The hand-written RTMO network (`rtmo/mlx_net.py`, the shared CSPNeXt layers) against `net.RTMO`."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.pose.models.rtmo import mlx_net  # noqa: PLC0415
+    from fastforks.pose.models.rtmo.net import RTMO, Arch  # noqa: PLC0415
+    from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = RTMO(Arch(deepen=0.33, widen=0.375, keypoints=17, size=128)).eval()
+    torch.nn.init.xavier_uniform_(net.neck.encoder.in_proj_weight)  # `torch.empty` parameters (the checkpoint's)
+    torch.nn.init.normal_(net.neck.encoder.in_proj_bias, std=0.02)
+    x = 255 * torch.rand(2, 3, 128, 128, generator=torch.Generator().manual_seed(1))
+    with torch.no_grad():
+        want = net(x)
+    csp.options(mlx_net.GRAPH, half_wino_f32=True)
+    got = mlx_net.MlxRTMO(net, dtype, 128)(to_mx(x.permute(0, 2, 3, 1)))
+    assert len(got) == len(want) == 4
+    tol = 1e-4 if dtype == "float32" else 2e-2
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g), w, atol=tol * w.abs().max().item(), rtol=tol * 10)
