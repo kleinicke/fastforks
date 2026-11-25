@@ -906,6 +906,10 @@ class TestAutoFallback:
             def __init__(self, name, error=None):
                 self.name, self.error = name, error
 
+            @staticmethod
+            def _move_result(out):
+                return out
+
             @core_model._typo_checked
             def __call__(self, x):
                 calls.append(self.name)
