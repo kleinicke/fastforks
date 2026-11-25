@@ -16,16 +16,21 @@ scan in float32. The GEMM weights are stored in fp16 (autocast would cast them o
 from __future__ import annotations
 
 import contextlib
+import math
+import struct
 import threading
+import zipfile
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import check_fits, load_strict
 from fastforks._core.deferred_init import skipped_init
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.model import eager_in_compile
 from fastforks._core.upload import device_tensor
@@ -50,15 +55,44 @@ from .net.tapnext import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from fastforks.tracking._runner import Context
 
     Step = Callable[..., tuple[torch.Tensor, torch.Tensor, list]]
 
+_ZIP_LOCAL_HEADER = struct.Struct("<4s22xHH")  # signature, unused fields, filename and extra field lengths
+
+
+def _map_bootstapnext(path: Path) -> dict[str, torch.Tensor]:
+    """Map the verified JAX archive's stored float32 arrays until `from_jax` has copied them."""
+    out = {}
+    storage = np.memmap(path, mode="c", dtype=np.uint8)
+    with zipfile.ZipFile(path) as archive:
+        for part in archive.infolist():
+            msg = f"{path.name}: {part.filename!r} is not a stored little-endian float32 NumPy array"
+            if part.compress_type != zipfile.ZIP_STORED or not part.filename.endswith(".npy"):
+                raise WeightsError(msg)
+            with archive.open(part) as entry:
+                if np.lib.format.read_magic(entry) != (1, 0):
+                    raise WeightsError(msg)
+                shape, fortran, dtype = np.lib.format.read_array_header_1_0(entry)
+                header_size = entry.tell()
+            if fortran or dtype != np.dtype("<f4") or header_size + math.prod(shape) * dtype.itemsize != part.file_size:
+                raise WeightsError(msg)
+            signature, name_size, extra_size = _ZIP_LOCAL_HEADER.unpack_from(storage, part.header_offset)
+            if signature != b"PK\x03\x04":
+                raise WeightsError(msg)
+            offset = part.header_offset + _ZIP_LOCAL_HEADER.size + name_size + extra_size + header_size
+            out[part.filename.removesuffix(".npy")] = torch.from_numpy(np.ndarray(shape, dtype, storage, offset))
+    return out
+
 
 def load_weights(ctx: Context) -> dict[str, torch.Tensor]:
     """The variant's state dict: upstream's JAX `.npz` (BootsTAPNext) or the Lightning checkpoint (TAPNext++)."""
     if ctx.variant.weights[0].name.endswith(".npz"):
+        if ctx.variant.ref == "tapnext@1" and ctx.device.type == "cuda" and ctx.user_weights is None:
+            return from_jax(_map_bootstapnext(ctx.weights()[0]))
         return from_jax(ctx.state_dict(strip=""))
     return ctx.state_dict(key="state_dict", strip="tapnext.")
 
