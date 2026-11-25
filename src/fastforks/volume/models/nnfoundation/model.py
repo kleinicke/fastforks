@@ -24,6 +24,7 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
 from fastforks._core.tracing import in_onnx_export
@@ -121,9 +122,9 @@ def _rotate_padded(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor, pad: i
 def _ln(norm: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
     """LayerNorm in float32 (as under the original's autocast), returned in the weights' dtype."""
     w, b = norm.weight, norm.bias
-    wf, bf = w.float(), b.float()
+    wf, bf = to_float32(w), to_float32(b)
     if w.dtype != torch.float16 or x.numel() <= _NORM_ELEMENTS or not _eager_cuda(x):
-        return F.layer_norm(x.float(), norm.normalized_shape, wf, bf, norm.eps).to(w.dtype)
+        return to_run_dtype(F.layer_norm(to_float32(x), norm.normalized_shape, wf, bf, norm.eps), w.dtype)
     width = x.shape[-1]
     group = max(1, _NORM_ELEMENTS // width)
     rows = x.reshape(-1, width)
@@ -156,7 +157,7 @@ class _Attention(nn.Module):
 
         def project(layer: nn.Linear) -> torch.Tensor:
             t = layer(x).view(b, n, h, d).transpose(1, 2)
-            return _rotate_padded(t, sin, cos, pad) if bounded else _rotate(t, sin, cos).to(x.dtype)
+            return _rotate_padded(t, sin, cos, pad) if bounded else to_run_dtype(_rotate(t, sin, cos), x.dtype)
 
         q, k = project(self.q_proj), project(self.k_proj)
         v = self.v_proj(x).view(b, n, h, d).transpose(1, 2)
@@ -201,8 +202,8 @@ class _Block(nn.Module):
 
     def forward(self, x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
         """`x`: the float32 residual stream (as under autocast); the branches run in the weights' dtype."""
-        x = torch.addcmul(x, self.gamma_1.float(), self.attn(_ln(self.norm1, x), sin, cos).float())
-        return torch.addcmul(x, self.gamma_2.float(), self.mlp(_ln(self.norm2, x)).float())
+        x = torch.addcmul(x, to_float32(self.gamma_1), to_float32(self.attn(_ln(self.norm1, x), sin, cos)))
+        return torch.addcmul(x, to_float32(self.gamma_2), to_float32(self.mlp(_ln(self.norm2, x))))
 
 
 class _Eva(nn.Module):
@@ -246,8 +247,8 @@ class Primus(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Token map of a normalised `[B, C, size, size, size]` volume."""
         t = self.down_projection.proj(x).flatten(2).transpose(1, 2)  # "b c w h d -> b (w h d) c"
-        t = t.float() + self.eva.pos_embed.float()
-        sin, cos = self.rope_sin.float(), self.rope_cos.float()
+        t = to_float32(t) + to_float32(self.eva.pos_embed)
+        sin, cos = to_float32(cast("torch.Tensor", self.rope_sin)), to_float32(cast("torch.Tensor", self.rope_cos))
         for blk in self.eva.blocks:
             t = blk(t, sin, cos)
         t = _ln(self.eva.norm, t)

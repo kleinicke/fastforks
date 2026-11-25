@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import pure_half
+from fastforks._core.mlx_cast import keep_float32
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.shared import mlx_wrap
@@ -107,6 +108,8 @@ class Portable(Runner):
         fold_layer_scale(self.net)
         if ctx.dtype == "float16":
             pure_half(self.net, fp32=[self.net.depth_head.scratch.output_conv2[2]])
+        elif mlx_wrap.twin_dtype() == "float16":  # the twin of a float16 MLX replay: the same conv stays float32
+            keep_float32(self.net.depth_head.scratch.output_conv2[2])
 
     def _run(self, image: torch.Tensor, prompt: torch.Tensor) -> torch.Tensor:
         x = scale(_resize(image, network_size(*image.shape[-2:], self.ctx.params.max_size)), self.ctx.io)

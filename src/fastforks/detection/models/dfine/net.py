@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import CheckpointMismatchError
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks.detection._attention import Attention, sample_maps
 from fastforks.detection._fold import fold_bn_into, merge_repvgg
 from fastforks.detection._rtdetr import (
@@ -374,14 +375,14 @@ class Decoder(nn.Module):
         ref_init = ref
         h = prob = ref  # set by the loop (at least one layer)
         for i, layer in enumerate(self.layers):
-            qpos = self.query_pos_head(ref).clamp(-10, 10).to(tgt.dtype)
-            tgt = layer(tgt, ref.to(tgt.dtype).unsqueeze(2), maps, qpos)
-            h = tgt.float()
+            qpos = to_run_dtype(self.query_pos_head(ref).clamp(-10, 10), tgt.dtype)
+            tgt = layer(tgt, to_run_dtype(ref, tgt.dtype).unsqueeze(2), maps, qpos)
+            h = to_float32(tgt)
             if i == 0:
                 ref_init = F.sigmoid(self.pre_bbox_head(h) + inverse_sigmoid(ref))
             corners = self.bbox_embed[i](h + prev) + corners
             prob = F.softmax(corners.unflatten(-1, (4, BINS + 1)), dim=-1)
-            ref = distance2bbox(ref_init, prob @ self.project.float(), self.reg_scale)
+            ref = distance2bbox(ref_init, prob @ to_float32(self.project), self.reg_scale)
             prev = h
         top = prob.topk(TOP_PROBS, dim=-1).values
         stat = torch.cat([top, top.mean(-1, keepdim=True)], dim=-1).flatten(-2)
@@ -415,12 +416,12 @@ class DFine(nn.Module):
         mem = torch.cat([f.flatten(2).transpose(1, 2) for f in feats], dim=1)
         anc, valid = anchors(shapes, mem.device)
         # query selection in float32 (the ranking decides which memory slots the decoder sees)
-        out = self.enc_output((valid.to(mem.dtype) * mem).float())
+        out = self.enc_output(to_float32(valid.to(mem.dtype) * mem))
         coords = self.enc_bbox_head(out) + anc
         idx = self.enc_score_head(out).max(-1).values.topk(min(self.queries, mem.shape[1]), dim=-1).indices
         pick = idx.unsqueeze(-1)
         ref = F.sigmoid(coords.gather(1, pick.expand(-1, -1, 4)))
-        tgt = out.gather(1, pick.expand(-1, -1, self.dim)).to(mem.dtype)
+        tgt = to_run_dtype(out.gather(1, pick.expand(-1, -1, self.dim)), mem.dtype)
         # the decoder samples the maps themselves (a split of `mem` gave NaN in TensorRT 11.4 fp16 engines)
         maps = [f.reshape(f.shape[0] * HEADS, -1, *f.shape[2:]) for f in feats]
         return self.decoder(tgt, ref, maps)

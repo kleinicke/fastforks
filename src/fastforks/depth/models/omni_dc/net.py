@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2.net.dpt import DepthAnythingV2
 
@@ -447,7 +448,7 @@ class OmniDCNet(nn.Module):
         """ImageNet-normalised padded image `[B, 3, H, W]` -> Depth Anything V2 map scaled to [0, 1] (2 % / 98 %)."""
         h, w = x.shape[-2:]
         y = F.interpolate(x, mono_size(h, w), mode="bicubic", align_corners=True)
-        d = self.depth_module(y.to(self.depth_module.pretrained.cls_token.dtype))[:, None].float()
+        d = to_float32(self.depth_module(y.to(self.depth_module.pretrained.cls_token.dtype))[:, None])
         return quantile_normalise(F.interpolate(d, (h, w), mode="bilinear", align_corners=True))
 
     def upsample(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
