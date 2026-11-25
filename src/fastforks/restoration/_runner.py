@@ -43,6 +43,8 @@ from fastforks._core.preprocess import Crop, crop, pad_to, scale
 from fastforks._core.runner import Context, Forward, NoParams
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import torch
 
 __all__ = ["Context", "Crop", "Forward", "NoParams", "Runner", "crop", "pad_to", "scale"]
@@ -83,6 +85,10 @@ class Runner(core.Runner):
         Returns:
             `{"image": [B, 3, scale * H, scale * W]}` (any float dtype) in the input's value range.
         """
+
+    def run_with_post(self, image: torch.Tensor, post: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+        """Run a batch and apply its output transform, which returns a new tensor."""
+        return post(self(image)["image"])
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """Pad a scaled `[B, C, H, W]` batch as the card's `[io] pad` says (fill `family`: override this)."""

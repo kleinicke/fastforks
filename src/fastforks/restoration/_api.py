@@ -200,8 +200,14 @@ class RestorationModel(core.Model):
         r, s = self._runner, self._runner.scale
         b, _, h, w = x.shape
         padded, region = r.pad(_scale(x, self.variant.io))
-        out = crop(r(padded)["image"], Crop(region.top * s, region.left * s, h * s, w * s))
-        return self._check_outputs({"image": out}, {"image": (b, 3, h * s, w * s)})["image"].clamp(0, 1)
+        output_region = Crop(region.top * s, region.left * s, h * s, w * s)
+        shape = (b, 3, h * s, w * s)
+
+        def finish(output: torch.Tensor) -> torch.Tensor:
+            out = crop(output, output_region)
+            return self._check_outputs({"image": out}, {"image": shape})["image"].clamp(0, 1)
+
+        return r.run_with_post(padded, finish)
 
     def _run(self, x: torch.Tensor, *, tile: int | None) -> dict[str, torch.Tensor]:
         """One chunk, in one pass or in tiles (ComfyUI `comfy.utils.tiled_scale`, overlap 32)."""

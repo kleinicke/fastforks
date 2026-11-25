@@ -30,6 +30,8 @@ from .net import FFCResNetGenerator
 from .net.ffc import FourierUnit, fold_batchnorm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.restoration._runner import Context
 
 # Lightning checkpoint: the hyper-parameters are OmegaConf containers, the callbacks Lightning's
@@ -124,10 +126,21 @@ class Kernels(Portable):
         with fp16_accumulate():
             return self._inpaint(x)
 
-    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        """The inpainted batch."""
-        out = None if self.graphs is None else self.graphs.run((image.device, image.dtype, tuple(image.shape)), image)
-        return {"image": self._eager(image) if out is None else out}
+    def __call__(
+        self, image: torch.Tensor, *, post: Callable[[torch.Tensor], torch.Tensor] | None = None
+    ) -> dict[str, torch.Tensor]:
+        """The inpainted batch, optionally finalized into a new output tensor."""
+        if self.graphs is not None:
+            key = (image.device, image.dtype, tuple(image.shape))
+            out = self.graphs.run(key, image, post=post)
+            if out is not None:
+                return {"image": out}
+        out = self._eager(image)
+        return {"image": out if post is None else post(out)}
+
+    def run_with_post(self, image: torch.Tensor, post: Callable[[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+        """Crop and clamp the borrowed replay output before the cache unlocks."""
+        return self(image, post=post)["image"]
 
     def release_graphs(self) -> None:
         """Free the CUDA graphs and their memory pool."""
