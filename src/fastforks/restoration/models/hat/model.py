@@ -371,7 +371,6 @@ def _hat_window_epilogue(m: HAB, x: torch.Tensor, size: tuple[int, int]) -> torc
     bias = a.get_buffer("bias")
     regions, masks = raster_regions(size, win, shift, x)
     library = shift_windows.load(x.device)
-    output = torch.empty_like(x)
     step = max(1, QKV_TILE_BYTES // (win**2 * a.qkv.out_features * x.element_size()))
     for kind, (r0, c0, rows, cols) in enumerate(regions):
         tile_bias = bias if masks is None or not kind else bias + masks[kind]
@@ -418,11 +417,12 @@ def _hat_window_epilogue(m: HAB, x: torch.Tensor, size: tuple[int, int]) -> torc
                     count,
                 )
                 out.add_(m.mlp(m.norm2(out)))
+                # Shifted windows partition the raster; later gathers never read these values.
                 library.launch(
                     "scatter_windows2",
                     *linear(count),
                     out,
-                    output[b],
+                    normalized[b],
                     h,
                     w,
                     c // 2,
@@ -430,7 +430,7 @@ def _hat_window_epilogue(m: HAB, x: torch.Tensor, size: tuple[int, int]) -> torc
                     count,
                 )
                 del out
-    return output
+    return normalized
 
 
 def _shifted_block(
