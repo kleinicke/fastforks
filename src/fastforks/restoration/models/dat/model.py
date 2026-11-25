@@ -269,6 +269,29 @@ def _ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return m.fc2(x1 * _tokens(sg.conv(_image(sg.norm(x2), h, w))))
 
 
+def _cuda_ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """Finish the spatial gate before allocating the independent value branch."""
+    act = m.act
+    if (
+        type(act) is not nn.GELU
+        or m.training
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+    ):
+        return _ffn(m, x, h, w)
+    half, fc1, sg = m.fc2.in_features, m.fc1, m.sg
+    bias = fc1.bias
+    gate = F.linear(x, fc1.weight[half:], None if bias is None else bias[half:])
+    gate = sg.norm(torch.ops.aten.gelu_(gate, approximate=act.approximate))
+    gate = _tokens(sg.conv(_image(gate, h, w)))
+    value = F.linear(x, fc1.weight[:half], None if bias is None else bias[:half])
+    torch.ops.aten.gelu_(value, approximate=act.approximate)
+    value.mul_(gate)
+    del gate
+    return m.fc2(value)
+
+
 def _interact(
     channel: torch.Tensor, spatial: torch.Tensor, channel_map: torch.Tensor, spatial_map: torch.Tensor
 ) -> torch.Tensor:
@@ -542,6 +565,8 @@ class Kernels(Portable):
                 override(m, _cuda_spatial)
             elif isinstance(m, Adaptive_Channel_Attention):
                 override(m, _cuda_channel)
+            elif isinstance(m, SGFN):
+                override(m, _cuda_ffn)
             elif (
                 is_base(m, torch.nn.Conv2d)
                 and m.groups == 1
