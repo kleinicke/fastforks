@@ -65,8 +65,50 @@ def test_preferred_speed_keeps_a_measured_call_over_a_standalone_engine(monkeypa
     rows = {variant.id: [{"input": "336x518", "mode": "portable", "ms": 822}]}
     speed = site_data._speed(variant, card.task, rows)
     profiles = {p["input"]: p for p in speed["inputs"]}
-    assert speed["preferred"] == "336x518"
+    assert speed["preferred"] == "8x336x518"
     assert profiles["8x512x640"]["tensorrt"]["compare_to_original"] is False
+
+
+def test_pi3_eight_view_legacy_measurements_share_the_export_profile(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_oom", set)
+    card, variant = registry.resolve_any("pi3")
+    legacy, explicit = "336x518", "8x336x518"
+    three_view = {"mode": "portable", "input": "3x336x518", "views": 3, "ms": 50}
+    rows = {
+        variant.id: [
+            {"mode": "portable", "input": explicit, "ms": 826},
+            {"mode": "portable", "input": legacy, "ms": 822},
+            {"mode": "kernels", "input": legacy, "ms": 560},
+            {"mode": "upstream", "input": legacy, "dtype": "bfloat16", "ms": 1057},
+            three_view,
+        ]
+    }
+    engine = {"ref": variant.id, "mode": "tensorrt", "input": explicit, "ms": 691, "views": 8}
+    old_engine = engine | {"input": legacy, "fails": "old public export failed"}
+    compile_row = {"ref": variant.id, "mode": "compile", "input": legacy, "ms": 752}
+    monkeypatch.setattr(
+        site_data.g,
+        "_compile_rows",
+        lambda: {
+            (variant.id, "tensorrt", explicit): engine,
+            (variant.id, "tensorrt", legacy): old_engine,
+            (variant.id, "compile", legacy): compile_row,
+        },
+    )
+    speed = site_data._speed(variant, card.task, rows)
+    by_size = {r["input"]: r for r in speed["inputs"]}
+    assert speed["preferred"] == explicit
+    assert set(by_size) == {explicit, three_view["input"]}
+    profile = by_size[explicit]
+    assert profile["workload"] == {"views": 8}
+    assert {k: r["ms"] for k, r in profile["modes"].items()} == {
+        "kernels": 560,
+        "original16": 1057,
+        "portable": 826,
+    }
+    assert profile["compile"]["ms"] == 752
+    assert profile["tensorrt"]["ms"] == 691
+    assert by_size[three_view["input"]]["workload"] == {"views": 3}
 
 
 def test_unmeasured_planned_backend_reports_card_reason(monkeypatch):

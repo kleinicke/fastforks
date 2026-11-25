@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -31,6 +32,8 @@ from fastforks._core.sizes import size_range
 from fastforks._core.tasks import spec
 
 _ROOT = Path(__file__).resolve().parents[1]
+_PI3_LEGACY_SIZE = "336x518"
+_PI3_LEGACY_VIEWS = 8
 
 if TYPE_CHECKING:
     from fastforks._core.cards import ModelCard, Variant
@@ -161,6 +164,10 @@ def _speed_workload(ref: str, task: str, size: str, rows: list[dict]) -> dict[st
         if synthetic and ref.startswith("totalsegmentator-") and size == "200x200":
             # Legacy speed rows used volume.bench_inputs: [H, W, W] at 1.5 mm.
             legacy = {"volume_shape": [200, 200, 200], "spacing_mm": [1.5, 1.5, 1.5]}
+    elif task == "multiview" and ref == "pi3":
+        fields = ("views",)
+        if match := re.fullmatch(r"(\d+)x\d+x\d+", size):
+            legacy = {"views": int(match[1])}
     elif task == "tracking":
         fields = ("frames", "queries")
         if synthetic and ref in {"locotrack-b", "locotrack-s"}:
@@ -177,11 +184,38 @@ def _speed_workload(ref: str, task: str, size: str, rows: list[dict]) -> dict[st
     return legacy | {k: values[0] for k, values in recorded.items() if values and all(v == values[0] for v in values)}
 
 
+def _speed_input(ref: str, size: str, row: dict[str, Any]) -> str:
+    """Give the archived eight-view Pi3 floor the same key as its matched TensorRT profile."""
+    if ref == "pi3" and size == _PI3_LEGACY_SIZE and row.get("views", _PI3_LEGACY_VIEWS) == _PI3_LEGACY_VIEWS:
+        return f"{_PI3_LEGACY_VIEWS}x{size}"
+    return size
+
+
+def _profile_rows(model_id: str, speed: dict[str, list[dict]]) -> tuple[list[dict], dict[tuple[str, str], dict]]:
+    rows = speed.get(model_id, [])
+    if model_id == "pi3":
+        # An explicitly keyed measurement takes precedence over a legacy row for the same backend.
+        rows = [
+            r | {"input": _speed_input(model_id, r["input"], r)}
+            for r in sorted(rows, key=lambda r: r["input"] != _PI3_LEGACY_SIZE)
+        ]
+    backends = {}
+    for (ref, mode, size), row in g._compile_rows().items():  # noqa: SLF001
+        if ref != model_id or mode not in {"compile", "tensorrt"}:
+            continue
+        profile = _speed_input(ref, size, row)
+        key = (mode, profile)
+        if profile == size or key not in backends:
+            backends[key] = row
+    return rows, backends
+
+
 def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str | None = None) -> dict[str, Any]:
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
-    rows = speed.get(v.id, [])
+    rows, backends = _profile_rows(v.id, speed)
     std = g._std_input(task, {})  # noqa: SLF001
-    inputs = sorted({r["input"] for r in rows} | g._compiled_inputs(v.id), key=g._pixels)  # noqa: SLF001
+    compiled = {size for (_, size), row in backends.items() if not row.get("fails") and row.get("ms") is not None}
+    inputs = sorted({r["input"] for r in rows} | compiled, key=g._pixels)  # noqa: SLF001
     eager = {r["input"] for r in rows if r["mode"] in {"portable", "kernels"}}
     preferred_inputs = eager or set(inputs)
     ordered = (native, std, *reversed(inputs))
@@ -201,7 +235,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]], *, native: str |
         oom = [_SPEED_KEY[m] for m in _SPEED_KEY if (v.id, m, size) in g._oom()]  # noqa: SLF001
         extra = {}
         for mode in ("compile", "tensorrt"):
-            c = g._compile_rows().get((v.id, mode, size))  # noqa: SLF001
+            c = backends.get((mode, size))
             if c is None:
                 if reason := planned_reason(v, mode):
                     extra[mode] = {"fails": reason, "planned": True}
