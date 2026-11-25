@@ -1050,7 +1050,16 @@ class Predictor:
             saved_scores = (k0 - capacity) * h * w * p.n_outputs
             extra_features = retained * k0 * k1 * k2 * p.features[0]
             if saved_scores > extra_features:
-                yield from self._completed_head_tiles(x, steps, tiling, capacity, normalize=normalize)
+                depths = steps[0]
+                overlap = max(
+                    sum(max(0, previous + k0 - start) for previous in depths[:i]) for i, start in enumerate(depths)
+                )
+                saved_ring = (capacity - tile) * h * w * p.n_outputs
+                retained_features = overlap * windows * k1 * k2 * p.features[0]
+                if retained_features < saved_ring:
+                    yield from self._completed_feature_overlap(x, steps, tiling, normalize=normalize)
+                else:
+                    yield from self._completed_head_tiles(x, steps, tiling, capacity, normalize=normalize)
                 return
         dt = self._gauss.dtype
         layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
@@ -1108,15 +1117,78 @@ class Predictor:
                 ready = min(a + stop, end) - (a + k)
                 if ready <= 0:
                     continue
-                for physical, local in _depth_slices(a + k, ready, capacity):
-                    values = acc[0, :, physical]
-                    if n is not None:
-                        values.div_(n[physical])
-                    yield a + k + local.start, values
-                    values.zero_()
-                    if n is not None:
-                        n[physical].zero_()
+                yield from self._ready_head_planes(acc, n, a + k, ready)
             del batches
+
+    @staticmethod
+    def _ready_head_planes(
+        acc: torch.Tensor, norm: torch.Tensor | None, start: int, length: int
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Yield completed scores, then reset the corresponding ring slots for reuse."""
+        for physical, local in _depth_slices(start, length, acc.shape[2]):
+            values = acc[0, :, physical]
+            if norm is not None:
+                values.div_(norm[physical])
+            yield start + local.start, values
+            values.zero_()
+            if norm is not None:
+                norm[physical].zero_()
+
+    def _completed_feature_overlap(
+        self,
+        x: torch.Tensor,
+        steps: Sequence[Sequence[int]],
+        tiling: tuple[UNet, int],
+        *,
+        normalize: bool,
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Keep overlap in decoder features and project only the score planes that are ready.
+
+        Visit retained windows in their original depth/y/x order, preserving the FP16 weighted sum of every voxel.
+        Copy just the still-covered suffix of each decoded window before the next row is decoded.
+        """
+        net, tile = tiling
+        head = net.decoder.seg_layers[-1]
+        patch_depth = self.plan.patch_size[0]
+        depth, height, width = x.shape[1:]
+        dtype = self._gauss.dtype
+        acc = torch.empty(
+            (1, self.plan.n_outputs, tile, height, width),
+            dtype=dtype,
+            device=x.device,
+            memory_format=torch.channels_last_3d,
+        ).zero_()
+        norm = torch.zeros((tile, height, width), dtype=dtype, device=x.device) if normalize else None
+        live: list[tuple[int, list[tuple[Sequence[tuple[int, int, int]], torch.Tensor]]]] = []
+        for i, start in enumerate(steps[0]):
+            end = steps[0][i + 1] if i + 1 < len(steps[0]) else depth
+            starts = [(start, y, z) for y in steps[1] for z in steps[2]]
+            live.append((start, list(self._decoded_windows(x, starts, net))))
+            for at in range(start, end, tile):
+                stop = min(at + tile, end)
+                for offset, batches in live:
+                    for chunk, features in batches:
+                        for j, position in enumerate(chunk):
+                            last = min(stop, position[0] + patch_depth)
+                            if at < last:
+                                cut = features[j : j + 1, :, at - offset : last - offset]
+                                self._merge_head_tile(acc, norm, head(cut)[0], position, at - position[0])
+                                del cut
+                        del features
+                    del batches
+                yield from self._ready_head_planes(acc, norm, at, stop - at)
+            kept = []
+            for offset, batches in live:
+                trimmed = [
+                    (chunk, features[:, :, end - offset :].clone(memory_format=torch.channels_last_3d))
+                    for chunk, features in batches
+                    if end < chunk[0][0] + patch_depth
+                ]
+                if trimmed:
+                    kept.append((end, trimmed))
+                del batches, trimmed
+            live = kept
+            del kept
 
     def _sweep(
         self,

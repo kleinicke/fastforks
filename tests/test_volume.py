@@ -340,6 +340,36 @@ def test_tiled_score_ring_preserves_resampled_labels(folder: Path, monkeypatch: 
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize("normalize", [False, True])
+def test_overlapping_decoder_features_preserve_completed_scores(*, normalize: bool) -> None:
+    """Several earlier rows contribute to the same score tile, with two windows per decode batch."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    plan = _nnunet.read_plan(_plans(), _DATASET)
+    net = _net().to(device="cuda", dtype=torch.float16, memory_format=torch.channels_last_3d)
+    predictor = _nnunet.Predictor(
+        plan, [net], batch=2, amp=None, channels_last=True, dtype=torch.float16, cuda_kernels=True
+    )
+    gen = torch.Generator("cuda").manual_seed(63)
+    x = torch.rand((1, 39, 23, 25), device="cuda", dtype=torch.float16, generator=gen)
+    predictor._gauss = _nnunet.gaussian(plan.patch_size, x.device, cuda_kernels=True)
+    steps = ((0, 6, 12, 18, 23), (0, 7), (0, 9))
+    tiling = net, 5
+    with torch.inference_mode():
+        expected = torch.cat(
+            [t.clone() for _, t in predictor._completed_head_tiles(x, steps, tiling, 11, normalize=normalize)], dim=1
+        )
+        actual = torch.empty_like(expected)
+        end = 0
+        for at, scores in predictor._completed_feature_overlap(x, steps, tiling, normalize=normalize):
+            assert at == end
+            end += scores.shape[1]
+            actual[:, at:end] = scores
+        assert end == x.shape[1]
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
 def test_tiled_decoder_preserves_consumed_skip_halo(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The tiled convolution reads the original skip at each boundary and handles its final partial tile."""
     if not torch.cuda.is_available():
