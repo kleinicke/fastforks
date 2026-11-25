@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1700 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1706 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -440,11 +440,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 24.3 | 22.3 | unsupported | – | – | 635 | – |
 | [`rtmdet-tiny-coco`](../models/detection.md#rtmdet) | 20.7 | 19.7 | unsupported | – | – | 518 | – |
 | [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 138 | 113 | unsupported | – | – | 1478 | – |
-| [`yolox-l`](../models/detection.md#yolox) | 92.9 | 69.6 | – | – | – | 851 | – |
-| [`yolox-m`](../models/detection.md#yolox) | 51.8 | 44.6 | – | – | – | 736 | – |
-| [`yolox-s`](../models/detection.md#yolox) | 28.6 | 22.4 | 28.8 | 20.8 | 1.1x | 607 | 618 |
-| [`yolox-tiny`](../models/detection.md#yolox) | 15.1 | 13.4 | 14.5 | 12.6 | 1.1x | 454 | 470 |
-| [`yolox-x`](../models/detection.md#yolox) | 152 | 121 | – | – | – | 1229 | – |
+| [`yolox-l`](../models/detection.md#yolox) | 69.1 | 58.4 | 60.4 | 53.9 | 1.1x | 1021 | 1104 |
+| [`yolox-m`](../models/detection.md#yolox) | 41.2 | 36.2 | 35.7 | 30.3 | 1.2x | 704 | 799 |
+| [`yolox-s`](../models/detection.md#yolox) | 21.0 | 17.6 | 19.7 | 16.1 | 1.1x | 539 | 543 |
+| [`yolox-tiny`](../models/detection.md#yolox) | 10.4 | 9.83 | 9.93 | 9.10 | 1.1x | 417 | 427 |
+| [`yolox-x`](../models/detection.md#yolox) | 119 | 103 | 101 | 93.9 | 1.1x | 1350 | 1522 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1700 rows, measured 2026-11-19 to 2026-11-25.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1706 rows, measured 2026-11-19 to 2026-11-25.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -398,11 +398,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 22.3 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | 19.7 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | 113 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | 69.6 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | 44.6 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 20.8 ms · kernels fp16 | – | – | – | – | – |
-| [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | 12.6 ms · kernels fp16 | – | – | – | – | – |
-| [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | 121 ms · portable fp16 | – | – | – | – | – |
+| [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | 53.9 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | 30.3 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 16.1 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | 9.10 ms · kernels fp16 | – | – | – | – | – |
+| [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | 93.9 ms · kernels fp16 | – | – | – | – | – |
 
 #### Ocr, 1080x1920
 
