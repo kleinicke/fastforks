@@ -39,10 +39,12 @@ class Params(nn_runner.Params):
     Attributes:
         spacing: TotalSegmentator's resampling to this isotropic spacing (mm) first, or `None` (nnU-Net's own).
         classes: Label file (one name per line, line k = label k) of the merged map, or `None`: the single part's.
+        cuda_windows: Window batch for single-network CUDA inference in kernels mode.
     """
 
     spacing: float | None = None
     classes: str | None = None
+    cuda_windows: int = 2
 
 
 def zoom_linear(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
@@ -104,9 +106,9 @@ class Kernels(Portable, nn_runner.Kernels):
     def __init__(self, ctx: Context) -> None:
         """Limit the workspace alongside the resident networks of the multi-part CT model."""
         super().__init__(ctx)
-        if len(self.parts) > 1:
-            for part in self.parts:
-                part.batch = 1
+        windows = 1 if len(self.parts) > 1 else self.ctx.params.cuda_windows
+        for part in self.parts:
+            part.batch = windows
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

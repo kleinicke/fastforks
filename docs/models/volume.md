@@ -17,12 +17,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`nninteractive`](#nninteractive) | no | 193, 2.4x | 2772, 0.6x |
 | [`totalsegmentator-total`](#totalsegmentator) | yes | 1647, 27.7x | 1638, 0.57x |
 | [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 71.8, 101.2x | 1376, 0.51x |
-| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | no kernels | no kernels |
-| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | no kernels | no kernels |
+| [`totalsegmentator-total-6mm`](#totalsegmentator) | yes | – | – |
+| [`totalsegmentator-v3-total`](#totalsegmentator) | yes | – | – |
+| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | yes | – | – |
+| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | yes | – | – |
+| [`totalsegmentator-v3-total-small`](#totalsegmentator) | yes | – | – |
+| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | yes | – | – |
 
 <a id="nnfoundation"></a>
 
@@ -182,7 +182,6 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `totalsegmentator-total`, `totalsegmentator-total-3mm`, `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm`
-- Public kernels is unavailable for `totalsegmentator-total-6mm`, `totalsegmentator-v3-total`, `totalsegmentator-v3-total-3mm`, `totalsegmentator-v3-total-6mm`, `totalsegmentator-v3-total-small`, `totalsegmentator-v3-total-small-3mm` (CUDA kernel parity has not yet been validated for this checkpoint).
 - Outputs: labels
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved); `totalsegmentator-total-6mm` not measured yet; `totalsegmentator-v3-total` not measured yet; `totalsegmentator-v3-total-3mm` not measured yet; `totalsegmentator-v3-total-6mm` not measured yet; `totalsegmentator-v3-total-small` not measured yet; `totalsegmentator-v3-total-small-3mm` not measured yet
@@ -216,12 +215,12 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 |---|---|---|---|
 | `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
 | `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
-| `totalsegmentator-total-6mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-3mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-6mm` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-small` | no kernels backend | - | - |
-| `totalsegmentator-v3-total-small-3mm` | no kernels backend | - | - |
+| `totalsegmentator-total-6mm` | 0.00045 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-v3-total` | 0.00014 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-v3-total-3mm` | 0.00046 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-v3-total-6mm` | 0.00058 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-v3-total-small` | 0.00038 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
+| `totalsegmentator-v3-total-small-3mm` | 0.00125 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@2f1c9c06c950:sm_120` |
 
 ### Limitations
 
@@ -243,12 +242,12 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`nninteractive`](#nninteractive) | portable, kernels | Apache-2.0 | CC-BY-NC-SA-4.0 | unstated | **no** (weights: CC-BY-NC-SA-4.0) | mask |
 | [`totalsegmentator-total`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
 | [`totalsegmentator-total-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
-| [`totalsegmentator-total-6mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
-| [`totalsegmentator-v3-total`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-small`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
-| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | portable | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-total-6mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct | yes | labels |
+| [`totalsegmentator-v3-total`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-6mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-small`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
+| [`totalsegmentator-v3-total-small-3mm`](#totalsegmentator) | portable, kernels | Apache-2.0 | Apache-2.0 | totalsegmentator-ct-v3 | yes | labels |
 
 </details>
 
