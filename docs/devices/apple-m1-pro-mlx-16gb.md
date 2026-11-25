@@ -10,8 +10,8 @@
 | hardware | 16-core GPU; the families with an MLX port (device="mlx") |
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-19 to 2026-11-24 |
-| rows | 1548 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| measured | 2026-11-19 to 2026-11-25 |
+| rows | 1549 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -316,9 +316,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 490 | 353 | 490 | 358 | 1.0x | 1357 | 1373 |
 | [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 282 | 220 | – | – | – | 1112 | – |
 | [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 1033 | 850 | – | – | – | 3614 | – |
-| [`oneformer-swinl-ade20k`](../models/segmentation.md#oneformer) | 1588 | 1441 | unsupported | – | – | 5416 | – |
+| [`oneformer-swinl-ade20k`](../models/segmentation.md#oneformer) | 1109 | 961 | unsupported | – | – | 2265 | – |
 | [`pspnet-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 510 | 380 | 511 | 375 | 1.0x | 1441 | 1450 |
-| [`sapiens-seg-0.3b-goliath`](../models/segmentation.md#sapiens) | 2664 | 2392 | – | – | – | 3921 | – |
+| [`sapiens-seg-0.3b-goliath`](../models/segmentation.md#sapiens) | 1485 | 1214 | unsupported | – | – | 2967 | – |
 | [`sapiens-seg-1b-goliath`](../models/segmentation.md#sapiens) | 5247 | 4110 | – | – | – | 6692 | – |
 | [`segformer-b0-ade20k`](../models/segmentation.md#segformer) | 68.3 | 57.6 | 67.6 | 57.1 | 1.0x | 734 | 725 |
 | [`segformer-b5-ade20k`](../models/segmentation.md#segformer) | 351 | 270 | 351 | 270 | 1.0x | 1283 | 1282 |
@@ -672,7 +672,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`flowseek-t-things`](../models/flow.md#flowseek) | 2523 | 1760 | unsupported | 5769 |
 | [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 2544 | 1760 | unsupported | 5766 |
 | [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 6050 | 4340 | unsupported | 12170 |
-| [`gmflow-scale1-things`](../models/flow.md#gmflow) | 5909 | 3871 | unsupported | 9100 |
+| [`gmflow-scale1-things`](../models/flow.md#gmflow) | 2627 | 1934 | unsupported | 1698 |
 | [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | 12373 | 8276 | – | 11508 |
 | [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | 16667 | 11251 | – | 11324 |
 | [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | 16974 | 11296 | – | 10699 |
