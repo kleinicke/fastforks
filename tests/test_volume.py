@@ -265,6 +265,21 @@ def test_tiled_volume_head_matches_full_projection(folder: Path, monkeypatch: py
     assert torch.equal(model(ct, spacing=spacing).labels, expected)
 
 
+@pytest.mark.gpu
+def test_tiled_score_ring_preserves_resampled_labels(folder: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Complete and normalize wrapped tiles, including interpolation across a reused score plane."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    model = volume.load(folder, mode="kernels", device="cuda", folds=(0,), mirror=False)
+    part = model._runner.parts[0]
+    x = torch.rand(1, 37, 16, 16, dtype=torch.float16, device="cuda")
+    keep = (slice(1, 36), slice(0, 16), slice(0, 16))
+    with torch.inference_mode():
+        expected = part._stream_resampled(x, keep, (53, 23, 19))
+        monkeypatch.setattr(_nnunet, "_HEAD_TILE_BYTES", 3 * 3 * 16 * 16 * 2)
+        assert torch.equal(part._stream_resampled(x, keep, (53, 23, 19)), expected)
+
+
 def test_zoom_matches_scipy() -> None:
     """TotalSegmentator's `change_spacing` zooms (scipy `zoom`, order 1 truncated to int32 / order 0)."""
     ndimage = pytest.importorskip("scipy.ndimage")

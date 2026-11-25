@@ -915,8 +915,20 @@ class Predictor:
         self, x: torch.Tensor, steps: Sequence[Sequence[int]], *, normalize: bool
     ) -> Iterator[tuple[int, torch.Tensor]]:
         """Yield complete slabs before reusing their space in the sliding-window ring buffer."""
-        p, k0 = self.plan, self.plan.patch_size[0]
+        p = self.plan
+        k0, k1, k2 = p.patch_size
         d, h, w = x.shape[1:]
+        if tiling := self._head_tiling(x, self.nets):
+            _, tile = tiling
+            step = min((b - a for a, b in itertools.pairwise(steps[0])), default=k0)
+            capacity = max(tile, k0 - step)
+            windows = len(steps[1]) * len(steps[2])
+            retained = (windows - 1) // self.batch * self.batch
+            saved_scores = (k0 - capacity) * h * w * p.n_outputs
+            extra_features = retained * k0 * k1 * k2 * p.features[0]
+            if saved_scores > extra_features:
+                yield from self._completed_head_tiles(x, steps, tiling, capacity, normalize=normalize)
+                return
         dt = self._gauss.dtype
         layout = torch.channels_last_3d if self.channels_last else torch.contiguous_format
         acc = torch.empty(
@@ -935,6 +947,54 @@ class Predictor:
                     if n is not None:
                         n[physical].zero_()
 
+    def _completed_head_tiles(
+        self,
+        x: torch.Tensor,
+        steps: Sequence[Sequence[int]],
+        tiling: tuple[UNet, int],
+        capacity: int,
+        *,
+        normalize: bool,
+    ) -> Iterator[tuple[int, torch.Tensor]]:
+        """Hold the output features for one row of windows and finish one score tile at a time.
+
+        A plane remains live only until all the windows that cover it have been merged. The ring holds at most the
+        largest depth overlap or one output tile. Every voxel sees its contributing windows in the usual order.
+        """
+        net, tile = tiling
+        head = net.decoder.seg_layers[-1]
+        k0 = self.plan.patch_size[0]
+        d, h, w = x.shape[1:]
+        acc = torch.empty(
+            (1, self.plan.n_outputs, capacity, h, w),
+            device=x.device,
+            dtype=self._gauss.dtype,
+            memory_format=torch.channels_last_3d,
+        ).zero_()
+        n = torch.zeros((capacity, h, w), device=x.device, dtype=self._gauss.dtype) if normalize else None
+        for i, a in enumerate(steps[0]):
+            end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
+            starts = [(a, b, c) for b in steps[1] for c in steps[2]]
+            batches = list(self._decoded_windows(x, starts, net))
+            for k in range(0, k0, tile):
+                stop = min(k + tile, k0)
+                for chunk, features in batches:
+                    for j, position in enumerate(chunk):
+                        self._merge_head_tile(acc, n, head(features[j : j + 1, :, k:stop])[0], position, k)
+                    del features
+                ready = min(a + stop, end) - (a + k)
+                if ready <= 0:
+                    continue
+                for physical, local in _depth_slices(a + k, ready, capacity):
+                    values = acc[0, :, physical]
+                    if n is not None:
+                        values.div_(n[physical])
+                    yield a + k + local.start, values
+                    values.zero_()
+                    if n is not None:
+                        n[physical].zero_()
+            del batches
+
     def _sweep(
         self,
         x: torch.Tensor,
@@ -948,18 +1008,8 @@ class Predictor:
         Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
-        if (
-            self.cuda_kernels
-            and x.is_cuda
-            and self.channels_last
-            and self.amp is None
-            and not self.mirror_axes
-            and len(nets) == 1
-            and isinstance(nets[0], UNet)
-            and k0 > 1
-            and 2 * self.plan.n_outputs * k0 * k1 * k2 > 4 * _HEAD_TILE_BYTES
-        ):
-            self._sweep_tiled_head(x, acc, n, starts, nets[0])
+        if tiling := self._head_tiling(x, nets):
+            self._sweep_tiled_head(x, acc, n, starts, tiling)
             return
         weighted_add = None
         if self.cuda_kernels and self.channels_last and len(nets) == 1:
@@ -983,39 +1033,65 @@ class Predictor:
                         n[physical, ys, xs] += self._gauss[local]
             del y  # free this batch of window logits before running the next network forward
 
+    def _head_tiling(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> tuple[UNet, int] | None:
+        k0, k1, k2 = self.plan.patch_size
+        plane_bytes = 2 * self.plan.n_outputs * k1 * k2
+        if (
+            self.cuda_kernels
+            and x.is_cuda
+            and self.channels_last
+            and self.amp is None
+            and not self.mirror_axes
+            and len(nets) == 1
+            and isinstance(nets[0], UNet)
+            and k0 > 1
+            and plane_bytes * k0 > 4 * _HEAD_TILE_BYTES
+        ):
+            return nets[0], math.ceil(_HEAD_TILE_BYTES / plane_bytes)
+        return None
+
+    def _decoded_windows(
+        self, x: torch.Tensor, starts: Sequence[tuple[int, int, int]], net: UNet
+    ) -> Iterator[tuple[Sequence[tuple[int, int, int]], torch.Tensor]]:
+        for j in range(0, len(starts), self.batch):
+            chunk = starts[j : j + self.batch]
+            yield chunk, self._net(net.features, self._window_batch(x, chunk))
+
     def _sweep_tiled_head(
         self,
         x: torch.Tensor,
         acc: torch.Tensor,
         n: torch.Tensor | None,
         starts: Sequence[tuple[int, int, int]],
-        net: UNet,
+        tiling: tuple[UNet, int],
     ) -> None:
         """Project and merge depth tiles of the decoded features instead of materializing the full logits."""
+        kd = self.plan.patch_size[0]
+        net, depth = tiling
+        head = net.decoder.seg_layers[-1]
+        for chunk, features in self._decoded_windows(x, starts, net):
+            for i, position in enumerate(chunk):
+                for k in range(0, kd, depth):
+                    self._merge_head_tile(acc, n, head(features[i : i + 1, :, k : k + depth])[0], position, k)
+            del features
+
+    def _merge_head_tile(
+        self, acc: torch.Tensor, n: torch.Tensor | None, scores: torch.Tensor, position: tuple[int, int, int], k: int
+    ) -> None:
         from fastforks.kernels.vol_norm import accumulate_  # noqa: PLC0415 - kernels mode only
 
-        kd, kh, kw = self.plan.patch_size
-        depth = math.ceil(_HEAD_TILE_BYTES / (2 * self.plan.n_outputs * kh * kw))
-        head = net.decoder.seg_layers[-1]
-        for j in range(0, len(starts), self.batch):
-            chunk = starts[j : j + self.batch]
-            features = self._net(net.features, self._window_batch(x, chunk))
-            for i, (a, b, c) in enumerate(chunk):
-                ys, xs = slice(b, b + kh), slice(c, c + kw)
-                for k in range(0, kd, depth):
-                    end = min(k + depth, kd)
-                    scores = head(features[i : i + 1, :, k:end])[0]
-                    fused = scores.permute(1, 2, 3, 0).is_contiguous()
-                    if not fused:
-                        scores.mul_(self._gauss[k:end])
-                    for physical, local in _depth_slices(a + k, end - k, acc.shape[2]):
-                        target = acc[0, :, physical, ys, xs]
-                        weights = self._gauss[k + local.start : k + local.stop]
-                        if fused:
-                            accumulate_(target, scores[:, local], weights)
-                        else:
-                            target.add_(scores[:, local])
-                        if n is not None:
-                            n[physical, ys, xs].add_(weights)
-                    del scores
-            del features
+        a, b, c = position
+        depth, height, width = scores.shape[1:]
+        ys, xs = slice(b, b + height), slice(c, c + width)
+        fused = scores.permute(1, 2, 3, 0).is_contiguous()
+        if not fused:
+            scores.mul_(self._gauss[k : k + depth])
+        for physical, local in _depth_slices(a + k, depth, acc.shape[2]):
+            target = acc[0, :, physical, ys, xs]
+            weights = self._gauss[k + local.start : k + local.stop]
+            if fused:
+                accumulate_(target, scores[:, local], weights)
+            else:
+                target.add_(scores[:, local])
+            if n is not None:
+                n[physical, ys, xs].add_(weights)
