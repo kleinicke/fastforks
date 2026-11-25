@@ -1080,6 +1080,41 @@ def test_mlx_rfdetr_keypoint_matches_torch():
         torch.testing.assert_close(got[k], want[k].float(), atol=2e-3, rtol=2e-3, msg=k)
 
 
+@pytest.mark.parametrize("plus", [False, True])
+def test_mlx_fast_acvnet_matches_torch(plus):
+    """`fast_acvnet.mlx_net.MlxFastACV` against `model.forward` (random weights and batch norms, float32)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.stereo.models.fast_acvnet import mlx_net  # noqa: PLC0415
+    from fastforks.stereo.models.fast_acvnet import model as fa  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = (fa.Fast_ACVNet_plus if plus else fa.Fast_ACVNet)(192, att_weights_only=False).eval()
+    g = torch.Generator().manual_seed(1)
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+                m.weight.uniform_(0.5, 1.5, generator=g)
+                m.bias.normal_(0, 0.1, generator=g)
+                m.running_mean.normal_(0, 0.1, generator=g)
+                m.running_var.uniform_(0.5, 1.5, generator=g)
+        if not plus:
+            net.gamma.fill_(0.3)
+    net._gb32 = (net.gamma.detach().clone(), net.beta.detach().clone()) if not plus else None
+    left = torch.randn(1, 3, 128, 192, generator=g)
+    right = torch.roll(left, -5, 3) + 0.05 * torch.randn(1, 3, 128, 192, generator=g)
+    with torch.no_grad():
+        want = fa.forward(net, left, right)
+    got = to_torch(mlx_net.MlxFastACV(net, "float32")(to_mx(left), to_mx(right)))
+    assert got.shape == want.shape
+    # random weights leave the final costs of many candidates within 1e-4 of each other (the regression's top-2 pick
+    # is then a tie break); the attention's top-k before it matches to 1e-8 there
+    bad = ((got - want).abs() > 2e-3 + 2e-3 * want.abs()).float().mean().item()
+    assert bad < 0.02, f"{bad:.2%} of the pixels differ"
+    torch.testing.assert_close(got.median(), want.median(), atol=2e-3, rtol=2e-3)
+
+
 @pytest.mark.parametrize(
     ("arch", "kernels"),
     [
@@ -1105,7 +1140,7 @@ def test_mlx_mmseg_matches_torch(arch, kernels):
     net = mm.build(arch).eval()
     with torch.no_grad():
         for m in net.modules():
-            if isinstance(m, torch.nn.BatchNorm2d):
+            if isinstance(m, torch.nn.BatchNorm2d | torch.nn.BatchNorm1d):
                 m.weight.uniform_(0.3, 0.8)
                 m.bias.normal_(0, 0.1)
                 m.running_mean.normal_(0, 0.1)

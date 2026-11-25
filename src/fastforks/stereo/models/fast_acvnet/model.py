@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import exporting_for_mlx
-from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import acv_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -63,8 +61,6 @@ def norm_correlation_volume(fl: torch.Tensor, fr: torch.Tensor, d: int, groups: 
     """
     xl, xr = _normalized(fl, groups), _normalized(fr, groups)
     b, g, _, h, w = xl.shape
-    if exporting_for_mlx():
-        return gwc_volume(xl.flatten(1, 2), xr.flatten(1, 2), d, g)
     volume = xl.new_zeros((b, g, d, h, w))
     for i in range(min(d, w)):  # disparities >= width: no overlap, stays zero
         volume[:, :, i, :, i:] = (xl[..., i:] * xr[..., : w - i]).mean(dim=2)
@@ -91,15 +87,6 @@ def warp(y: torch.Tensor, samples: torch.Tensor) -> torch.Tensor:
     return out.view(b, c, samples.shape[1], h, w)
 
 
-def _pre(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - the module's own arguments and result
-    """`module(*args)` of a stage before the top-k: a float32 island (`float32_call`) of an MLX float16 replay.
-
-    The top-k selection sits on decision boundaries: with the features or the attention hourglass in float16 one
-    quarter-resolution cell of fast-acvnet-plus-sceneflow's golden picks other disparities (4.9 -> 57 px there).
-    """
-    return float32_call(module, *args) if exporting_for_mlx() else module(*args)
-
-
 def _features(net: Net, left: torch.Tensor, right: torch.Tensor) -> tuple[list[torch.Tensor], torch.Tensor]:
     """Both images in one batch through the backbone, the top-down merge and the image stems.
 
@@ -108,16 +95,16 @@ def _features(net: Net, left: torch.Tensor, right: torch.Tensor) -> tuple[list[t
     """
     b = left.shape[0]
     both = torch.cat((left, right), 0)
-    x4, x8, x16, x32 = _pre(net.feature, both)
+    x4, x8, x16, x32 = net.feature(both)
     up = net.feature_up
-    x16 = _pre(up.deconv32_16, x32, x16)
-    x8 = _pre(up.deconv16_8, x16, x8)
-    x4 = _pre(up.conv4, _pre(up.deconv8_4, x8, x4))
-    stem_2 = _pre(net.stem_2, both)
-    stem_4 = _pre(net.stem_4, stem_2)
+    x16 = up.deconv32_16(x32, x16)
+    x8 = up.deconv16_8(x16, x8)
+    x4 = up.conv4(up.deconv8_4(x8, x4))
+    stem_2 = net.stem_2(both)
+    stem_4 = net.stem_4(stem_2)
     feats = [torch.cat((x4, stem_4), 1), x8, x16, x32]
     if isinstance(net, Fast_ACVNet):
-        feats[1] = torch.cat((x8, _pre(net.stem_8, stem_4)), 1)
+        feats[1] = torch.cat((x8, net.stem_8(stem_4)), 1)
     return feats, stem_2[:b]
 
 
@@ -133,7 +120,7 @@ def _attention(
     d4 = net.maxdisp // 4
     p = next(net.parameters())
     corr = norm_correlation_volume(fl[1], fr8, net.maxdisp // 8, 12).to(p.dtype).contiguous(memory_format=fmt3)
-    cost = _pre(net.hourglass_att, _pre(net.corr_feature_att_8, _pre(net.patch, corr), fl[1]), fl)
+    cost = net.hourglass_att(net.corr_feature_att_8(net.patch(corr), fl[1]), fl)
     del corr
     h4, w4 = fl[0].shape[2:]
     att = F.interpolate(to_float32(cost), [d4, h4, w4], mode="trilinear")
@@ -168,12 +155,12 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     if isinstance(net, Fast_ACVNet):
         att = _attention(net, fl, feats[1][b:], s4, fmt3)
     else:
-        match = _pre(net.desc, _pre(net.conv, feats[0]))
+        match = net.desc(net.conv(feats[0]))
         corr = norm_correlation_volume(match[:b], match[b:], net.maxdisp // 4, 1)
         del match
-        cost = _pre(net.corr_feature_att_4, _pre(net.corr_stem, corr.to(p.dtype).contiguous(memory_format=fmt3)), fl[0])
+        cost = net.corr_feature_att_4(net.corr_stem(corr.to(p.dtype).contiguous(memory_format=fmt3)), fl[0])
         del corr
-        att = to_float32(_pre(net.hourglass_att, cost, fl))
+        att = to_float32(net.hourglass_att(cost, fl))
         del cost
     att_prob = F.softmax(att, dim=2)
     del att
@@ -181,9 +168,6 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     att_topk = torch.gather(att_prob, 2, ind)
     del att_prob
     samples = ind.squeeze(1).float()
-    if exporting_for_mlx():  # the float32 features enter the stages after the top-k in the run dtype
-        feats, fl = ([to_run_dtype(t, p.dtype) for t in ts] for ts in (feats, fl))
-        stem_2x = to_run_dtype(stem_2x, p.dtype)
     concat = net.concat_feature(feats[0])
     del feats
     if fmt3 == torch.channels_last_3d:
@@ -280,14 +264,28 @@ class Kernels(_FastACVRunner):
         return {"disparity": self._graphs(left, right)}
 
 
-class _OnePair(Portable):
-    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+class _MlxPortable(_FastACVRunner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
 
     batch = 1
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxFastACV(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity", fp32_inputs=("left", "right")),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
