@@ -1509,11 +1509,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 ### Tracking, Synthetic video
 
-| model | input | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
-|---|---|---|---|
-| cotracker3-online | 8x256x256 | 97.2 | 936 / 1298 |
-| locotrack-b | 8x480x854 | 27.2 | 241 / 278 |
-| locotrack-s | 8x480x854 | 25.3 | 229 / 280 |
+| model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|---|
+| cotracker3-online | 8x256x256 | – | – | 97.2 | – | – | – | – | 936 / 1298 | – |
+| locotrack-b | 8x480x854 | 42.6 | 40.4 | 27.2 | 17.4 | 2.3x | 1.6x | 279 / 334 | 241 / 278 | 232 / 290 |
+| locotrack-s | 8x480x854 | 39.6 | 36.2 | 25.3 | 15.5 | 2.3x | 1.6x | 265 / 316 | 229 / 280 | 220 / 286 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -2113,8 +2113,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | bootstapir | 0.60 | 0.32 | 1.14 | 0.90 | 0.80 | 0.66 |
 | cotracker3-offline | 0.65 | 0.28 | 0.19 | 0.87 | 0.42 | 0.52 |
 | cotracker3-online | 0.54 | 0.27 | 0.18 | 0.54 | 0.47 | 0.52 |
-| locotrack-b | 0.79 | 0.35 | 0.18 | 1.06 | 0.72 | 0.87 |
-| locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
+| locotrack-b | 0.14 (8x480x854) | 0.35 | 0.18 | 0.77 (8x480x854) | 0.72 | 0.87 |
+| locotrack-s | 0.11 (8x480x854) | 0.06 | 1.13 | 0.78 (8x480x854) | 0.65 | 0.66 |
 | tapir | 0.35 | 0.19 | 1.13 | 0.83 | 0.84 | 0.69 |
 | tapnext | 16.92 | 2.37 | 3.01 | 2.17 | 0.67 | 0.54 |
 | tapnext-pp | 4.83 | 1.34 | 1.28 | 1.80 | 0.77 | 0.67 |
@@ -2444,6 +2444,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segformer-b2-clothes | 1024x2048 | 8.81 ms | 4.85 ms | 3.33 ms (full-resolution logits engine) | 3.85 ms | 19.6 s | 61.4 s | 205 / 270 | 204 / 228 | 156 / 214 | 459 / 508 |
 | segformer-b5-ade20k | 1024x2048 | 38.9 ms | 31.4 ms | 22.8 ms | 25.4 ms | 33.8 s | 83.9 s | 444 / 490 | 543 / 630 | 294 / 432 | 2069 / 2110 |
 | segformer-b5-face-parsing | 512x512 | 21.9 ms | 14.1 ms | 6.33 ms | 9.21 ms | 34.5 s | 84.7 s | 278 / 292 | 305 / 352 | 257 / 294 | 538 / 552 |
+| segformer-b5-face-parsing | 1024x2048 | 23.4 ms | 13.3 ms | 7.03 ms (full-resolution logits engine) | 9.53 ms | 37.1 s | 87.1 s | 332 / 398 | 331 / 352 | 279 / 338 | 722 / 766 |
 | segnext-mscan-b-ade20k | 1024x2048 | 28.3 ms | 40.7 ms | 23.3 ms | 12.1 ms | 24.1 s | 66.3 s | 376 / 424 | 491 / 526 | 192 / 226 | 1553 / 1622 |
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.7 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 277 / 320 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 164 / 202 | 1493 / 1544 |
@@ -2781,9 +2782,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cotracker3-online | 8x256x256 | 97.2 ms | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | 936 / 1298 | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
 | locotrack-b | 480x854 | 189 ms | 82.6 ms | 65.8 ms (24 frames with 256 queries) | 109 ms | 146 s | 170 s | 535 / 596 | 1117 / 1140 | 507 / 600 | 849 / 882 |
-| locotrack-b | 8x480x854 | 27.2 ms | – | 6.12 ms (8 frames with 16 queries only) | – | – | – | 241 / 278 | – | – | 233 / 242 |
+| locotrack-b | 8x480x854 | 27.2 ms | 9.16 ms (fixed 8-frame, 16-query tensor module) | 6.12 ms (fixed 8-frame, 16-query tensor module) | 17.4 ms | 48.8 s | – | 241 / 278 | 262 / 336 | 232 / 290 | 233 / 242 |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | 49.8 ms (24 frames with 256 queries) | 151 ms | 140 s | 159 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 714 / 762 |
-| locotrack-s | 8x480x854 | 25.3 ms | – | 5.66 ms (8 frames with 16 queries only) | – | – | 51.4 s | 229 / 280 | – | – | 251 / 256 |
+| locotrack-s | 8x480x854 | 25.3 ms | 8.84 ms (fixed 8-frame, 16-query tensor module) | 5.66 ms (fixed 8-frame, 16-query tensor module) | 15.5 ms | 46.7 s | 51.4 s | 229 / 280 | 247 / 316 | 220 / 286 | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |

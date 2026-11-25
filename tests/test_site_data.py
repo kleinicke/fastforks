@@ -226,6 +226,9 @@ def test_published_clip_timings_match_exported_workloads():
         else:
             assert standard["workload"] == {"frames": 24, "queries": 256}
             assert clip["workload"] == {"frames": 8, "queries": 16}
+            assert set(clip["modes"]) >= {"original32", "original16", "portable", "kernels"}
+            assert clip["compile"]["part"] == "fixed 8-frame, 16-query tensor module"
+            assert clip["tensorrt"]["part"] == "fixed 8-frame, 16-query tensor module"
             assert "ms" in standard["tensorrt"]
             assert standard["tensorrt"]["part"] == "24 frames with 256 queries"
 
