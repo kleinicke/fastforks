@@ -4,6 +4,7 @@ summary = "InSPyReNet (Kim et al., ACCV 2022): salient object detection with an 
 tier = "experimental"
 outputs = ["alpha"]
 uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap", "swin_v1"]  # fastforks.shared modules this family imports
+limitations = ["On Linux CUDA, the base 1024 × 1024 network runs eagerly by default. Set `cuda_graph_policy=\"on\"` to enable graph replay or `\"off\"` to disable it for either variant."]
 
 [upstream]
 repo = "https://github.com/plemeri/transparent-background"
@@ -27,6 +28,9 @@ input = "imagenet"  # Remover: static resize to `size` x `size` (PIL bilinear; h
 
 [params]
 size = 1024  # network input side (base_size); the sigmoid map is min-max normalised and resized back (bilinear, align_corners)
+
+[options]
+cuda_graph_policy = { default = "auto", choices = ["auto", "on", "off"], effect = "speed" }
 
 [modes.portable]
 cuda_dtype = "float16"

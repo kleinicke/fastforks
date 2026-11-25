@@ -166,6 +166,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/plemeri/transparent-background/blob/f0fa91701a98cfc8e955c554e84522f365ec6da3/LICENSE ; https://github.com/plemeri/transparent-background/releases/tag/1.2.12 ; https://github.com/plemeri/InSPyReNet/blob/692ad8a5774cf95ef615a730d5070aad18f6b160/docs/model_zoo.md
 - Training data: DUTS (salient object detection), HRSOD (high-resolution salient object detection), UHRSD (ultra-high-resolution salient object detection), DIS5K (dichotomous image segmentation) (plemeri/InSPyReNet docs/model_zoo.md, Plus_Ultra(_LR): DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, DIS-TR/VD/TE1-4, DUT-OMRON, ECSSD, HKU-IS, PASCAL-S, DAVIS-S, FSS-1000, MSRA-10K (all test sets included, so benchmark numbers on them are not held out). Swin-B backbone from ImageNet-22k -> 1k.)
+- Options: `cuda_graph_policy` = auto (one of 'auto', 'on', 'off'; speed only)
 - Kernel libraries: `image_normalize`
 - Variants: `inspyrenet`, `inspyrenet-fast`
 - Outputs: alpha
@@ -198,6 +199,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `inspyrenet` | 3e-05 / 0.00067 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 | `inspyrenet-fast` | 1e-05 / 0.00029 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+
+### Limitations
+
+- On Linux CUDA, the base 1024 × 1024 network runs eagerly by default. Set `cuda_graph_policy="on"` to enable graph replay or `"off"` to disable it for either variant.
 
 </details>
 
