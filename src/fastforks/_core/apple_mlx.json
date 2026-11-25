@@ -12924,23 +12924,27 @@
   },
   "yolox-l@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -12948,16 +12952,28 @@
    }
   },
   "yolox-m@1": {
+   "auto": [
+    "kernels",
+    "float32"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -12970,7 +12986,7 @@
     "float16"
    ],
    "dtypes": {
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -12978,7 +12994,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "passed": {
     "kernels": [
@@ -13021,22 +13037,27 @@
   },
   "yolox-x@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"

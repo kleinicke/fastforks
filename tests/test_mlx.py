@@ -1194,3 +1194,27 @@ def test_mlx_rtmdet_matches_torch(params):
     assert len(got) == len(want) == 6
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g).permute(0, 3, 1, 2), w, atol=1e-4 * w.abs().max().item(), rtol=1e-3)
+
+
+@pytest.mark.parametrize("graph", ["portable", "kernels"])
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+def test_mlx_yolox_matches_torch(graph, dtype):
+    """The hand-written YOLOX (`yolox/mlx_net.py`, the shared CSPNeXt layers) against the network (tiny's widths)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection.models.yolox import mlx_net  # noqa: PLC0415
+    from fastforks.detection.models.yolox.net import YOLOX, Arch  # noqa: PLC0415
+    from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = YOLOX(Arch(depth=0.33, width=0.375, num_classes=3)).eval()
+    x = 255 * torch.rand(2, 3, 128, 160, generator=torch.Generator().manual_seed(1))
+    with torch.no_grad():
+        want = net(x)
+    csp.options(graph, gemm1x1=False)
+    got = mlx_net.MlxYOLOX(net, dtype, graph)(to_mx(x.permute(0, 2, 3, 1)))
+    assert len(got) == len(want) == 6
+    tol = 1e-4 if dtype == "float32" else 2e-2
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g).permute(0, 3, 1, 2), w, atol=tol * w.abs().max().item(), rtol=tol * 10)

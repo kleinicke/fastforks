@@ -200,11 +200,44 @@ class Kernels(Portable):
                 cache.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), canvases, decoding and NMS as portable.
+
+    Kernels mode dispatches the convs to the `conv_mlx` kernels as the graph translator does. 1 x 1 convs stay
+    `mx.conv2d` (not the translator's GEMM): they gave ~3 % on yolox-s, and the yolox-x kernels float16 golden
+    drifted past its limit with them (boxes mean |diff| 0.80 of 0.2).
+    """
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable network (BatchNorm folded), its weights copied to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.graph = "kernels" if ctx.mode == "kernels" else "portable"
+        with csp.run_dtype_silu():  # as the exported network: the float32 one drifts yolox-m / -s float16 (see csp)
+            self.mlx = mlx_net.MlxYOLOX(self.net, mlx_wrap.run_dtype(ctx), self.graph)
+        self.net = None  # the MLX copy replaces it
+
+    def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The float32 NCHW head maps of a float32 input in 0..255."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415 - imports mlx
+
+        csp.options(self.graph, gemm1x1=False)
+        maps = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
+        mx.eval(*maps)
+        return tuple(to_torch(m).permute(0, 3, 1, 2) for m in maps)
+
+
+_MLX = mlx_wrap.port(_MlxPortable, attrs=())
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    # `gemm1x1=False`: the 1x1 GEMMs gave ~3 % on yolox-s, and the yolox-x kernels float16 golden drifted past its
-    # limit with them (boxes mean |diff| 0.80 of 0.2).
-    "portable_mlx": mlx_wrap.port(Portable, gemm1x1=False),
-    "kernels_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+    "portable_mlx": _MLX,
+    "kernels_mlx": _MLX,
 }

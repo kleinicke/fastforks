@@ -1705,6 +1705,50 @@ Left: peaks of l / x +170-380 MB above the exported port's (x fp32 1899 vs 1516 
 1163 MB, the stepped call's transients the rest); s / tiny / nano 50-130 MB lower, m about level; all 0.4-1.1 GB under
 MPS. 7 refs, hand-written.
 
+### Done: YOLOX (2026-11-25)
+
+M1 Pro, 800x1344, MLX goldens pass (portable and kernels, fp16 and fp32). `auto` now takes MLX for yolox-m too (kernels
+float32; its kernels float16 first call 0.33 s is just over the 0.33 s budget) and kernels float16 for yolox-l / -x
+(portable float16 before).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| yolox-tiny | MLX before, portable fp16 / fp32 | 13.4 / 15.1 | 1.54 / 1.55 | 454 / 502 | MLX kernels fp16 |
+|  | MLX before, kernels fp16 / fp32 | 12.6 / 14.5 | 1.74 / 1.55 | 470 / 538 |  |
+|  | MLX now, portable fp16 / fp32 (run 2; run 1 9.8 / 10.5) | 9.8 / 10.4 | 0.50 / 0.67 | 417 / 459 | MLX kernels fp16 |
+|  | MLX now, kernels fp16 / fp32 (run 2; run 1 9.0 / 9.8) | 9.1 / 9.9 | 0.53 / 0.54 | 427 / 472 |  |
+| | MPS portable fp16 / fp32 | 20.1 / 20.1 | 2.69 / 3.29 | 1492 / 1497 | |
+| yolox-s | MLX before, portable fp16 / fp32 | 22.4 / 28.6 | 1.26 / 1.25 | 607 / 666 | MLX kernels fp16 |
+|  | MLX before, kernels fp16 / fp32 | 20.8 / 28.8 | 1.29 / 1.23 | 618 / 672 |  |
+|  | MLX now, portable fp16 / fp32 (run 2; run 1 17.7 / 21.1) | 17.6 / 21.0 | 0.51 / 0.52 | 539 / 646 | MLX kernels fp16 |
+|  | MLX now, kernels fp16 / fp32 (run 2; run 1 16.0 / 19.7) | 16.1 / 19.7 | 0.55 / 0.56 | 543 / 640 |  |
+| | MPS portable fp16 / fp32 | 30.7 / 33.4 | 2.72 / 2.72 | 1542 / 1556 | |
+| yolox-m | MLX before, portable fp16 / fp32 | 44.6 / 51.8 | 1.32 / 1.28 | 736 / 921 | MPS |
+|  | MLX now, portable fp16 / fp32 (run 2; run 1 35.4 / 41.3) | 36.2 / 41.2 | 0.06 / 0.07 | 704 / 859 | MLX kernels fp32 |
+|  | MLX now, kernels fp16 / fp32 (run 2; run 1 30.3 / 36.7) | 30.3 / 35.7 | 0.33 / 0.10 | 799 / 874 |  |
+| | MPS portable fp16 / fp32 | 50.0 / 55.2 | 0.23 / 0.23 | 1640 / 1703 | |
+| yolox-l | MLX before, portable fp16 / fp32 | 69.6 / 92.9 | 1.53 / 1.49 | 851 / 976 | MLX portable fp16 |
+|  | MLX now, portable fp16 / fp32 (run 2; run 1 57.9 / 69.3) | 58.4 / 69.1 | 0.56 / 0.56 | 1021 / 1307 | MLX kernels fp16 |
+|  | MLX now, kernels fp16 / fp32 (run 2; run 1 53.4 / 60.4) | 53.9 / 60.4 | 0.63 / 0.64 | 1104 / 1286 |  |
+| | MPS portable fp16 / fp32 | 79.4 / 88.7 | 2.88 / 3.41 | 1861 / 1829 | |
+| yolox-x | MLX before, portable fp16 / fp32 | 121.3 / 152.2 | 1.70 / 1.60 | 1229 / 1435 | MLX portable fp16 |
+|  | MLX now, portable fp16 / fp32 (run 2; run 1 103.6 / 119.8) | 102.9 / 119.0 | 0.64 / 0.14 | 1350 / 1675 | MLX kernels fp16 |
+|  | MLX now, kernels fp16 / fp32 (run 2; run 1 93.5 / 99.4) | 93.9 / 101.4 | 0.27 / 0.28 | 1522 / 1703 |  |
+| | MPS portable fp16 / fp32 | 123.3 / 134.6 | 2.83 / 0.32 | 2036 / 2075 | |
+
+`detection/models/yolox/mlx_net.py` writes the Focus stem, CSPDarknet, the PAFPN and the decoupled head in `mlx.core`
+on the `shared/cspnext/mlx_net.py` layers, the convs dispatched as the graph translator does (`graph`: portable
+`_conv2d`, kernels the `conv_mlx` Winograd / direct convs; 1 x 1 convs `mx.conv2d`, `gemm1x1=False` as before). SiLU
+in the run dtype (`csp.run_dtype_silu`): the float32 one put yolox-m portable / kernels and yolox-s kernels float16
+just past their golden limits (boxes p99 0.511 of 0.51, scores p99 0.0049), as the exported network did it passes.
+Each stage, neck block and head level a depth-1 step (`csp.stepped`). The cspnext convs keep one MLX copy of each
+weight (the GEMM takes the OHWI weight's transposed view, the Winograd cache key is a shape stand-in): two copies put
+yolox-x fp32 at 2057 MB. Warm -15 to -32 %, first call 1.2-1.7 -> 0.06-0.67 s.
+
+Left: peaks of l / x above the exported port's (l fp32 1307 vs 976, x fp32 1675 vs 1435 MB; the load peak is most
+of it: the torch network and its MLX copy coexist while the weights are copied); tiny / s / m lower or level; all
+0.4-1.1 GB under MPS. 5 refs, hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /
