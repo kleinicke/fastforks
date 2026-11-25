@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1694 rows, measured 2026-11-19 to 2026-11-25.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1695 rows, measured 2026-11-19 to 2026-11-25.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -178,7 +178,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`prompt-depth-anything-s`](models/depth.md#prompt_depth_anything) | – | – | 148 ms · portable fp16 | – | – | – | – | – |
 | [`stablenormal-turbo`](models/depth.md#stablenormal) | – | 1652 ms · portable fp16 | 2299 ms · portable fp16 | – | – | – | – | – |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1252 ms · portable fp32 | 1173 ms · portable fp16 | 85.8 ms · kernels fp16 | 25.4 ms · kernels fp16 | 77.0 ms · kernels fp16 | 26.6 ms · kernels fp16 | 18.4 ms · portable fp16 |
-| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1129 ms · portable fp16 | 947 ms · portable fp16 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1129 ms · portable fp16 | 935 ms · portable fp16 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
 | [`video-depth-anything-metric-s`](models/depth.md#video_depth_anything) | – | 780 ms · portable fp16 | 893 ms · portable fp16 | – | – | – | – | – |
 | [`video-depth-anything-s`](models/depth.md#video_depth_anything) | – | 779 ms · portable fp16 | 900 ms · portable fp16 | – | – | – | – | – |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 837 ms · portable fp16 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 | 41.2 ms · kernels fp16 | 19.2 ms · kernels fp16 |

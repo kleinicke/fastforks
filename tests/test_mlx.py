@@ -1119,3 +1119,28 @@ def test_mlx_mmseg_matches_torch(arch, kernels):
     assert got.shape == want.shape
     scale = want.abs().max().item()
     torch.testing.assert_close(got, want, atol=2e-4 * scale, rtol=1e-3)
+
+
+@pytest.mark.parametrize("given", [False, True])
+def test_mlx_unik3d_matches_torch(monkeypatch, given):
+    """The hand-written UniK3D (`unik3d/mlx_net.py`) against the network, float32: four ViT-L blocks, random decoder."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks.depth.models.unik3d import mlx_net  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.depth.models.unik3d import net as un  # noqa: PLC0415
+
+    monkeypatch.setattr(un, "LAYERS", (0, 1, 2, 3))  # read at run time by both: a 4-block encoder
+    torch.manual_seed(0)
+    net = un.UniK3DNet()
+    net.pixel_encoder.blocks = net.pixel_encoder.blocks[:4]
+    for name, p in net.named_parameters():  # unit norms / scales and zero positions would hide folding errors
+        if "norm" in name or "gamma" in name or "latents_pos" in name or name.endswith(("pos_embed", "cls_token")):
+            p.data.add_(torch.randn_like(p) * 0.3)
+    net.eval()
+    x = torch.randn(2, 3, 112, 154)
+    with torch.no_grad():
+        rays = net(x, None)[2] if given else None
+        want = net(x, rays)
+    got = mlx_net.MlxUniK3D(net, "float32")(x, rays)
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(g, w, atol=2e-4, rtol=2e-4)

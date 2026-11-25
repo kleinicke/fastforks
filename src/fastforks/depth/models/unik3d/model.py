@@ -441,9 +441,33 @@ class Kernels(Runner):
         return _restore(g, logr, logc, rays)
 
 
+class _MlxPortable(Portable):
+    """`Portable` for the MLX runners: the network in hand-written MLX operations (`mlx_net`).
+
+    No exported graph, so no trace on a first call; the pre- and post-processing are `Portable`'s, on the CPU.
+    """
+
+    module = Runner.module  # MLX operations: nothing to export
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert the network's weights."""
+        Runner.__init__(self, ctx)
+        _check(ctx)
+        from . import mlx_net  # noqa: PLC0415 - MLX only on Apple
+
+        self.net = mlx_net.MlxUniK3D(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def _run(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        g, x, rays = _prepare(self.ctx, image, intrinsics)
+        logr, logc, rays = self.net(x, rays, confidence=self.ctx.params.confidence)
+        return _restore(g, logr, logc, rays)
+
+
+# `mlx_wrap.port` with nothing to wrap: it builds the runner with float32 weights read lazily from the checkpoint
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
 }

@@ -1614,6 +1614,27 @@ load 986 vs 646 MB, calls 2010-2043 vs 1865-1930): the MLX weights exist at load
 the call itself matches. Warm times moved by -10 to +8 % between the two runs (the shared Mac); deeplabv3plus fp16 is
 8-13 % slower in both runs (the dilated depthwise ASPP convs), hrnet fp16 portable 9 %. 5 refs, all hand-written.
 
+### Done: UniK3D (2026-11-25)
+
+M1 Pro, 994x1482, MLX goldens pass (fp16 and fp32). `auto` now takes MLX portable float16 (it took MPS: the exported
+port's 3.9 s first call was over the 3.48 s budget).
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| unik3d-vitl | MLX before, portable fp16 / fp32 | 947.3 / 1229.7 | 3.87 / 3.92 | 1830 / 3465 | MPS |
+| | MLX now, portable fp16 / fp32 (run 2; run 1 920.7 / 1405.2) | 934.6 / 1266.2 | 0.94 / 1.78 | 1948 / 3114 | MLX portable fp16 |
+| | MPS portable fp16 / fp32 | 1129.4 / 1217.5 | 1.22 / 1.39 | 4036 / 4001 | |
+
+`depth/models/unik3d/mlx_net.py` writes the network in `mlx.core`: the DINOv2 ViT-L encoder on the shared `mlx_vit`
+blocks, the angular module and the rays in float32 (camera tokens, spherical harmonics, the antialiased ray
+downsampling as two matrix products), the radial decoder with its norms' affines folded, the transposed convs as one
+GEMM and a depth-to-space, 1 x 1 convs as matrix products and the bilinear resizes on the shared NHWC kernel; the
+spherical harmonics and the position-table resize are shared with the torch network (`net.rsh_terms`,
+`net.pos_table`).
+
+Left: fp16 peaks 118 MB (6 %) above the exported port's, the MLX weights at load (as for RF-DETR and mmseg); fp32 warm
++3 % in run 2 and +14 % in run 1 (the shared Mac; fp32 peak -351 MB). 1 ref, hand-written.
+
 ### Done: MLX memory peaks (2026-11-25)
 
 M1 Pro, `tools/speed_survey.py`, each ref surveyed twice and the second run recorded; all goldens pass. Warm ms /

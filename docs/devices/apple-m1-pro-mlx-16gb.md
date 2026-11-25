@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1694 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1695 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -145,7 +145,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`prompt-depth-anything-s`](../models/depth.md#prompt_depth_anything) | 189 | 148 | – | unsupported | – | – | 971 | – |
 | [`stablenormal-turbo`](../models/depth.md#stablenormal) | 3589 | 2299 | – | unsupported | – | – | 8683 | – |
 | [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1254 | 1173 | – | – | – | – | 1825 | – |
-| [`unik3d-vitl`](../models/depth.md#unik3d) | 1230 | 947 | – | – | – | – | 1830 | – |
+| [`unik3d-vitl`](../models/depth.md#unik3d) | 1266 | 935 | – | unsupported | – | – | 1948 | – |
 | [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | 1474 | 893 | – | unsupported | – | – | 2978 | – |
 | [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | 1472 | 900 | – | unsupported | – | – | 2980 | – |
 | [`zoedepth-nk`](../models/depth.md#zoedepth) | 1009 | 837 | – | unsupported | – | – | 1919 | – |

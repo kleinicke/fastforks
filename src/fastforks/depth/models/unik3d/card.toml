@@ -3,7 +3,7 @@ name = "UniK3D"
 summary = "UniK3D (Piccinelli et al. 2025): monocular metric 3-D for any camera model; a DINOv2 ViT-L encoder and a camera-prompted decoder predict a spherical-harmonic ray model and per-pixel radii (depth, 3-D points, confidence), or use given pinhole intrinsics."
 tier = "stable"
 outputs = ["depth", "points", "confidence"]
-uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
+uses = ["depth_anything_v2", "mlx_graph", "mlx_vit", "mlx_wrap"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
 
 [output]
 kind = "metric"  # metres
