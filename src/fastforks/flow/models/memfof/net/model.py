@@ -312,10 +312,11 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
             cnet = self.cnet(torch.cat([image1, image1, image2], dim=1))
             cnet = self.init_conv(cnet)
             net, context = torch.split(cnet, [self.dim, self.dim], dim=1)
-            attention = self.att(context)
             flow_update = self.flow_head(net)
             fmap1_16x = self.fnet(image1)
             fmap3_16x = self.fnet(image2)
+            # Keep the quadratic attention matrix out of the feature encoders' peak.
+            attention = self.att(context)
         flow_16x_21 = to_float32(flow_update[:, 0:2])
         flow_16x_23 = to_float32(flow_update[:, 6:8])
         if corr_fn is None:
