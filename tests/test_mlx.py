@@ -1017,3 +1017,40 @@ def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
     assert (m.device, m._device, m._result_device) == (mps, torch.device("cpu"), mps)
     # what runs, not a relabel: the port's own mode and kernels
     assert (m.backend.device, m.backend.mode, m.backend.kernels) == ("mlx", "portable", ())
+
+
+@pytest.mark.parametrize(("features", "patch"), [((4, 8), 16), ((16, 32, 32), 32)])
+def test_mlx_unet_matches_torch(features, patch):
+    """`volume.mlx_net.MlxUNet` (direct and banded Winograd 3x3x3 convs) against the PyTorch `UNet` in float32."""
+    pytest.importorskip("mlx.core")
+    from fastforks.volume import _nnunet, mlx_net  # noqa: PLC0415 - optional (the mlx extra)
+
+    n = len(features)
+    arch = {
+        "network_class_name": "dynamic_network_architectures.architectures.unet.PlainConvUNet",
+        "arch_kwargs": {
+            "n_stages": n, "features_per_stage": list(features), "kernel_sizes": [[3, 3, 3]] * n,
+            "strides": [[1, 1, 1]] + [[2, 2, 2]] * (n - 1), "n_conv_per_stage": [2] * n,
+            "n_conv_per_stage_decoder": [2] * (n - 1), "conv_bias": True,
+            "norm_op": "torch.nn.modules.instancenorm.InstanceNorm3d", "norm_op_kwargs": {"eps": 1e-5, "affine": True},
+            "nonlin": "torch.nn.LeakyReLU", "nonlin_kwargs": {"inplace": True},
+        },
+    }  # fmt: skip
+    conf = {"patch_size": [patch] * 3, "spacing": [1.5] * 3, "normalization_schemes": ["CTNormalization"],
+            "use_mask_for_norm": [False], "architecture": arch}  # fmt: skip
+    props = {"0": {"mean": 50.0, "std": 200.0, "percentile_00_5": -900.0, "percentile_99_5": 1200.0}}
+    plans = {"configurations": {"3d_fullres": conf}, "foreground_intensity_properties_per_channel": props}
+    plan = _nnunet.read_plan(plans, {"channel_names": {"0": "CT"}, "labels": {"background": 0, "a": 1, "b": 2}})
+    torch.manual_seed(0)
+    net = _nnunet.UNet(plan, 1).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.InstanceNorm3d):
+                m.weight.uniform_(0.5, 1.5)
+                m.bias.normal_(0, 0.3)
+    assert mlx_net.supported(plan)
+    mnet = mlx_net.MlxUNet(mlx_net.params(net.state_dict(), plan), plan, "float32")
+    x = torch.randn(1, 1, patch, patch, patch)
+    with torch.no_grad():
+        want = net(x)
+    torch.testing.assert_close(mnet(x), want, atol=2e-3, rtol=2e-3)

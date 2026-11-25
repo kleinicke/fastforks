@@ -685,8 +685,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | 3302 ms · portable fp16 | 3520 ms · portable fp16 |
 | [`nninteractive`](models/volume.md#nninteractive) | 3525 ms · portable fp32 | 3797 ms · portable fp16 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 23070 ms · portable fp16 | 33823 ms · portable fp16 |
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 522 ms · portable fp16 | 740 ms · portable fp16 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 23070 ms · portable fp16 | 19980 ms · portable fp16 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 522 ms · portable fp16 | 495 ms · portable fp16 |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)
