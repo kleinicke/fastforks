@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
-from .mlx import MlxRAFT
 from .net import LARGE, RAFT, SMALL
 
 if TYPE_CHECKING:
@@ -131,20 +130,34 @@ class MetalKernels(Portable):
         return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
 
 
-class _Mlx(Portable):
-    """The network the MLX port exports: `MlxRAFT` (`mlx.py`), without the correlation volume; one pair per call."""
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), one pair per call."""
 
-    batch = 1
+    batch = 1  # one pair per call (`mlx_net`)
+    dtypes = ("float32", "float16")
+    Params = Params
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network; regroup it for MLX."""
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
         super().__init__(ctx)
-        self.net = MlxRAFT(cast("RAFT", self.net))  # `Portable`'s network
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = RAFT(LARGE if ctx.params.size == "large" else SMALL)
+        sd = ctx.state_dict()
+        check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+        net.load_state_dict(sd)
+        self.net = mlx_net.MlxRAFT(net.eval(), mlx_wrap.run_dtype(ctx), ctx.params.iters)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"flow": to_torch(self.net(to_mx(image1.float()), to_mx(image2.float())))}
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(_Mlx, cache_mb=1024),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
 }
