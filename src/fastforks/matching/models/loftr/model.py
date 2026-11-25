@@ -185,11 +185,42 @@ class Kernels(Portable):
         override(self.net.loftr, _coarse_matches, "coarse_matches")
 
 
+class _MlxPortable(Runner):
+    """Apple MLX: the whole matcher written in MLX operations (`mlx_net`), fine matching included."""
+
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Copy the weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        sd = ctx.state_dict(0, key="state_dict", strip="matcher.")
+        self.net = mlx_net.MlxLoFTR(mlx_net.prepare(sd), ctx.params, mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The matched points of both images, their index pairs and confidences (CPU tensors)."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        for image in (image1, image2):
+            h, w = image.shape[-2:]
+            rh, rw = resized_size(h, w, self.ctx.params.long_side)
+            if min(rh, rw) < DIVISOR * 2:
+                msg = f"image of {w} x {h} px is too small for LoFTR (matched at {rw} x {rh}; at least 16 px per side)"
+                raise ValueError(msg)
+        k1, k2, scores = self.net(to_mx(image1.float()), to_mx(image2.float()))
+        idx = torch.arange(len(scores))
+        return {
+            "keypoints1": torch.from_numpy(k1),
+            "keypoints2": torch.from_numpy(k2),
+            "pairs": torch.stack([idx, idx], -1),
+            "scores": torch.from_numpy(scores),
+        }
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    # float16: the backbone's ragged 3x3 convs (196 channels) padded into MLX's Winograd, as in float32; unpadded
-    # they run on the GEMM path and the backbone is slower than in float32 (854 vs 509 ms at 768 x 1024). The
-    # golden error is the same either way (outdoor mean 0.0023).
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse"), half_wino_pad=True),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
