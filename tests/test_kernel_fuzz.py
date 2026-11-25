@@ -624,3 +624,19 @@ def test_stereo_fused_feature_flaw(dev, height, width, channels):
     torch.testing.assert_close(out[:, 2 : 2 + channels], expected, atol=0, rtol=0)
     assert torch.all(out[:, :2] == 1)
     assert torch.all(out[:, 2 + channels :] == 1)
+
+
+@pytest.mark.parametrize(("rows", "columns"), [(5, 37), (11, 4097)])
+def test_gmflow_two_channel_expectation(dev, rows, columns):
+    from fastforks.kernels.gmflow import load  # noqa: PLC0415 - CUDA kernel only
+
+    generator = torch.Generator(device=dev).manual_seed(65)
+    scores = torch.randn(2, rows, columns, device=dev, generator=generator, dtype=torch.float32)
+    values = torch.randn(2, columns, 2, device=dev, generator=generator, dtype=torch.float32)
+    out = torch.full((2, rows + 4, 2), -1000.0, dtype=torch.float32, device=dev)
+    load(scores.device).launch(
+        "expectation2", (rows, 2, 1), (256, 1, 1), scores, values, out[:, 2:], rows, columns, rows + 4
+    )
+    torch.testing.assert_close(out[:, 2:-2], torch.bmm(scores.softmax(-1), values), rtol=2e-5, atol=2e-6)
+    assert torch.all(out[:, :2] == -1000)
+    assert torch.all(out[:, -2:] == -1000)

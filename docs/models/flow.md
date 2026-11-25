@@ -253,7 +253,7 @@ Commercial use: yes.
   - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `flow_upsample`
+- Kernel libraries: `flow_upsample`, `gmflow`
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
 - Public TensorRT export is unavailable for `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata` (the TensorRT 10 engine build fails (Myelin error on the attention graph)).
 - Outputs: flow
@@ -353,15 +353,15 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gmflow-scale1-things` | 0.00198 / 0.00808 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale1-mixdata` | 0.002 / 0.00938 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-things` | 0.00128 / 0.00537 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-sintel` | 0.00134 / 0.00653 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-mixdata` | 0.00145 / 0.00581 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-regrefine6-things` | 0.00098 / 0.00504 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-regrefine6-sintelft` | 0.00112 / 0.00836 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-regrefine6-kitti` | 0.00175 / 0.01264 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
-| `gmflow-scale2-regrefine6-mixdata` | 0.00098 / 0.00564 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale1-things` | 0.00185 / 0.00621 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale1-mixdata` | 0.00192 / 0.00721 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-things` | 0.00124 / 0.00529 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-sintel` | 0.00139 / 0.0068 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-mixdata` | 0.00138 / 0.00546 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-regrefine6-things` | 0.00095 / 0.0049 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-regrefine6-sintelft` | 0.00111 / 0.00855 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-regrefine6-kitti` | 0.00176 / 0.01269 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
+| `gmflow-scale2-regrefine6-mixdata` | 0.001 / 0.00667 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `gmflow@64ee19f17b92:sm_120` |
 
 ### Limitations
 
