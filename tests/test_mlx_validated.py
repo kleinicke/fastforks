@@ -48,18 +48,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "portable float16",
         "portable float32",
     ),
-    "yolox-l@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "yolox-m@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "yolox-x@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
 }
 
 
