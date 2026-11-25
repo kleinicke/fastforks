@@ -16,8 +16,8 @@ upstream = "https://github.com/prs-eth/Marigold@2bfbdeae5d10a50b71f1ba20c865d46e
 settings = "CPU float32, weights prs-eth/marigold-depth-v1-1@9571e7123e258cf052b4e54241f17971c290e9a8, 4 DDIM steps, processing_res 768, ensemble 1, CPU generator seed 2024, torch 2.14.1+cu130"
 
 [validated."marigold-depth-v1-1@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "group_silu@a8f4e21c9df2:sm_120"]
+symbols = {"group_silu" = {"affine_silu_h" = "6b0062bd5ca58f7f", "group_moments" = "4486b5af81ed266e", "normalize_silu" = "4237a4a818e67496", "tile_moments" = "ea425000ecd6e3f7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"

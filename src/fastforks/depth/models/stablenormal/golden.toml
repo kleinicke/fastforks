@@ -15,8 +15,8 @@ upstream = "https://github.com/Stable-X/StableNormal@594b934630ab3bc71f35c77d14e
 settings = "CPU float32, weights Stable-X/yoso-normal-v0-3@2202fcb69960d94b437e06c19c556a12ceeb57c0 (fp16 files), t_start 0, processing resolution 768, CPU generator seed 0 as `latents`, camera frame, diffusers 0.41.0, torch 2.14.1+cu130"
 
 [validated."stablenormal-turbo@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "group_silu@a8f4e21c9df2:sm_120"]
+symbols = {"group_silu" = {"affine_silu_h" = "6b0062bd5ca58f7f", "group_moments" = "4486b5af81ed266e", "normalize_silu" = "4237a4a818e67496", "tile_moments" = "ea425000ecd6e3f7"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-25"

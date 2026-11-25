@@ -65,8 +65,8 @@ def group_norm(x: torch.Tensor, m: torch.nn.GroupNorm, *, silu: bool = False, fu
 class Fast:
     """The fp16 channels-last network plus the per-timestep and per-prompt constants."""
 
-    fuse_affine_silu = False
-    vae_tile_bytes = 0
+    fuse_affine_silu = True
+    vae_tile_bytes = 48 << 20  # bound one high-resolution VAE intermediate
 
     def __init__(
         self,
@@ -130,17 +130,21 @@ class Fast:
             stripe = x[..., lo:hi, :]
             part = _affine_silu(stripe, scale, shift, fused=self.fuse_affine_silu)
             tile = self.conv(part, conv)
-            tile = tile[..., start-lo:end-lo, :]
+            tile = tile[..., start - lo : end - lo, :]
             del part
             if skip is not None:
                 skip_part = skip[..., start:end, :]
                 tile.add_(skip_part if shortcut is None else self.conv(skip_part, shortcut))
             if out is None:
-                out = torch.empty((b, tile.shape[1], height, width), dtype=tile.dtype, device=tile.device,
-                                  memory_format=torch.channels_last)
+                out = torch.empty(
+                    (b, tile.shape[1], height, width),
+                    dtype=tile.dtype,
+                    device=tile.device,
+                    memory_format=torch.channels_last,
+                )
             out[..., start:end, :].copy_(tile)
             del tile
-        assert out is not None  # noqa: S101 - the decoder map has at least one row
+        assert out is not None  # noqa: S101 - the feature map has at least one row
         return out
 
     def _vae_resnet(self, r: ResnetBlock2D, x: torch.Tensor) -> torch.Tensor:
@@ -277,7 +281,7 @@ class Fast:
         x = self.conv(x.contiguous(memory_format=torch.channels_last), e.conv_in)
         for blk in e.down_blocks:
             for r in blk.resnets:  # ty: ignore[not-iterable] - ModuleList
-                x = self.resnet(r, x, None)
+                x = self._vae_resnet(r, x)
             if blk.downsamplers is not None:
                 x = self.conv(F.pad(x, (0, 1, 0, 1)), blk.downsamplers[0].conv)
         x = self.vae_mid(e.mid_block, x)

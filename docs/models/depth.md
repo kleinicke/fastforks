@@ -600,7 +600,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/EnVision-Research/Lotus/blob/b737e12238d2a41fc582ee8c6c6b1104d318d799/LICENSE (Apache-2.0); https://huggingface.co/jingheya/lotus-normal-g-v1-1/blob/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 base (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 per the Lotus paper (arXiv 2409.18124)
 - Options: `long_side` = 768 (>= 0; also `processing_res`), `seed` = 42
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -631,8 +631,8 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lotus-normal-g-v1-1` | 0.00022 / 0.00096 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `lotus-normal-d-v1-1` | 0.00036 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lotus-normal-g-v1-1` | 0.00022 / 0.00096 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
+| `lotus-normal-d-v1-1` | 0.00036 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -663,7 +663,7 @@ Commercial use: yes.
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the Marigold papers (arXiv 2312.02145, 2505.09358)
 - Licence note: The weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
 - Options: `steps` = 4 (1 to 1000), `long_side` = 768 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `marigold-depth-v1-1`
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 8, resized or padded inside the model
@@ -692,7 +692,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-depth-v1-1` | 0.00016 / 0.00049 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-depth-v1-1` | 0.00016 / 0.00049 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -722,7 +722,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/blob/28214f06633a6a73088b569d1d068c3e48ea7902/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim, Virtual KITTI 2 and other synthetic datasets per the Marigold paper (arXiv 2505.09358), then LCM-distilled
 - Options: `steps` = 1 (1 to 50), `long_side` = 768 (>= 0; also `processing_res`), `seed` = 2024
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `marigold-normals-lcm-v0-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -749,7 +749,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `marigold-normals-lcm-v0-1` | 0.0003 / 0.0012 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `marigold-normals-lcm-v0-1` | 0.0003 / 0.0012 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 
@@ -1271,7 +1271,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/Stable-X/StableNormal/blob/594b934630ab3bc71f35c77d14ec7feb98480cd0/LICENSE.txt (Apache-2.0); https://huggingface.co/Stable-X/yoso-normal-v0-3/blob/2202fcb69960d94b437e06c19c556a12ceeb57c0/README.md (license: apache-2.0)
 - Training data: Stable Diffusion 2 (LAION-5B subsets) fine-tuned on synthetic and real normals datasets (Hypersim, Replica, ScanNet and others per the StableNormal paper, arXiv 2406.16864)
 - Options: `long_side` = 768 (>= 0; also `processing_res`), `seed` = 0
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `group_silu`
 - Variants: `stablenormal-turbo`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -1298,7 +1298,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `stablenormal-turbo` | 0.00023 / 0.00109 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `stablenormal-turbo` | 0.00023 / 0.00109 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `group_silu@a8f4e21c9df2:sm_120` |
 
 ### Limitations
 

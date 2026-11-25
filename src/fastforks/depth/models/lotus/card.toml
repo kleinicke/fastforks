@@ -39,7 +39,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]
+kernels = ["cudnn_hacc", "group_silu"]
 
 [[papers]]
 title = "Lotus: Diffusion-based Visual Foundation Model for High-quality Dense Prediction"

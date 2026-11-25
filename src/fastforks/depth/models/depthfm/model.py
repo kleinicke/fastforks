@@ -213,7 +213,6 @@ class Portable(Runner):
 class _DepthFMFast(Fast):
     """Use bounded VAE bands and a fused GroupNorm affine pass at native image resolution."""
 
-    fuse_affine_silu = True
     vae_tile_bytes = 192 << 20
 
 
