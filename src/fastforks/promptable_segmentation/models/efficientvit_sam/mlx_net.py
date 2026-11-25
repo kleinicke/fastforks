@@ -3,8 +3,10 @@
 `Trunk` (the large backbone and the SAM neck) plus the final `LayerNorm2d`, channels last, without an exported graph.
 The eval BatchNorms are folded into the convolutions (float64 on the host). The 1x1 convolutions are matrix products,
 the depthwise ones `graph_mlx`'s kernel; in float16 the dense 3 x 3 convolutions MLX would run as its own Winograd
-transform (17x the error of the direct convolution) run as `conv_mlx`'s F(2,3) Winograd. The ReLU linear attention
-(sums over every position), the neck's bicubic upsampling and the final norm are float32 as upstream.
+transform (17x the error of the direct convolution) run as `conv_mlx`'s F(2,3) Winograd, the strided ones as im2col
+and one GEMM. The ReLU linear attention (sums over every position), the neck's bicubic upsampling and the final norm
+are float32 as upstream. Each stage, and the neck, is one `mx.compile`d function; a stage is evaluated while the next
+is scheduled.
 """
 
 from __future__ import annotations
@@ -78,6 +80,7 @@ class _Conv:
         self.k, self.cout = w.shape[2], w.shape[0]
         self.b = _arr(b, dtype)
         self.u = None
+        self.cols: mx.array | None = None
         if self.groups == self.cout and w.shape[1] == 1:  # depthwise
             self.kind = "dw"
             self.w = _arr(w[:, 0].transpose(1, 2, 0), dtype)  # [kh, kw, C]
@@ -97,10 +100,19 @@ class _Conv:
             self.w = _arr(ohwi, dtype)
             if dtype == mx.float16 and self.k == 3 and self.stride == 1:  # noqa: PLR2004 - conv_mlx is 3 x 3 only
                 self.u = conv_mlx.weights(mx.array(ohwi.astype(np.float32)), WINO_M, dtype)
+            if self.stride > 1:  # strided: im2col and one GEMM, 20-25 % faster than `mx.conv2d` (rows `(i, j, c)`)
+                self.cols = _arr(w.transpose(2, 3, 1, 0).reshape(-1, self.cout), dtype)
 
     def _dense(self, x: mx.array) -> mx.array:
         if self.u is not None and conv_mlx.supported(x.shape, self.cout):
             return conv_mlx.conv3x3(x, self.u, self.b, m=WINO_M)
+        if self.cols is not None:
+            k, st, p = self.k, self.stride, self.pad
+            ho, wo = (x.shape[1] + 2 * p - k) // st + 1, (x.shape[2] + 2 * p - k) // st + 1
+            xp = mx.pad(x, [(0, 0), (p, p), (p, p), (0, 0)])
+            span_h, span_w = st * (ho - 1) + 1, st * (wo - 1) + 1
+            taps = [xp[:, i : i + span_h : st, j : j + span_w : st] for i in range(k) for j in range(k)]
+            return mx.addmm(self.b, mx.concatenate(taps, axis=-1), self.cols)
         positions = (x.shape[1] // self.stride) * (x.shape[2] // self.stride)
         s = (self.stride, self.stride)
         if x.dtype == mx.float16 and _mlx_winograd(self.w.shape, self.cout, s, (1, 1), 1, positions):
@@ -184,6 +196,17 @@ def _block(m: Any, dtype: mx.Dtype) -> Callable[[mx.array], mx.array]:  # noqa: 
     return f if m.shortcut is None else lambda x: f(x) + x
 
 
+def _chain(ops: list[Callable[[mx.array], mx.array]]) -> Callable[[mx.array], mx.array]:
+    """The blocks of a stage applied in turn."""
+
+    def run(x: mx.array) -> mx.array:
+        for op in ops:
+            x = op(x)
+        return x
+
+    return run
+
+
 def _bicubic(n_in: int, n_out: int) -> mx.array:
     """`F.interpolate(mode="bicubic", align_corners=False)` along one axis as a float32 `[n_out, n_in]` matrix."""
     real = (n_in / n_out) * (np.arange(n_out) + 0.5) - 0.5
@@ -224,6 +247,10 @@ class MlxEncoder:
         self.norm_eps = float(norm.eps)
         self.side = 64  # SAM's image embedding
         self.mats: dict[int, mx.array] = {}
+        # one `mx.compile`d function per stage (the weights its constants): fuses the bias / activation / residual
+        # element-wise work around the convolutions, ~40 % of the uncompiled stage time
+        self.stage_fns = [mx.compile(_chain(stage)) for stage in self.stages]
+        self.neck_fn = mx.compile(self._neck)
 
     def _up(self, x: mx.array) -> mx.array:
         """The neck's `UpSampleLayer(size=(64, 64))`: bicubic in float32 (a square input: one matrix per side)."""
@@ -241,20 +268,23 @@ class MlxEncoder:
         """The image embedding of the normalised `[1, S, S, 3]` input; one stage evaluated at a time."""
         x = x.astype(self.dtype)
         feats, pending = [], None
-        for stage in self.stages:
-            for op in stage:
-                x = op(x)
+        for fn in self.stage_fns:
+            x = fn(x)
             mx.async_eval(x)
             if pending is not None:
                 mx.eval(pending)
             feats.append(x)
             pending = x
+        return self.neck_fn(*(feats[i] for i in sorted({i for i, _ in self.inputs})))
+
+    def _neck(self, *feats: mx.array) -> mx.array:
+        """The SAM neck and the final norm of the stages' features (the `inputs` stages, ascending)."""
+        by_stage = dict(zip(sorted({i for i, _ in self.inputs}), feats, strict=True))
         acc = None
         for i, conv in self.inputs:
-            y = self._up(conv(feats[i]))
+            y = self._up(conv(by_stage[i]))
             acc = y if acc is None else acc + y
         assert acc is not None  # noqa: S101 - the neck has inputs
-        del feats
         x = acc.astype(self.dtype)
         for op in self.middle:
             x = op(x)
