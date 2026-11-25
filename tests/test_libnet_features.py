@@ -209,3 +209,22 @@ def test_streamed_vit_reuses_two_buffers_and_matches_resident(
             addresses.append([b.data_ptr() for b in streamed.net.blocks.host.dev])
         assert len(addresses[0]) == 2
         assert addresses[0] == addresses[1] == addresses[2]
+
+
+def test_timm_build_shares_the_state_dict() -> None:
+    """timm's config conversion keeps the overlay's state dict itself (no deep copy of every weight)."""
+    from fastforks.shared.libnet import _shared_state_dict  # noqa: PLC0415 - the private helper under test
+
+    kw = {"img_size": 32, "patch_size": 16, "depth": 1, "embed_dim": 32, "num_heads": 2, "num_classes": 0}
+    sd = timm.create_model("vit_base_patch16_224", pretrained=False, **kw).state_dict()
+    cls = timm.models._pretrained.PretrainedCfg
+    original = cls.to_dict
+    with _shared_state_dict(timm, sd):
+        net: Any = timm.create_model(
+            "vit_base_patch16_224", pretrained=True, pretrained_cfg_overlay={"state_dict": sd}, **kw
+        )
+        assert net.pretrained_cfg["state_dict"] is sd
+        theirs = {"w": torch.zeros(2)}
+        assert cls(state_dict=theirs).to_dict()["state_dict"]["w"] is not theirs["w"]  # another config: copied
+    assert cls.to_dict is original
+    assert all(torch.equal(v, net.state_dict()[k]) for k, v in sd.items())

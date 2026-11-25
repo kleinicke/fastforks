@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1584 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1589 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -184,9 +184,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`davit_base.msft_in1k`](../models/classification.md#davit) | 22.6 | 18.9 | – | – | – | 1338 | – |
 | [`davit_small.msft_in1k`](../models/classification.md#davit) | 16.9 | 14.4 | – | – | – | 952 | – |
 | [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 9.62 | 8.23 | – | – | – | 715 | – |
-| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 16.6 | 14.4 | – | – | – | 1254 | – |
+| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 16.6 | 14.3 | 16.7 | 14.2 | 1.0x | 587 | 586 |
 | [`densenet121.tv_in1k`](../models/classification.md#densenet) | 12.0 | 9.93 | – | – | – | 414 | – |
-| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 66.4 | 57.6 | unsupported | – | – | 3981 | – |
+| [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 65.3 | 55.9 | unsupported | – | – | 1150 | – |
 | [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 5.70 | 5.22 | – | – | – | 534 | – |
 | [`efficientformer_l3.snap_dist_in1k`](../models/classification.md#efficientformer) | 9.99 | 8.92 | – | – | – | 779 | – |
 | [`efficientformer_l7.snap_dist_in1k`](../models/classification.md#efficientformer) | 19.1 | 17.2 | – | – | – | 1357 | – |
@@ -245,9 +245,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 5.95 | 5.22 | – | – | – | 516 | – |
 | [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 8.75 | 7.44 | – | – | – | 639 | – |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 5.05 | 4.64 | – | – | – | 451 | – |
-| [`vgg16.tv_in1k`](../models/classification.md#vgg) | 17.2 | 13.8 | – | – | – | 2521 | – |
+| [`vgg16.tv_in1k`](../models/classification.md#vgg) | 17.5 | 13.8 | unsupported | – | – | 2004 | – |
 | [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 16.6 | 14.2 | 16.6 | 14.3 | 1.0x | 1246 | 1246 |
-| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 211 | 179 | 211 | 179 | 1.0x | 4547 | 4547 |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 211 | 179 | 212 | 180 | 1.0x | 1284 | 1299 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -737,12 +737,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|
 | [`alltracker`](../models/tracking.md#alltracker) | 3151 | 2288 | – | 2232 |
 | [`alltracker-tiny`](../models/tracking.md#alltracker) | 2909 | 2174 | – | 2245 |
-| [`bootstapir`](../models/tracking.md#tapir) | 1881 | – | – | 2497 |
+| [`bootstapir`](../models/tracking.md#tapir) | 2003 | – | unsupported | 1925 |
 | [`cotracker3-offline`](../models/tracking.md#cotracker) | 1595 | 1455 | – | 3219 |
 | [`cotracker3-online`](../models/tracking.md#cotracker) | 1638 | 1491 | – | 2453 |
 | [`locotrack-b`](../models/tracking.md#locotrack) | 1453 | 1113 | – | 1597 |
 | [`locotrack-s`](../models/tracking.md#locotrack) | 1233 | 961 | – | 1575 |
-| [`tapir`](../models/tracking.md#tapir) | 1592 | – | – | 1717 |
+| [`tapir`](../models/tracking.md#tapir) | 1319 | – | unsupported | 1601 |
 | [`tapnext`](../models/tracking.md#tapnext) | 4033 | 3724 | – | 2420 |
 | [`tapnext-pp`](../models/tracking.md#tapnext) | 4035 | 3746 | – | 1677 |
 | [`track-on-r`](../models/tracking.md#track_on) | 11174 | 8822 | unsupported | 3089 |

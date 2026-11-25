@@ -1944,3 +1944,67 @@ on `auto` now goes to MLX float32 (314 ms).
 ones beyond the 198 were only checked where flagged); monster-plusplus sits at 0.023 of 0.03 in float16 and
 strict float32 did not help, so its margin comes from elsewhere. The report flag stays the way to check a new port:
 `tools/mlx_dtype_report.py --float32-casts REF` should list nothing that the runner means as a float32 stage.
+
+## Done: MLX memory peaks, round 2 (2026-11-25)
+
+Goal: each remaining ref's MLX peak below its leanest MPS row, with no loss of speed or goldens. Peak is the
+survey's lifetime max phys footprint, so load transients count too. Survey rows are from apple-m1-pro-mlx-16gb, the
+same day. Each cell gives warm ms / first call s / peak MB.
+
+| ref, dtype | MLX before | MLX after | leanest MPS row |
+|---|---|---|---|
+| vit_so400m siglip, fp16 | 179 / 1.80 / 4547 | 179 / 1.69 / 1284 | upstream 3973 (portable now 3917, was 5547) |
+| vit_so400m siglip, fp32 | 211 / 2.71 / 5460 | 211 / 3.43 / 2195 | upstream 3973 |
+| deit_base, fp16 | 14.4 / 0.67 / 1254 | 14.3 / 0.72 / 587 | upstream 1147 (portable now 1157, was 1496) |
+| deit_base, fp32 | 16.6 / 0.68 / 1438 | 16.6 / 0.76 / 772 | upstream 1147 |
+| dinov2_vitl14_lc, fp16 | 57.6 / 0.086 / 3981 | 55.9 / 0.084 / 1150 | upstream 3291 |
+| dinov2_vitl14_lc, fp32 | 66.4 / 0.109 / 3894 | 65.3 / 0.105 / 1736 | upstream 3291 |
+| vgg16, fp16 | 13.8 / 0.035 / 2521 | 13.8 / 0.038 / 2004 | – |
+| bootstapir, fp32 | 1881 / 9.6 / 2497 | 2003 / 8.8 / 1925 | 1703 ms / 1743 MB |
+| tapir, fp32 | 1592 / 16.7 / 1717 | 1319 / 8.3 / 1601 | 1356 ms / 1604 MB |
+
+What changed:
+
+- **timm deep-copied every checkpoint.** `build_model_with_cfg` calls `pretrained_cfg.to_dict()`, and
+  `dataclasses.asdict` deep-copies the overlay's `state_dict` into it. That copy then lives on `model.pretrained_cfg`
+  for the model's lifetime: 1.6 GB of anonymous memory for siglip. It hit every timm family in every mode, MPS
+  included. `libnet.build` now makes `to_dict` keep that state dict itself, scoped to the one build and thread-safe.
+  It drops the reference after loading. Covered by `test_timm_build_shares_the_state_dict`.
+- **`deferred_library_inits` zero-filled under `skipped_init`.** The timm init wrappers did `tensor.zero_()`, which
+  touches as much memory as the weights. They are now `skippable` and do nothing inside `skipped_init`, like
+  `torch.nn.init`'s.
+- **Lazy twins.** mlx_wrap, libnet's MLX CNN and dinov2_linear_cls build the torch twin with `lazy_build`, which falls
+  back on `LazyTwinError`. `mlx_vit`'s putter casts and evaluates each array as it goes, so a full-size second copy
+  never exists.
+- **BootsTAPIR chunk 64 MB** (`chunk_mb={"bootstapir": 64}`). In one session it went from 2110 ms / 2612 MB to
+  2049 ms / 1960 MB. The survey has it at 2003 ms against 1881 ms before. Bench noise between sessions is about that
+  large, and the ref was already slower than MPS. TAPIR keeps 256 MB.
+  `tracking._mlx.port` now takes per-variant `cache_mb` and `chunk_mb`.
+
+Tried and dropped:
+
+- **TAPIR chunk 64.** 1765 to 1548 MB, but 1492 to 1946 ms. Chunk 0 (a cut at every step) gave 1476 MB at 2774 ms.
+- **BootsTAPIR chunk 32 and 48.** 1913 MB and 1884 MB, both at about 2185 ms. Not better than 64.
+- **locotrack-b chunk 64.** 1595 to 1482 MB, but 1301 to 1463 ms. MPS is 1470 MB.
+- **cotracker3-online buffer cache.**
+  - 1024 to 512 MB: 2640 to 2156 MB at 1575 to 1761 ms.
+  - 256 MB: 1893 MB at 1950 ms, slower than MPS fp16 (1913 ms / 1682 MB).
+  - About 500 MB is libmalloc "Malloc Large (empty)" retention from the eager torch CPU loop. `MallocLargeCache=0`,
+    used only as a diagnostic, gives 2139 MB at the current cache.
+  - A real fix moves the encode post-processing into MLX. Not done.
+- **cotracker3-offline buffer cache.**
+  - 1536 to 1024 MB: 3214 to 2703 MB at 1467 to 1655 ms.
+  - 512 MB: 2181 MB at 1859 ms.
+  - Chunk 128: 3128 MB.
+  - `MallocLargeCache=0`: 3041 MB.
+  - MPS fp32 is 2737 MB. The same post-processing fix applies.
+- **A `dict` subclass state dict, to stop the deep copy.** `dataclasses.asdict` recurses into dict subclasses too.
+  The `to_dict` override replaced it.
+
+**Left**:
+
+- bootstapir is still above MPS (1925 against 1743 MB).
+- cotracker3-online and -offline are unchanged (2453 and 3219 MB), pending the MLX post-processing.
+- locotrack-b (1597 against 1470 MB).
+- gimm-vfi-r and film at 1080p were not reached.
+- The timm fix also lowers the MPS rows of the other timm families; only siglip and deit were re-surveyed.

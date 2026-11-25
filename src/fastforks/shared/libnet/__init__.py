@@ -9,9 +9,12 @@ contract of the classification task. A family subclasses them only to change how
 
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 import os
 import re
 import sys
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +33,7 @@ from fastforks._optimize import HACC_PIX, optimize
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
 
     from fastforks._core.runner import Context
@@ -72,6 +76,47 @@ def timm() -> ModuleType:
     return timm
 
 
+_shared_lock = threading.Lock()
+_shared_sds: dict[int, int] = {}  # id(state dict) -> open `_shared_state_dict` blocks passing it
+_shared_saved: list[Any] = []  # timm's own `PretrainedCfg.to_dict`, while patched
+
+
+@contextlib.contextmanager
+def _shared_state_dict(lib: ModuleType, state_dict: dict[str, torch.Tensor]) -> Generator[None]:
+    """Make timm's model config keep `state_dict` itself instead of a deep copy.
+
+    `build_model_with_cfg` turns the pretrained config into a dict with `dataclasses.asdict`, which deep-copies every
+    tensor of an in-memory state dict, and keeps that dict on the model (`.pretrained_cfg`): one more copy of all the
+    weights, in anonymous memory (the read checkpoint is file-backed), for as long as the model lives (SigLIP so400m:
+    1.6 GB). Only a config carrying `state_dict` (by identity) changes; others, also on other threads, convert as
+    before.
+    """
+    cls = lib.models._pretrained.PretrainedCfg  # noqa: SLF001 - the dataclass timm converts
+    with _shared_lock:
+        if not _shared_sds:
+            orig = cls.to_dict
+            _shared_saved.append(orig)
+
+            def to_dict(self: Any, *args: Any, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401 - timm's signature
+                sd = self.state_dict
+                if id(sd) not in _shared_sds:
+                    return orig(self, *args, **kwargs)
+                out = orig(dataclasses.replace(self, state_dict=None), *args, **kwargs)
+                out["state_dict"] = sd
+                return out
+
+            cls.to_dict = to_dict
+        _shared_sds[id(state_dict)] = _shared_sds.get(id(state_dict), 0) + 1
+    try:
+        yield
+    finally:
+        with _shared_lock:
+            if (n := _shared_sds.pop(id(state_dict)) - 1) > 0:
+                _shared_sds[id(state_dict)] = n
+            if not _shared_sds:
+                cls.to_dict = _shared_saved.pop()
+
+
 def torchvision() -> ModuleType:
     """The installed `torchvision`.
 
@@ -110,8 +155,10 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
         # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)
         timm_modules = [m for n, m in tuple(sys.modules.items()) if n == "timm" or n.startswith("timm.")]
         try:
-            with deferred_library_inits(timm_modules, _TIMM_INITS):
+            with deferred_library_inits(timm_modules, _TIMM_INITS), _shared_state_dict(lib, overlay["state_dict"]):
                 net = lib.create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs)
+            if isinstance(cfg := getattr(net, "pretrained_cfg", None), dict):
+                cfg.pop("state_dict", None)  # loaded: the model need not keep the checkpoint alive
             return net.eval()
         except RuntimeError as e:  # timm's strict load of the state dict
             if (keys := torch_mismatch(e)) is None:
@@ -227,6 +274,8 @@ class Mlx(Runner):
     def __init__(self, ctx: Context) -> None:
         """Translate the verified network to a channels-last MLX forward."""
         super().__init__(ctx)
+        from fastforks.shared.mlx_wrap import lazy_build  # noqa: PLC0415 - with the MLX runner only
+
         from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
 
         if ctx.card.family in mlx_cnn.FAMILIES and not os.environ.get("FASTFORKS_MLX_GRAPH"):
@@ -234,7 +283,8 @@ class Mlx(Runner):
         else:  # every other timm / torchvision network: the generic exported-graph translation
             from fastforks.shared.mlx_graph import GraphNet  # noqa: PLC0415 - optional MLX dependency
 
-            self.net = GraphNet(self.network(ctx), ctx.dtype, kernels=ctx.mode == "kernels")
+            # the twin's weights stay the memory-mapped checkpoint (`lazy_build`); the graph keeps the twin
+            self.net = GraphNet(lazy_build(lambda: self.network(ctx)), ctx.dtype, kernels=ctx.mode == "kernels")
 
     def network(self, ctx: Context) -> torch.nn.Module:
         """The upstream network with its weights (CPU, eval); families override this to wrap or adapt it."""
