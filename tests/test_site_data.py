@@ -249,6 +249,13 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
             "peak_reserved_mb": 40,
         },
         {"ref": "model", "mode": "compile", "input": "64x64", "ms": 12, "backend_part": "VAE only"},
+        {
+            "ref": "model",
+            "mode": "tensorrt",
+            "input": "96x96",
+            "standalone_build": True,
+            "fails": "TensorRT: label validation failed",
+        },
     ]
     (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     compiled = g._compile_rows.__wrapped__()
@@ -268,6 +275,10 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     with_portable = {"model": [{"input": "32x32", "mode": "portable", "ms": 20}]}
     failed = site_data._speed(variant, "depth", with_portable)["inputs"][0]
     assert failed["tensorrt"] == {"fails": "export needs validation", "planned": True}
+    with_portable["model"].append({"input": "96x96", "mode": "portable", "ms": 30})
+    profiles = site_data._speed(variant, "depth", with_portable)["inputs"]
+    failure = next(row for row in profiles if row["input"] == "96x96")
+    assert failure["tensorrt"] == {"fails": "TensorRT: label validation failed"}
     assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10.0 ms (standalone build)"
     assert g._compile_ms(compiled["model", "tensorrt", "32x32"]) == "public API unavailable"
     assert g._compile_ms(compiled["model", "compile", "64x64"]) == "12.0 ms (VAE only)"

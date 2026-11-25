@@ -860,7 +860,7 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
     for (ref, mode, size), r in rows.items():
-        standalone = mode == "tensorrt" and r.get("standalone_build") and r.get("ms") and not r.get("fails")
+        standalone = mode == "tensorrt" and r.get("standalone_build")
         if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode) and not standalone:
             rows[ref, mode, size] = {**r, "fails": PLANNED}
             rows[ref, mode, size].pop("ms", None)
