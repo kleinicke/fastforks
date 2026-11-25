@@ -34,6 +34,7 @@ from fastforks._core.upload import device_tensor
 from fastforks.kernels import vggt_rotary
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -95,6 +96,12 @@ class Net(nn.Module):
 
 def _net(ctx: Context) -> Net:
     sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith("track_head.")}
+    if ctx.device.type == "cuda" and not ctx.params.stream:
+        with torch.device("meta"):
+            net = Net()
+        half = ("aggregator.", "depth_head.", "point_head.") if ctx.dtype != "float32" else ()
+        assign_inference_weights(net, sd, ctx.device, half)
+        return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
     net = Net()
     # MPS: the mmapped checkpoint moves to the GPU as it is (no 4.8 GB float32 CPU copy first: about -4 s of load)
     net.load_state_dict(sd, strict=True, assign=ctx.device.type == "mps")

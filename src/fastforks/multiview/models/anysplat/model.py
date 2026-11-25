@@ -32,6 +32,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.qk_affine import cached_qk_affine
@@ -148,23 +149,8 @@ def _net(ctx: Context) -> Net:
     if ctx.device.type == "cuda":
         with torch.device("meta"):
             net = Net()
-        expected = net.state_dict()
-        half = ctx.dtype != "float32"
-        half_prefixes = ("aggregator.", "depth_head.", "gaussian_param_head.")
-        for name, source in sd.items():
-            target = expected.get(name)
-            if target is None or source.shape != target.shape:
-                continue  # let the strict loader report invalid keys or shapes
-            weight = source
-            dtype = target.dtype
-            if half and name.startswith(half_prefixes) and target.is_floating_point():
-                # An FP32 intermediate is exact for the published weights. Custom weights preserve the
-                # constructor's casting step if that intermediate could change the final rounding.
-                if dtype != torch.float32 or weight.dtype not in {torch.float16, torch.bfloat16, torch.float32}:
-                    weight = weight.to(dtype=dtype)
-                dtype = torch.float16
-            sd[name] = weight.to(device=ctx.device, dtype=dtype)
-        net.load_state_dict(sd, strict=True, assign=True)
+        half = ("aggregator.", "depth_head.", "gaussian_param_head.") if ctx.dtype != "float32" else ()
+        assign_inference_weights(net, sd, ctx.device, half)
     else:
         net = Net()
         net.load_state_dict(sd, strict=True)

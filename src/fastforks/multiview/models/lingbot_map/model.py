@@ -35,6 +35,7 @@ from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
 from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import Forward, Runner
+from fastforks.multiview._weights import assign_inference_weights
 from fastforks.multiview.models.vggt import model as vggt
 from fastforks.multiview.models.vggt.net.heads.camera_head import modulate
 from fastforks.multiview.models.vggt.net.heads.head_act import activate_pose
@@ -113,6 +114,12 @@ class Params:
 
 
 def _net(ctx: Context) -> Net:
+    if ctx.device.type == "cuda" and ctx.dtype == "float16" and not ctx.params.stream:
+        with torch.device("meta"):
+            net = Net()
+        # Q/K weights are permuted on the host before the final CUDA upload.
+        assign_inference_weights(net, ctx.state_dict(), torch.device("cpu"), ("aggregator.", "depth_head."))
+        return net.eval().requires_grad_(requires_grad=False)
     net = Net()
     net.load_state_dict(ctx.state_dict(), strict=True, assign=ctx.device.type == "mps")  # MPS: no CPU copy (vggt._net)
     return net.eval().requires_grad_(requires_grad=False)
