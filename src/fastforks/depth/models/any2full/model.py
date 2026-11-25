@@ -12,6 +12,7 @@ depth to [1e-6, 1e3]) and resampled to the input size (bilinear, align_corners).
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -19,7 +20,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.checkpoint import latin1_encode, numeric_scalar
+from fastforks._core.checkpoint import latin1_encode, load_strict, numeric_scalar
 from fastforks._core.half import pure_half
 from fastforks._core.mlx_cast import keep_float32
 from fastforks.depth._runner import Forward, Runner, scale
@@ -29,7 +30,7 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
-from .net import PATCH, Any2FullNet, PromptBranch
+from .net import GRIDS, PATCH, Any2FullNet, PromptBranch, _pool_matrix
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -63,8 +64,23 @@ def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
 
 
 def _net(ctx: Context) -> Any2FullNet:
-    net = Any2FullNet(ctx.params.arch)
-    net.load_state_dict(net.checkpoint_keys(ctx.state_dict(key="state_dict", extra=EXTRA)))
+    assign = (
+        ctx.device.type == "cuda"
+        and ctx.variant.ref == "any2full-l@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+    with torch.device("meta") if assign else nullcontext():
+        net = Any2FullNet(ctx.params.arch)
+    state = net.checkpoint_keys(ctx.state_dict(key="state_dict", extra=EXTRA))
+    if assign:
+        # The sparse-depth pooling matrices are deterministic, nonpersistent buffers.
+        with torch.device("cpu"):
+            for grid in GRIDS[1:]:
+                setattr(net.embed, f"pool{grid}", _pool_matrix(grid))
+        load_strict(net, state, f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        net.load_state_dict(state)
     return net.eval()
 
 
