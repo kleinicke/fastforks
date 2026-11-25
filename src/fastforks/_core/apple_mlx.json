@@ -2120,8 +2120,13 @@
    }
   },
   "deeplabv3-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
    "dtypes": {
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -2129,7 +2134,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -2144,6 +2149,14 @@
    }
   },
   "deeplabv3plus-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -4353,12 +4366,19 @@
    }
   },
   "fcn-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mps_dtype": "float16",
@@ -5571,16 +5591,23 @@
    }
   },
   "hrnet-w48-fcn-ade20k@1": {
+   "dtypes": {
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -8035,7 +8062,7 @@
    ],
    "dtypes": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -8043,7 +8070,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {

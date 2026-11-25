@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-25 |
-| rows | 1692 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1694 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -296,18 +296,18 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 668 | 442 | 675 | 441 | 1.0x | 1404 | 1426 |
-| [`deeplabv3plus-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 467 | 338 | 463 | 333 | 1.0x | 1395 | 1383 |
+| [`deeplabv3-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 622 | 445 | 601 | 444 | 1.0x | 1550 | 1542 |
+| [`deeplabv3plus-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 479 | 361 | 478 | 359 | 1.0x | 1533 | 1552 |
 | [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 312 | 256 | unsupported | – | – | 1372 | – |
 | [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 937 | 761 | unsupported | – | – | 2223 | – |
 | [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 132 | 112 | unsupported | – | – | 1002 | – |
 | [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 667 | 574 | – | – | – | 3661 | – |
 | [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
-| [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 490 | 353 | 490 | 358 | 1.0x | 1357 | 1373 |
-| [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 282 | 220 | – | – | – | 1112 | – |
+| [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 510 | 382 | 528 | 366 | 1.0x | 1332 | 1391 |
+| [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 267 | 241 | 262 | 234 | 1.0x | 1258 | 1500 |
 | [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 692 | 607 | unsupported | – | – | 2149 | – |
 | [`oneformer-swinl-ade20k`](../models/segmentation.md#oneformer) | 924 | 824 | unsupported | – | – | 2587 | – |
-| [`pspnet-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 510 | 380 | 511 | 375 | 1.0x | 1441 | 1450 |
+| [`pspnet-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 547 | 430 | 498 | 376 | 1.1x | 1542 | 1553 |
 | [`sapiens-seg-0.3b-goliath`](../models/segmentation.md#sapiens) | 1485 | 1214 | unsupported | – | – | 2967 | – |
 | [`sapiens-seg-1b-goliath`](../models/segmentation.md#sapiens) | 3594 | 2679 | unsupported | – | – | 4541 | – |
 | [`segformer-b0-ade20k`](../models/segmentation.md#segformer) | 68.3 | 57.6 | 67.6 | 57.1 | 1.0x | 734 | 725 |
