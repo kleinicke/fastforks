@@ -88,7 +88,11 @@ class DetectionModel(core.Model):
         changed = score_threshold is not None
         options = core.ReadOnlyDict(self.options, score_threshold=threshold) if changed else self.options
         if self._runner.batch == 1 or names is not None or x.shape[0] == 1:
-            results = [self._detect(x[i : i + 1], threshold, options, names) for i in range(x.shape[0])]
+            graph_input = image if x.shape[0] == 1 and not changed and names is None else None
+            results = [
+                self._detect(x[i : i + 1], threshold, options, names, graph_input=graph_input)
+                for i in range(x.shape[0])
+            ]
         else:
             step = self._runner.batch or x.shape[0]
             with self._session():
@@ -131,9 +135,15 @@ class DetectionModel(core.Model):
         return float(value)
 
     def _detect(
-        self, x: torch.Tensor, threshold: float, options: Mapping[str, Any], names: tuple[str, ...] | None
+        self,
+        x: torch.Tensor,
+        threshold: float,
+        options: Mapping[str, Any],
+        names: tuple[str, ...] | None,
+        *,
+        graph_input: object = None,
     ) -> DetectionResult:
-        with self._session():
+        with self._session(graph_input=graph_input):
             out = self._runner(x, threshold) if names is None else self._runner(x, threshold, text=names)  # ty: ignore[unknown-argument]
         return self._result(out, x, options, names)
 

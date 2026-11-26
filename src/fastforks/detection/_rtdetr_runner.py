@@ -7,6 +7,7 @@ A family subclasses `Portable` (its `Params`, `label`, `build`, `float_heads`) a
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -155,7 +156,8 @@ class Kernels(Portable):
         out = None
         if self._graphs is not None and graph_replay_allowed():
             key = (x.device, x.dtype, tuple(x.shape))
-            fresh = key not in self._graphs.graphs
+            # Linux uses GraphCache's pre-capture and post-capture allocator cleanup.
+            fresh = sys.platform != "linux" and key not in self._graphs.graphs
             if fresh:
                 self._seen[key] = self._seen.pop(key, 0) + 1
                 while len(self._seen) > _SEEN:

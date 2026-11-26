@@ -55,7 +55,7 @@ def _gpu_memory(device: torch.device) -> int:
     return torch.cuda.get_device_properties(device).total_memory
 
 
-def _image_layout(image: torch.Tensor) -> str | None:
+def _image_layout(image: torch.Tensor, *, planar: bool = False) -> str | None:
     """Identify the measured layout of an image before public input conversion."""
     if (
         image.dtype == torch.float32
@@ -65,21 +65,19 @@ def _image_layout(image: torch.Tensor) -> str | None:
         and image.storage_offset() == 0
     ):
         return "f32-bchw-contiguous"
-    if (
-        image.dtype == torch.uint8
-        and image.ndim == _CHW
-        and image.shape[0] == _RGB
-        and image.stride() == (1, image.shape[-1] * _RGB, _RGB)
-        and image.storage_offset() == 0
-    ):
-        return "u8-chw-rgb-interleaved"
+    if image.dtype == torch.uint8 and image.ndim == _CHW and image.shape[0] == _RGB and image.storage_offset() == 0:
+        _, height, width = image.shape
+        if image.stride() == (1, width * _RGB, _RGB):
+            return "u8-chw-rgb-interleaved"
+        if planar and image.stride() == (height * width, width, 1):
+            return "u8-chw-rgb-planar"
     return None
 
 
-def _image_tensor(value: object, device: torch.device) -> TensorSignature | None:
+def _image_tensor(value: object, device: torch.device, *, planar: bool = False) -> TensorSignature | None:
     if not isinstance(value, torch.Tensor) or value.device != device:
         return None
-    layout = _image_layout(value)
+    layout = _image_layout(value, planar=planar)
     return None if layout is None else (layout, tuple(value.shape))
 
 
@@ -192,7 +190,7 @@ def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredK
         return None if args is None else (ref, mode, dtype, "pose-boxes", args)
     if task in _PAIR_TASKS or task == "tracking":
         return None
-    image = _image_tensor(call, device)
+    image = _image_tensor(call, device, planar=task == "detection")
     if image is None:
         return None
     layout, shape = image
