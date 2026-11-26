@@ -373,8 +373,7 @@ class MemoryEncoder(nn.Module):
         # feat_s = self.channel_convertor(feat_s)
         # feat_t = self.channel_convertor(feat_t)
 
-        imgs = torch.cat([img1, img2], dim=0)
-        feats = self.feat_encoder(imgs)
+        feats = self.feat_encoder(torch.cat([img1, img2], dim=0))
         feats = self.channel_convertor(feats)
         B = feats.shape[0] // 2
 
@@ -395,6 +394,7 @@ class MemoryEncoder(nn.Module):
             feat_t = feat_t.reshape(B, *size, -1).permute(0, 3, 1, 2).contiguous()
 
         cost_volume = self.corr(feat_s, feat_t)
+        del feats, feat_s, feat_t  # the volume retains any feature storage its encoder still needs
         x = self.cost_perceiver_encoder(cost_volume, data, context)
 
         return x

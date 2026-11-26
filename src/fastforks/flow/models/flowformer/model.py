@@ -216,11 +216,12 @@ def _encode(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Te
             with torch.autocast(f2.device.type, torch.float16, enabled=f2.is_cuda):
                 maps = F.pad(torch.matmul(f1[i, s : s + pe.chunk], f2[i].flatten(1)).view(-1, 1, h, w), pad)
                 emb, size = pe._embed(maps, share_position=True)  # noqa: SLF001 - upstream's per-chunk embedding
+                del maps
                 emb = m.input_layer(m.latent_tokens, emb)
             if x is None:
                 x = emb.new_empty((b * n, *emb.shape[1:]), dtype=torch.float32)
             x[i * n + s : i * n + s + emb.shape[0]].copy_(emb)
-            del maps, emb
+            del emb
     assert x is not None  # noqa: S101 - at least one pixel
     data["H3W3"] = size
     short_cut = x
