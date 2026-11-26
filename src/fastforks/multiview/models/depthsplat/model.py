@@ -45,6 +45,7 @@ from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
 from .net.matching import projected_grid, projected_rays, reference_cost_volume
+from .net.mv_transformer import TransformerLayer, window_attention_weights
 from .net.mv_unimatch import MultiViewUniMatch
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ MULTIPLE = 16  # fixed: 1/4 features, two UNet downsamplings and the 2 x 2 atten
 SH_DEGREE = 2  # fixed: the released config (gaussian_adapter.sh_degree)
 SH = (SH_DEGREE + 1) ** 2  # fixed: SH coefficients per channel
 _PORTABLE_WARP_BYTES = 128 * 1024**2  # upper target for one warped-feature tensor across a depth slice
+_WINDOW_SCORE_BYTES = 128 * 1024**2  # largest temporary FP32 softmax band, also the dispatch cutoff
 RAW_DIM = 1 + 2 + 3 + 4 + 3 * SH  # fixed: opacity, pixel offset, scales, rotation (x y z w), SH
 NEIGHBOURS = 2  # fixed: upstream local_mv_match (cost volume against the nearest cameras when more than 3 views)
 C0 = 0.28209479177387814  # fixed: degree-0 SH constant (upstream RGB2SH)
@@ -414,6 +416,37 @@ def _fused_cost_volume(
     return out
 
 
+def _compact_window_weights(
+    scores: torch.Tensor, mask: torch.Tensor | None, batch: int, neighbors: int
+) -> torch.Tensor:
+    """Reuse owned half scores while keeping FP32 softmax and the original repeated mask order."""
+    if mask is not None:
+        windows, q, k = mask.shape
+        scores.view(batch, windows, q, neighbors, k).add_(mask[None, :, :, None, :])
+    keys = scores.shape[-1]
+    rows = max(1, _WINDOW_SCORE_BYTES // (keys * 4))
+    for part in scores.view(-1, keys).split(rows):
+        # The next matmul under autocast consumes half weights in the original path as well.
+        part.copy_(torch.softmax(part, dim=-1, dtype=torch.float32))
+    return scores
+
+
+def _kernel_window_weights(
+    _layer: TransformerLayer, scores: torch.Tensor, mask: torch.Tensor | None, batch: int, neighbors: int
+) -> torch.Tensor:
+    if (
+        scores.is_cuda
+        and scores.dtype == torch.float16
+        and scores.is_contiguous()
+        and scores.numel() * scores.element_size() > _WINDOW_SCORE_BYTES
+        and torch.is_autocast_enabled("cuda")
+        and torch.get_autocast_dtype("cuda") == torch.float16
+        and not torch.is_grad_enabled()
+    ):
+        return _compact_window_weights(scores, mask, batch, neighbors)
+    return window_attention_weights(scores, mask, batch, neighbors)
+
+
 class Kernels(_Base):
     """fp16: the `fastbb` DINOv2 (flash attention, fp16-accumulate GEMMs), cuDNN fp16-accumulate convs."""
 
@@ -426,6 +459,9 @@ class Kernels(_Base):
         fastbb.load(ctx.device)
         cudnn_hacc.load(ctx.device)
         use_fast_vit(self.net.depth_predictor.pretrained)
+        for layer in self.net.depth_predictor.transformer.modules():
+            if isinstance(layer, TransformerLayer):
+                override(layer, _kernel_window_weights, "window_weights")
         if _hacc_convs(self.net) == 0:
             msg = "DepthSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)

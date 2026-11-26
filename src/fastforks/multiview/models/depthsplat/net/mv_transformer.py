@@ -59,6 +59,13 @@ def generate_shift_window_attn_mask(
     return attn_mask
 
 
+def window_attention_weights(scores, mask, batch, neighbors):
+    # fastforks: allow the kernels runner to bound temporaries after QK, without changing the GEMMs.
+    if mask is not None:
+        scores += mask.repeat(batch, 1, neighbors)
+    return torch.softmax(scores, dim=-1)
+
+
 def single_head_split_window_attention(
     q,
     k,
@@ -68,6 +75,7 @@ def single_head_split_window_attention(
     h=None,
     w=None,
     attn_mask=None,
+    weights=window_attention_weights,
 ):
     # Ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # q, k, v: [B, L, C] for 2-view
@@ -132,10 +140,7 @@ def single_head_split_window_attention(
             torch.matmul(q.view(b_new, -1, c), k) / scale_factor
         )  # [B*K*K, H/K*W/K, H/K*W/K*(N-1)]
 
-        if with_shift:
-            scores += attn_mask.repeat(b, 1, m)
-
-        attn = torch.softmax(scores, dim=-1)
+        attn = weights(scores, attn_mask if with_shift else None, b, m)
 
         out = torch.matmul(attn, v)  # [B*K*K, H/K*W/K, C]
 
@@ -190,10 +195,7 @@ def single_head_split_window_attention(
             / scale_factor
         )  # [B*K*K, H/K*W/K, H/K*W/K]
 
-        if with_shift:
-            scores += attn_mask.repeat(b, 1, 1)
-
-        attn = torch.softmax(scores, dim=-1)
+        attn = weights(scores, attn_mask if with_shift else None, b, 1)
 
         out = torch.matmul(attn, v.view(b_new, -1, c))  # [B*K*K, H/K*W/K, C]
 
@@ -292,6 +294,8 @@ def multi_head_split_window_attention(
 
 
 class TransformerLayer(nn.Module):
+    window_weights = staticmethod(window_attention_weights)  # fastforks: kernels replacement point
+
     def __init__(
         self,
         d_model=256,
@@ -389,6 +393,7 @@ class TransformerLayer(nn.Module):
                         h=height,
                         w=width,
                         attn_mask=shifted_window_attn_mask,
+                        weights=self.window_weights,
                     )
                     # [B, L, C]  # add per view attn
                     message = message.view(b, -1, l, c).sum(1)
@@ -402,6 +407,7 @@ class TransformerLayer(nn.Module):
                         h=height,
                         w=width,
                         attn_mask=shifted_window_attn_mask,
+                        weights=self.window_weights,
                     )
         else:
             message = single_head_full_attention(query, key, value)  # [B, L, C]
