@@ -45,6 +45,7 @@ def _allocated_mb() -> float:
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_captures_leave_no_memory_behind():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA device")
@@ -66,6 +67,7 @@ def test_captures_leave_no_memory_behind():
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_one_shape_drops_the_graph_before_a_smaller_input():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA device")
@@ -88,6 +90,7 @@ def test_one_shape_drops_the_graph_before_a_smaller_input():
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_direct_capture_retries_with_a_warmup(monkeypatch: pytest.MonkeyPatch) -> None:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA device")

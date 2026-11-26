@@ -24,7 +24,7 @@ from fastforks._core.checkpoint import mismatch_details
 from fastforks._core.errors import CheckpointMismatchError
 from fastforks.kernels import dpt_fused
 from fastforks.segmentation._runner import Forward, Runner, scale
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, graph_replay_allowed
 from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_attention
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
 
@@ -161,6 +161,7 @@ class _SmallGraphNet(_Net):
             or not torch.is_inference_mode_enabled()
             or torch.compiler.is_compiling()
             or torch.jit.is_tracing()
+            or not graph_replay_allowed()
         ):
             return super()._patch_logits(y)
         side = _GRAPH_CROP[2] // self.patch_size

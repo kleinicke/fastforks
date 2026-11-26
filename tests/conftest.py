@@ -82,6 +82,24 @@ def _no_network(*_a, **_k):
 
 
 @pytest.fixture
+def graph_lifecycle(monkeypatch):
+    """Exercise graph mechanics on purpose, independent of production workload admission."""
+    from fastforks._core import linux_graph_defaults  # noqa: PLC0415
+    from fastforks.shared import cuda_graphs  # noqa: PLC0415
+
+    # Standalone caches have no API scope. Public model tests still enter one per request, so
+    # first-request deferral and nested denial exercise the real request context.
+    token = cuda_graphs._GRAPH_ADMISSION.set(True)
+    monkeypatch.setattr(
+        linux_graph_defaults, "allows", lambda model, _call: model.options.get("cuda_graphs") is not False
+    )
+    try:
+        yield
+    finally:
+        cuda_graphs._GRAPH_ADMISSION.reset(token)
+
+
+@pytest.fixture
 def card_min_size(monkeypatch):
     """Check only the card's `io.min_size`, not the probed minimum of `size_range()`: for tests that push a few-pixel
     image through a fake runner. (`test_input_below_the_documented_minimum_raises` covers the real check.)"""

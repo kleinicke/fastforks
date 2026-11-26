@@ -30,6 +30,7 @@ def test_points_match_upstream_prep_prompts() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graphs_match_eager() -> None:
     """The encoder graph and the prompt-decode graphs give the eager numbers, fresh outputs; release and opt-out."""
     if not torch.cuda.is_available():

@@ -43,7 +43,7 @@ from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, bounded_binary_masks, scale
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, graph_replay_allowed
 from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.sam3 import (
@@ -559,7 +559,8 @@ class Kernels(_Sam3):
                 raw = super(Kernels, self).segment_concept(features, text, boxes, labels)
             return raw if post is None else post(raw)
 
-        if not self.ctx.params.cuda_graphs or n > BOX_BUCKET:  # eager (locked: fp16 accumulation is process-wide)
+        if not self.ctx.params.cuda_graphs or n > BOX_BUCKET or not graph_replay_allowed():
+            # fp16 accumulation is process-wide
             with self.lock:
                 return eager()
         ids = self.tokenizer(VISUAL if text is None else text)

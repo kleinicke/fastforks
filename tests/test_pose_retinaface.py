@@ -96,6 +96,7 @@ def test_bounded_nms_preserves_order(count: int) -> None:
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replays_network_and_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Kernels replays the decoded anchors of a repeated shape from a CUDA graph: eager values, new outputs, opt-out."""
     if not torch.cuda.is_available():

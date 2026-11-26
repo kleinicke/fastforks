@@ -102,6 +102,7 @@ def test_labels_match_logits(ref: str, mode: str) -> None:
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_mmseg_kernels_graphs(monkeypatch: pytest.MonkeyPatch) -> None:
     """mmseg kernels replay a graph for a repeated small input (<= 512 x 512): == eager; larger inputs stay eager."""
     if not torch.cuda.is_available():

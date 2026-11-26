@@ -130,6 +130,7 @@ def test_warp_into_output_rows(dtype: torch.dtype, channels: int, offset: int) -
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_refine_warped_tta_replay_matches_staged(weights: Path) -> None:
     """A replay with a new time and reversed frames matches the original U-Net with precomputed warped features."""
     model = interpolation.load("ema-vfi-small", weights=weights, device="cuda", mode="kernels", tta=True)

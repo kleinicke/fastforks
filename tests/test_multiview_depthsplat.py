@@ -203,6 +203,7 @@ def _arrays(result: object) -> dict[str, torch.Tensor]:
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graphs_match_eager() -> None:
     """The graphed kernels forward: bit-equal to eager for two input sizes; release frees the graphs."""
     if not torch.cuda.is_available():

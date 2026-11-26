@@ -92,6 +92,7 @@ def _eager(r: Any, img: torch.Tensor, boxes: torch.Tensor) -> dict[str, torch.Te
 
 
 @pytest.mark.parametrize("ref", REFS)
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_replay_matches_eager(ref: str) -> None:
     model = _load(ref)
     r = model._runner
@@ -131,6 +132,7 @@ def test_zero_crops_of_a_bucket_leave_the_people_alone(ref: str) -> None:
 
 
 @pytest.mark.parametrize("ref", ["vitpose-base-simple@1", "rtmpose-t@1", "hrnet-w32@1"])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_more_people_than_the_largest_bucket(ref: str) -> None:
     """70 people: 32 + 32 + 6 (in the 8 bucket), each chunk through its graph, against the fp32 portable runner."""
     people = 2 * BUCKETS[-1] + 6
@@ -154,6 +156,7 @@ def test_more_people_than_the_largest_bucket(ref: str) -> None:
 
 
 @pytest.mark.parametrize("ref", ["rtmpose-t@1", "dwpose-l-384@1", "rtmw-m@1", "hrnet-w32@1"])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_flip_test_matches_portable(ref: str) -> None:
     """`flip_test=True` (off in the goldens): the Kernels runner against the fp32 portable one."""
     img, boxes = _photo(ref)

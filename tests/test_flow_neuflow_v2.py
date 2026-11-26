@@ -119,6 +119,7 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replay_matches_eager(weights: Path) -> None:
     """Kernels replays a repeated small shape from a CUDA graph: the eager numbers, fresh outputs, opt-out."""
     model = flow.load("neuflow-v2", weights=weights, device="cuda", mode="kernels", iters=2)

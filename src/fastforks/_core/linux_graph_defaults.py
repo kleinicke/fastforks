@@ -1,4 +1,4 @@
-"""Exact-workload admission for enrolled Linux CUDA graph routes."""
+"""Exact-workload admission for Linux CUDA graph routes."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import torch
 
-from fastforks._core._measured_graphs import APPROVED, ENROLLED
+from fastforks._core._measured_graphs import APPROVED
 
 if TYPE_CHECKING:
     from fastforks._core._measured_graphs import MeasuredKey, TensorSignature
@@ -32,15 +32,6 @@ class VideoQueries(NamedTuple):
 
     video: object
     queries: object
-
-
-def enrolled(model: Model) -> bool:
-    return (
-        sys.platform == "linux"
-        and (model.card.task, model.card.family) in ENROLLED
-        and model._device.type == "cuda"  # noqa: SLF001 - the device of the runner
-        and model.backend.mode == "kernels"
-    )
 
 
 @functools.cache
@@ -105,28 +96,30 @@ def _tracking_inputs(call: VideoQueries, device: torch.device) -> tuple[TensorSi
 
 
 def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredKey | None:
-    ref, dtype, task = model.variant.ref, model.backend.dtype, model.card.task
+    ref, mode, dtype, task = model.variant.ref, model.backend.mode, model.backend.dtype, model.card.task
     if isinstance(call, ImagePair) and task in {"flow", "stereo"}:
         first, second = (_image_tensor(x, device) for x in call)
         if first is not None and second is not None and first[1][-2:] == second[1][-2:]:
-            return ref, dtype, f"{task}-pair", (first, second)
+            return ref, mode, dtype, f"{task}-pair", (first, second)
         return None
     if isinstance(call, VideoQueries) and task == "tracking":
         args = _tracking_inputs(call, device)
-        return None if args is None else (ref, dtype, "tracking-video-queries", args)
+        return None if args is None else (ref, mode, dtype, "tracking-video-queries", args)
     if task in {"flow", "stereo", "tracking"}:
         return None
     image = _image_tensor(call, device)
     if image is None:
         return None
     layout, shape = image
-    return ref, dtype, layout, (shape[-2], shape[-1])
+    return ref, mode, dtype, layout, (shape[-2], shape[-1])
 
 
 def allows(model: Model, call: object = None) -> bool:
     """The original public arguments match a graph-on/eager measured pair."""
-    if not enrolled(model):
+    if sys.platform != "linux":
         return True
+    if call is None:
+        return False
     options = model.options
     if (
         model.weights is not None
@@ -135,9 +128,11 @@ def allows(model: Model, call: object = None) -> bool:
     ):
         return False
     device = model._device  # noqa: SLF001 - the runner's device
+    if device.type != "cuda":
+        return False
     key = _workload_key(model, call, device)
     profiles = APPROVED.get(key) if key is not None else None
-    if profiles is None or os.getenv("FASTFORKS_ARENA") == "1":
+    if profiles is None or hasattr(model._runner, "_ff_eager") or os.getenv("FASTFORKS_ARENA") == "1":  # noqa: SLF001
         return False
     allocator = torch.cuda.get_allocator_backend()
     settings = (os.getenv("PYTORCH_ALLOC_CONF"), os.getenv("PYTORCH_CUDA_ALLOC_CONF"))

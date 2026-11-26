@@ -360,6 +360,7 @@ def test_plan_outlives_its_instance() -> None:
     assert handle() is None
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_graph_cache_capture_after() -> None:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")

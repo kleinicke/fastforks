@@ -660,6 +660,10 @@ result.save("disparity.tif", bits=10)  # 7-10x smaller than raw, error <= 0.05 %
 
 ## Video and repeated sizes
 
+On Linux, Fastforks captures a CUDA graph only for a measured workload where replay has earned back the capture
+cost within 15 full requests. Eligibility depends on the model, CUDA runtime, allocator and input layout and size.
+Other requests run eagerly. Where a model exposes `cuda_graphs`, setting it to `False` always keeps inference eager.
+
 Keep the model and the frame size fixed. The first call at a new size is slower (memory planning, cuDNN plans), so
 warm up at each size before timing: 4 calls for kernels models that replay CUDA graphs (Fast-ACVNet, CoEx, LAS2,
 RT-MonSter++), 1-2 for the others. Stereo models also have `model.run_many(lefts, rights)` for a stream of pairs; it returns a pipeline that starts working at once, a bounded `prefetch` pairs ahead (with `save_to=`, files may appear before the first iteration). Iterate it (`for r in ...`, or `list(...)` with `save_to=`) to drain it; to stop early use `with model.run_many(...) as p: for r in p: ...` or `p.close()` (it finishes the writes in progress and drops the other queued pairs); a plain `break` does not close a pipeline that is still referenced. Outputs for the same input are
@@ -1028,15 +1032,14 @@ import time
 from fastforks import detection
 
 det = detection.load("rtdetrv2-s-coco", max_detections=30)  # limit set when loading
-det(first_frame, score_threshold=0.5)  # warm-up at the real size; the first call also captures CUDA graphs (kernels)
+det(first_frame, score_threshold=0.5)  # warm up at the real input size
 for frame in frames:  # numpy HWC uint8, torch or PIL; keep the size fixed, call from one thread
     boxes = det(frame, score_threshold=0.5)  # score threshold can be overridden per call
 ```
 
-Memory per input size: `kernels` keep a cuDNN plan and a CUDA graph per input size, so a stream of many different
-sizes grows the reserved memory (bounded: 512 cuDNN plans, a per-model cap on graphs that evicts the stalest; the first
-calls at a new size run eagerly). Fixed sizes, or resizing to a few buckets, avoids it; `del model; gc.collect();
-torch.cuda.empty_cache()` releases a model's share. Host RSS of a GPU process is mostly the CUDA / cuDNN libraries
+`kernels` can keep cuDNN plans and eligible CUDA graphs per input size. A stream of many different sizes can grow
+reserved memory, up to 512 cuDNN plans and a per-model cap on graphs. Fixed sizes or a few size buckets limit that
+growth. `del model; gc.collect(); torch.cuda.empty_cache()` releases a model's share. Host RSS of a GPU process is mostly the CUDA / cuDNN libraries
 (about 1.1 GB for plain PyTorch with one conv and one GEMM, 2.3 GB for a detection model).
 
 CPU-only install: take PyTorch's CPU wheel first (`pip install torch --index-url https://download.pytorch.org/whl/cpu`), then `pip install fastforks-core`: the lean

@@ -56,29 +56,32 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
 _REQUEST: contextvars.ContextVar[object | None] = contextvars.ContextVar("cuda_graph_request", default=None)
-_GRAPH_BLOCKED = contextvars.ContextVar("cuda_graph_blocked", default=False)
+_GRAPH_ADMISSION: contextvars.ContextVar[bool | None] = contextvars.ContextVar("cuda_graph_admission", default=None)
 _NATIVE_CAPTURE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}  # PID, device, driver context ID
 _NATIVE_SIDE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}
 _NON_BLOCKING = 1  # CU_STREAM_NON_BLOCKING
 
 
 @contextlib.contextmanager
-def graph_request(*, allow_replay: bool = True) -> Generator[None]:
-    """Group one inference request. A nested call may narrow, but cannot widen, graph admission."""
+def graph_request(*, allow_replay: bool | None = None) -> Generator[None]:
+    """Group one inference request. An explicit denial remains in force inside nested requests."""
     request = _REQUEST.set(object()) if _REQUEST.get() is None else None
-    blocked = _GRAPH_BLOCKED.set(True) if not allow_replay else None
+    admission = (
+        _GRAPH_ADMISSION.set(allow_replay) if allow_replay is not None and _GRAPH_ADMISSION.get() is not False else None
+    )
     try:
         yield
     finally:
-        if blocked is not None:
-            _GRAPH_BLOCKED.reset(blocked)
+        if admission is not None:
+            _GRAPH_ADMISSION.reset(admission)
         if request is not None:
             _REQUEST.reset(request)
 
 
 def graph_replay_allowed() -> bool:
-    """Whether the public request allows graph work on this thread."""
-    return not _GRAPH_BLOCKED.get()
+    """Allow Linux CUDA graphs only inside an admitted inference request."""
+    admission = _GRAPH_ADMISSION.get()
+    return sys.platform != "linux" if admission is None else admission
 
 
 class _Graph(torch.cuda.CUDAGraph):
@@ -283,6 +286,8 @@ class GraphCache:
         `before_replay(static inputs)` can reset persistent state after the preceding replay is ordered.
         """
         if not graph_replay_allowed():
+            if sys.platform == "linux" and self.graphs:
+                self._release_for_large_input(key, inputs[0])
             return None
         failed = captured = False
         released: torch.device | None = None
@@ -452,6 +457,16 @@ class GraphCache:
         """`x` has at least `_LARGER` x the elements of the first input of every held graph."""
         return all(x.numel() >= _LARGER * static[0].numel() for _, static, _ in self.graphs.values())
 
+    def _release_for_large_input(self, key: Hashable, image: torch.Tensor) -> None:
+        """An unmeasured large request can reclaim earlier approved requests' graph pools."""
+        with self._lock:
+            if not self.graphs or key in self.graphs or not self._much_larger(image):
+                return
+            device = self._pool_device
+            self._free_graphs()
+        if device is not None:
+            empty_graph_cache(device, released=True)
+
     def _free_graphs(self) -> None:
         """Drop every graph (the caller's `empty_cache` frees their pool, outside the lock); they capture again."""
         if self._stream is not None:
@@ -542,6 +557,9 @@ class SmallShapeGraphs(Generic[_Output]):
         cache = self.cache
         if cache is None or not x.is_cuda:
             return self.forward(*inputs)
+        allowed = graph_replay_allowed()
+        if not allowed and not cache.graphs:
+            return self.forward(*inputs)
         small = (self.size(*inputs) if self.size else x.shape[0] * x.shape[-2] * x.shape[-1]) <= self.pixels
         key = None
         if small:
@@ -552,7 +570,7 @@ class SmallShapeGraphs(Generic[_Output]):
         if self.one_shape and self._last_key != key:
             if self._last_key is not None:
                 cache.release()
-            self._last_key = key
+            self._last_key = key if allowed else None
         elif key is None and cache.graphs:
             # A large eager forward can reuse memory freed from a held small graph.
             cache.release()

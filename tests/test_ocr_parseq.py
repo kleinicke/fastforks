@@ -64,6 +64,7 @@ def test_no_graph_on_cpu() -> None:
 
 @pytest.mark.gpu
 @torch.inference_mode()
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_graph_replay_matches_eager() -> None:
     """The CUDA graph replays the AR loop, then the eager-length refinement matches the early-exit result."""
     graphed, img = _runner("cuda", cuda_graphs=True)

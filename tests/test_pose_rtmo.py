@@ -75,6 +75,7 @@ def test_cuda_letterbox_matches_portable(h: int, w: int, size: int) -> None:
 
 @pytest.mark.gpu
 @pytest.mark.parametrize("people", [1, 3, rtmo.DCC_ROWS, rtmo.DCC_ROWS + 6])  # graph (padded), graph, eager
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_graphed_dcc_matches_eager(people: int) -> None:
     """Kernels' `_GraphedDCC` pads the people to `DCC_ROWS` copies: the real rows keep the eager values."""
     from fastforks.pose.models.rtmo.net import DCC, Arch  # noqa: PLC0415

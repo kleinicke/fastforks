@@ -16,7 +16,7 @@ import torch
 from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.shared.cuda_graphs import GraphCache, graph_request
 
-pytestmark = pytest.mark.gpu
+pytestmark = [pytest.mark.gpu, pytest.mark.usefixtures("graph_lifecycle")]
 
 # A forward that fails during capture after allocating (intermediates, cuBLAS workspace), and graphs that are evicted
 # and released: under cudaMallocAsync, a captured allocation freed after a failed capture aborted the process.
@@ -25,8 +25,9 @@ _ASYNC_SCRIPT = textwrap.dedent(
     import warnings
 
     import torch
-    from fastforks.shared.cuda_graphs import GraphCache
+    from fastforks.shared.cuda_graphs import GraphCache, _GRAPH_ADMISSION
 
+    _GRAPH_ADMISSION.set(True)
     assert torch.cuda.memory.get_allocator_backend() == "cudaMallocAsync"
     w = torch.randn(256, 256, device="cuda")
 
@@ -83,6 +84,7 @@ def test_async_graph_pool_returns_unused_memory():
     """Releasing a graph, including on a larger input, returns its separate CUDA driver pool."""
     script = textwrap.dedent(
         """
+        import contextvars
         import ctypes
         from concurrent.futures import ThreadPoolExecutor
         from threading import Event
@@ -91,6 +93,7 @@ def test_async_graph_pool_returns_unused_memory():
         from fastforks._core.kernels import _libcuda
         from fastforks.shared import cuda_graphs
 
+        cuda_graphs._GRAPH_ADMISSION.set(True)
         assert torch.cuda.get_allocator_backend() == "cudaMallocAsync"
         device = torch.cuda.current_device()
 
@@ -144,7 +147,7 @@ def test_async_graph_pool_returns_unused_memory():
         assert cache.run("small", small) is None
         cuda_graphs.empty_graph_cache = wait_after_replay
         with ThreadPoolExecutor(max_workers=1) as worker:
-            future = worker.submit(cache.run, "small", small)
+            future = worker.submit(contextvars.copy_context().run, cache.run, "small", small)
             try:
                 assert ready.wait(timeout=10)
                 assert graph_reserved() > baseline

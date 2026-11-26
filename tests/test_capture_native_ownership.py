@@ -3,6 +3,7 @@
 # ruff: noqa: N802 - the fake driver implements CUDA driver ABI names
 from __future__ import annotations
 
+import contextvars
 import ctypes
 import subprocess
 import sys
@@ -250,12 +251,13 @@ def _device() -> torch.device:
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_external_stream_with_two_threads_and_caller_streams():
     device = _device()
     callers = [torch.cuda.Stream(device=device) for _ in range(2)]
     barrier = threading.Barrier(2)
 
-    def run(i):
+    def run(i: int) -> tuple[torch.cuda.Stream, graph.GraphCache]:
         with torch.cuda.device(device), torch.cuda.stream(callers[i]):
             inp = torch.full((128,), float(i + 1), device=device)
             barrier.wait(timeout=10)
@@ -268,8 +270,11 @@ def test_external_stream_with_two_threads_and_caller_streams():
             assert torch.equal(changed, (inp + 2).square())
             return owner, cache
 
+    def admitted(context: contextvars.Context, i: int) -> tuple[torch.cuda.Stream, graph.GraphCache]:
+        return context.run(run, i)
+
     with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(run, i) for i in range(2)]
+        futures = [executor.submit(admitted, contextvars.copy_context(), i) for i in range(2)]
         results = [future.result(timeout=40) for future in futures]
     stream = results[0][0]
     assert isinstance(stream, torch.cuda.ExternalStream)
@@ -301,11 +306,13 @@ def test_omni_dc_direct_graph_replays_changed_system():
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_clean_subprocess_exit_with_driver_owned_stream_and_live_graph():
     _device()
     code = """
 import torch
-from fastforks.shared.cuda_graphs import GraphCache, capture_stream
+from fastforks.shared.cuda_graphs import GraphCache, _GRAPH_ADMISSION, capture_stream
+_GRAPH_ADMISSION.set(True)
 x = torch.ones(64, device='cuda')
 cache = GraphCache(torch.square)
 assert cache.run('key', x) is None

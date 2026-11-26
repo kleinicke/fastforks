@@ -296,6 +296,7 @@ def test_per_call_score_threshold_equals_the_load_option(ref: str) -> None:
 @pytest.mark.model
 @pytest.mark.gpu
 @pytest.mark.parametrize("ref", REFS)
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replays_new_images_like_the_eager_network(ref: str) -> None:
     """The network graph is captured on the first call; later images of other sizes replay it.
 

@@ -11,6 +11,7 @@ so they cannot see it: the tests also check that every family's graph is really 
 
 from __future__ import annotations
 
+import contextvars
 import threading
 
 import numpy as np
@@ -90,6 +91,7 @@ def _run_eager(model: features.FeaturesModel, x: torch.Tensor, monkeypatch: pyte
         return _run(model, x)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_replay_new_data(model, monkeypatch):
     model.release_graphs()
     a, b = _img(1), _img(2)
@@ -104,6 +106,7 @@ def test_replay_new_data(model, monkeypatch):
     _close(ga2, ea)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_shape_changes_and_eviction(model, monkeypatch):
     model.release_graphs()
     cache = _max(model)._cache
@@ -129,6 +132,7 @@ def test_shape_changes_and_eviction(model, monkeypatch):
     _close(_feats(model, _img(112), 112), want[112])
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_two_streams(model, monkeypatch):
     """Replays on two streams that start together (gate event) must not share the graph's buffers."""
     model.release_graphs()
@@ -153,6 +157,7 @@ def test_two_streams(model, monkeypatch):
         _close(gb, want_b)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_default_stream_then_stream(monkeypatch):
     """A first graph call on the default stream (handle 0), the next one on another stream: the second must wait."""
     if not torch.cuda.is_available():
@@ -181,6 +186,7 @@ def test_default_stream_then_stream(monkeypatch):
     _close(gb, want_b)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_two_threads(model, monkeypatch):
     model.release_graphs()
     xs = [_x(5), _x(6)]
@@ -192,7 +198,7 @@ def test_two_threads(model, monkeypatch):
             got[i] = [_run(model, xs[i]) for _ in range(10)]
             torch.cuda.current_stream().synchronize()
 
-    threads = [threading.Thread(target=work, args=(i,)) for i in range(2)]
+    threads = [threading.Thread(target=contextvars.copy_context().run, args=(work, i)) for i in range(2)]
     for t in threads:
         t.start()
     for t in threads:
@@ -205,6 +211,7 @@ def test_two_threads(model, monkeypatch):
 
 
 @pytest.mark.parametrize("ref", ["dinov3-vits16@1", "dinov3-vith16plus@1"])  # fh / hh attention, GELU / SwiGLU MLP
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_eager_above_graph_work(ref, monkeypatch):
     """Above `_GRAPH_WORK` the kernels run eagerly (no graph, no PyTorch fallback) and match the graphed call.
 
@@ -290,6 +297,7 @@ def _same(got: torch.Tensor, want: torch.Tensor) -> None:
     torch.testing.assert_close(got, want, rtol=0, atol=0)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_replay_new_data(timm_model, monkeypatch):
     model = timm_model
     model.release_graphs()
@@ -309,6 +317,7 @@ def test_timm_replay_new_data(timm_model, monkeypatch):
     assert not graphs
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_shape_changes_and_eviction(timm_model, monkeypatch):
     model = timm_model
     model.release_graphs()
@@ -335,6 +344,7 @@ def test_timm_shape_changes_and_eviction(timm_model, monkeypatch):
     _same(_timm(model, _t(112)), want[112])
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_tables_outlive_their_cache(timm_model, monkeypatch):
     """A graph replays with the address of its position / RoPE tables: `_Walk` dropping them must not free them.
 
@@ -361,6 +371,7 @@ def test_timm_tables_outlive_their_cache(timm_model, monkeypatch):
     del junk
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_rewarms_an_evicted_pending_grid(timm_model, monkeypatch):
     """A hidden-state request can evict the tables of a grid that is still waiting to capture."""
     model = timm_model
@@ -388,6 +399,7 @@ def test_timm_rewarms_an_evicted_pending_grid(timm_model, monkeypatch):
     model.release_graphs()
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_larger_input_releases_graph_pool(timm_model, monkeypatch):
     """A much larger eager input releases the small graph's pool and remains numerically correct."""
     model = timm_model
@@ -418,6 +430,7 @@ def test_timm_tables_lru(timm_model):
     assert len(walk._tables) == timm_features._TABLES
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_two_streams(timm_model, monkeypatch):
     """Replays on two streams that start together (gate event) must not share the graph's buffers."""
     model = timm_model
@@ -443,6 +456,7 @@ def test_timm_two_streams(timm_model, monkeypatch):
         _same(gb, want_b)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_two_threads(timm_model, monkeypatch):
     model = timm_model
     model.release_graphs()
@@ -455,7 +469,7 @@ def test_timm_two_threads(timm_model, monkeypatch):
             got[i] = [_timm(model, xs[i]) for _ in range(10)]
             torch.cuda.current_stream().synchronize()
 
-    threads = [threading.Thread(target=work, args=(i,)) for i in range(2)]
+    threads = [threading.Thread(target=contextvars.copy_context().run, args=(work, i)) for i in range(2)]
     for t in threads:
         t.start()
     for t in threads:
@@ -467,6 +481,7 @@ def test_timm_two_threads(timm_model, monkeypatch):
             _same(g, want[i])
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_timm_eager_above_graph_work(timm_model, monkeypatch):
     """Above `_GRAPH_WORK` the kernels run eagerly (no graph, no PyTorch fallback), on the fused GEMM kernels.
 

@@ -79,6 +79,7 @@ def test_dav2_kernels_graph_size(shape, short_side, graphed):
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_dav2_kernels_graph_replay_matches_eager():
     """A repeated shape replays a CUDA graph: the eager map bit for bit, fresh outputs, `release_graphs`, opt-out."""
     if not torch.cuda.is_available():
@@ -117,6 +118,7 @@ def test_dav2_kernels_graph_replay_matches_eager():
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_any2full_kernels_graph_replay_matches_eager():
     """Any2Full replays its whole pass (embedding, prompt branches, fit) from a graph: eager bit for bit, opt-out."""
     if not torch.cuda.is_available():

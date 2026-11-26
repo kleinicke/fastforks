@@ -152,6 +152,7 @@ def test_no_detections(device: str, mode: Mode) -> None:
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replays_new_images_like_the_eager_network() -> None:
     """The network graph is captured on the first call; later images of other sizes replay it.
 
