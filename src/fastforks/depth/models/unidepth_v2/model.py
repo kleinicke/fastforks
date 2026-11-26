@@ -14,12 +14,14 @@ everything under fp16 autocast on CUDA.
 from __future__ import annotations
 
 import contextlib
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels import cudnn_hacc, dpt_fused
@@ -89,9 +91,25 @@ def _geometry(h: int, w: int) -> _Geometry:
     return _Geometry(tuple(paddings), padded, net)
 
 
+def _mapped_checkpoint(ctx: Context) -> bool:
+    """Assign the verified complete checkpoint for resident Linux CUDA."""
+    return (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.variant.ref == "unidepth-v2-vitl14@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
 def _net(ctx: Context) -> UniDepthV2:
-    net = UniDepthV2(_config())
-    net.load_state_dict(ctx.state_dict())
+    assign = _mapped_checkpoint(ctx)
+    with torch.device("meta") if assign else contextlib.nullcontext():
+        net = UniDepthV2(_config())
+    if assign:
+        load_strict(net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        net.load_state_dict(ctx.state_dict())
     return net.eval().to(ctx.device)
 
 
