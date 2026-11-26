@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import sys
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -74,15 +75,24 @@ class _Walk:
         self._tables: OrderedDict[tuple, tuple[torch.Tensor | None, Any]] = OrderedDict()  # least recent first
         self._lock = threading.Lock()  # the runner is called from several threads
 
+    @staticmethod
+    def _cacheable() -> bool:
+        return torch.is_inference_mode_enabled() and not (
+            torch.compiler.is_compiling() or torch.compiler.is_exporting()
+        )
+
+    def has_tables(self, h: int, w: int, dtype: torch.dtype, device: torch.device) -> bool:
+        """Whether this call can read already-cached position and RoPE tables."""
+        with self._lock:
+            return self._cacheable() and (h, w, dtype, device) in self._tables
+
     def tables(self, h: int, w: int, dtype: torch.dtype, device: torch.device) -> tuple[Any, Any]:
         """(position table `[1, rows, C]` in `dtype`, RoPE embedding (float32)) of an `h x w` patch grid.
 
         Cached for the `_TABLES` most recently used grids. The cache alone owns a table: whoever keeps its address
         beyond the call (a captured CUDA graph) must keep the returned tuple.
         """
-        cache = (
-            not (torch.compiler.is_compiling() or torch.compiler.is_exporting()) and torch.is_inference_mode_enabled()
-        )  # not in traces / exports / autograd
+        cache = self._cacheable()  # not in traces / exports / autograd
         key = (h, w, dtype, device)
         if cache:
             with self._lock:
@@ -266,8 +276,19 @@ class Kernels(_TimmFeatures):
         self.gemm = cublas_gemms if ctx.params.fp32_accumulate else fp16_accumulate
         self.patch: int = self.net.patch_embed.patch_size[0]
         self.graphs: GraphCache | None = (
-            None if self.stream else GraphCache(self._captured, graphs=_GRAPHS)
+            None if self.stream else GraphCache(self._captured, graphs=_GRAPHS, capture_warmup=self._needs_warmup)
         )  # None: no graphs (tests)
+
+    def _needs_warmup(self, image: torch.Tensor) -> bool:
+        """A hidden-state or larger eager request may have evicted a pending capture's shape tables."""
+        from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - CUDA capture only
+
+        h, w = image.shape[-2:]
+        return (
+            sys.platform != "linux"
+            or cudnn_hacc.BUILD_AFTER > 0
+            or not self.walk.has_tables(h // self.patch, w // self.patch, self.ctx.torch_dtype, image.device)
+        )
 
     def _small(self, image: torch.Tensor) -> bool:
         """Whether the call is small enough for a graph: `_GRAPH_WORK` activations over the patch tokens."""

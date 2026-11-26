@@ -361,6 +361,33 @@ def test_timm_tables_outlive_their_cache(timm_model, monkeypatch):
     del junk
 
 
+def test_timm_rewarms_an_evicted_pending_grid(timm_model, monkeypatch):
+    """A hidden-state request can evict the tables of a grid that is still waiting to capture."""
+    model = timm_model
+    model.release_graphs()
+    cache, runner = _cache(model), _runner(model)
+    pending = _t(9)
+    want = _timm(model, pending)
+    grid = (112 // runner.patch,) * 2
+    assert any(k[:2] == grid for k in runner.walk._tables)
+    for i in range(timm_features._TABLES):
+        _timm(model, _t(2, 112, 224 + 112 * i), (1,))
+    assert all(k[:2] != grid for k in runner.walk._tables)
+    assert not cache.graphs
+
+    capture_once, attempts = cache._capture_once, []
+
+    def capture(inputs, *, warmup):
+        attempts.append(warmup)
+        return capture_once(inputs, warmup=warmup)
+
+    monkeypatch.setattr(cache, "_capture_once", capture)
+    _same(_timm(model, pending), want)
+    assert attempts == [True]
+    assert len(cache.graphs) == 1
+    model.release_graphs()
+
+
 def test_timm_larger_input_releases_graph_pool(timm_model, monkeypatch):
     """A much larger eager input releases the small graph's pool and remains numerically correct."""
     model = timm_model
