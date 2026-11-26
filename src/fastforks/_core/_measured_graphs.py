@@ -5,6 +5,83 @@ from typing import TypeAlias
 TensorSignature: TypeAlias = tuple[str, tuple[int, ...]]
 MeasuredKey: TypeAlias = tuple[str, str, str, str, tuple[int, int] | tuple[TensorSignature, ...]]
 
+_HostRuntime: TypeAlias = tuple[str, str, str, str | None, str | None, str | None, str | None, int]
+_Resources: TypeAlias = tuple[tuple[str, ...], tuple[str, ...]]
+
+_RTX_5060_TI = "NVIDIA GeForce RTX 5060 Ti"
+
+# Torch version, GPU, allocator, allocator env aliases, Triton fusion, OMP threads, Torch threads.
+_TORCH_214_NATIVE: _HostRuntime = ("2.14.1+cu130", _RTX_5060_TI, "native", None, None, None, "4", 1)
+_TORCH_214_ASYNC: _HostRuntime = ("2.14.1+cu130", _RTX_5060_TI, "cudaMallocAsync", None, None, None, "4", 1)
+_TORCH_214_ASYNC_FOUR_THREADS: _HostRuntime = (
+    "2.14.1+cu130",
+    _RTX_5060_TI,
+    "cudaMallocAsync",
+    None,
+    None,
+    None,
+    "4",
+    4,
+)
+_TORCH_214_ASYNC_TRITON_FUSION: _HostRuntime = (
+    "2.14.1+cu130",
+    _RTX_5060_TI,
+    "cudaMallocAsync",
+    None,
+    None,
+    "1",
+    "4",
+    1,
+)
+_TORCH_215_ASYNC: _HostRuntime = ("2.15.0+cu132", _RTX_5060_TI, "cudaMallocAsync", None, None, None, "4", 1)
+
+# Resources retain ordered official checkpoint digests and sorted binary tags.
+_FVM_KERNELS = (
+    "cudnn_hacc@cudnn92400",
+    "fvm_conv@f1d064e539e1:sm_120",
+    "fvm_extra@3208ce525a91:sm_120",
+    "fvm_mb@720dd3f29bf7:sm_120",
+    "fvm_r3@f54eb890e23c:sm_120",
+)
+_YUNET_KERNELS = ("box_nms@daa010d75e1a:sm_120", *_FVM_KERNELS)
+_TAPNEXT_KERNELS = ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120")
+_RIFE_KERNELS = ("cudnn_hacc@cudnn92400",)
+_RAFT_CUDA_KERNELS = ("cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120")
+_RAFT_KERNELS = ("cudnn_hacc@cudnn92400", *_RAFT_CUDA_KERNELS)
+_CRESTEREO_KERNELS = (
+    "crestereo@4e3c00b2d395:sm_120",
+    "cudnn_hacc@cudnn92400",
+    "cutlass_conv@988138e042cb:sm_120",
+    "fastbb@7d058322634d:sm_120",
+    "igev@f075827d68c6:sm_120",
+)
+
+_MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",))
+_YUNET_N: _Resources = (_YUNET_KERNELS, ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",))
+_YUNET_S: _Resources = (_YUNET_KERNELS, ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",))
+_TAPNEXT: _Resources = (_TAPNEXT_KERNELS, ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",))
+_TAPNEXT_PP: _Resources = (_TAPNEXT_KERNELS, ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",))
+_RIFE_425_LITE: _Resources = (_RIFE_KERNELS, ("81cdba223fe72a120130cc8552e5d2ecac824259d406f0c15323b3decf96b8b1",))
+_RIFE_425: _Resources = (_RIFE_KERNELS, ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",))
+_RIFE_426: _Resources = (_RIFE_KERNELS, ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",))
+_RAFT_SMALL_WEIGHTS = ("01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27",)
+_RAFT_SMALL: _Resources = (_RAFT_KERNELS, _RAFT_SMALL_WEIGHTS)
+_RAFT_LARGE: _Resources = (_RAFT_KERNELS, ("ff5fadd56d26b40647388883af1547351ea17868b765c05b27231e72dd16a322",))
+_CRESTEREO_ETH3D: _Resources = (
+    _CRESTEREO_KERNELS,
+    ("6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e",),
+)
+_RAFT_SMALL_ALTERNATE: _Resources = (
+    ("cudnn_hacc@cudnn92600", *_RAFT_CUDA_KERNELS),
+    _RAFT_SMALL_WEIGHTS,
+)
+
+
+def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[object, ...], ...]:
+    """Expand measured host and model data into the existing lookup tuple."""
+    return tuple((*runtime, *resources) for runtime in runtimes)
+
+
 # MobileNetV2 1080p observed margins: -24.133, -7.468 ms.
 # Receipt SHA-256 9e8a62ea5eb3f8c831011dedbad5ee94a820768b8fbc9a5f0c61c24fec022f85.
 # yunet-n@1 f32-bchw-contiguous 720x1280, native, 1 CPU threads. Request-15 deltas: -1.088, -2.276 ms.
@@ -34,286 +111,34 @@ MeasuredKey: TypeAlias = tuple[str, str, str, str, tuple[int, int] | tuple[Tenso
 # yunet-s@1 u8-chw-rgb-interleaved 480x640, cudaMallocAsync, 4 CPU threads. Request-15 deltas: -7.934, -3.811 ms.
 # Receipt SHA-256 cdd6af5d1fe8cff45e850a83ae2b4850152031965e8a113cce71cd58b1447490. NVIDIA driver 595.99.02.
 APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
-    ("mobilenet_v2.tv2_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",),
-        ),
+    ("mobilenet_v2.tv2_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        _MOBILENET_V2,
+        _TORCH_214_NATIVE,
     ),
-    ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            4,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
+    ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): _profiles(
+        _YUNET_N,
+        _TORCH_214_NATIVE,
+        _TORCH_214_ASYNC,
+        _TORCH_214_ASYNC_FOUR_THREADS,
     ),
-    ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (720, 1280)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
+    ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (720, 1280)): _profiles(_YUNET_N, _TORCH_214_NATIVE),
+    ("yunet-n@1", "kernels", "float16", "u8-chw-rgb-interleaved", (480, 640)): _profiles(
+        _YUNET_N,
+        _TORCH_214_NATIVE,
+        _TORCH_214_ASYNC,
+        _TORCH_214_ASYNC_FOUR_THREADS,
     ),
-    ("yunet-n@1", "kernels", "float16", "u8-chw-rgb-interleaved", (480, 640)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            4,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
+    ("yunet-n@1", "kernels", "float16", "u8-chw-rgb-interleaved", (720, 1280)): _profiles(_YUNET_N, _TORCH_214_NATIVE),
+    ("yunet-s@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): _profiles(
+        _YUNET_S,
+        _TORCH_214_NATIVE,
+        _TORCH_214_ASYNC_FOUR_THREADS,
     ),
-    ("yunet-n@1", "kernels", "float16", "u8-chw-rgb-interleaved", (720, 1280)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",),
-        ),
-    ),
-    ("yunet-s@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            4,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
-        ),
-    ),
-    ("yunet-s@1", "kernels", "float16", "f32-bchw-contiguous", (720, 1280)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
-        ),
-    ),
-    ("yunet-s@1", "kernels", "float16", "u8-chw-rgb-interleaved", (480, 640)): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            4,
-            (
-                "box_nms@daa010d75e1a:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "fvm_conv@f1d064e539e1:sm_120",
-                "fvm_extra@3208ce525a91:sm_120",
-                "fvm_mb@720dd3f29bf7:sm_120",
-                "fvm_r3@f54eb890e23c:sm_120",
-            ),
-            ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
-        ),
+    ("yunet-s@1", "kernels", "float16", "f32-bchw-contiguous", (720, 1280)): _profiles(_YUNET_S, _TORCH_214_NATIVE),
+    ("yunet-s@1", "kernels", "float16", "u8-chw-rgb-interleaved", (480, 640)): _profiles(
+        _YUNET_S,
+        _TORCH_214_NATIVE,
+        _TORCH_214_ASYNC_FOUR_THREADS,
     ),
     # tapnext@1 48-frame 1080p, 256 queries. Request-15 deltas: -576.038, -544.690 ms.
     # Receipt SHA-256 6b90e52baeb980ec1cae8753b3bb28f050c4b2b28b2a4a37e99b8a534c33c1ae.
@@ -323,32 +148,7 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "tracking-video-queries",
         (("f32-tchw-cuda-contiguous", (48, 3, 1080, 1920)), ("f32-q3-cuda-contiguous", (256, 3))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            "1",
-            "4",
-            1,
-            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
-            ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
-            ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",),
-        ),
-    ),
+    ): _profiles(_TAPNEXT, _TORCH_214_ASYNC_TRITON_FUSION, _TORCH_214_ASYNC),
     # tapnext-pp@1 48-frame 1080p, 256 queries. Request-15 deltas: -387.323, -658.914 ms.
     # Receipt SHA-256 fa7461ab8702aab6dd9b48c060540e56460434d15c06132927505f456a3fa93e.
     (
@@ -357,32 +157,7 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "tracking-video-queries",
         (("f32-tchw-cuda-contiguous", (48, 3, 1080, 1920)), ("f32-q3-cuda-contiguous", (256, 3))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            "1",
-            "4",
-            1,
-            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
-            ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
-            ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",),
-        ),
-    ),
+    ): _profiles(_TAPNEXT_PP, _TORCH_214_ASYNC_TRITON_FUSION, _TORCH_214_ASYNC),
     # rife-4.25-lite@1 native 384x512 midpoint. Request-15 deltas: -73.780, -66.692 ms.
     # Receipt SHA-256 f1017a4099985e0b113885c84d5230da8373177d9e8c6dc414a205003c4272f7.
     (
@@ -391,20 +166,7 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "interpolation-midpoint-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400",),
-            ("81cdba223fe72a120130cc8552e5d2ecac824259d406f0c15323b3decf96b8b1",),
-        ),
-    ),
+    ): _profiles(_RIFE_425_LITE, _TORCH_214_NATIVE),
     # rife-4.25@1 native 384x512 midpoint. Request-15 deltas: -72.846, -65.045 ms.
     # Receipt SHA-256 fdedd72f8e4247764a8056cfe3a9571e2beb61d68a7c1db671371c254b322083.
     (
@@ -413,33 +175,12 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "interpolation-midpoint-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400",),
-            ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",),
-        ),
+    ): _profiles(
+        _RIFE_425,
+        _TORCH_214_NATIVE,
         # cudaMallocAsync. Request-15 deltas: -38.921, -62.616 ms.
         # Receipt SHA-256 701da9ddd9164476ec9da9562801d33e2b8001431b645c9e7882bad3b371b82b.
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400",),
-            ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",),
-        ),
+        _TORCH_214_ASYNC,
     ),
     # rife-4.26@1 native 384x512 midpoint. Request-15 deltas: -68.623, -64.815 ms.
     # Receipt SHA-256 40d2536f1757b35c83f3e4a6dc522f60635025b014c5dd8d07975362557d668a.
@@ -449,33 +190,12 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "interpolation-midpoint-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400",),
-            ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",),
-        ),
+    ): _profiles(
+        _RIFE_426,
+        _TORCH_214_NATIVE,
         # cudaMallocAsync. Request-15 deltas: -43.639, -59.427 ms.
         # Receipt SHA-256 cf934ce54c639c2dfa5936ee6d1972b2587fd62fc207ccc15111415f62ca6386.
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400",),
-            ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",),
-        ),
+        _TORCH_214_ASYNC,
     ),
     # raft-small@1 default policy. Verified comparison receipts follow.
     # SHA-256 7313aa80840ac7fc447c3e031271d68f446e1ba3ec3df116e4861f4b7d80b474.
@@ -487,30 +207,8 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "flow-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
     ): (
-        (
-            "2.15.0+cu132",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "cudaMallocAsync",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92600", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
-            ("01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27",),
-        ),
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
-            ("01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27",),
-        ),
+        *_profiles(_RAFT_SMALL_ALTERNATE, _TORCH_215_ASYNC),
+        *_profiles(_RAFT_SMALL, _TORCH_214_NATIVE),
     ),
     # raft-large@1 default policy. Verified comparison receipts follow.
     # SHA-256 c438b03bea927fe42736897fad11f28307297b330df0fcea4bf0b956f9e71595.
@@ -521,20 +219,7 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "flow-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
-            ("ff5fadd56d26b40647388883af1547351ea17868b765c05b27231e72dd16a322",),
-        ),
-    ),
+    ): _profiles(_RAFT_LARGE, _TORCH_214_NATIVE),
     # crestereo-eth3d@1 default policy. Verified comparison receipts follow.
     # SHA-256 25ae4396d53dc5d9c59db06f280470c6b8b36f05ce255e9b48197e41b5aa7cd5.
     (
@@ -543,24 +228,5 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "stereo-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
-    ): (
-        (
-            "2.14.1+cu130",
-            "NVIDIA GeForce RTX 5060 Ti",
-            "native",
-            None,
-            None,
-            None,
-            "4",
-            1,
-            (
-                "crestereo@4e3c00b2d395:sm_120",
-                "cudnn_hacc@cudnn92400",
-                "cutlass_conv@988138e042cb:sm_120",
-                "fastbb@7d058322634d:sm_120",
-                "igev@f075827d68c6:sm_120",
-            ),
-            ("6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e",),
-        ),
-    ),
+    ): _profiles(_CRESTEREO_ETH3D, _TORCH_214_NATIVE),
 }
