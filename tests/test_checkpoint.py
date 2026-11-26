@@ -252,8 +252,13 @@ def test_safetensors_reader_reads_every_dtype_into_buffers(tmp_path):
             f.read_into("f32", torch.empty(14)[::2])  # not contiguous
 
 
-@pytest.mark.parametrize("resident", [None, True, False])
-def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path, monkeypatch, resident):
+@pytest.mark.parametrize(
+    ("resident", "prefetch", "readable"),
+    [(True, False, True), (True, True, True), (False, False, True), (False, True, False), (False, True, True)],
+)
+def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(
+    tmp_path, monkeypatch, resident, prefetch, readable
+):
     from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
 
     path = tmp_path / "model.safetensors"
@@ -269,9 +274,17 @@ def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path, 
         return original(source, **kwargs)
 
     monkeypatch.setattr(checkpoint.np, "memmap", record_mapping)
-    monkeypatch.setattr(checkpoint, "_checkpoint_is_cached", lambda _source: resident is True)
-    state = checkpoint.load_mapped_safetensors(path, rename=names.get, require_cached=resident is not None)
-    assert mappings == ([] if resident is False else [str(path)])
+
+    def prefetch_checkpoint(source):
+        reads.append(source.name)
+        return readable
+
+    reads = []
+    monkeypatch.setattr(checkpoint, "_checkpoint_is_cached", lambda _source: resident)
+    monkeypatch.setattr(checkpoint, "_prefetch_checkpoint", prefetch_checkpoint)
+    state = checkpoint.load_mapped_safetensors(path, rename=names.get, prefetch_if_cold=prefetch)
+    assert reads == ([str(path)] if prefetch and not resident else [])
+    assert mappings == ([str(path)] if resident or (prefetch and readable) else [])
     assert state.keys() == set(names.values())
     assert torch.equal(state["weight"], weight)
     assert state["scale"].dtype == scale.dtype

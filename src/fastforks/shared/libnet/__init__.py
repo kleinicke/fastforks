@@ -193,7 +193,7 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
     if p.library == "timm":
         implementation = _mapped_timm_implementation(ctx, index) if "num_classes" not in kwargs else None
         if implementation is not None and ctx.mode == "portable" and ctx.variant.ref == "siglip2-g16-256@1":
-            state = load_mapped_safetensors(ctx.weights()[index])
+            state = load_mapped_safetensors(ctx.weights()[index], prefetch_if_cold=True)
         else:
             state = ctx.state_dict(index, strip="")
         overlay = {"state_dict": state}

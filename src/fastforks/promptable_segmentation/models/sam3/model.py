@@ -113,7 +113,7 @@ def _detector_state(path: Path, expected: set[str]) -> dict[str, torch.Tensor]:
         name = key.removeprefix(PREFIX)
         return None if name not in expected and name.startswith((*TRACKER, *UNUSED)) else name
 
-    return load_mapped_safetensors(path, rename=rename, require_cached=True)
+    return load_mapped_safetensors(path, rename=rename)
 
 
 def load_net(ctx: Context) -> Sam3:

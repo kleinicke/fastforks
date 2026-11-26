@@ -291,20 +291,41 @@ def _checkpoint_is_cached(source: io.RawIOBase) -> bool:
     return True
 
 
+def _prefetch_checkpoint(source: io.RawIOBase) -> bool:
+    """Populate the Linux page cache sequentially without a userspace copy of the checkpoint."""
+    if sys.platform != "linux":
+        return False
+    try:
+        fd = source.fileno()
+        size = os.fstat(fd).st_size
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+        with Path(os.devnull).open("wb", buffering=0) as sink:
+            offset = 0
+            while offset < size:
+                count = os.sendfile(sink.fileno(), fd, offset, min(16 << 20, size - offset))
+                if count == 0:
+                    return False
+                offset += count
+    except (AttributeError, OSError, OverflowError):
+        return False
+    return True
+
+
 def load_mapped_safetensors(
-    path: Path, *, rename: Callable[[str], str | None] | None = None, require_cached: bool = False
+    path: Path, *, rename: Callable[[str], str | None] | None = None, prefetch_if_cold: bool = False
 ) -> dict[str, torch.Tensor]:
     """Read large tensors through independent file mappings so each can release its source pages.
 
     Small tensors share the regular safetensors mapping. `rename` can return None for a known unused key.
-    `require_cached` uses the regular reader if sampled file pages are cold or the check is unavailable.
+    Use the regular reader if sampled file pages are cold. Callers with verified cold read-ahead can set
+    `prefetch_if_cold` to populate the page cache first and use the regular reader if that read cannot complete.
     """
     from safetensors import safe_open  # noqa: PLC0415 - optional checkpoint reader
 
     state = {}
     with contextlib.ExitStack() as stack:
         source = stack.enter_context(path.open("rb", buffering=0))
-        if require_cached and not _checkpoint_is_cached(source):
+        if not _checkpoint_is_cached(source) and not (prefetch_if_cold and _prefetch_checkpoint(source)):
             state = load_state_dict(path, strip="")
             return (
                 state
