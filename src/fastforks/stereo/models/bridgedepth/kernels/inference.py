@@ -72,7 +72,7 @@ def _swap(mod: nn.Module, make: Callable[[WindowAttention], nn.Module]) -> int:
 
 
 @torch.no_grad()
-def prepare_kernels(model: BridgeDepth, device: torch.device) -> BridgeDepth:
+def prepare_kernels(model: BridgeDepth, device: torch.device, *, stage_on_cpu: bool = False) -> BridgeDepth:
     """The portable float16 preparation plus the fused window attention and the fp16 DINOv2.
 
     Raises:
@@ -94,8 +94,9 @@ def prepare_kernels(model: BridgeDepth, device: torch.device) -> BridgeDepth:
     if not _swap(model, make):
         msg = "BridgeDepth kernels: no WindowAttention found"
         raise RuntimeError(msg)
-    model.to(device)
-    use_fast_vit(model.mono.pretrained)
+    if not stage_on_cpu:
+        model.to(device)
+    fast = use_fast_vit(model.mono.pretrained)
     # fp16 weights: autocast cast every conv / linear weight and `LN16` every LayerNorm weight to fp16 on each call
     # (about 1100 copies); the casts are the same values, so the disparity is bit-identical. `get_v` stays fp32:
     # `get_rpe` also multiplies by its weight outside the conv, in fp32 by promotion.
@@ -106,6 +107,10 @@ def prepare_kernels(model: BridgeDepth, device: torch.device) -> BridgeDepth:
         elif isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.ConvTranspose2d)) and id(m) not in keep:
             m.half()
     fuse_nmrf_encoder(model.stereo_encoder)
+    if stage_on_cpu:
+        model.to(device)
+        # The helper is not a registered submodule. Move its preserved float32 table explicitly.
+        fast.pos_fp32 = fast.pos_fp32.to(device)
     return model
 
 
