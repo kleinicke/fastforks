@@ -63,6 +63,10 @@ _MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f
 _COATNET_0: _Resources = (_FVM_KERNELS, ("efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c",))
 _YUNET_N: _Resources = (_YUNET_KERNELS, ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",))
 _YUNET_S: _Resources = (_YUNET_KERNELS, ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",))
+_RETINAFACE_MOBILENET: _Resources = (
+    ("box_nms@daa010d75e1a:sm_120", *_FVM_KERNELS),
+    ("2979b33ffafda5d74b6948cd7a5b9a7a62f62b949cef24e95fd15d2883a65220",),
+)
 _TAPNEXT: _Resources = (_TAPNEXT_KERNELS, ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",))
 _TAPNEXT_PP: _Resources = (_TAPNEXT_KERNELS, ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",))
 _RIFE_425_LITE: _Resources = (_RIFE_KERNELS, ("81cdba223fe72a120130cc8552e5d2ecac824259d406f0c15323b3decf96b8b1",))
@@ -208,6 +212,16 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         _YUNET_S,
         _TORCH_214_NATIVE,
         _TORCH_214_ASYNC_FOUR_THREADS,
+    ),
+    # RetinaFace MobileNet0.25, 480x640 interleaved RGB. Request-15 deltas below.
+    ("retinaface-mobilenet0.25@1", "kernels", "float16", "u8-chw-rgb-interleaved", (480, 640)): _profiles(
+        _RETINAFACE_MOBILENET,
+        # Request-15 deltas: -24.433, -17.322 ms.
+        # Receipt SHA-256 550f6d58cea4a694127f65be794165576172e08624755f70f80ce1908f9d6a60.
+        _TORCH_214_NATIVE,
+        # Request-15 deltas: -10.855, -18.194 ms.
+        # Receipt SHA-256 81ba47811b133a0fb8371de9241cb14be2a4453fa6b8a68d25fa4f88a7f32f9b.
+        _TORCH_214_ASYNC,
     ),
     # tapnext@1 48-frame 1080p, 256 queries. Request-15 deltas: -576.038, -544.690 ms.
     # Receipt SHA-256 6b90e52baeb980ec1cae8753b3bb28f050c4b2b28b2a4a37e99b8a534c33c1ae.
