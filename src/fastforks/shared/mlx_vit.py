@@ -109,8 +109,8 @@ def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
         w, bias = (a.astype(mx.float32).reshape(2, 1, 1, 1, d) for a in norm)
         y = (y * w + bias).astype(qkv.dtype)
         q, k = y[0], y[1]
-    if rope is not None:
-        q, k = rotate(q, *rope), rotate(k, *rope)
+    if rope is not None:  # float32 tables (Perception Encoder): rotated in float32, as timm
+        q, k = rotate(q, *rope).astype(qkv.dtype), rotate(k, *rope).astype(qkv.dtype)
     out = mx.fast.scaled_dot_product_attention(q, k, qkv[2], scale=d**-0.5)
     return out.transpose(0, 2, 1, 3).reshape(b, n, heads * d)
 
@@ -118,8 +118,10 @@ def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
 def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, rope=None, act=None) -> mx.array:
     """Pre-norm block `i` on tokens `[B, N, C]` (with `blocks.<i>.qk_norm.weight` / `.bias`: `attention`'s `norm`).
 
-    `act`: the GELU MLP's activation (default `gelu`; CLIP's QuickGELU, SigLIP 2 giantopt's tanh GELU). Float32
-    tokens with float16 weights keep a float32 residual stream: the norms' outputs run the GEMMs in the weights' dtype.
+    `act`: the GELU MLP's activation (default `gelu`; CLIP's QuickGELU, SigLIP 2 giantopt's tanh GELU). A fused
+    SwiGLU (`w12` / `w3`) may have `blocks.<i>.ffn_norm.weight` / `.bias`: a LayerNorm (the blocks' eps) before `w3`.
+    Float32 tokens with float16 weights keep a float32 residual stream: the norms' outputs run the GEMMs in the
+    weights' dtype.
     """
     b = f"blocks.{i}."
     norm = (p[b + "qk_norm.weight"], p[b + "qk_norm.bias"]) if b + "qk_norm.weight" in p else None
@@ -129,7 +131,10 @@ def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, r
     h = mx.fast.layer_norm(x, p[b + "norm2.weight"], p[b + "norm2.bias"], eps).astype(p[b + "proj.weight"].dtype)
     if b + "w12.weight" in p:
         x1, x2 = mx.split(mx.addmm(p[b + "w12.bias"], h, p[b + "w12.weight"]), 2, axis=-1)
-        return x + mx.addmm(p[b + "w3.bias"], x1 * mx.sigmoid(x1) * x2, p[b + "w3.weight"])
+        h = x1 * mx.sigmoid(x1) * x2
+        if b + "ffn_norm.weight" in p:  # EVA-02's SwiGLU: a LayerNorm before the output projection
+            h = mx.fast.layer_norm(h, p[b + "ffn_norm.weight"], p[b + "ffn_norm.bias"], eps)
+        return x + mx.addmm(p[b + "w3.bias"], h, p[b + "w3.weight"])
     h = (act or gelu)(mx.addmm(p[b + "fc1.bias"], h, p[b + "fc1.weight"]))
     return x + mx.addmm(p[b + "fc2.bias"], h, p[b + "fc2.weight"])
 

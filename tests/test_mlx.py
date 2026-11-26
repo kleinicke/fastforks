@@ -1379,6 +1379,84 @@ def test_mlx_c_radio_engine_matches_torch(layer_scale):
     assert set(engine(x, ())) == {"last_hidden_state", "pooler_output"}
 
 
+def _features_engine(monkeypatch, net: torch.nn.Module, dtype: str = "float32"):
+    """`mlx_features.Engine` of a random timm network (user weights: converted, not cached)."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks.shared.libnet import mlx_features  # noqa: PLC0415 - optional (the mlx extra)
+
+    monkeypatch.setattr(mlx_features, "build", lambda *_, **__: net)
+    ctx = SimpleNamespace(dtype=dtype, user_weights=object(), variant=SimpleNamespace(ref="test"))
+    return mlx_features.Engine(ctx)  # ty: ignore[invalid-argument-type]
+
+
+def _timm_features(net: torch.nn.Module, x: torch.Tensor, layers: tuple[int, ...]):
+    """timm's `(last_hidden_state, pooler_output, [block outputs at layers])` (as `features._Walk`)."""
+    outs = []
+    hooks = [b.register_forward_hook(lambda *a: outs.append(a[-1])) for b in net.blocks]  # ty: ignore[not-iterable]
+    with torch.no_grad():
+        last = net.forward_features(x)
+        pooled = net.forward_head(last, pre_logits=True)
+    for h in hooks:
+        h.remove()
+    return last, pooled, [outs[i - 1] for i in layers]
+
+
+@pytest.mark.parametrize("kind", ["core", "spatial", "spatial-noclass"])
+def test_mlx_features_eva_matches_torch(monkeypatch, kind):
+    """The Perception Encoder `Eva` of `mlx_features`: de-interleaved RoPE, cls rows, attention pool / patch mean.
+
+    Off its table's grid (the positions resampled, the RoPE tables of the new grid), with LayerScale.
+    """
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.libnet import timm  # noqa: PLC0415
+
+    core = kind == "core"
+    net = _randomise(
+        timm().models.eva.Eva(
+            img_size=64, patch_size=16, embed_dim=64, depth=3, num_heads=4, mlp_ratio=4.0, attn_type="rope",
+            use_pre_transformer_norm=True, use_post_transformer_norm=core, use_fc_norm=False, use_rot_pos_emb=True,
+            ref_feat_shape=(4, 4), rope_grid_offset=1.0 if core else 0.0, rope_grid_indexing="xy",
+            global_pool="map" if core else "avg", attn_pool_num_heads=4, num_classes=0, init_values=1.0,
+            class_token=kind != "spatial-noclass", dynamic_img_size=True,
+        )
+    )  # fmt: skip
+    engine = _features_engine(monkeypatch, net)
+    assert engine.cfg.rope
+    assert engine.cfg.avg_pool is not core
+    assert engine.cfg.final_norm is core
+    x = torch.randn(2, 3, 48, 80)
+    last, pooled, hs = _timm_features(net, x, (1, 3))
+    got_last, got_pooled, *got = engine(x, (1, 3))
+    torch.testing.assert_close(got_last, last, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(got_pooled, pooled, atol=2e-3, rtol=2e-3)
+    for g, w in zip(got, hs, strict=True):
+        torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize("kind", ["clip", "siglip"])
+def test_mlx_features_vit_matches_torch(monkeypatch, kind):
+    """The CLIP / SigLIP ViT of `mlx_features`: `norm_pre`, QuickGELU, cls token / attention pool, resampled table."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.libnet import timm  # noqa: PLC0415
+
+    clip = kind == "clip"
+    net = _randomise(
+        timm().models.vision_transformer.VisionTransformer(
+            img_size=64, patch_size=16, embed_dim=64, depth=3, num_heads=4, num_classes=0,
+            global_pool="token" if clip else "map", class_token=clip, pre_norm=clip,
+            act_layer="quick_gelu" if clip else None, dynamic_img_size=True,
+        )
+    )  # fmt: skip
+    engine = _features_engine(monkeypatch, net)
+    x = torch.randn(2, 3, 48, 80)
+    last, pooled, hs = _timm_features(net, x, (2,))
+    got_last, got_pooled, *got = engine(x, (2,))
+    torch.testing.assert_close(got_last, last, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(got_pooled, pooled, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(got[0], hs[0], atol=2e-3, rtol=2e-3)
+
+
 @pytest.mark.parametrize("pad_to", [{}, {16: 64, 32: 64}])
 @pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
 def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):

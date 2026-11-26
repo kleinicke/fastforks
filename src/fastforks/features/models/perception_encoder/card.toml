@@ -3,7 +3,7 @@ name = "Perception Encoder"
 summary = "Perception Encoder (Bolya et al. 2025, Meta) image towers with 2D RoPE: PE core (contrastive, attention-pool embedding) and PE spatial (dense features for detection / segmentation; no learned pool: pooler_output is the mean of the patch tokens, as timm); tokens at any size."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["libnet", "mlx_wrap"]  # shared modules imported directly by this family
+uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
   "Returning all PE Spatial G/14 hidden states at 448 × 448 uses 4,058 MiB peak GPU allocation in both CUDA modes, down from 4,345 MiB on the RTX 5060 Ti. All returned features matched bit for bit.",
   "CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.",

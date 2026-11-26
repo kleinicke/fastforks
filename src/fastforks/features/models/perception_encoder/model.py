@@ -1,11 +1,11 @@
 """Perception Encoder runners: timm's network walked by `fastforks.shared.libnet.features`.
 
-On Apple MPS, kernels is the portable network with the interleaved RoPE as a Metal kernel (`vit_metal`).
+On Apple MPS, kernels is the portable network with the interleaved RoPE as a Metal kernel (`vit_metal`). On Apple MLX
+the network is written by hand (`features.MlxPortable`, `mlx_features`).
 """
 
 from dataclasses import dataclass
 
-from fastforks.shared import mlx_wrap
 from fastforks.shared.libnet import features
 
 
@@ -34,9 +34,15 @@ class MetalKernels(features.MetalKernels):
     Params = Params
 
 
+class MlxPortable(features.MlxPortable):
+    """Apple MLX: the hand-written Eva (absolute table + 2D RoPE)."""
+
+    Params = Params
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+    "portable_mlx": MlxPortable,
 }

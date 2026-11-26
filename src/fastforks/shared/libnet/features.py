@@ -347,8 +347,9 @@ class MetalKernels(Portable):
 class MlxPortable(Runner):
     """Apple MLX (`device="mlx"`): the network in MLX array operations (`mlx_features`), float32 or fp16.
 
-    CLIP / SigLIP 2 ViTs (absolute position table, cls token or attention pool); written by hand, so the first call
-    only compiles (the exported-graph port spent 0.7-4 s exporting and translating there).
+    CLIP / SigLIP 2 ViTs (absolute position table, cls token or attention pool) and the Perception Encoder Evas
+    (plus 2D RoPE); written by hand, so the first call only compiles (the exported-graph port spent 0.7-4 s exporting
+    and translating there, 50-90 s for PE G/14).
     """
 
     batch = None
