@@ -84,7 +84,7 @@ def _image_tensor(value: object, device: torch.device) -> TensorSignature | None
 
 
 def _adjacent_rgb_pair(call: ImagePair, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
-    """Two ordered B1 BCHW views of one exact, two-frame RGB-interleaved allocation."""
+    """Adjacent ordered BCHW views of one exactly sized RGB-interleaved frame batch."""
     first, second = call
     if (
         not isinstance(first, torch.Tensor)
@@ -96,18 +96,24 @@ def _adjacent_rgb_pair(call: ImagePair, device: torch.device) -> tuple[TensorSig
         or first.dtype != torch.float32
         or second.dtype != torch.float32
         or first.ndim != _BCHW
-        or first.shape[:2] != (1, _RGB)
+        or first.shape[1] != _RGB
         or second.shape != first.shape
     ):
         return None
-    frame = first.numel()
-    stride = (frame, 1, _RGB * first.shape[-1], _RGB)
-    if first.stride() != stride or second.stride() != stride or first.storage_offset() != 0:
+    batch, _, height, width = first.shape
+    if batch == 0 or height == 0 or width == 0:
         return None
-    if second.storage_offset() != frame:
+    frame = _RGB * height * width
+    stride = (frame, 1, _RGB * width, _RGB)
+    if (
+        first.stride() != stride
+        or second.stride() != stride
+        or first.storage_offset() != 0
+        or second.storage_offset() != frame
+    ):
         return None
     storage = first.untyped_storage()
-    if storage.nbytes() != 2 * frame * first.element_size():
+    if storage.nbytes() != (batch + 1) * frame * first.element_size():
         return None
     if storage.data_ptr() != second.untyped_storage().data_ptr():
         return None
