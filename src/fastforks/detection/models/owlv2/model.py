@@ -17,6 +17,7 @@ SDPA; kernels: fused fp16 GEMMs, CUDA graph), the final norms and heads in float
 from __future__ import annotations
 
 import math
+import sys
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -281,7 +282,11 @@ class Kernels(Portable):
             del lay.ff_wqkv  # the fused filters replace the Linear weights (the biases stay), as in CLIPSeg
             for mod, name in ((a.out_proj, "weight"), (m.fc1, "weight"), (m.fc1, "bias"), (m.fc2, "weight")):
                 mod.register_parameter(name, None)
-        self.graphs = GraphCache(self._joined, graphs=1) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._joined, graphs=1, capture_warmup=sys.platform != "linux")
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def layer(self, lay: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - an Owlv2EncoderLayer
         """`Owlv2EncoderLayer.forward` with fused GEMM epilogues."""
