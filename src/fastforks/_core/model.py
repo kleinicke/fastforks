@@ -789,7 +789,7 @@ class Model:
 
     def _without_graph_admission(self) -> contextlib.AbstractContextManager[None]:
         """Keep unmeasured compound routes eager on Linux CUDA models."""
-        if sys.platform == "linux" and self._device.type == "cuda":
+        if sys.platform == "linux" and (device := getattr(self, "_device", None)) is not None and device.type == "cuda":
             return graph_request(allow_replay=False)
         return contextlib.nullcontext()
 
