@@ -25,6 +25,8 @@ first call (1.6 to 3.8 s on an M1 Pro; 0.15 to 0.6 s like this).
   once. From stage 2 on a block is started (`mx.async_eval`) before the one before it is waited for, so the GPU never
   idles while Python builds the next graph. The stage-1 blocks (256 x 256 tokens, 0.3 to 0.5 GB of temporaries each)
   are evaluated alone: two of them in flight were 3 to 5 % faster and 0.3 to 0.5 GB more peak memory.
+- On the maps of stages 1 and 2 the attention and the MLP of a block run in bands of windows / tokens (`_banded`): the
+  whole map's q / k / v and hidden layer at once were the call's peak.
 """
 
 # ruff: noqa: ANN401 - the upstream trunk's torch modules
@@ -49,6 +51,7 @@ if TYPE_CHECKING:
 __all__ = ["MlxEncoder"]
 
 SYNC_TOKENS = 1 << 16  # blocks on maps this large are evaluated alone (see the module docstring)
+BAND_TOKENS = 1 << 13  # a larger map's attention and MLP run in bands of this many tokens (`_banded`)
 PAD_TO = {56: 64}  # head dims padded to one MLX's attention runs fused, where that was measured faster
 
 
@@ -238,6 +241,28 @@ def _attention(attn: Any, dtype: mx.Dtype, pad_to: dict[int, int]) -> Callable[[
     return run
 
 
+def _banded(f: Callable[[mx.array], mx.array], x: mx.array, tokens: int) -> mx.array:
+    """`f(x)` for an `f` that maps the rows of `x` (axis 0) on their own, in bands of `BAND_TOKENS`.
+
+    One lazy graph holds the temporaries of the whole map at once (the q / k / v of every window, the MLP's hidden
+    layer: most of a call's peak on the 256 x 256 and 128 x 128 maps). A band is started before the one before it is
+    waited for, so two bands' temporaries are alive at most and the GPU does not idle between them. Tiny, encoder
+    peak / ms: float16 455 MB / 103.4 -> 348 MB / 108.3, float32 680 MB / 137.8 -> 504 MB / 138.6; bands of 4096
+    tokens save 18 to 41 MB more for 3 ms.
+    """
+    bands = tokens // BAND_TOKENS
+    if bands <= 1 or x.shape[0] % bands:
+        return f(x)
+    mx.eval(x)
+    parts: list[mx.array] = []
+    for part in mx.split(x, bands):
+        parts.append(f(part))
+        mx.async_eval(parts[-1])
+        if len(parts) > 1:
+            mx.eval(parts[-2])
+    return mx.concatenate(parts)
+
+
 Block = Callable[[mx.array, mx.array | None], tuple[mx.array, mx.array, mx.array]]
 
 
@@ -280,7 +305,7 @@ def _block(blk: Any, dtype: mx.Dtype, stream: mx.Dtype, pad_to: dict[int, int]) 
                 hp, wp = size[0] + ph, size[1] + pw
                 h = h.reshape(bsz, hp // window, window, wp // window, window, cin).transpose(0, 1, 3, 2, 4, 5)
                 h = h.reshape(-1, window, window, cin)
-        y = attn(h)
+        y = _banded(attn, h, h.shape[0] * h.shape[1] * h.shape[2])
         size = (shortcut.shape[1], shortcut.shape[2])
         dims, _ = _dims(cout, size, window // 2 if pooled else window)
         x, h = add_ln(
@@ -290,7 +315,8 @@ def _block(blk: Any, dtype: mx.Dtype, stream: mx.Dtype, pad_to: dict[int, int]) 
             output_shapes=[shortcut.shape, shortcut.shape],
             output_dtypes=[stream, dtype],
         )
-        return entry, x, fc2(gelu(fc1(h)))
+        m = _banded(lambda t: fc2(gelu(fc1(t))), h.reshape(-1, cout), h.size // cout)
+        return entry, x, m.reshape(h.shape)
 
     return run
 
