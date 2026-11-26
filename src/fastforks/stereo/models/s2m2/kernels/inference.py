@@ -16,6 +16,7 @@ prepare_kernels(model, hacc=True) then model.forward_fast(img0, img1) (images [1
 
 import math
 from collections.abc import Callable, Sequence
+from contextlib import nullcontext
 from typing import Any, cast
 
 import torch
@@ -1679,7 +1680,12 @@ def _bind(m: nn.Module, fn: Callable[..., torch.Tensor]) -> None:
 
 
 def prepare_kernels(
-    model: nn.Module, hacc: bool = True, kernels: bool = True, cutlass: bool | None = None
+    model: nn.Module,
+    hacc: bool = True,
+    kernels: bool = True,
+    cutlass: bool | None = None,
+    *,
+    share_qkv_weights: bool = False,
 ) -> torch.Tensor:
     """In place: fp16 + channels_last weights, fused projections, fast forwards. Returns #convs on fp16-acc cuDNN.
     kernels: conv / linear bias + activation (+ residual) as one custom epilogue kernel (s2m2_kernels.cu, compiled once)."""
@@ -1691,9 +1697,14 @@ def prepare_kernels(
         if isinstance(m, nn.Linear):
             cast("Any", m)._b32 = None if m.bias is None else m.bias.float().contiguous()
         if isinstance(m, (SelfAttn, CrossAttn)):
-            m._wqkv = torch.cat([m.q.weight, m.k.weight, m.v.weight], 0).contiguous()
-            # attn @ (v + b_v) = attn @ v + b_v  ->  proj(o + b_v) = proj(o) + W_proj b_v: no bias pass on q|k|v
-            m._pbias = (m.proj.weight.float() @ m.v.bias.float()).contiguous()
+            with torch.no_grad() if share_qkv_weights else nullcontext():
+                m._wqkv = torch.cat([m.q.weight, m.k.weight, m.v.weight], 0).contiguous()
+                # attn @ (v + b_v) = attn @ v + b_v -> proj(o + b_v) = proj(o) + W_proj b_v
+                m._pbias = (m.proj.weight.float() @ m.v.bias.float()).contiguous()
+            if share_qkv_weights:
+                # The original projections and packed kernel weights can share the same storage.
+                for projection, weight in zip((m.q, m.k, m.v), m._wqkv.chunk(3, dim=0), strict=True):
+                    projection.weight.data = weight
         elif isinstance(m, ConvGRU):
             for s in ("1", "2"):
                 cz, cr = getattr(m, "convz" + s), getattr(m, "convr" + s)

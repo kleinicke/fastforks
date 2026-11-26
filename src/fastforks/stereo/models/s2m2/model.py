@@ -144,7 +144,12 @@ class Kernels(_S2M2Runner):
         from .kernels.inference import prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
 
         self.net = _net(ctx)
-        prepare_kernels(self.net, hacc=True, kernels=True)
+        prepare_kernels(
+            self.net,
+            hacc=True,
+            kernels=True,
+            share_qkv_weights=ctx.variant.ref == "s2m2-xl@1" and _direct_half_load(ctx),
+        )
         self._graphs = SmallShapeGraphs(
             self._run,
             pixels=_GRAPH_PIXELS,
