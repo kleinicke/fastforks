@@ -59,6 +59,7 @@ _DINOV3_CONVNEXT_KERNELS = ("fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b
 _IGEV_KERNELS = ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120")
 
 _MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",))
+_COATNET_0: _Resources = (_FVM_KERNELS, ("efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c",))
 _YUNET_N: _Resources = (_YUNET_KERNELS, ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",))
 _YUNET_S: _Resources = (_YUNET_KERNELS, ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",))
 _TAPNEXT: _Resources = (_TAPNEXT_KERNELS, ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",))
@@ -88,6 +89,10 @@ _DINOV3_CONVNEXT_BASE: _Resources = (
 _DINOV3_CONVNEXT_SMALL: _Resources = (
     _DINOV3_CONVNEXT_KERNELS,
     ("8182492b73345ceb449ed6be0de486d778a73afb273ba2684de785a71ef1da9d",),
+)
+_DINOV3_CONVNEXT_TINY: _Resources = (
+    _DINOV3_CONVNEXT_KERNELS,
+    ("bd30a9459d6149564ef53af6e8a1999980953b009b94cde836ac1bac4d339cb2",),
 )
 _SEGNEXT_S: _Resources = (
     (*_FVM_BINARIES, "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"),
@@ -149,6 +154,11 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("mobilenet_v2.tv2_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
         _MOBILENET_V2,
         _TORCH_214_NATIVE,
+    ),
+    # CoAtNet-0 with cudaMallocAsync. Request-15 deltas: -57.078, -51.639 ms.
+    # Receipt SHA-256 bb27f6ffe6a45231fab544e908d883a8df5494136baad5200b9acc3ee72f0a56.
+    ("coatnet_0_rw_224.sw_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        _COATNET_0, _TORCH_214_ASYNC
     ),
     ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): _profiles(
         _YUNET_N,
@@ -261,7 +271,13 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
     ): (
         *_profiles(_RAFT_SMALL_ALTERNATE, _TORCH_215_ASYNC),
-        *_profiles(_RAFT_SMALL, _TORCH_214_NATIVE),
+        *_profiles(
+            _RAFT_SMALL,
+            _TORCH_214_NATIVE,
+            # Primary cudaMallocAsync. Request-15 deltas: -39.235, -37.282 ms.
+            # Receipt SHA-256 163a2a5d80df7ddebdd635d6e13c9439227673072a854afc52613cb45a9ba193.
+            _TORCH_214_ASYNC,
+        ),
     ),
     # raft-large@1 default policy. Verified comparison receipts follow.
     # SHA-256 c438b03bea927fe42736897fad11f28307297b330df0fcea4bf0b956f9e71595.
@@ -296,6 +312,11 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # Receipt SHA-256 a70293a99b21e39f6cd78f304241fe6bdeafedeb16160a18b4c8d1a0390df78e.
     ("dinov3-convnext-small@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
         _DINOV3_CONVNEXT_SMALL, _TORCH_214_NATIVE
+    ),
+    # DINOv3 ConvNeXt Tiny. Request-15 deltas: -11.659, -9.118 ms.
+    # Receipt SHA-256 66a02143d0fe1ac677d78293842545d1ffeb529c78a837f2cc93771344e280f0.
+    ("dinov3-convnext-tiny@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        _DINOV3_CONVNEXT_TINY, _TORCH_214_NATIVE
     ),
     # SegNeXt MSCAN-S. Request-15 deltas: -13.554, -23.325 ms.
     # Receipt SHA-256 37b289ec759650893d852131ed7744afae6ae9c7b562ce96c0051468df611922.
