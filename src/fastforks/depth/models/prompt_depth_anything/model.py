@@ -8,12 +8,16 @@ to the input size (bilinear).
 
 from __future__ import annotations
 
+import contextlib
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import pure_half
 from fastforks._core.mlx_cast import keep_float32
 from fastforks.depth._runner import Forward, Runner, scale
@@ -55,13 +59,31 @@ def network_size(h: int, w: int, max_size: int) -> tuple[int, int]:
     return max(int(h * s) // PATCH, 1) * PATCH, max(int(w * s) // PATCH, 1) * PATCH
 
 
+def _assign_checkpoint(ctx: Context) -> bool:
+    """Leave official Linux CUDA weights mapped until the kernels converter reads them."""
+    return (
+        sys.platform == "linux"
+        and ctx.mode == "kernels"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.variant.ref == "prompt-depth-anything-l@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
 def _net(ctx: Context) -> PromptDepthAnything:
     cfg = _CONFIGS[ctx.params.arch]
-    net = PromptDepthAnything(ctx.params.arch, int(cfg["features"]), list(cfg["out_channels"]))  # ty: ignore[invalid-argument-type]
+    assign = _assign_checkpoint(ctx)
+    with skipped_init() if assign else contextlib.nullcontext():
+        net = PromptDepthAnything(ctx.params.arch, int(cfg["features"]), list(cfg["out_channels"]))  # ty: ignore[invalid-argument-type]
     sd = ctx.state_dict(key="state_dict", strip="pipeline.")
     sd.pop("_mean", None)  # the runners normalise
     sd.pop("_std", None)
-    net.load_state_dict(sd)
+    if assign:
+        load_strict(net, sd, f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        net.load_state_dict(sd)
     return net.eval()
 
 
