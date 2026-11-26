@@ -12,6 +12,7 @@ from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch, unbatch
+from fastforks._core.linux_graph_defaults import MattingTrimap
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
 from fastforks._core.upload import to_device
@@ -108,7 +109,8 @@ class MattingModel(core.Model):
             out = self._runner(chunk, tri)
             return self._check_outputs(out, {"alpha": (chunk.shape[0], *chunk.shape[-2:])})
 
-        maps = unbatch(self._batched(run, x, t, graph_input=image if trimap is None and mask is None else None), image)
+        graph_input = None if mask is not None else image if trimap is None else MattingTrimap(image, trimap)
+        maps = unbatch(self._batched(run, x, t, graph_input=graph_input), image)
         return MattingResult(maps["alpha"], self.variant.ref, self.backend, self.options)
 
     def video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor, *, mask: ImageLike) -> VideoMattingResult:

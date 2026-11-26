@@ -45,6 +45,13 @@ class PoseBoxes(NamedTuple):
     boxes: object
 
 
+class MattingTrimap(NamedTuple):
+    """Original image and trimap of a guided matting request."""
+
+    image: object
+    trimap: object
+
+
 @functools.cache
 def _gpu_name(device: torch.device) -> str:
     return torch.cuda.get_device_name(device)
@@ -172,6 +179,23 @@ def _pose_inputs(call: PoseBoxes, device: torch.device) -> tuple[TensorSignature
     return ("f32-chw-contiguous", tuple(image.shape)), ("f32-p4-cuda-contiguous", tuple(boxes.shape))
 
 
+def _matting_inputs(call: MattingTrimap, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
+    image, trimap = call
+    rgb = _image_tensor(image, device)
+    if rgb is None or rgb[0] != "f32-bchw-contiguous":
+        return None
+    if (
+        not isinstance(trimap, torch.Tensor)
+        or trimap.device != device
+        or trimap.dtype != torch.float32
+        or trimap.shape != (1, 1, *rgb[1][-2:])
+        or not trimap.is_contiguous()
+        or trimap.storage_offset() != 0
+    ):
+        return None
+    return rgb, ("f32-b1hw-cuda-contiguous", tuple(trimap.shape))
+
+
 def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredKey | None:
     ref, mode, dtype, task = model.variant.ref, model.backend.mode, model.backend.dtype, model.card.task
     if isinstance(call, ImagePair) and task in _PAIR_TASKS:
@@ -188,9 +212,12 @@ def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredK
     if isinstance(call, PoseBoxes) and task == "pose":
         args = _pose_inputs(call, device)
         return None if args is None else (ref, mode, dtype, "pose-boxes", args)
-    if task in _PAIR_TASKS or task == "tracking":
-        return None
-    image = _image_tensor(call, device, planar=task == "detection")
+    if isinstance(call, MattingTrimap) and task == "matting":
+        args = _matting_inputs(call, device)
+        return None if args is None else (ref, mode, dtype, "matting-trimap", args)
+    image = (
+        None if task in _PAIR_TASKS or task == "tracking" else _image_tensor(call, device, planar=task == "detection")
+    )
     if image is None:
         return None
     layout, shape = image

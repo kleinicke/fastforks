@@ -151,6 +151,10 @@ _SEGFORMER_B5_FACE: _Resources = (
     ),
 )
 
+_VITMATTE_KERNELS = tuple(sorted((*_IGEV_KERNELS, "dpt_fused@48e0065bb7cf:sm_120")))
+_VITMATTE_BASE: _Resources = (_VITMATTE_KERNELS, ("b2521bcc4b719fb24611c39605b6642162fd7502e69b3cc846506ca921757b41",))
+_VITMATTE_SMALL: _Resources = (_VITMATTE_KERNELS, ("bda9289db1bb6762d978b42d1c62ae3f34daf7497171a347a1d09657efd788cb",))
+
 
 def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[object, ...], ...]:
     """Expand measured host and model data into the existing lookup tuple."""
@@ -528,6 +532,24 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # u2net@1 native 1080x1920. Request-15 deltas: -43.820, -43.698 ms.
     # Receipt SHA-256 5dac1d13f13e811ccc17eb8bc24a3a4ecbc7014f4c6c0294cfc2b00281985ecb.
     ("u2net@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(_U2NET, _TORCH_214_NATIVE),
+    # vitmatte-b@1 native RGB+trimap 320x480. Request-15 deltas: -35.591, -25.441 ms.
+    # Receipt SHA-256 fc1479d47ae6c4260a748a2b3a8fc5a08b0b9b9538170f0b6f3b292434cf7624.
+    (
+        "vitmatte-b@1",
+        "kernels",
+        "float16",
+        "matting-trimap",
+        (("f32-bchw-contiguous", (1, 3, 320, 480)), ("f32-b1hw-cuda-contiguous", (1, 1, 320, 480))),
+    ): _profiles(_VITMATTE_BASE, _TORCH_214_NATIVE),
+    # vitmatte-s@1 native RGB+trimap 320x480. Request-15 deltas: -58.005, -56.656 ms.
+    # Receipt SHA-256 0c25de3ee798bab758b7cc7bdbec6a9ea34a811dd72aed91ecb401867af02b43.
+    (
+        "vitmatte-s@1",
+        "kernels",
+        "float16",
+        "matting-trimap",
+        (("f32-bchw-contiguous", (1, 3, 320, 480)), ("f32-b1hw-cuda-contiguous", (1, 1, 320, 480))),
+    ): _profiles(_VITMATTE_SMALL, _TORCH_214_NATIVE),
     # SegNeXt MSCAN-S 1080p. Request-15 deltas: -108.928, -14.113 ms.
     # Receipt SHA-256 d9da8dcc671d775f3c42c9ca03a8e9935e59d41981b25d13034b7b8318309a2e.
     ("segnext-mscan-s-ade20k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(

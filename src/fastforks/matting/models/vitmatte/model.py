@@ -19,6 +19,7 @@ ReLU as one cuDNN fp16-accumulate conv with an fp32 affine epilogue each (`share
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
@@ -322,6 +323,8 @@ class Kernels(_Matting):
             capture_after=cudnn_hacc.capture_after(),
             size=self._graph_pixels,
             one_shape=True,
+            # Linux native uses the geometry and convolution plans prepared by the preceding eager requests.
+            capture_warmup=sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def _graph_pixels(self, image: torch.Tensor, _trimap: torch.Tensor) -> int:
