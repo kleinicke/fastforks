@@ -228,6 +228,7 @@ def _shifted_window(  # noqa: PLR0913 - upstream's arguments and the output
                 win[..., d:].zero_()
             for t, wt in zip(qkv.unbind(0), win.unbind(0), strict=True):
                 _rolled_blocks(wt[..., :d], t, grid=grid, rows=rows, cols=cols, shift=shift, to_image=False)
+                del t, wt  # Keep the views from retaining this allocation while the next region is packed.
             q, k, v = win.view(3, b * nr * nc, heads, hs * ws, d + pad).unbind(0)
             y = attention(q, k, v, pos.expand(q.shape[0], -1, -1, -1), m.scale)
             del win, q, k, v
@@ -337,6 +338,7 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
             part = qkv[..., channels].view(3, b, hp, wp, -1)
             if masks is None:
                 _shifted_window(cast("Spatial_Attention", attn), part, hp, wp, (sh, sw), into=heads[..., channels])
+                del part  # Release padded QKV with the value view before the interaction.
                 continue
             rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
             out = attn(rolled, hp, wp, mask=masks[i])
