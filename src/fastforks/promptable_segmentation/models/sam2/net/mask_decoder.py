@@ -1,4 +1,5 @@
 # fastforks: vendored from facebookresearch/sam2@2b90b9f sam2/modeling/sam/mask_decoder.py (imports made relative, one type-checker comment)
+# fastforks: image CUDA graphs can opt in to broadcasting the read-only image inputs.
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
@@ -174,6 +175,8 @@ class MaskDecoder(nn.Module):
         dense_prompt_embeddings: torch.Tensor,
         repeat_image: bool,
         high_res_features: Optional[List[torch.Tensor]] = None,
+        *,
+        broadcast_image_inputs: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts masks. See 'forward' for more details."""
         # Concatenate output tokens
@@ -198,7 +201,10 @@ class MaskDecoder(nn.Module):
         tokens = torch.cat((output_tokens, sparse_prompt_embeddings), dim=1)
 
         # Expand per-image data in batch direction to be per-mask
-        if repeat_image:
+        if broadcast_image_inputs:
+            assert image_embeddings.shape[0] == 1 and image_embeddings.is_contiguous()
+            src = image_embeddings
+        elif repeat_image:
             src = torch.repeat_interleave(image_embeddings, tokens.shape[0], dim=0)
         else:
             assert image_embeddings.shape[0] == tokens.shape[0]
@@ -207,7 +213,12 @@ class MaskDecoder(nn.Module):
         assert (
             image_pe.size(0) == 1
         ), "image_pe should have size 1 in batch dim (from `get_dense_pe()`)"
-        pos_src = torch.repeat_interleave(image_pe, tokens.shape[0], dim=0)
+        if broadcast_image_inputs:
+            # repeat_interleave converted the channels-last position table to NCHW.
+            # Keep that layout for each prompt, sharing the read-only table across prompts.
+            pos_src = image_pe.contiguous().expand_as(src)
+        else:
+            pos_src = torch.repeat_interleave(image_pe, tokens.shape[0], dim=0)
         b, c, h, w = src.shape
 
         # Run the transformer

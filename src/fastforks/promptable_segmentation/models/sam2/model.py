@@ -360,14 +360,16 @@ class Kernels(_Sam2):
         pts = (by[3], by[2]) if 3 in by else None  # noqa: PLR2004 - coordinates [P, N, 2]
         pe, dec = self.net.sam_prompt_encoder, self.net.sam_mask_decoder
         sparse, dense = pe(points=pts, boxes=None, masks=by.get(4))
+        multi_prompt = sparse.shape[0] > 1
         # upstream annotates two outputs; it returns masks, scores, mask tokens and object scores
         low, iou = dec.predict_masks(
             image_embeddings=embed,
             image_pe=pe.get_dense_pe(),
             sparse_prompt_embeddings=sparse,
             dense_prompt_embeddings=dense,
-            repeat_image=sparse.shape[0] > 1,
+            repeat_image=multi_prompt,
             high_res_features=[s0, s1],
+            broadcast_image_inputs=multi_prompt and embed.shape[0] == 1 and embed.is_contiguous(),
         )[:2]
         single = dec._dynamic_multimask_via_stability(low, iou)  # noqa: SLF001 - upstream forward's single-mask choice
         return low[:, 1:], iou[:, 1:], *single
