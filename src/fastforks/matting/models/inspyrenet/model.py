@@ -14,12 +14,15 @@ on them in float32; those convs are never cast to float16 (their batch-norm runn
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, cast
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import fp16_accumulate, fp32_accumulate
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
@@ -147,11 +150,33 @@ def _fold_batchnorms(net: torch.nn.Module) -> int:
     return n
 
 
+def _assign_checkpoint(ctx: Context) -> bool:
+    """Keep official Linux CUDA checkpoint tensors mapped until the FP32 device move."""
+    return (
+        sys.platform == "linux"
+        and ctx.mode == "kernels"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+        and (
+            ctx.variant.ref == "inspyrenet-fast@1"
+            # Base added first-request VRAM in a paired cudaMallocAsync run.
+            or (ctx.variant.ref == "inspyrenet@1" and torch.cuda.get_allocator_backend() == "native")
+        )
+    )
+
+
 def _net(ctx: Context, dtype: torch.dtype, *, fold: bool = False) -> torch.nn.Module:
     s = ctx.params.size
-    net = InSPyReNet_SwinB(depth=64, pretrained=False, base_size=[s, s], threshold=None)
-    net.load_state_dict(ctx.state_dict())
-    torch.nn.Module.to(net, ctx.device)  # upstream's `to(device)` takes no dtype
+    assign = fold and _assign_checkpoint(ctx)
+    with skipped_init() if assign else nullcontext():
+        net = InSPyReNet_SwinB(depth=64, pretrained=False, base_size=[s, s], threshold=None)
+    if assign:
+        load_strict(net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        net.load_state_dict(ctx.state_dict())
+    torch.nn.Module.to(net, ctx.device)  # upstream's `to(device)` takes no dtype; folding mutates the device copy
     if fold and not _fold_batchnorms(net):
         msg = "InSPyReNet kernels: no Conv2d BatchNorm to fold (the module tree changed)"
         raise RuntimeError(msg)
