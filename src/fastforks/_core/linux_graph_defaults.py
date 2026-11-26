@@ -20,6 +20,7 @@ _CHW = 3
 _BCHW = 4
 _RGB = 3
 _PAIR_TASKS = {"flow", "interpolation", "stereo"}
+_MEASURED_VRAM_CLASS = 15 << 30  # visible capacity of the measured 16 GiB board is slightly lower than 16 GiB
 
 
 class ImagePair(NamedTuple):
@@ -39,6 +40,11 @@ class VideoQueries(NamedTuple):
 @functools.cache
 def _gpu_name(device: torch.device) -> str:
     return torch.cuda.get_device_name(device)
+
+
+@functools.cache
+def _gpu_memory(device: torch.device) -> int:
+    return torch.cuda.get_device_properties(device).total_memory
 
 
 def _image_layout(image: torch.Tensor) -> str | None:
@@ -214,4 +220,4 @@ def allows(model: Model, call: object = None) -> bool:
         tuple(sorted(model.backend.kernels)),
         model.backend.weights,
     )
-    return runtime in profiles and _standard_torch_settings(model)
+    return runtime in profiles and _standard_torch_settings(model) and _gpu_memory(device) >= _MEASURED_VRAM_CLASS
