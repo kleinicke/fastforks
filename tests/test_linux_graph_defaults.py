@@ -90,6 +90,32 @@ class _CudaInput(torch.Tensor):
         return True
 
 
+def test_matting_graph_key_requires_both_measured_operands() -> None:
+    device = torch.device("cuda:0")
+    image = torch.empty((1, 3, 16, 32)).as_subclass(_CudaInput)
+    trimap = torch.empty((1, 1, 16, 32)).as_subclass(_CudaInput)
+    offset = torch.empty(16 * 32 + 1)[1:].view_as(trimap).as_subclass(_CudaInput)
+    model = cast(
+        "Model",
+        SimpleNamespace(
+            variant=SimpleNamespace(ref="vitmatte-s@1"),
+            backend=SimpleNamespace(mode="kernels", dtype="float16"),
+            card=SimpleNamespace(task="matting"),
+        ),
+    )
+    call = linux_graph_defaults.MattingTrimap
+    assert linux_graph_defaults._workload_key(model, call(image, trimap), device) == (
+        "vitmatte-s@1",
+        "kernels",
+        "float16",
+        "matting-trimap",
+        (("f32-bchw-contiguous", (1, 3, 16, 32)), ("f32-b1hw-cuda-contiguous", (1, 1, 16, 32))),
+    )
+    assert linux_graph_defaults._workload_key(model, call(image, offset), device) is None
+    assert linux_graph_defaults._workload_key(model, call(image, trimap[..., :-1]), device) is None
+    assert linux_graph_defaults._workload_key(model, call(image, torch.empty((1, 1, 16, 32))), device) is None
+
+
 @pytest.mark.parametrize("frame_count", [2, 8])
 def test_interpolation_graph_key_requires_adjacent_views_of_one_frame_batch(frame_count: int) -> None:
     device = torch.device("cuda:0")
