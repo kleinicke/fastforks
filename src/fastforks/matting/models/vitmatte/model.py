@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from fastforks.matting._runner import Context
 
 _PAD = 32  # fixed: the processor's `size_divisibility`
+_DIRECT_PACK_ROWS = 4096  # keep a single packed allocation in the large global attention blocks
 Rel = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
 
@@ -85,7 +86,9 @@ def _onehot_keys(h: int, w: int, device: torch.device, dtype: torch.dtype) -> to
     return torch.cat([eye_h.repeat_interleave(w, 0), eye_w.repeat(h, 1)], 1)
 
 
-def _augmented(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> tuple[torch.Tensor, ...]:
+def _augmented(
+    qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int], *, direct_pack: bool = False
+) -> tuple[torch.Tensor, ...]:
     """Packed qkv `[B, N, 3C]` -> SDPA operands `q', k', v'` `[B, heads, N, Dp]` (to run with `scale=1`)."""
     rh, rw, onehot = rel
     b, n, c3 = qkv.shape
@@ -97,20 +100,28 @@ def _augmented(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> tup
     rel_w = torch.einsum("bhwnc,wkc->bnhwk", r_q, rw).reshape(b, nh, n, w)
     pad = -(d + h + w) % 8
     qt = q.transpose(1, 2)
-    # zero columns by padding: a zeros tensor is a constant the MLX twin would fold and keep resident
-    qa = F.pad(torch.cat([qt * d**-0.5, rel_h, rel_w], -1), (0, pad))
-    ka = F.pad(torch.cat([k.transpose(1, 2), onehot.expand(b, nh, n, h + w)], -1), (0, pad))
+    key_pos = onehot.expand(b, nh, n, h + w)
+    if direct_pack:
+        # A stride-zero suffix gives cat its final width without another full q/k copy.
+        zeros = qkv.new_zeros((pad,)).expand(b, nh, n, pad)
+        qa = torch.cat((qt * d**-0.5, rel_h, rel_w, zeros), -1)
+        del rel_h, rel_w
+        ka = torch.cat((k.transpose(1, 2), key_pos, zeros), -1)
+    else:
+        # Zero columns by padding: the MLX twin folds and keeps its constants resident.
+        qa = F.pad(torch.cat([qt * d**-0.5, rel_h, rel_w], -1), (0, pad))
+        ka = F.pad(torch.cat([k.transpose(1, 2), key_pos], -1), (0, pad))
     va = F.pad(v.transpose(1, 2), (0, h + w + pad))
     return qa, ka, va
 
 
-def _attend(qkv: torch.Tensor, heads: int, rel: Rel, hw: tuple[int, int]) -> torch.Tensor:
+def _attend(qkv: torch.Tensor, heads: int, rel: Rel, hw: tuple[int, int], *, direct_pack: bool = False) -> torch.Tensor:
     """Attention of packed qkv `[B, N, 3C]` -> `[B, N, C]` (before the output projection)."""
     b, n, c3 = qkv.shape
     if sam_attention.use_biased(qkv, c3 // 3 // heads, hw):  # no flash: SDPA with a dense bias mask
         o = sam_attention.biased(qkv, heads, rel, hw)
     else:
-        qa, ka, va = _augmented(qkv, heads, rel, hw)
+        qa, ka, va = _augmented(qkv, heads, rel, hw, direct_pack=direct_pack)
         o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., : c3 // 3 // heads]
     return o.transpose(1, 2).reshape(b, n, c3 // 3)
 
@@ -300,7 +311,10 @@ class Kernels(_Matting):
         head = dec.matting_head.matting_convs
         self.head_affine = bn_affine(head[1], head[0])
         prepare_convs(dec)  # fp16, channels-last; the >= 128-channel convs on the CUTLASS fused kernel
-        cap = self._GRAPH_PIXELS_SMALL if ctx.params.hidden_size == self._SMALL_WIDTH else self._GRAPH_PIXELS_BASE
+        small = ctx.params.hidden_size == self._SMALL_WIDTH
+        # ViTMatte-S has a lower reserved peak with its patch input held by the native allocator.
+        self._release_patch_inputs = not small or torch.cuda.get_allocator_backend() != "native"
+        cap = self._GRAPH_PIXELS_SMALL if small else self._GRAPH_PIXELS_BASE
         self._graphs = SmallShapeGraphs(
             self._matte,
             pixels=cap,
@@ -327,7 +341,8 @@ class Kernels(_Matting):
         """`[B, h, w, C]` (normed, partitioned) -> attention output before proj, rows `[B * h * w, C]`."""
         bw, h, w, c = x.shape
         qkv = self.k.gemm(x.reshape(-1, c), *b.qkv).view(bw, h * w, 3 * c)
-        return _attend(qkv, b.heads, rel, (h, w)).reshape(-1, c)
+        direct_pack = not b.ws and bw * h * w >= _DIRECT_PACK_ROWS
+        return _attend(qkv, b.heads, rel, (h, w), direct_pack=direct_pack).reshape(-1, c)
 
     def _layer(self, b: _FusedLayer, x: torch.Tensor, rel: Rel) -> torch.Tensor:
         k = self.k
@@ -337,11 +352,14 @@ class Kernels(_Matting):
             y, pad_hw = _partition(y, b.ws)
             o = k.gemm(self._attention(b, y, rel), *b.proj).view(-1, b.ws, b.ws, c)
             x = x + _unpartition(o, b.ws, pad_hw, (th, tw))
+            del o
             rows = x.view(-1, c)
         else:
             rows = k.gemm(self._attention(b, y, rel), *b.proj, res=x.view(-1, c))
+        del y
         hid = k.gemm(F.layer_norm(rows, (c,), *b.n2[:2], b.n2[2]), *b.fc1, act=ACT_GELU)
         rows = k.gemm(hid, *b.fc2, res=rows, out=rows)
+        del hid
         if b.res is not None:
             w1, w2, w3, (n1, n2, n3) = b.res
             y = F.gelu(F.layer_norm(k.gemm(rows, w1), (w1.shape[0],), *n1[:2], n1[2]))
@@ -388,6 +406,8 @@ class Kernels(_Matting):
         p = x.view(b, cin, th, ps, tw, ps).permute(0, 2, 4, 1, 3, 5).reshape(b * th * tw, cin * ps * ps)
         pos, rel = self.geometry(th, tw)
         h = k.gemm(p, *self.patch, acc32=True).view(b, th, tw, -1).add_(pos)
+        if self._release_patch_inputs:
+            del p
         for layer, r in zip(self.layers, rel, strict=True):
             h = self._layer(layer, h, r)
         return self._decoder(h.permute(0, 3, 1, 2), x.contiguous(memory_format=CL))
