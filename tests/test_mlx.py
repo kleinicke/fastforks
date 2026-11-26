@@ -1490,6 +1490,39 @@ def test_mlx_vit_classifier_matches_torch(kind):
         engine(torch.randn(1, 3, 48, 64))
 
 
+@pytest.mark.parametrize("family", ["swin", "davit"])
+def test_mlx_windowed_classifier_matches_torch(family):
+    """`mlx_windowed` against timm: Swin (shifted windows, padded last stage), DaViT (spatial / channel blocks)."""
+    pytest.importorskip("mlx.core")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks.shared.libnet import mlx_cnn, timm  # noqa: PLC0415 - optional (the mlx extra)
+
+    models = timm().models
+    if family == "swin":
+        net = models.swin_transformer.SwinTransformer(
+            img_size=112, patch_size=4, window_size=4, embed_dim=32, depths=(2, 2, 2), num_heads=(2, 4, 4),
+            num_classes=7,
+        )  # fmt: skip  # maps 28 -> 14 -> 7: the last stage padded to 8, 7 > 4 keeps its shift
+        size = 112
+    elif family == "davit":
+        net = models.davit.DaVit(depths=(1, 1, 1), embed_dims=(32, 64, 96), num_heads=(2, 4, 4), window_size=4,
+                                 num_classes=7)  # fmt: skip
+        size = 96  # maps 24 -> 12 -> 6 (6: padded windows)
+    net = _randomise(net)
+    for m in net.modules():  # BatchNorm statistics away from the identity too
+        if isinstance(m, torch.nn.BatchNorm2d):
+            m.running_mean.normal_(0, 0.1)
+            m.running_var.uniform_(0.5, 1.5)
+    x = torch.randn(2, 3, size, size)
+    with torch.no_grad():
+        want = net(x)
+    for dtype, tol in (("float32", 2e-3), ("float16", 5e-2)):
+        ctx = SimpleNamespace(dtype=dtype, mode="portable", card=SimpleNamespace(family=family))
+        engine = mlx_cnn.Network(ctx, net)  # ty: ignore[invalid-argument-type]
+        torch.testing.assert_close(engine(x), want, atol=tol, rtol=tol)
+
+
 @pytest.mark.parametrize("pad_to", [{}, {16: 64, 32: 64}])
 @pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
 def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):
