@@ -159,6 +159,8 @@ def group_norm(norm: nn.GroupNorm, x: torch.Tensor, *, upcast: bool, silu: bool 
 class ResnetBlock3D(nn.Module):
     """norm -> SiLU -> 3x3x3 -> norm -> SiLU -> 3x3x3, plus the (1x1x1) shortcut."""
 
+    release_first_activation = False
+
     def __init__(self, cin: int, cout: int) -> None:
         super().__init__()
         self.norm1 = nn.GroupNorm(GROUPS, cin, EPS, device="meta")
@@ -169,7 +171,12 @@ class ResnetBlock3D(nn.Module):
 
     def forward(self, x: torch.Tensor, state: State, upcast: bool) -> torch.Tensor:  # noqa: FBT001
         h = self.conv1(group_norm(self.norm1, x, upcast=upcast, silu=True), state)
-        h = self.conv2(group_norm(self.norm2, h, upcast=upcast, silu=True), state)
+        if self.release_first_activation:
+            # Let the second convolution reuse the first one's activation storage.
+            h = group_norm(self.norm2, h, upcast=upcast, silu=True)
+            h = self.conv2(h, state)
+        else:
+            h = self.conv2(group_norm(self.norm2, h, upcast=upcast, silu=True), state)
         if self.conv_shortcut is not None:
             x = self.conv_shortcut(x, state)
         return h.add_(x)
