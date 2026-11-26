@@ -129,7 +129,8 @@ class BridgeDepth(nn.Module):
         stereo_embeds, mono_embeds_1 = self.align_1(
             stereo_embed,
             mono_embeds[-1],
-            stereo_pos_embed
+            stereo_pos_embed,
+            final_mono=self.training,  # fastforks: eval consumes only the last stereo result
         )
         del stereo_embed, stereo_pos_embed, mono_embeds, mono_embeds_1
         disp_update = self.refine_head(stereo_embeds.squeeze(-2))  # [num_aux_layers,B,H,W,4*4]
