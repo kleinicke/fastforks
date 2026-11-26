@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -94,6 +95,7 @@ class Kernels(Runner):
             graphs=_GRAPHS,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+            capture_warmup=sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
