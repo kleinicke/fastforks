@@ -300,6 +300,7 @@ class _Fast:
             F.layer_norm(x.permute(0, 2, 3, 1), ln.normalized_shape, ln.weight, ln.bias, ln.eps), lin.weight, lin.bias
         )
         y = self._conv(t.permute(0, 3, 1, 2), lr)
+        del t
         y = self.interp(y, size, align_corners=True)
         c0, act, c1 = hr[0], hr[1], hr[2]
         y = F.leaky_relu_(self._conv(y, c0), act.negative_slope)
@@ -312,6 +313,7 @@ class _Fast:
         ps = self.vit.vit.patch_size
         h, w = nh // ps, nw // ps
         outs = self.vit.get_intermediate_layers(x, self.layers, return_class_token=True)
+        del x
         dec, hd = self.dec, self.head
         k_net = None
         with torch.autocast("cuda", dtype=torch.float16), self._acc():
@@ -330,18 +332,22 @@ class _Fast:
             else:
                 rays = cam.get_rays(shapes=(b, nh, nw))
                 rays_flat = rays.flatten(2).transpose(1, 2)
+            del outs
             hd.set_shapes((h, w))
             hd.set_original_shapes((nh, nw))
             remb = hd.embed_rays(rays_flat)
             cond = [p(f.reshape(b, h * w, -1), remb) for p, f in zip(hd.prompt_camera, feats, strict=False)]
-            lat = hd.to_latents(cond[0])
+            del feats, remb
+            lat = hd.to_latents(cond.pop(0))
         with self._acc():
             z = lat.view(b, h, w, -1).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+            del lat
             for i, u in enumerate(hd.ups):
                 k, cout, wm, bias = self.pf[i]
-                y = F.linear(cond[i + 1].reshape(b * h * w, -1).half(), wm, bias)  # [(b h w), (i j c)]
+                y = F.linear(cond.pop(0).reshape(b * h * w, -1).half(), wm, bias)  # [(b h w), (i j c)]
                 zv = z.permute(0, 2, 3, 1).view(b, h, k, w, k, cout)
                 zv.add_(y.view(b, h, w, k, k, cout).permute(0, 1, 3, 2, 4, 5))
+                del zv, y
                 for r in u.convs:
                     z = self._rcu(r, z)
                 z = self._conv(z, u.up[0])
