@@ -60,7 +60,6 @@ _IGEV_KERNELS = ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "i
 _U2NET_KERNELS = (*_IGEV_KERNELS, "resize_cat@60f9273249a3:sm_120")
 
 _MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",))
-_COATNET_0: _Resources = (_FVM_KERNELS, ("efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c",))
 _YUNET_N: _Resources = (_YUNET_KERNELS, ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",))
 _YUNET_S: _Resources = (_YUNET_KERNELS, ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",))
 _RETINAFACE_MOBILENET: _Resources = (
@@ -193,11 +192,6 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         # cudaMallocAsync. Request-15 deltas: -7.501, -24.823 ms.
         # Receipt SHA-256 1d7d4f18f5b6041d1f19b7e373fc409290b7521243f54b81f0ea2168c7cbeb71.
         _TORCH_214_ASYNC,
-    ),
-    # CoAtNet-0 with cudaMallocAsync. Request-15 deltas: -57.078, -51.639 ms.
-    # Receipt SHA-256 bb27f6ffe6a45231fab544e908d883a8df5494136baad5200b9acc3ee72f0a56.
-    ("coatnet_0_rw_224.sw_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
-        _COATNET_0, _TORCH_214_ASYNC
     ),
     ("yunet-n@1", "kernels", "float16", "f32-bchw-contiguous", (480, 640)): _profiles(
         _YUNET_N,
