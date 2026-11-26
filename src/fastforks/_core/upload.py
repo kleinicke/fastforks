@@ -41,6 +41,11 @@ def capture_uploads() -> Generator[list[torch.Tensor]]:
         _capture.uploads = outer
 
 
+def capture_uploads_active() -> bool:
+    """Whether this thread is retaining external inputs for a Fastforks graph recording."""
+    return getattr(_capture, "uploads", None) is not None
+
+
 def retain_for_cuda_graph(*tensors: torch.Tensor) -> None:
     """Keep immutable inputs allocated before recording alive until the graph is released."""
     if torch.compiler.is_compiling() or torch.jit.is_tracing():

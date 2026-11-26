@@ -561,4 +561,14 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("bisenet-face-parsing@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(
         _BISENET_FACE_PARSING, _TORCH_214_NATIVE
     ),
+    # InSPyReNet Fast native 1080p. Request-15 deltas: -595.223, -224.158, -161.579, -233.921 ms.
+    # ABBA receipt SHA-256 be54d67860b0252d5419f6707589e04410dff82cc6764a803558b11bea483d75.
+    # BAAB receipt SHA-256 7be1f9e10a4cfcfee79698ba03c24b4e46c66c8ab9ceb1d02cbb00516ea92bfa.
+    ("inspyrenet-fast@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        (
+            ("image_normalize@592f5511307a:sm_120",),
+            ("e61ed7e85763dd83a796e1d650ea78604fff524121750858c54a6b560ac58c82",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
 }
