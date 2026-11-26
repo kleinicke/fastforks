@@ -30,6 +30,8 @@ from fastforks.kernels.graph_mlx import ops
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    Block = tuple[Callable[..., mx.array], Callable[..., mx.array], Callable[..., mx.array]]  # whole, mix, ffn
+
 __all__ = ["MlxNAFNet"]
 
 ONE = (1, 1)
@@ -54,13 +56,13 @@ def _gate(x: mx.array) -> mx.array:
 def _layer_norm(x: mx.array, eps: float) -> mx.array:
     """The channel LayerNorm without affine, float32 statistics.
 
-    Written out below 256 channels, where `mx.fast.layer_norm` is 4-6x slower than this fused into the block.
+    Up to `ops.ROW_LN_MAX` channels `ops.row_layer_norm` (one simdgroup per row, as the graph translation): written
+    out in MLX ops, the float32 copy and the centred map were full-size buffers even when compiled (512 x 512 x 64
+    float16: 194 MB above the live set for a 32 MB output); `mx.fast.layer_norm` is 4-6x slower at these widths.
     """
-    if x.shape[-1] >= 256:  # noqa: PLR2004
+    if x.shape[-1] > ops.ROW_LN_MAX:
         return mx.fast.layer_norm(x, None, None, eps)
-    xf = x.astype(mx.float32)
-    d = xf - xf.mean(axis=-1, keepdims=True)
-    return (d * mx.rsqrt(mx.square(d).mean(axis=-1, keepdims=True) + eps)).astype(x.dtype)
+    return ops.row_layer_norm(x, None, None, eps)
 
 
 def _box_mean(x: mx.array, k1: int, k2: int) -> mx.array:
@@ -84,31 +86,51 @@ def _attention_scale(g: mx.array, ws: mx.array, bs: mx.array, window: int) -> mx
     return mx.pad(scores, pad, mode="edge")
 
 
-def _block_fn(window: int, eps: float, depthwise: bool) -> Callable[..., mx.array]:  # noqa: FBT001
-    """`NAFBlock.forward` (folded) on NHWC maps, compiled; `window`: the TLC window (0: global attention)."""
+def _block_fn(window: int, eps: float, depthwise: bool) -> Block:  # noqa: FBT001
+    """`NAFBlock.forward` (folded) on NHWC maps, compiled: the whole block, its mixing half and its FFN half.
 
-    def block(inp: mx.array, *w: mx.array) -> mx.array:
-        w1, b1, wd, bd, ws, bs, w3, b3, w4, b4, w5, b5 = w
+    `window`: the TLC window (0: global attention).
+    """
+
+    def mix(inp: mx.array, *w: mx.array) -> mx.array:
+        w1, b1, wd, bd, ws, bs, w3, b3 = w[:8]
         x = mx.addmm(b1, _layer_norm(inp, eps), w1)
         x = ops.depthwise(x, wd, bd, ONE, ONE, ONE) if depthwise else mx.conv2d(x, wd, padding=1, groups=wd.shape[0])
         x = x if depthwise else x + bd
         g = _gate(x)
         g = g * _attention_scale(g, ws, bs, window or max(g.shape[1], g.shape[2]))
-        y = inp + mx.addmm(b3, g, w3)
+        return inp + mx.addmm(b3, g, w3)
+
+    def ffn(y: mx.array, *w: mx.array) -> mx.array:
+        w4, b4, w5, b5 = w[8:]
         return y + mx.addmm(b5, _gate(mx.addmm(b4, _layer_norm(y, eps), w4)), w5)
 
-    return mx.compile(block)
+    def block(inp: mx.array, *w: mx.array) -> mx.array:
+        return ffn(mix(inp, *w), *w)
+
+    return mx.compile(block), mx.compile(mix), mx.compile(ffn)
 
 
 _PENDING: list[mx.array] = []  # the step in flight (`_step`)
 
 
+SYNC_BYTES = 8 << 20
+"""A step whose output is at least this large also waits for itself (`_step`)."""
+
+
 def _step(x: mx.array) -> mx.array:
-    """Schedule `x` and wait for the step before it (pipeline depth 1: the GPU stays busy, the transients bounded)."""
+    """Schedule `x` and wait for the step before it (pipeline depth 1: the GPU stays busy, the transients bounded).
+
+    A step of at least `SYNC_BYTES` (the full- and half-resolution levels) waits for itself
+    too: its transients are many times its output, and two such steps in flight held both.
+    """
     mx.async_eval(x)
     if _PENDING:
         mx.eval(_PENDING.pop())
-    _PENDING.append(x)
+    if x.nbytes >= SYNC_BYTES:
+        mx.eval(x)
+    else:
+        _PENDING.append(x)
     return x
 
 
@@ -130,10 +152,10 @@ class MlxNAFNet:
         levels = [*enumerate(net.encoders), (n, net.middle_blks)]
         levels += [(n - 1 - i, s) for i, s in enumerate(net.decoders)]
         self.eps = next(iter(net.middle_blks)).norm1.eps
-        self._fns: dict[int, Callable[..., mx.array]] = {}
+        self._fns: dict[int, Block] = {}
         self.stages = [[self._block(m) for m in stage] for _, stage in levels]
 
-    def _block(self, m: Any) -> tuple[Callable[..., mx.array], list[mx.array]]:  # noqa: ANN401 - a folded `NAFBlock`
+    def _block(self, m: Any) -> tuple[Block, list[mx.array]]:  # noqa: ANN401 - a folded `NAFBlock`
         a = lambda v: mx.array(np.ascontiguousarray(v, np.float32)).astype(self.dtype)  # noqa: E731
         pw = lambda conv: [a(_np(conv.weight)[:, :, 0, 0].T), a(_np(conv.bias))]  # noqa: E731 - [C in, C out]
         if m.norm1.eps != self.eps or m.norm2.eps != self.eps:
@@ -179,7 +201,12 @@ class MlxNAFNet:
         return mx.transpose(out[:, :h, :w], (0, 3, 1, 2)).astype(mx.float32)
 
     @staticmethod
-    def _stage(blocks: list[tuple[Callable[..., mx.array], list[mx.array]]], x: mx.array) -> mx.array:
-        for fn, weights in blocks:
-            x = _step(fn(x, *weights))
+    def _stage(blocks: list[tuple[Block, list[mx.array]]], x: mx.array) -> mx.array:
+        """The blocks of a level, each one step, or two (its halves) on a map of at least `SYNC_BYTES`.
+
+        As one compiled block at full resolution its transients (about 30x its input) were alive at once.
+        """
+        for (whole, mix, ffn), weights in blocks:
+            large = x.nbytes >= SYNC_BYTES
+            x = _step(ffn(_step(mix(x, *weights)), *weights)) if large else _step(whole(x, *weights))
         return x
