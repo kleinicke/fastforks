@@ -164,6 +164,7 @@ def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[obj
 # These providers supply the forward definition used to construct the measured graph.
 # The measured graph route uses the loaded provider version from the paired replay checks.
 BUILDER_VERSIONS: dict[str, tuple[str, str]] = {
+    "coatnet_0_rw_224.sw_in1k@1": ("timm", "1.0.30"),
     "mobilenet_v2.tv2_in1k@1": ("torchvision", "0.29.1+cu130"),
     "efficientformerv2_l.snap_dist_in1k@1": ("timm", "1.0.30"),
 }
@@ -198,6 +199,12 @@ BUILDER_VERSIONS: dict[str, tuple[str, str]] = {
 # yunet-s@1 u8-chw-rgb-interleaved 480x640, cudaMallocAsync, 4 CPU threads. Request-15 deltas: -7.934, -3.811 ms.
 # Receipt SHA-256 cdd6af5d1fe8cff45e850a83ae2b4850152031965e8a113cce71cd58b1447490. NVIDIA driver 595.99.02.
 APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
+    # CoAtNet-0, cudaMallocAsync and timm 1.0.30. Request-15 deltas: -131.281, -54.484, -52.479, -52.651 ms.
+    # Receipt SHA-256 c0e13510b384d70f2522f4033fab75d96fc7f1a58c42a0fb342a6735362bd446.
+    # Receipt SHA-256 6f244a835b203a3063bc6790f09de10eea09fa7d05df3e5ca8f41401e8bd6812.
+    ("coatnet_0_rw_224.sw_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        (_FVM_KERNELS, ("efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c",)), _TORCH_214_ASYNC
+    ),
     ("mobilenet_v2.tv2_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
         _MOBILENET_V2,
         _TORCH_214_NATIVE,
