@@ -143,6 +143,14 @@ _RTMPOSE_T: _Resources = (
     (*_FVM_KERNELS, "pose_warp@1589e39c4cb2:sm_120"),
     ("026a1439c5695f74f2e6e744427fc8190b57d630923eb772c1e9b4409a036f2f",),
 )
+_EFFICIENTFORMERV2_L: _Resources = (_FVM_KERNELS, ("a92de90055b116562f85322e596494829e54d86c56471652e3c07ed39957c92a",))
+_SEGFORMER_B5_FACE: _Resources = (
+    (*_FVM_KERNELS, "seg_up@3e44e71200cd:sm_120"),
+    (
+        "01d82e818569beda6aec804642e34ce187bed43326337d52ce370ff015964d68",
+        "c2bec795a8c243db71bd95be538fd62559003566466c71237e45c99b920f4b62",
+    ),
+)
 
 
 def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[object, ...], ...]:
@@ -468,6 +476,16 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # U2Net. Request-15 deltas: -39.335, -39.627 ms.
     # Receipt SHA-256 c14c19ac6ea92626198f17c526dbcc5f03591e436b2f8494ed301b49dddb365a.
     ("u2net@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NET, _TORCH_214_NATIVE),
+    # EfficientFormerV2-L. Request-15 deltas: -124.620, -127.783 ms.
+    # Receipt SHA-256 c378bf2ebe5d41ea90ec7c2210cf7ac90bbf4d7c89e6737c450a2cb040e37241.
+    ("efficientformerv2_l.snap_dist_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        _EFFICIENTFORMERV2_L, _TORCH_214_NATIVE
+    ),
+    # SegFormer B5 face parsing. Request-15 deltas: -101.861, -105.848 ms.
+    # Receipt SHA-256 9da39708f0b18a57014e8bf764ef5652277cace64c330a919e0313a58caa649d.
+    ("segformer-b5-face-parsing@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        _SEGFORMER_B5_FACE, _TORCH_214_NATIVE
+    ),
     # SegNeXt MSCAN-S 1080p. Request-15 deltas: -108.928, -14.113 ms.
     # Receipt SHA-256 d9da8dcc671d775f3c42c9ca03a8e9935e59d41981b25d13034b7b8318309a2e.
     ("segnext-mscan-s-ade20k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
