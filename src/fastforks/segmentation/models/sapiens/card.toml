@@ -3,7 +3,7 @@ name = "Sapiens segmentation"
 summary = "Sapiens (Khirodkar et al. 2024) human body-part segmentation: a ViT pretrained on 300 M human images, fine-tuned with a deconvolution head on Goliath's 28 classes (face, hair, left / right limbs, clothing, lips, teeth, ...); 1024 x 768 input, the Sapiens-Lite TorchScript checkpoints."
 tier = "stable"
 outputs = ["logits"]
-uses = ["host_blocks", "seginfer", "mlx_seg", "mlx_vit"]  # fastforks.shared modules this family imports
+uses = ["host_blocks", "mlx_graph", "mlx_seg", "mlx_vit", "seginfer"]  # fastforks.shared modules this family imports
 
 limitations = [
   "CUDA stream=True stages the ViT blocks from pinned host RAM. The decoder and its feature maps stay resident on the GPU. Export requires stream=False.",

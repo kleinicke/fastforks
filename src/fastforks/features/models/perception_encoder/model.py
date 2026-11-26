@@ -6,6 +6,7 @@ the network is written by hand (`features.MlxPortable`, `mlx_features`).
 
 from dataclasses import dataclass
 
+from fastforks.shared import mlx_wrap
 from fastforks.shared.libnet import features
 
 
@@ -46,3 +47,5 @@ RUNNERS = {
     "kernels_mps": MetalKernels,
     "portable_mlx": MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",))}

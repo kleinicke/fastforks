@@ -635,3 +635,6 @@ RUNNERS = {
     "kernels": Kernels,
     "portable_mlx": MlxPortable,
 }
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph encoder, torch refinement
+GRAPH_RUNNERS = {"portable_mlx": _MlxEncode}

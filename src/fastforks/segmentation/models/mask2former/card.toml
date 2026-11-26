@@ -3,7 +3,7 @@ name = "Mask2Former"
 summary = "Mask2Former (Cheng et al. 2022): Swin backbone, multi-scale deformable attention pixel decoder and a masked-attention transformer decoder; semantic logits from mask classification."
 tier = "stable"
 outputs = ["logits"]
-uses = ["maskformer", "mlx_seg", "seginfer"]  # fastforks.shared modules this family imports
+uses = ["maskformer", "mlx_seg", "mlx_wrap", "seginfer"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/transformers"

@@ -8,6 +8,8 @@ What lives here:
 - `gpu()`: the Metal device (architecture string, generation, memory), from `mx.device_info()`.
 - `TUNING` / `tuning()`: every per-GPU-generation tunable of the MLX ports in one table (the M1 values are the
   default); `FASTFORKS_MLX_TUNING` and `tuned()` override single fields for `tools/mlx_tune.py`.
+- `graph_switch()`: `FASTFORKS_MLX_GRAPH=1` (diagnostics only) builds every hand-written MLX network as the
+  exported-graph translation of its PyTorch network instead, as before its hand port (`tools/mlx_core_ab.py`).
 - `setup()`: caps MLX's buffer cache (unbounded by default: 10.7 GB and swap on a 16 GB Mac).
 - `convert_cached()` / `converted()`: the arrays of a variant in the port's layout and run dtype, converted once and
   cached as safetensors with their provenance (`fastforks._core.mlx_cache`); a hit needs neither torch nor the
@@ -71,6 +73,7 @@ __all__ = [
     "convert_cached",
     "converted",
     "gpu",
+    "graph_switch",
     "has_neural_accelerators",
     "metal_kernel",
     "mx",
@@ -252,6 +255,20 @@ def tuned(**fields: object) -> Generator[None]:
     finally:
         _OVERRIDE.clear()
         _OVERRIDE.update(before)
+
+
+GRAPH_ENV = "FASTFORKS_MLX_GRAPH"
+
+
+def graph_switch() -> bool:
+    """Whether `FASTFORKS_MLX_GRAPH=1`: the hand-written MLX networks are built as their exported-graph translation.
+
+    A diagnostic switch for the core A/B (`tools/mlx_core_ab.py`), off by default: a family with a hand-written network
+    keeps the runner its MLX port had before (`GRAPH_RUNNERS` in its model module; the libnet classifiers: the generic
+    `GraphNet` of `libnet.Mlx`), so both networks can be measured on the same inputs. Any other value than `1` (unset,
+    empty, `0`) leaves every load as it is.
+    """
+    return os.environ.get(GRAPH_ENV) == "1"
 
 
 _CACHE_ENV = "FASTFORKS_MLX_CACHE_MB"  # sweeps: this exact buffer cache limit, whatever the models ask for

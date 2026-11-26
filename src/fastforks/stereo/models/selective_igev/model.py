@@ -155,3 +155,8 @@ RUNNERS = {
     "portable_mlx": _MLX,
     "kernels_mlx": _MLX,  # the same network: its group-wise volume and lookups are graph_mlx kernels
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

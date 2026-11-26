@@ -255,3 +255,8 @@ RUNNERS = {
     "portable_mlx": _MlxPortable,
     "kernels_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {  # `gemm1x1=False`: see `_MlxPortable`
+    "portable_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+    "kernels_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+}

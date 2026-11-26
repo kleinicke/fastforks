@@ -20,6 +20,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
 from fastforks.shared.seginfer import (
     mask_semantic,
@@ -169,3 +170,5 @@ RUNNERS = {
     "portable_mlx": Mlx,
     "kernels_mlx": Mlx,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable), "kernels_mlx": mlx_wrap.port(Portable)}

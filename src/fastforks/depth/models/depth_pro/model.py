@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import side_stream
 
 from .net import DEC, HOOKS, SIZE, DepthProNet, tables
@@ -560,3 +561,9 @@ class MlxPortable(Runner):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable, "kernels_mlx": MlxPortable}
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+_GRAPH = mlx_wrap.port(
+    Portable, attrs=(), methods=("_graph",), net_attr="fast", release=True, chunk_mb=256, pipeline=True
+)
+GRAPH_RUNNERS = {"portable_mlx": _GRAPH, "kernels_mlx": _GRAPH}

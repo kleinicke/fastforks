@@ -342,3 +342,15 @@ RUNNERS = {
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
+
+
+class _OneImage(Portable):
+    """Portable for the graph switch's MLX port: one image per call, as before batching."""
+
+    batch = 1
+
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {
+    "portable_mlx": mlx_wrap.port(_OneImage, half_wino_f32=True),  # rtmo-l keypoints p99 0.98 -> 0.31 in fp16
+}

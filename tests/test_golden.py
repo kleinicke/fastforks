@@ -55,6 +55,7 @@ from fastforks import (
     volume,
 )
 from fastforks._core import kernels, registry
+from fastforks._core import model as core_model
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
 from fastforks._core.image import to_rgb_batch
 from fastforks._core.preprocess import resize_crop, scale
@@ -794,6 +795,35 @@ def test_mlx(ref):
         assert (backend.mode, backend.device, str(backend.dtype)) == (mode, "mlx", dtype)
         assert len(backend.kernels) == len(card.mlx_kernel_libs) if mode == "kernels" else not backend.kernels
         _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
+
+
+@pytest.mark.model
+@pytest.mark.mlx
+@pytest.mark.slow
+@pytest.mark.parametrize("ref", ["yolox-tiny@1"])
+def test_mlx_graph_switch(ref, monkeypatch):
+    """`FASTFORKS_MLX_GRAPH=1` still builds the exported-graph runner the hand-written MLX network replaced, and it
+    stays within the GPU tolerances of the golden, as the hand-written one does (`tools/mlx_core_ab.py` needs it)."""
+    if importlib.util.find_spec("mlx") is None:
+        pytest.skip("no mlx")
+    want = golden(ref)
+    graph = registry.import_model(API[TASK[ref]].model_card(ref)).GRAPH_RUNNERS["portable_mlx"]
+    built = []
+    build = core_model._build_mlx
+
+    def spy(*a, **kw):
+        model = build(*a, **kw)
+        built.append(model._runner)
+        return model
+
+    monkeypatch.setattr(core_model, "_build_mlx", spy)
+    for switch in ("0", "1"):
+        monkeypatch.setenv("FASTFORKS_MLX_GRAPH", switch)
+        (got,), _ = run_or_skip(ref, device="mlx", mode="portable", dtype="float32", opts=options(ref, want), want=want)
+        _check(ref, "portable", outputs(ref, want), got, f"FASTFORKS_MLX_GRAPH={switch}: ")
+    assert len(built) == 2
+    assert not isinstance(built[0], graph)
+    assert isinstance(built[1], graph)
 
 
 def _manifest(lib: str) -> kernels.KernelManifest | None:

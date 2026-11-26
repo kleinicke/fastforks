@@ -42,6 +42,7 @@ from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, bounded_binary_masks, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.host_blocks import StreamedModuleList
 
@@ -629,3 +630,5 @@ class MlxPortable(_Sam3):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="net")}

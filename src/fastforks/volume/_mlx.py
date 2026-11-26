@@ -57,7 +57,7 @@ class MlxPredictor(Predictor):
         if full or len(self.nets) != 1 or self.mirror_axes or self.plan.regions is not None or not plain:
             return super()._accumulate(x, full=full)
         if not isinstance(net, MlxUNet):
-            return super()._accumulate(x, full=full)
+            return self._accumulate_graph(x, net) if _is_graph(net) else super()._accumulate(x, full=full)
         p = self.plan
         k0, k1, k2 = p.patch_size
         self._gauss = gaussian(p.patch_size, x.device)
@@ -86,9 +86,49 @@ class MlxPredictor(Predictor):
                 labels[a + local.start : a + local.stop] = torch.from_numpy(np.array(idx))
         return labels
 
+    def _accumulate_graph(self, x: torch.Tensor, net: Any) -> torch.Tensor:  # noqa: ANN401 - an `MlxModule`
+        """`_accumulate` for an exported-graph network (graph switch): windows batched on the CPU, logits NCDHW."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - MLX only
 
-def port(portable: type[Runner]) -> type[Runner]:
-    """`portable` with its fold networks on MLX."""
+        p = self.plan
+        k0, k1, k2 = p.patch_size
+        self._gauss = gaussian(p.patch_size, x.device)
+        g = to_mx(self._gauss)
+        steps = sliding_steps(x.shape[1:], p.patch_size, self.step)
+        d, h, w = x.shape[1:]
+        dtype = _labels_dtype(p.n_labels)
+        acc = mx.zeros((p.n_outputs, k0, h, w), dtype=mx.float16)
+        labels = torch.empty((d, h, w), dtype=dtype)
+        for i, a in enumerate(steps[0]):
+            starts = [(a, b, c) for b in steps[1] for c in steps[2]]
+            for j in range(0, len(starts), self.batch):
+                chunk = starts[j : j + self.batch]
+                batch = torch.stack([x[:, a0 : a0 + k0, b : b + k1, c : c + k2] for a0, b, c in chunk])
+                y = net.raw(batch.to(dtype=self.dtype or batch.dtype)) * g  # [B, heads, *patch] float32
+                for n, (a0, b, c) in enumerate(chunk):
+                    ys, xs = slice(b, b + k1), slice(c, c + k2)
+                    for physical, local in _depth_slices(a0, k0, k0):
+                        acc[:, physical, ys, xs] = (acc[:, physical, ys, xs] + y[n, :, local]).astype(mx.float16)
+                mx.eval(acc)
+                del y
+            end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
+            for physical, local in _depth_slices(a, end - a, k0):
+                idx = mx.argmax(acc[:, physical], axis=0).astype(mx.uint8 if dtype == torch.uint8 else mx.int16)
+                if i + 1 < len(steps[0]):
+                    acc[:, physical] = mx.zeros((1,), dtype=mx.float16)
+                mx.eval(idx, acc)
+                labels[a + local.start : a + local.stop] = torch.from_numpy(np.array(idx))
+        return labels
+
+
+def _is_graph(net: Any) -> bool:  # noqa: ANN401 - an MlxUNet, an MlxModule or a torch module
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only
+
+    return isinstance(net, MlxModule)
+
+
+def port(portable: type[Runner], *, hand: bool = True) -> type[Runner]:
+    """`portable` with its fold networks on MLX; `hand=False`: every network an exported graph (graph switch)."""
 
     class Graph(portable):  # ty: ignore[unsupported-base]
         """The runner whose fold networks are `MlxUNet`s (or `MlxModule`s)."""
@@ -119,7 +159,7 @@ def port(portable: type[Runner]) -> type[Runner]:
             from fastforks.volume._nnunet import UNet  # noqa: PLC0415 - import cycle
             from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS  # noqa: PLC0415 - import cycle
 
-            if not mlx_net.supported(plan):
+            if not hand or not mlx_net.supported(plan):
                 return super()._net(index, plan, channels)
 
             def build() -> dict[str, Any]:
@@ -132,4 +172,4 @@ def port(portable: type[Runner]) -> type[Runner]:
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
     # A window's transients (Winograd bands, the 128^3 x 32 maps) are fresh zero-filled allocations past the cache:
     # Dataset291 ran 420 ms per window at the base 128 MB, 350 ms at 2 GB (the cap at 16 GB), 255 ms unlimited.
-    return cast("type[Runner]", mlx_wrap.port(Graph, attrs=(), cache_mb=2048))
+    return cast("type[Runner]", mlx_wrap.port(Graph, attrs=(), cache_mb=2048 if hand else 0))

@@ -6,6 +6,7 @@ import copy
 import dataclasses
 import functools
 import gc
+import importlib
 import sys
 import threading
 import tomllib
@@ -2090,3 +2091,31 @@ def test_mlx_sam3_geometry_matches_torch(count):
     fields = None if ex is None else [mlx_net.to_mx(t) for t in (ex.boxes, ex.labels, ex.pool_y, ex.pool_x)]
     got = mlx_net.to_torch(net.geometry(mx.array(vision.numpy()), fields))
     torch.testing.assert_close(got, want, atol=2e-4, rtol=2e-4)
+
+
+@pytest.mark.parametrize(("value", "on"), [(None, False), ("", False), ("0", False), ("true", False), ("1", True)])
+def test_graph_switch_is_only_on_for_1(monkeypatch, value, on):
+    from fastforks._core import mlx as runtime  # noqa: PLC0415 - optional (the mlx extra)
+
+    if value is None:
+        monkeypatch.delenv(runtime.GRAPH_ENV, raising=False)
+    else:
+        monkeypatch.setenv(runtime.GRAPH_ENV, value)
+    assert runtime.graph_switch() is on
+
+
+@pytest.mark.slow
+def test_graph_runners_are_mlx_runners_of_the_family():
+    """Each `GRAPH_RUNNERS` (the graph switch) names only MLX modes the family's `RUNNERS` has, as runner classes."""
+    src = Path(registry.__file__).parents[1]
+    found = 0
+    for path in sorted(src.glob("*/models/*/model.py")):
+        if "GRAPH_RUNNERS" not in path.read_text(encoding="utf-8"):
+            continue
+        mod = importlib.import_module(".".join(("fastforks", *path.relative_to(src).with_suffix("").parts)))
+        graph, runners = mod.GRAPH_RUNNERS, mod.RUNNERS
+        assert graph, path
+        assert set(graph) <= {k for k in runners if k.endswith("_mlx")}, path
+        assert all(isinstance(r, type) and r is not runners[k] for k, r in graph.items()), path
+        found += 1
+    assert found > 40

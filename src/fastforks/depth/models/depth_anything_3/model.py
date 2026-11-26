@@ -35,6 +35,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.quantile import kth_smallest
@@ -871,3 +872,43 @@ RUNNERS = {
     "portable_mlx": MlxPortable,
     "kernels_mlx": MlxPortable,
 }
+
+
+class _BranchModule(nn.Module):
+    """One branch's forward (backbone, head, activation) as a module: what the MLX graph exports (graph switch)."""
+
+    def __init__(self, host: Portable, br: _Branch) -> None:
+        super().__init__()
+        self.br = br
+        object.__setattr__(self, "host", host)  # not a submodule: the module's tensors are this branch's alone
+
+    def forward(self, x: torch.Tensor) -> dict:
+        return Portable._branch(self.host, self.br, x)  # noqa: SLF001 - the sibling runner's own helper  # ty: ignore[invalid-argument-type]
+
+
+def _graph(portable: type[Portable]) -> type[Portable]:
+    base = mlx_wrap.port(portable, attrs=())
+
+    class Mlx(base):  # ty: ignore[unsupported-base]
+        """Apple MLX: each branch runs through the exported-graph translation (graph switch)."""
+
+        def __init__(self, ctx: Context) -> None:
+            """Wrap the branches."""
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
+            super().__init__(ctx)
+            kernels = ctx.mode == "kernels"
+            self._fns = {
+                id(br): MlxModule(_BranchModule(self, br), ctx.dtype, kernels=kernels, release=True)
+                for br in self._branches()
+            }
+
+        def _branch(self, br: _Branch, x: torch.Tensor) -> dict:
+            return self._fns[id(br)](x)
+
+    Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
+    return Mlx
+
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": _graph(Portable), "kernels_mlx": _graph(Portable)}

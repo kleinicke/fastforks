@@ -99,3 +99,5 @@ class _MlxPortable(Portable):
 
 _Mlx = mlx_wrap.port(_MlxPortable, attrs=())
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}

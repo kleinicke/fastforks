@@ -16,6 +16,7 @@ Apple MLX runs the network written in MLX operations (`mlx_net.py`).
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -312,3 +313,22 @@ RUNNERS = {
     "portable_mlx": Mlx,
     "kernels_mlx": Mlx,
 }
+
+
+class _GraphMlx(Portable):
+    """FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the network by the exported-graph translation."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network in float32 on the CPU, then export it to MLX."""
+        from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
+        super().__init__(dataclasses.replace(ctx, dtype="float32"))
+        self.ctx = ctx
+        self._mlx = MlxModule(self.net, ctx.dtype, kernels=ctx.mode == "kernels")
+
+    def _logits(self, x: torch.Tensor) -> torch.Tensor:
+        return self._mlx(x)
+
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": _GraphMlx, "kernels_mlx": _GraphMlx}

@@ -3,7 +3,7 @@ name = "Segment Anything 3 (SAM 3), image + video tracker"
 summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder. `video` follows objects prompted on the first frame (points, boxes or masks) through a video with SAM 3's tracker (transformers `Sam3TrackerVideoModel`: the shared ViT trunk, its own neck, SAM 2-style memory attention with RoPE and memory encoder, forward, memory features in bfloat16 as upstream). Kernels mode rotates spatial memory keys and queries in place while leaving object pointers unrotated. The portable `module()` is the image encoder only. On Apple MLX the whole detector runs in `mx` (`net/mlx_net.py`); the video tracker heads stay PyTorch on the CPU."
 tier = "stable"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
-uses = ["cuda_graphs", "host_blocks", "mlx_weights"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "host_blocks", "mlx_weights", "mlx_wrap"]  # fastforks.shared modules this family imports
 licence_notes = [
   "The weights use Meta's SAM License, not Apache-2.0; its terms were not re-checked here.",
 ]

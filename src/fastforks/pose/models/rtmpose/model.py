@@ -298,3 +298,15 @@ RUNNERS = {
     "kernels_mps": MetalKernels,
     "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+# The SimCC head runs as a float32 graph: its 1D-bin argmax flips half-pixel bins on float16 logits (face6-s
+# keypoints mean 0.065 px vs tol 0.061 with a float16 head).
+GRAPH_RUNNERS = {
+    "portable_mlx": mlx_wrap.port(
+        Portable,
+        attrs=(),
+        methods=("net.features", "net.head.forward"),
+        fp32_methods=("net.head.forward",),
+        prune=True,
+    )
+}

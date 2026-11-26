@@ -1286,7 +1286,10 @@ def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
     except KernelUnavailableError as e:
         raise KernelUnavailableError(e.library, e.reason, model=variant.ref) from e
     tags = tags if mode == "kernels" else ()
-    rcls = registry.import_model(card).RUNNERS[f"{mode}_mlx"]
+    models = registry.import_model(card)
+    rcls = models.RUNNERS[f"{mode}_mlx"]
+    if runtime.graph_switch():  # diagnostics: the exported-graph runner the hand-written network replaced
+        rcls = getattr(models, "GRAPH_RUNNERS", {}).get(f"{mode}_mlx", rcls)
     device = torch.device("cpu")
     ctx = Context(
         card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights, state

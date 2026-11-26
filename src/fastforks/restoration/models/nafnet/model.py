@@ -412,6 +412,8 @@ RUNNERS = {
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=512),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, half_wino_f32=True)}  # no kernels_mlx today
 
 _BLOCK = re.compile(r"(encoders|decoders)\.(\d+)\.(\d+)\.beta|middle_blks\.(\d+)\.beta")
 

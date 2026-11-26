@@ -209,9 +209,17 @@ class _MlxPortable(Runner):
         return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call (serves the graph switch)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
     "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OnePair, whole="disparity")}

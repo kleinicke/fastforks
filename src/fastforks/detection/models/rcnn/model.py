@@ -37,6 +37,7 @@ from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 
 from .net import Arch, Rcnn, fold_frozen_bn
@@ -475,3 +476,5 @@ class MlxPortable(_Select):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_dense",))}

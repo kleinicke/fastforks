@@ -24,6 +24,7 @@ import torch.nn.functional as F
 
 from fastforks._core.tracing import in_onnx_export
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
 from fastforks.shared.seginfer import pad_bottom_right, pretrained, resize, target_size
 
@@ -232,3 +233,34 @@ RUNNERS = {
     "portable_mlx": Mlx,
     "kernels_mlx": Mlx,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+
+
+class _GraphMlx(mlx_wrap.port(Portable)):  # ty: ignore[unsupported-base]
+    """The exported-graph network (`self.net.raw`), the semantic inference of `Mlx` (the graph switch's runner)."""
+
+    _one = Mlx._one  # noqa: SLF001 - shared with the hand-written runner
+    labels = Mlx.labels
+
+    def _rows_mlx(self, image: torch.Tensor) -> Iterator[tuple[int, mx.array]]:
+        """`_rows` on MLX: `(row, [rows * W, 150])` scores in the run dtype (evaluated chunk by chunk by the caller)."""
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX only (imports mlx)
+
+        h, w = image.shape[-2:]
+        rh, rw = target_size(h, w, self.ctx.params.resize)
+        x = pad_bottom_right(scale(resize(image, (rh, rw), pil=True), self.ctx.io), self.ctx.params.pad)
+        masks, classes = self.net.raw(x)
+        dtype = getattr(mx, self.ctx.dtype)
+        low = mx.contiguous(masks[0].transpose(1, 2, 0))
+        probs = mx.softmax(classes[0], axis=-1)[:, :-1].astype(dtype)  # as `mask_semantic`
+        mx.eval(low, probs)
+        del masks, classes
+        step = max(1, _ROW_CHUNK // (low.shape[-1] * w))
+        sizes = (x.shape[-2:], (rh, rw), (h, w))
+        for r0 in range(0, h, step):
+            r1 = min(r0 + step, h)
+            yield r0, mlx_seg.mask_sigmoid_rows(low, sizes, (r0, r1), dtype) @ probs
+
+
+GRAPH_RUNNERS = {"portable_mlx": _GraphMlx, "kernels_mlx": _GraphMlx}

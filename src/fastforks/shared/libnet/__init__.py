@@ -12,7 +12,6 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import inspect
-import os
 import re
 import sys
 import threading
@@ -330,11 +329,12 @@ class Mlx(Runner):
     def __init__(self, ctx: Context) -> None:
         """Translate the verified network to a channels-last MLX forward."""
         super().__init__(ctx)
+        from fastforks._core.mlx import graph_switch  # noqa: PLC0415 - optional MLX dependency
         from fastforks.shared.mlx_wrap import lazy_build  # noqa: PLC0415 - with the MLX runner only
 
         from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
 
-        written = not os.environ.get("FASTFORKS_MLX_GRAPH")
+        written = not graph_switch()  # FASTFORKS_MLX_GRAPH=1: the generic translation below (tools/mlx_core_ab.py)
         if ctx.card.family in mlx_cnn.FAMILIES and written:
             self.net = mlx_cnn.Network(ctx, lazy_build(lambda: self.network(ctx)))  # the family's adapted build
             return

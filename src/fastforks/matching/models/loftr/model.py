@@ -224,3 +224,8 @@ RUNNERS = {
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {
+    # float16: the backbone's ragged 3x3 convs (196 channels) padded into MLX's Winograd, as in float32
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse"), half_wino_pad=True)
+}

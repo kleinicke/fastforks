@@ -416,3 +416,31 @@ class MlxRunner(Portable):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}
+
+
+class _GraphDisk(Portable):
+    """`Portable` with DISK's U-Net behind `_SplitHead` (serves the graph switch)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and wrap the U-Net."""
+        super().__init__(ctx)
+        self.net.extractor.unet = _SplitHead(cast("nn.Module", self.net.extractor.unet))
+
+
+_GRAPH = {
+    "disk": mlx_wrap.port(_GraphDisk, attrs=("net.extractor.unet",), fp32_inputs=("image",)),
+    "aliked": mlx_wrap.port(
+        Portable, attrs=(), methods=("net.extractor.detection_maps",), release=True, fp32_inputs=("image",)
+    ),
+}
+
+
+class _GraphRunner(Portable):
+    """The extractor's fixed-shape dense part as an exported graph, the rest eager on the CPU (graph switch)."""
+
+    def __new__(cls, ctx: Context) -> Runner:
+        return cast("Runner", _GRAPH[ctx.params.extractor](ctx))
+
+
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": _GraphRunner}
