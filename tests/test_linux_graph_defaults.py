@@ -12,6 +12,7 @@ import torch
 
 from fastforks._core import linux_graph_defaults
 from fastforks._core import model as model_api
+from fastforks.interpolation import _api as interpolation_api
 from fastforks.shared import cuda_graphs
 from fastforks.shared.cuda_graphs import GraphCache, SmallShapeGraphs, graph_replay_allowed, graph_request
 
@@ -262,3 +263,65 @@ def test_unmeasured_dinov2_crop_skips_graph_position_state(monkeypatch: pytest.M
     with torch.inference_mode():
         assert net._patch_logits(image) is result
     assert net._graph_position is None
+
+
+def test_interpolation_midpoint_uses_original_ordered_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock, first = _profile_model(monkeypatch)
+    model = interpolation_api.InterpolationModel.__new__(interpolation_api.InterpolationModel)
+    model.__dict__.update(vars(mock))
+    model.device = first.device
+    model.card.task = "interpolation"
+    model.variant.ref = "rife-test@1"
+    monkeypatch.setattr(model._runner, "batch", 1, raising=False)
+    monkeypatch.setattr(model._runner, "batch_pixels", None, raising=False)
+    monkeypatch.setattr(model, "_check_size", lambda _x: None)
+    converted = torch.ones(first.shape)
+    monkeypatch.setattr(interpolation_api, "to_rgb_pair", lambda *_: (converted, converted))
+
+    def run(x: torch.Tensor, _y: torch.Tensor, *, timestep: float) -> dict[str, torch.Tensor]:
+        seen.append((timestep, graph_replay_allowed()))
+        return {"frame": x}
+
+    seen: list[tuple[float, bool]] = []
+    monkeypatch.setattr(model, "_run", run)
+    _, _, h, w = first.shape
+    second = torch.zeros((h, w, 3), dtype=torch.uint8).permute(2, 0, 1).as_subclass(_CudaInput)
+    pair = linux_graph_defaults.ImagePair(first, second)
+    key = (
+        model.variant.ref,
+        "portable",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-contiguous", (1, 3, h, w)), ("u8-chw-rgb-interleaved", (3, h, w))),
+    )
+    assert linux_graph_defaults._workload_key(model, pair, model.device) == key
+    assert linux_graph_defaults._workload_key(model, first, model.device) is None
+
+    model(first, second)
+    assert seen.pop() == (0.5, False)
+    monkeypatch.setitem(linux_graph_defaults.APPROVED, key, next(iter(linux_graph_defaults.APPROVED.values())))
+    model(first, second)
+    model(first, second, timestep=0.5)
+    model(first, second, timestep=0.25)
+    model(second, first)
+    model(first, second[:, :, : w - 1])
+    model(first, torch.empty((3, h, w), dtype=torch.uint8).as_subclass(_CudaInput))
+    model(first.as_subclass(torch.Tensor), second)
+    model([first], [second])
+    batch = first.expand(2, -1, -1, -1)
+    model(batch, batch)
+    offset = torch.empty((2, 3, h, w))[1:].as_subclass(_CudaInput)
+    model(offset, second)
+    assert seen[:3] == [(0.5, True), (0.5, True), (0.25, False)]
+    assert seen[3:] == [(0.5, False)] * 7
+    with pytest.raises(model_api.InputError, match="timestep"):
+        model(first, second, timestep=float("nan"))
+    assert not graph_replay_allowed()
+
+
+def test_windows_interpolation_retains_legacy_graph_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock, _ = _profile_model(monkeypatch)
+    monkeypatch.setattr(cuda_graphs.sys, "platform", "win32")
+    mock.card.task = "interpolation"
+    with model_api.Model._session(mock):
+        assert graph_replay_allowed()
