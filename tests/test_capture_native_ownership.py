@@ -180,6 +180,69 @@ def test_missing_context_id_api_keeps_pooled_stream(driver, monkeypatch):
     assert not native.creates
 
 
+@pytest.fixture
+def side_slots(driver, monkeypatch):
+    native, _ = driver
+    pooled = {slot: object() for slot in (-1, 0, 1)}
+    monkeypatch.setattr(graph, "_NATIVE_SIDE", {})
+    monkeypatch.setattr(graph, "_stream", lambda _index, slot: pooled[slot])
+    return native, pooled
+
+
+def test_only_opted_in_side_slot_zero_uses_a_separate_handle(side_slots):
+    native, pooled = side_slots
+    assert graph.side_stream("cuda:0") is pooled[0]
+    assert graph.side_stream("cuda:0", 1) is pooled[1]
+    assert graph.side_stream("cuda:0", 1, driver_owned=True) is pooled[1]
+    assert not native.creates
+
+    eager = graph.side_stream("cuda:0", driver_owned=True)
+    capture = graph.capture_stream("cuda:0")
+    assert eager.handle != capture.handle
+    assert graph.side_stream("cuda:0", 0, driver_owned=True) is eager
+    assert graph.side_stream("cuda:0") is pooled[0]
+
+    native.identity = 11
+    assert graph.side_stream("cuda:0", driver_owned=True) is not eager
+    native.identity = 10
+    assert graph.side_stream("cuda:0", driver_owned=True) is eager
+    assert graph.capture_stream("cuda:0") is capture
+    assert native.creates == [10, 10, 11]
+    assert not native.destroys
+
+
+def test_failed_opted_in_side_is_cached_separately_from_capture(side_slots):
+    native, pooled = side_slots
+    native.failed = True
+    assert graph.side_stream("cuda:0", driver_owned=True) is pooled[0]
+    native.failed = False
+    assert graph.capture_stream("cuda:0") is not pooled[-1]
+    assert graph.side_stream("cuda:0", driver_owned=True) is pooled[0]
+    native.identity = 11
+    assert graph.side_stream("cuda:0", driver_owned=True) is not pooled[0]
+    assert native.creates == [10, 10, 11]
+
+
+@pytest.mark.parametrize(
+    ("platform", "allocator", "external"),
+    [("linux", "native", True), ("linux", "cudaMallocAsync", False), ("win32", "native", False)],
+)
+def test_raft_engine_opts_in_to_side_slot_zero(side_slots, monkeypatch, platform, allocator, external):
+    from fastforks.stereo.models.raft_stereo.kernels import engine  # noqa: PLC0415 - optional kernels runner
+
+    native, pooled = side_slots
+    monkeypatch.setattr(graph.sys, "platform", platform)
+    monkeypatch.setattr(torch.cuda, "get_allocator_backend", lambda: allocator)
+    monkeypatch.setattr(engine, "Weights", lambda _weights, _device: object())
+    device = torch.device("cuda:0")
+
+    runner = engine.Engine({}, device, object(), object(), object(), 32)
+    assert runner.side is graph.side_stream(device, driver_owned=True)
+    assert (runner.side is not pooled[0]) == external
+    assert graph.side_stream(device) is pooled[0]
+    assert native.creates == ([10] if external else [])
+
+
 def _device() -> torch.device:
     if sys.platform != "linux" or not torch.cuda.is_available() or torch.cuda.get_allocator_backend() != "native":
         pytest.skip("Linux CUDA with native allocation required")
