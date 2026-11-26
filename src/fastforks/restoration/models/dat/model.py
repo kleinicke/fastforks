@@ -274,7 +274,7 @@ def _cuda_ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     """Finish the spatial gate before allocating the independent value branch."""
     act = m.act
     if (
-        type(act) is not nn.GELU
+        not is_base(act, nn.GELU)
         or m.training
         or torch.is_grad_enabled()
         or torch.compiler.is_compiling()
