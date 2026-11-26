@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import threading
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -260,6 +260,20 @@ def test_lower_vram_board_with_matching_name_stays_eager(monkeypatch: pytest.Mon
     assert linux_graph_defaults.allows(model, image)
     monkeypatch.setattr(linux_graph_defaults, "_gpu_memory", lambda _dev: 8 << 30)
     assert not linux_graph_defaults.allows(model, image)
+
+
+def test_measured_graph_requires_the_loaded_model_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    model, image = _profile_model(monkeypatch)
+    name = "_fastforks_graph_test_provider"
+    monkeypatch.setitem(linux_graph_defaults.BUILDER_VERSIONS, model.variant.ref, (name, "1.0"))
+    assert not linux_graph_defaults.allows(model, image)
+    provider = ModuleType(name)
+    monkeypatch.setitem(linux_graph_defaults.sys.modules, name, provider)
+    assert not linux_graph_defaults.allows(model, image)
+    provider.__dict__["__version__"] = "1.1"
+    assert not linux_graph_defaults.allows(model, image)
+    provider.__dict__["__version__"] = "1.0"
+    assert linux_graph_defaults.allows(model, image)
 
 
 def test_windows_no_scope_keeps_legacy_and_explicit_deny_is_sticky(monkeypatch: pytest.MonkeyPatch) -> None:

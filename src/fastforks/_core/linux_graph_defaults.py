@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import torch
 
-from fastforks._core._measured_graphs import APPROVED
+from fastforks._core._measured_graphs import APPROVED, BUILDER_VERSIONS
 from fastforks.shared import sdpa
 
 if TYPE_CHECKING:
@@ -226,6 +226,15 @@ def _standard_torch_settings(model: Model) -> bool:
         return False
 
 
+def _builder_matches(ref: str) -> bool:
+    """Check the loaded model provider without importing it in the hot path."""
+    if (builder := BUILDER_VERSIONS.get(ref)) is None:
+        return True
+    name, version = builder
+    module = sys.modules.get(name)
+    return module is not None and vars(module).get("__version__") == version
+
+
 def allows(model: Model, call: object = None) -> bool:
     """The original public arguments match a graph-on/eager measured pair."""
     if sys.platform != "linux":
@@ -244,7 +253,12 @@ def allows(model: Model, call: object = None) -> bool:
         return False
     key = _workload_key(model, call, device)
     profiles = APPROVED.get(key) if key is not None else None
-    if profiles is None or hasattr(model._runner, "_ff_eager") or os.getenv("FASTFORKS_ARENA") == "1":  # noqa: SLF001
+    if (
+        profiles is None
+        or hasattr(model._runner, "_ff_eager")  # noqa: SLF001 - the runner's compile bridge
+        or os.getenv("FASTFORKS_ARENA") == "1"
+        or not _builder_matches(model.variant.ref)
+    ):
         return False
     allocator = torch.cuda.get_allocator_backend()
     settings = (os.getenv("PYTORCH_ALLOC_CONF"), os.getenv("PYTORCH_CUDA_ALLOC_CONF"))

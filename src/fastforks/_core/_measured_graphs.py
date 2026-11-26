@@ -157,6 +157,14 @@ def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[obj
     return tuple((*runtime, *resources) for runtime in runtimes)
 
 
+# These providers supply the forward definition used to construct the measured graph.
+# The measured graph route uses the loaded provider version from the paired replay checks.
+BUILDER_VERSIONS: dict[str, tuple[str, str]] = {
+    "mobilenet_v2.tv2_in1k@1": ("torchvision", "0.29.1+cu130"),
+    "efficientformerv2_l.snap_dist_in1k@1": ("timm", "1.0.30"),
+}
+
+
 # MobileNetV2 1080p observed margins: -24.133, -7.468 ms.
 # Receipt SHA-256 9e8a62ea5eb3f8c831011dedbad5ee94a820768b8fbc9a5f0c61c24fec022f85.
 # yunet-n@1 f32-bchw-contiguous 720x1280, native, 1 CPU threads. Request-15 deltas: -1.088, -2.276 ms.
