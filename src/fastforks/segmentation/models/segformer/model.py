@@ -85,7 +85,12 @@ class _Net(torch.nn.Module):
                     bufs["_dw"] = dw.detach()[:, 0].permute(1, 2, 0).contiguous()
                 for k, v in bufs.items():
                     b.register_buffer(k, v.detach(), persistent=False)
+                if kernels:
+                    del a.k_proj, a.v_proj
         self._fold_head(model.decode_head)
+        if kernels:
+            # Kernels has no exportable module. Only the packed projections and folded head move to the device.
+            del model.decode_head
         self.to(dtype)
 
     def _fold_head(self, h: _Hf) -> None:
@@ -147,21 +152,26 @@ class _Net(torch.nn.Module):
             e = pe.proj(x)
             bsz, c, h, w = e.shape
             t = pe.layer_norm(e.permute(0, 2, 3, 1).reshape(bsz, h * w, c))
+            del e
             for b in st.blocks:
                 t = self._block_kernels(b, t, h, w) if self.kernels else self._block(b, t, h, w)
             t = st.layer_norm(t)
             feats.append(t.view(bsz, h, w, c))
+            del t
             x = feats[-1].permute(0, 3, 1, 2)  # channels-last view for the next patch embedding
+        del x  # the lateral list now owns the local references
         h4, w4 = feats[0].shape[1:3]
         acc = None
-        for i, f in enumerate(feats):
-            y = F.linear(f, getattr(self, f"head_w{i}"))  # at the stage's resolution
+        for i in range(len(feats)):
+            y = F.linear(feats.pop(0), getattr(self, f"head_w{i}"))  # consume each lateral at its own resolution
             if i and acc is not None and self._up_add(acc, y):
+                del y
                 continue
             if i:
                 y = F.interpolate(y.permute(0, 3, 1, 2), (h4, w4), mode="bilinear", align_corners=False)
                 y = y.permute(0, 2, 3, 1)
             acc = y.contiguous() if acc is None else acc.add_(y)
+            del y
         assert acc is not None  # noqa: S101 - four stages
         return F.linear(F.relu_(acc.add_(self.head_b)), self.cls_w, self.cls_b)
 
