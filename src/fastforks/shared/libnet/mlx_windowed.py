@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from torch import nn
 
 from fastforks._core.mlx import attention, mx, to_mx
-from fastforks.shared.libnet.mlx_cnn import _chain, _conv, _norm
+from fastforks.shared.libnet.mlx_cnn import _chain, _conv, _conv_k, _norm
 from fastforks.shared.mlx_vit import gelu
 
 if TYPE_CHECKING:
@@ -189,8 +189,8 @@ def swin(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
 
 
 def _cpe(layer: Any, dtype: mx.Dtype) -> Callable:
-    """`ConvPosEnc`: `x + act(depthwise conv(x))`."""
-    conv = _conv(layer.proj, None, dtype)
+    """`ConvPosEnc`: `x + act(depthwise conv(x))`, the depthwise conv `graph_mlx`'s kernel."""
+    conv = _conv_k(layer.proj, None, dtype)
     act = None if isinstance(layer.act, nn.Identity) else gelu
     return lambda x: x + (act(conv(x)) if act is not None else conv(x))
 
