@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from fastforks._core import mps
+from fastforks._core.deferred_init import skipped_init
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
@@ -64,11 +67,32 @@ def _cfg(p: Params) -> SimpleNamespace:
     )
 
 
-def _net(ctx: Context) -> BridgeDepth:
-    net = BridgeDepth(_cfg(ctx.params))
+_HOST_PREPARED_CHECKPOINTS = frozenset(("bridgedepth-rvc-pretrain@1", "bridgedepth-sf@1"))
+
+
+def _prepare_on_host(ctx: Context) -> bool:
+    return (
+        sys.platform == "linux"
+        and ctx.mode == "kernels"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.variant.ref in _HOST_PREPARED_CHECKPOINTS
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
+def _checkpoint_model(ctx: Context, *, assign: bool = False) -> BridgeDepth:
+    # The two verified official checkpoints supply every parameter and buffer at the native dtype and layout.
+    with skipped_init() if assign else nullcontext():
+        net = BridgeDepth(_cfg(ctx.params))
     extra = {("bridgedepth.config.config", "CfgNode"): _CfgNode}
-    net.load_state_dict(ctx.state_dict(key="model", strip="", extra=extra))
-    return net.eval().to(ctx.device)
+    net.load_state_dict(ctx.state_dict(key="model", strip="", extra=extra), assign=assign)
+    return net.eval()
+
+
+def _net(ctx: Context) -> BridgeDepth:
+    return _checkpoint_model(ctx).to(ctx.device)
 
 
 class Portable(Runner):
@@ -114,7 +138,9 @@ class Kernels(Runner):
         super().__init__(ctx)
         from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
 
-        self.net = prepare_kernels(_net(ctx), ctx.device)
+        stage_on_cpu = _prepare_on_host(ctx)
+        net = _checkpoint_model(ctx, assign=True) if stage_on_cpu else _net(ctx)
+        self.net = prepare_kernels(net, ctx.device, stage_on_cpu=stage_on_cpu)
         self._forward = forward_kernels
         self._graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs)
 
