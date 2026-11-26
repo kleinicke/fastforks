@@ -80,11 +80,11 @@ class OCRModel(core.Model):
         """
         x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
-        results = [self._read(x[i : i + 1]) for i in range(x.shape[0])]
+        results = [self._read(x[i : i + 1], graph_input=image) for i in range(x.shape[0])]
         return results if is_batch(image) else results[0]
 
-    def _read(self, x: torch.Tensor) -> OCRResult:
-        with self._session():
+    def _read(self, x: torch.Tensor, *, graph_input: ImageLike) -> OCRResult:
+        with self._session(graph_input=graph_input):
             out = dict(self._runner(x))
         texts = list(out.pop("texts"))
         n = len(texts)
