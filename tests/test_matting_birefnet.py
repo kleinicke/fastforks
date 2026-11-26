@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import weakref
+
 import torch
 import torch.nn.functional as F
 
 from fastforks import matting
 from fastforks._core import registry
+from fastforks._core.upload import capture_uploads
 from fastforks.matting.models.birefnet import model
 from fastforks.matting.models.birefnet.net.birefnet import image2patches
 from fastforks.matting.models.birefnet.net.modules.aspp import _ASPPModuleDeformable
-from fastforks.shared.swin_v1 import SwinTransformer
+from fastforks.shared.swin_v1 import SwinTransformer, fast
+from fastforks.shared.swin_v1.fast import _geometry
 
 
 def test_card() -> None:
@@ -67,3 +71,24 @@ def test_swin_sdpa_mask_stride(monkeypatch) -> None:
         net(torch.randn(1, 3, 64, 64))
     assert len(seen) == 4  # a plain and a shifted-window block per stage
     assert all(m is not None and m.stride(-1) == 1 for m in seen), [m.stride() for m in seen if m is not None]
+
+
+def test_swin_capture_holds_evicted_geometry() -> None:
+    """A recording retains exactly the cached indices and mask it read."""
+    net = SwinTransformer(embed_dim=16, depths=[2, 2], num_heads=[2, 4], window_size=4, out_indices=(0, 1))
+    net.eval()
+    fast(net)
+    x = torch.randn(1, 3, 44, 52)
+    with torch.inference_mode(), capture_uploads() as inputs:
+        net(x)
+    block = net.layers[0].blocks[1]
+    geometry = _geometry(block.H, block.W, block.window_size, block.shift_size, x.device, x.dtype)
+    assert geometry.padding.numel()
+    assert geometry.mask is not None
+    assert any(v is block.attn._fast_bias for v in inputs)
+    refs = [weakref.ref(t) for t in (geometry.to_windows, geometry.to_image, geometry.padding, geometry.mask)]
+    del geometry
+    _geometry.cache_clear()
+    assert all(ref() is not None and any(ref() is v for v in inputs) for ref in refs)
+    inputs.clear()
+    assert all(ref() is None for ref in refs)
