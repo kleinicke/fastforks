@@ -79,6 +79,8 @@ def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
 class Net(nn.Module):
     """`EncoderDepthSplat`'s modules at inference (same attribute names: the checkpoint keys after `encoder.`)."""
 
+    half_gaussian_inputs: bool = False
+
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.depth_predictor = MultiViewUniMatch(
@@ -129,9 +131,11 @@ class Net(nn.Module):
         del res
         match_prob = F.interpolate(match_prob, size=depth.shape[-2:], mode="nearest")
         img = images[0].to(features.dtype)
-        out = self.gaussian_regressor(torch.cat((img, depth[:, None].to(features.dtype), match_prob, features), 1))
-        head_inputs = torch.cat((out, img, features, match_prob), 1)
-        del out, img, features
+        # Both convolutions consume half. Cast before packing and replicate padding, which only copy values.
+        head_prob = match_prob.to(features.dtype) if self.half_gaussian_inputs else match_prob
+        out = self.gaussian_regressor(torch.cat((img, depth[:, None].to(features.dtype), head_prob, features), 1))
+        head_inputs = torch.cat((out, img, features, head_prob), 1)
+        del out, img, features, head_prob
         raw = self.gaussian_head(head_inputs)
         return depth, match_prob, raw
 
@@ -425,6 +429,7 @@ class Kernels(_Base):
         if _hacc_convs(self.net) == 0:
             msg = "DepthSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
+        self.net.half_gaussian_inputs = True
         # about 2000 launches per call: WDDM's per-launch cost made Windows host-bound (wall 102 vs GPU 88 ms)
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=2, capture_after=after) if ctx.params.cuda_graphs else None
