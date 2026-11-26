@@ -57,6 +57,7 @@ _CRESTEREO_KERNELS = (
 )
 _DINOV3_CONVNEXT_KERNELS = ("fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120")
 _IGEV_KERNELS = ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120")
+_U2NET_KERNELS = (*_IGEV_KERNELS, "resize_cat@60f9273249a3:sm_120")
 
 _MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",))
 _COATNET_0: _Resources = (_FVM_KERNELS, ("efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c",))
@@ -112,8 +113,17 @@ _S2M2_S: _Resources = (
     ("93f7177d8159d6666506df3abb0cdd75473614fab0e39f25e397acade0f9e241",),
 )
 _U2NETP: _Resources = (
-    (*_IGEV_KERNELS, "resize_cat@60f9273249a3:sm_120"),
+    _U2NET_KERNELS,
     ("e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854",),
+)
+_U2NET: _Resources = (_U2NET_KERNELS, ("10025a17f49cd3208afc342b589890e402ee63123d6f2d289a4a0903695cce58",))
+_NAFNET_GOPRO: _Resources = (
+    ("cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "nafnet_gate@95f8dd127200:sm_120"),
+    ("329d3ab4077b8d6b7ff61de376e483714667960bf85be027bf4335cda701196f",),
+)
+_HITNET_MIDDLEBURY: _Resources = (
+    ("hitnet@45145b49dcb1:sm_120", "hitnet_conv@e5637e8a93cf:sm_120"),
+    ("cc386fbb3181932e9ca9ac77f4a7bafc16f605ee490d5a0466b22f3df5e77fb0",),
 )
 _RTMPOSE_T: _Resources = (
     (*_FVM_KERNELS, "pose_warp@1589e39c4cb2:sm_120"),
@@ -315,7 +325,11 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # DINOv3 ViT-S/16. Request-15 deltas: -18.471, -24.501 ms.
     # Receipt SHA-256 a5f13c681831cf0407ee9b1d2d6bd62c70699bdacc3fe5c59b6dff1145efa48c.
     ("dinov3-vits16@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
-        _DINOV3_VITS16, _TORCH_214_NATIVE
+        _DINOV3_VITS16,
+        _TORCH_214_NATIVE,
+        # cudaMallocAsync. Request-15 deltas: -14.922, -21.552 ms.
+        # Receipt SHA-256 31359d935b3f67dd20248390a424e6d5a53117f9756c3a1841f028c24166fc29.
+        _TORCH_214_ASYNC,
     ),
     # DINOv3 ConvNeXt Base. Request-15 deltas: -17.271, -15.698 ms.
     # Receipt SHA-256 3f03004acd403c87509e50ed50e0e0959d115dbfa4958bd046c7ea31b72cfb2b.
@@ -376,6 +390,31 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # U2NetP. Request-15 deltas: -92.701, -88.629 ms.
     # Receipt SHA-256 c6cb651abf7a53c0525398406b9b3f49983680e271a5d6f1d8359e53dfd54b07.
     ("u2netp@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NETP, _TORCH_214_NATIVE),
+    # U2NetP 1080p. Request-15 deltas: -58.907, -58.595 ms.
+    # Receipt SHA-256 d7aa4fb7d54a1f1f5c4e5739e3c50efef91a2ecb28738cdfea173927f8413d2a.
+    ("u2netp@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(_U2NETP, _TORCH_214_NATIVE),
+    # U2Net. Request-15 deltas: -39.335, -39.627 ms.
+    # Receipt SHA-256 c14c19ac6ea92626198f17c526dbcc5f03591e436b2f8494ed301b49dddb365a.
+    ("u2net@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NET, _TORCH_214_NATIVE),
+    # SegNeXt MSCAN-S 1080p. Request-15 deltas: -108.928, -14.113 ms.
+    # Receipt SHA-256 d9da8dcc671d775f3c42c9ca03a8e9935e59d41981b25d13034b7b8318309a2e.
+    ("segnext-mscan-s-ade20k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        _SEGNEXT_S, _TORCH_214_NATIVE
+    ),
+    # NAFNet GoPro. Request-15 deltas: -113.185, -106.786 ms.
+    # Receipt SHA-256 f36b5f7d04d8037a136e062a473fa0e01c4efada8ed10f642202c41fd5171108.
+    ("nafnet-gopro@1", "kernels", "float16", "f32-bchw-contiguous", (192, 256)): _profiles(
+        _NAFNET_GOPRO, _TORCH_214_NATIVE
+    ),
+    # HitNet Middlebury with cudaMallocAsync. Request-15 deltas: -56.471, -26.822 ms.
+    # Receipt SHA-256 3d90e0be4f6c89105dc84daf3e38c7ac632f2498aa6b597616a2ad40c2890978.
+    (
+        "hitnet-middlebury-d400@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_HITNET_MIDDLEBURY, _TORCH_214_ASYNC),
     # RTMPose-T, five person boxes. Request-15 deltas: -15.324, -10.711, -10.343, -12.267 ms.
     # Receipt SHA-256 c973de6f90dc63d64c6f0b89b4a2f584282a63cae54d6a51639bc11a41486a21.
     (
