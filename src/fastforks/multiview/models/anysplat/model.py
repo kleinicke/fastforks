@@ -27,7 +27,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, fp32_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.cudnn_hacc import conv_half_acc
@@ -474,6 +474,11 @@ class Portable(_Fast):
 
 class _PatchEmbed(FastViT):
     """The shared fast DINOv2 path, with upstream VGGT's position interpolation (`size=` instead of `scale_factor=`)."""
+
+    def _project_qkv(self, projection: nn.Linear, x: torch.Tensor) -> torch.Tensor:
+        # Small differences in this encoder reach both the camera and depth heads.
+        with fp32_accumulate():
+            return super()._project_qkv(projection, x)
 
     def interpolate_pos(self, h0: int, w0: int) -> torch.Tensor:
         """Upstream `interpolate_pos_encoding` (interpolate_offset 0: output size), fp32."""
