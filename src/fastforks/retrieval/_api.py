@@ -81,7 +81,7 @@ class RetrievalModel(core.Model):
         def run(chunk: torch.Tensor) -> dict[str, torch.Tensor]:
             return self._check_outputs(self._runner(chunk), {"descriptor": (chunk.shape[0], self.dim)})
 
-        d = self._batched(run, x)["descriptor"]
+        d = self._batched(run, x, graph_input=image)["descriptor"]
         return RetrievalResult(d if is_batch(image) else d[0], self.variant.ref, self.backend, self.options)
 
 

@@ -108,7 +108,7 @@ class MattingModel(core.Model):
             out = self._runner(chunk, tri)
             return self._check_outputs(out, {"alpha": (chunk.shape[0], *chunk.shape[-2:])})
 
-        maps = unbatch(self._batched(run, x, t), image)
+        maps = unbatch(self._batched(run, x, t, graph_input=image if trimap is None and mask is None else None), image)
         return MattingResult(maps["alpha"], self.variant.ref, self.backend, self.options)
 
     def video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor, *, mask: ImageLike) -> VideoMattingResult:
