@@ -477,4 +477,90 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
             ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",),
         ),
     ),
+    # raft-small@1 default policy. Verified comparison receipts follow.
+    # SHA-256 7313aa80840ac7fc447c3e031271d68f446e1ba3ec3df116e4861f4b7d80b474.
+    # SHA-256 2c490f272a41aae54a01ef8e907f6ba4baeb93a25da3a41d4a6a64faeff62d23.
+    (
+        "raft-small@1",
+        "kernels",
+        "float16",
+        "flow-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): (
+        (
+            "2.15.0+cu132",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "cudaMallocAsync",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92600", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
+            ("01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27",),
+        ),
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
+            ("01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27",),
+        ),
+    ),
+    # raft-large@1 default policy. Verified comparison receipts follow.
+    # SHA-256 c438b03bea927fe42736897fad11f28307297b330df0fcea4bf0b956f9e71595.
+    # SHA-256 601b1c1c5f5d5e5c8e907cf4aa53552d3a9229e9dc7fcb8450eaeda129f2ab97.
+    (
+        "raft-large@1",
+        "kernels",
+        "float16",
+        "flow-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft_flow@639b3b16ea48:sm_120"),
+            ("ff5fadd56d26b40647388883af1547351ea17868b765c05b27231e72dd16a322",),
+        ),
+    ),
+    # crestereo-eth3d@1 default policy. Verified comparison receipts follow.
+    # SHA-256 25ae4396d53dc5d9c59db06f280470c6b8b36f05ce255e9b48197e41b5aa7cd5.
+    (
+        "crestereo-eth3d@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            (
+                "crestereo@4e3c00b2d395:sm_120",
+                "cudnn_hacc@cudnn92400",
+                "cutlass_conv@988138e042cb:sm_120",
+                "fastbb@7d058322634d:sm_120",
+                "igev@f075827d68c6:sm_120",
+            ),
+            ("6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e",),
+        ),
+    ),
 }
