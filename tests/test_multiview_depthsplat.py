@@ -177,6 +177,26 @@ def test_chunked_plane_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
     torch.testing.assert_close(got, want, rtol=0, atol=1e-6)
 
 
+@pytest.mark.parametrize("neighbors", [1, 2, 3])
+@pytest.mark.parametrize("shifted", [False, True])
+def test_compact_window_scores_keep_mask_order_and_fp32_softmax(
+    monkeypatch: pytest.MonkeyPatch, neighbors: int, *, shifted: bool
+) -> None:
+    """A final partial band still rounds the same full-row probabilities into the owned half score tensor."""
+    rng = torch.Generator().manual_seed(12)
+    batch, windows, rows, keys = 2, 4, 7, 5
+    scores = torch.randn(batch * windows, rows, keys * neighbors, generator=rng, dtype=torch.float16)
+    mask = torch.randn(windows, rows, keys, generator=rng) if shifted else None
+    original = scores.clone()
+    if mask is not None:
+        original.add_(mask.repeat(batch, 1, neighbors))
+    expected = torch.softmax(original, dim=-1, dtype=torch.float32).half()
+    monkeypatch.setattr(model, "_WINDOW_SCORE_BYTES", 3 * keys * neighbors * 4)
+    compact = model._compact_window_weights(scores, mask, batch, neighbors)
+    assert compact is scores
+    torch.testing.assert_close(compact, expected, atol=0, rtol=0)
+
+
 def _arrays(result: object) -> dict[str, torch.Tensor]:
     out = {k: v for k, v in vars(result).items() if isinstance(v, torch.Tensor)}
     return out | {f"gaussians/{k}": v for k, v in vars(result.gaussians).items() if isinstance(v, torch.Tensor)}
