@@ -431,12 +431,47 @@ class _BasicBlock(nn.Module):
             ops.append(_ConvNormAct(cin, cout, ones, ones, plan, act=False, bias=False))
         self.skip = nn.Sequential(*ops) if ops else None
         self.slope = plan.slope
+        self.fuse_residual = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = x if self.skip is None else self.skip(x)
         y = self.conv1(x)
         depth = slab_depth(self.conv2.conv, y)  # conv2 over conv1's map: one map less at the peak
+        residual_epilogue = None
+        if (
+            self.fuse_residual
+            and y.is_cuda
+            and not torch.is_grad_enabled()
+            and not torch.compiler.is_compiling()
+            and not torch.jit.is_tracing()
+            and not in_onnx_export()
+        ):
+            from fastforks.kernels import vol_norm  # noqa: PLC0415 - CUDA kernels only
+
+            residual_epilogue = vol_norm.residual_act_
+            if vol_norm.residual_supported(y, res):
+                conv = self.conv2.conv
+                if depth:
+                    y = _conv_slabs_(conv, y, None, depth)
+                else:
+                    y = F.conv3d(y, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups)
+                if vol_norm.residual_supported(y, res):
+                    norm = self.conv2.norm
+                    return vol_norm.norm_act_(
+                        y,
+                        norm.weight,
+                        norm.bias,
+                        norm.eps,
+                        self.conv2.slope,
+                        conv_bias=conv.bias,
+                        residual=res,
+                        residual_slope=self.slope,
+                    )
+                return F.leaky_relu_(_bias_norm_act(self.conv2, y).add_(res), self.slope)
+
         y = self.conv2.forward_(y, depth) if depth else self.conv2(y)
+        if residual_epilogue is not None and residual_epilogue(y, res, self.slope):
+            return y
         return F.leaky_relu_(y.add_(res), self.slope)
 
 
