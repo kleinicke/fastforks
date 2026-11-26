@@ -528,7 +528,7 @@ class SmallShapeGraphs(Generic[_Output]):
         capture_after: int = 1,
         size: Callable[..., int] | None = None,
         one_shape: bool = False,
-        capture_warmup: bool = True,
+        capture_warmup: bool | Callable[..., bool] = True,
     ) -> None:
         """`forward(*tensors) -> Tensor`; at most `graphs` shapes keep a graph (see `GraphCache`).
 
@@ -536,7 +536,8 @@ class SmallShapeGraphs(Generic[_Output]):
         that resizes its input inside: the network size).
         `one_shape` captures only consecutive requests of one signature and releases it before running another.
         Use it when the forward replaces size-dependent buffers a graph may read or to limit overlapping allocations.
-        `capture_warmup` controls whether the native allocator runs a separate forward before the first capture attempt.
+        `capture_warmup` controls whether the native allocator runs a separate forward before the first capture
+        attempt. A predicate receives the input tensors at capture time.
         """
         self.forward = _weak(forward)
         self.pixels = pixels
