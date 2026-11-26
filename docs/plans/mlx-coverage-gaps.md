@@ -2176,7 +2176,97 @@ one call 1693 ms: trunk 1328 (32 layers at 5184 tokens, GEMM-bound), neck 41, te
 
 **Left.** SAM 2's mask decoder and the video memory attention still run in PyTorch on the CPU. SAM 3's FPN makes
 a PyTorch round trip of about 10 ms per prompt, and its tracker heads are on the CPU. The bounded evaluation was
-not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2). No DINOv3 ViT-7B weights on this machine.
+not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2; done in the next section). No DINOv3 ViT-7B weights on this machine.
+
+### Done: Perception Encoder, timm ViT classifiers, Swin, DaViT; bounded CLIP / SigLIP 2 (2026-11-26)
+
+M1 Pro, second of two surveys recorded; every MLX golden of these families passes (fp16 and fp32), and each has a
+`test_mlx` match test against torch. The networks are written in `mlx.core` (no exported graph, no translation);
+the tables give warm ms fp16 / fp32 and the float16 first call and peak, MLX before -> now, then the best MPS row
+(ms, dtype, first call) and what `auto` picks.
+
+Perception Encoder (`libnet/mlx_features.py`: the Eva blocks with 2D RoPE, its tables and rotation in float32, the
+SwiGLU's `ffn_norm`, the attention pool; one `mx.compile`d forward per layer set, 3-5 % faster than bounded blocks
+with RoPE): `auto` now takes MLX float16 for all ten (none before). G/14 loses its 50-54 s first call and its
+float32 rows, 3.3 s and 14 s, were a translation artefact. The PE work-in-progress patch is gone.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| pe-core-t16-384 | 5.0 / 7.9 | 3.8 / 4.1 | 1.12 -> 0.02 | 431 -> 343 | 7.4 fp32 / 0.28 | MLX fp16 |
+| pe-core-s16-384 | 10.5 / 8.3 | 6.7 / 7.6 | 1.08 -> 0.03 | 593 -> 410 | 8.8 fp16 / 0.07 | MLX fp16 |
+| pe-core-b16-224 | 23 / 18.6 | 15.2 / 17.6 | 1.19 -> 0.04 | 918 -> 607 | 16.7 fp16 / 0.06 | MLX fp16 |
+| pe-core-l14-336 | 86 / 69 | 57 / 67 | 1.80 -> 0.08 | 1596 -> 1080 | 58 fp16 / 0.10 | MLX fp16 |
+| pe-core-g14-448 | 379 / 3316 | 250 / 293 | 54.06 -> 0.78 | 4584 -> 4082 | 313 fp16 / 0.66 | MLX fp16 |
+| pe-spatial-t16-512 | 5.0 / 6.4 | 4.0 / 4.2 | 0.91 -> 0.02 | 430 -> 343 | 6.2 fp16 / 0.06 | MLX fp16 |
+| pe-spatial-s16-512 | 9.3 / 8.1 | 6.4 / 7.3 | 0.94 -> 0.02 | 586 -> 408 | 9.0 fp16 / 0.06 | MLX fp16 |
+| pe-spatial-b16-512 | 23 / 17.8 | 14.8 / 17.1 | 0.96 -> 0.03 | 903 -> 599 | 16.0 fp16 / 0.07 | MLX fp16 |
+| pe-spatial-l14-448 | 84 / 69 | 57 / 66 | 1.77 -> 0.08 | 1567 -> 1048 | 70 fp16 / 0.13 | MLX fp16 |
+| pe-spatial-g14-448 | 377 / 14121 | 249 / 292 | 48.86 -> 1.01 | 4376 -> 4030 | 376 fp32 / 8.29 | MLX fp16 |
+
+timm ViT / DeiT / SigLIP / EVA-02, the ViT and EVA-02 WD taggers and the Falconsai ViT (`libnet/mlx_vit_cls.py`,
+one `mx.compile`d forward: at 197-785 tokens 1.5-5.5 % faster than bounded blocks; the WD ConvNeXt tagger in
+`mlx_cnn`, with its tanh GELU): `auto` now takes MLX float16 for all nine (none before). The float32 conversion is
+cached (`converted`, configuration from a meta-device network), so a cache hit reads no checkpoint: EVA-02 load
+peak fp16 980 MB on a hit, 1793 MB on a miss (graph port 1133). Warm peaks rise 1-9 % against the graph port.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| vit_base_patch16_224 | 14.4 / 17.5 | 14.7 / 18.7 | 0.71 -> 0.03 | 588 -> 600 | 15.6 fp16 / 0.06 | MLX fp16 |
+| deit_base_patch16_224 | 14.5 / 17.7 | 14.5 / 16.8 | 0.84 -> 0.03 | 592 -> 602 | 16.5 fp16 / 0.07 | MLX fp16 |
+| falconsai-nsfw-vit | 14.0 / 16.5 | 14.1 / 16.2 | 0.82 -> 0.04 | 664 -> 677 | 15.8 fp16 / 0.05 | MLX fp16 |
+| eva02_large_patch14_448 | 205 / 251 | 196 / 242 | 3.31 -> 0.21 | 1133 -> 1145 | 246 fp16 / 0.42 | MLX fp16 |
+| vit_so400m_patch14_siglip_378 | 181 / 215 | 182 / 215 | 1.75 -> 0.20 | 1279 -> 1360 | 196 fp16 / 0.24 | MLX fp16 |
+| wd-vit-tagger-v3 | 45 / 56 | 45 / 54 | 0.78 -> 0.06 | 636 -> 691 | 52 fp16 / 0.10 | MLX fp16 |
+| wd-vit-large-tagger-v3 | 181 / 207 | 179 / 203 | 1.52 -> 0.20 | 1100 -> 1183 | 201 fp16 / 0.24 | MLX fp16 |
+| wd-eva02-large-tagger-v3 | 201 / 249 | 196 / 242 | 2.41 -> 0.22 | 1275 -> 1215 | 235 fp16 / 0.27 | MLX fp16 |
+| wd-convnext-tagger-v3 | 46 / 56 | 46 / 55 | 1.23 -> 0.06 | 821 -> 912 | 56 fp16 / 0.13 | MLX fp16 |
+
+Swin / DaViT (`libnet/mlx_windowed.py` in `mlx_cnn.Network`, channels last; window biases gathered at load; DaViT's
+channel attention float32): `auto` now takes MLX for all four (none before). DaViT float16 stays 2-6 % behind the
+graph port warm (fp32 is 6-11 % ahead). Tried without a gain: GELU in the run dtype, manual attention, the
+depthwise conv as shifted multiply-adds (slower) or the depthwise Metal kernel, a float16 channel attention
+(within 1-2 %).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| swin_base_patch4_window7_224 | 19.5 / 24 | 19.2 / 21 | 2.13 -> 0.04 | 690 -> 741 | 25 fp16 / 0.09 | MLX kernels fp16 |
+| davit_tiny | 8.9 / 11.8 | 9.3 / 10.6 | 1.30 -> 0.03 | 498 -> 497 | 15.0 fp32 / 0.14 | MLX fp16 |
+| davit_small | 15.1 / 18.7 | 16.0 / 17.6 | 2.24 -> 0.04 | 572 -> 586 | 26 fp16 / 0.18 | MLX kernels fp16 |
+| davit_base | 19.4 / 24 | 19.9 / 22 | 2.46 -> 0.04 | 662 -> 732 | 34 fp16 / 0.19 | MLX kernels fp16 |
+
+CLIP / SigLIP 2 (`libnet/mlx_features.py`, already written): the blocks are now evaluated one by one
+(`mlx_vit.blocks(bounded=True)`): warm peaks fall 3-24 %, warm 0-6 % better. `auto` takes MLX float16 for all but
+siglip2-so400m16-256 / -512 (MPS, as before).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| clip-b16-openai | 15.3 / 16.9 | 14.4 / 16.7 | 0.05 -> 0.04 | 673 -> 527 | 17.9 fp16 / 0.08 | MLX fp16 |
+| clip-l14-openai | 56 / 65 | 56 / 64 | 0.08 -> 0.07 | 1151 -> 982 | 59 fp16 / 0.11 | MLX fp16 |
+| clip-l14-336-openai | 56 / 65 | 56 / 64 | 0.09 -> 0.08 | 1133 -> 984 | 62 fp16 / 0.12 | MLX fp16 |
+| clip-b16-laion2b | 15.0 / 17.2 | 14.6 / 16.7 | 0.03 -> 0.04 | 680 -> 524 | 17.1 fp16 / 0.07 | MLX fp16 |
+| clip-l14-laion2b | 56 / 65 | 56 / 65 | 0.08 -> 0.08 | 1116 -> 982 | 58 fp16 / 0.11 | MLX fp16 |
+| clip-h14-laion2b | 108 / 130 | 108 / 128 | 0.14 -> 0.13 | 1736 -> 1658 | 105 fp16 / 0.29 | MLX fp16 |
+| clip-l14-datacompxl | 56 / 65 | 56 / 65 | 0.08 -> 0.08 | 1112 -> 981 | 58 fp16 / 0.11 | MLX fp16 |
+| clip-l14-dfn2b | 57 / 65 | 57 / 64 | 0.08 -> 0.09 | 1116 -> 987 | 59 fp16 / 0.11 | MLX fp16 |
+| clip-h14-dfn5b | 108 / 131 | 108 / 128 | 0.32 -> 0.13 | 1704 -> 1657 | 110 fp16 / 0.48 | MLX fp16 |
+| clip-h14-378-dfn5b | 108 / 141 | 108 / 128 | 0.25 -> 0.13 | 1707 -> 1661 | 111 fp16 / 0.45 | MLX fp16 |
+| siglip2-b16-256 | 15.2 / 17.1 | 14.9 / 16.8 | 0.04 -> 0.05 | 707 -> 537 | 16.9 fp16 / 0.07 | MLX fp16 |
+| siglip2-b16-512 | 15.1 / 17.3 | 14.5 / 16.8 | 0.04 -> 0.04 | 713 -> 541 | 16.5 fp16 / 0.09 | MLX fp16 |
+| siglip2-l16-256 | 46 / 53 | 45 / 52 | 0.07 -> 0.07 | 1133 -> 1000 | 46 fp16 / 0.09 | MLX fp16 |
+| siglip2-l16-512 | 46 / 54 | 47 / 54 | 0.07 -> 0.08 | 1148 -> 1024 | 46 fp16 / 0.11 | MLX fp16 |
+| siglip2-so400m14-224 | 65 / 79 | 64 / 74 | 0.09 -> 0.09 | 1337 -> 1246 | 70 fp16 / 0.17 | MLX fp16 |
+| siglip2-so400m14-378 | 65 / 76 | 65 / 74 | 0.09 -> 0.08 | 1365 -> 1251 | 69 fp16 / 0.13 | MLX fp16 |
+| siglip2-so400m16-256 | 64 / 74 | 64 / 73 | 0.15 -> 0.09 | 1324 -> 1266 | 59 fp16 / 0.11 | MPS |
+| siglip2-so400m16-512 | 65 / 75 | 64 / 73 | 0.22 -> 0.09 | 1320 -> 1275 | 57 fp16 / 0.13 | MPS |
+| siglip2-g16-256 | 154 / 187 | 155 / 185 | 0.67 -> 0.34 | 2791 -> 2677 | 148 fp16 / 0.28 | MLX fp16 |
+| siglip2-g16-384 | 154 / 187 | 155 / 185 | 0.73 -> 0.18 | 2794 -> 2687 | 143 fp16 / 0.30 | MLX fp16 |
+
+**Left (Fable candidates).** Below the MPS warm bar: siglip2-so400m16-256 / -512 (64 vs 57-59 ms), siglip2-g16-256 /
+-384 (155 vs 143-148), clip-h14-laion2b (108 vs 105), siglip2-l16-512 (47 vs 46). All have 196 or 256 tokens of
+width 1152-1536, where MLX's GEMM tiles cost the same as for 256 rows and MPS's do not. Tried this round: bounded
+blocks against one compiled forward; earlier rounds: a compiled single block, manual attention, split q / k / v, no
+`addmm`, raw GELU, a float32 residual stream. Below the previous MLX
+row: DaViT float16 (above). TinyViT is left to the stereo / flow round's port.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
