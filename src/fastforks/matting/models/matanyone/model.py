@@ -192,6 +192,7 @@ def affinity_readout(  # noqa: PLR0913, PLR0917 - the memory's tensors
         val /= val.sum(2, keepdim=True)
         weights = to_run_dtype(sim.zero_().scatter_(2, idx, val), v.dtype)
         reads.append(weights @ vt)  # [B, chunk, objects C]
+        del weights, sim  # release the dense affinity before the next chunk's similarity GEMMs
     return torch.cat(reads, 1).transpose(1, 2)
 
 
