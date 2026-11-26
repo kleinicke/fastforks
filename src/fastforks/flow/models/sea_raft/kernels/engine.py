@@ -227,6 +227,9 @@ class Engine:
             if self.fused.conv(cfg, x.buf, w, (x.h, x.w), e, stride=stride):
                 return o
             self._unfusable.add(key)
+        if o is r:
+            # Unlike the CUTLASS visitor, affine_act requires a distinct residual pointer.
+            o = S(self._new(ho, wo, kk))
         if mode == 4:  # GELU exists only in the CUTLASS epilogue
             raise RuntimeError(f"{name}: CUTLASS does not take this conv and affine_act has no GELU")
         y = self.conv(x, name, stride)
@@ -243,7 +246,9 @@ class Engine:
                 stride = 2 if li > 1 and j == 0 else 1
                 r = self.conv_act(x, name + ".ds", 0, stride) if name + ".ds" in self.W.w else x
                 y = self.conv_act(x, name + ".c1", 1, stride)
-                x = self.conv_act(y, name + ".c2", 3, r=r)
+                # The epilogue reads each residual vector before replacing that vector.
+                x = self.conv_act(y, name + ".c2", 3, out=r, r=r)
+                del r, y
         return self.conv_act(x, f"{enc}.out", 0)
 
     def _input(self, *images: torch.Tensor) -> S:
@@ -317,12 +322,13 @@ class Engine:
         h8, w8 = hh // 8, ww // 8
         p = h8 * w8
 
-        # context: hidden state and context features into A, the initial flow from the hidden state
-        A = self._new(h8, w8, self.wide)
-        self.conv_act(self.encoder(self._input(image1, image2), "cnet"), "init", 0, out=S(A, 0, 2 * dim))
-        # feature maps: f1 and the pooled f2 pyramid
+        # Keep the compact context features during feature encoding; allocate the recurrent state afterwards.
+        context = self.encoder(self._input(image1, image2), "cnet")
         f1 = self.encoder(self._input(image1), "fnet")
         pyr = [self.encoder(self._input(image2), "fnet")]
+        A = self._new(h8, w8, self.wide)
+        self.conv_act(context, "init", 0, out=S(A, 0, 2 * dim))
+        del context
         for _ in range(self.cfg.levels - 1):
             src = pyr[-1]
             dst = S(self._new(src.h // 2, src.w // 2, self.fdim))
