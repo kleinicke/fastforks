@@ -16,6 +16,25 @@ union H8 {
     __half2 h[4];
 };
 
+static __device__ __forceinline__ __half2 residual_act(__half2 x, __half2 skip, float slope) {
+    // The original residual add stores half before LeakyReLU promotes to float.
+    const auto sum = __half22float2(__hadd2_rn(x, skip));
+    return __floats2half2_rn(sum.x > 0.f ? sum.x : sum.x * slope, sum.y > 0.f ? sum.y : sum.y * slope);
+}
+
+extern "C" __global__ void vol_residual_act_h(uint4* __restrict__ out, const uint4* __restrict__ skip,
+                                               int64_t vectors, float slope) {
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < vectors;
+         i += (int64_t)gridDim.x * blockDim.x) {
+        H8 a, b;
+        a.u = out[i];
+        b.u = skip[i];
+#pragma unroll
+        for (int j = 0; j < 4; ++j) a.h[j] = residual_act(a.h[j], b.h[j], slope);
+        out[i] = a.u;
+    }
+}
+
 template <bool Packed, typename Index>
 __device__ __forceinline__ void accumulate_h(__half* out, const __half* logits, const __half* gaussian,
                                              int channels, int d, int h, int w, int64_t oz, int64_t oy, int64_t ox) {
@@ -251,8 +270,10 @@ extern "C" __global__ void in_final_h(const __half* __restrict__ x, const float2
 }
 
 // N * S * C / 8 grid-stride items
-extern "C" __global__ void in_apply_h(__half* __restrict__ x, const float* __restrict__ stats, int64_t total, int S,
-                                      int C, float slope, const __half* conv_bias) {
+template <bool Residual>
+static __device__ __forceinline__ void in_apply(__half* __restrict__ x, const float* __restrict__ stats, int64_t total,
+                                                int S, int C, float slope, const __half* conv_bias,
+                                                const uint4* __restrict__ skip, float residual_slope) {
     const int C8 = C >> 3;
     for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < total; i += (int64_t)gridDim.x * blockDim.x) {
         int c8 = (int)(i % C8);
@@ -260,8 +281,9 @@ extern "C" __global__ void in_apply_h(__half* __restrict__ x, const float* __res
         const float4* st = reinterpret_cast<const float4*>(stats + ((int64_t)n * C + c8 * 8) * 2);
         H8 bias;
         if (conv_bias) bias.u = __ldg(reinterpret_cast<const uint4*>(conv_bias) + c8);
-        H8 v;
+        H8 v, r;
         v.u = reinterpret_cast<uint4*>(x)[i];
+        if constexpr (Residual) r.u = skip[i];
 #pragma unroll
         for (int j = 0; j < 4; ++j) {
             float4 p = __ldg(st + j);  // scale, shift of channels 2j, 2j+1
@@ -270,9 +292,21 @@ extern "C" __global__ void in_apply_h(__half* __restrict__ x, const float* __res
             a = a >= 0.f ? a : a * slope;
             bb = bb >= 0.f ? bb : bb * slope;
             v.h[j] = __floats2half2_rn(a, bb);
+            if constexpr (Residual) v.h[j] = residual_act(v.h[j], r.h[j], residual_slope);
         }
         reinterpret_cast<uint4*>(x)[i] = v.u;
     }
+}
+
+extern "C" __global__ void in_apply_h(__half* __restrict__ x, const float* __restrict__ stats, int64_t total, int S,
+                                      int C, float slope, const __half* conv_bias) {
+    in_apply<false>(x, stats, total, S, C, slope, conv_bias, nullptr, 0.f);
+}
+
+extern "C" __global__ void in_apply_residual_h(__half* __restrict__ x, const float* __restrict__ stats, int64_t total,
+                                               int S, int C, float slope, const __half* conv_bias,
+                                               const uint4* __restrict__ skip, float residual_slope) {
+    in_apply<true>(x, stats, total, S, C, slope, conv_bias, skip, residual_slope);
 }
 
 extern "C" __global__ void vol_gaussian_h(const double* __restrict__ axes, __half* __restrict__ out,

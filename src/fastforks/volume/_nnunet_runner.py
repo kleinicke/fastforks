@@ -22,7 +22,16 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_
 from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
-from fastforks.volume._nnunet import Plan, Predictor, UNet, _bias_norm_act, _conv_slabs_, _ConvNormAct, read_plan
+from fastforks.volume._nnunet import (
+    Plan,
+    Predictor,
+    UNet,
+    _BasicBlock,
+    _bias_norm_act,
+    _conv_slabs_,
+    _ConvNormAct,
+    read_plan,
+)
 from fastforks.volume._runner import Runner
 
 if TYPE_CHECKING:
@@ -33,6 +42,7 @@ if TYPE_CHECKING:
 __all__ = ["CHECKPOINT_GLOBALS", "Kernels", "Params", "Portable", "fused_norm_act", "weight_names"]
 
 _FILES = ("plans.json", "dataset.json")
+_RESIDUAL_SLOPE = 0.01  # LeakyReLU slope of the validated float16 residual plans
 # besides the tensors: training state (numpy scalars and arrays in `logging` / `_best_ema`, the device in `init_args`)
 CHECKPOINT_GLOBALS = {
     **NUMPY_ARRAYS,
@@ -289,6 +299,8 @@ class Kernels(Portable):
         if isinstance(net, UNet):
             net.decoder.tile_skip = self.ctx.dtype == "float16"
         for m in net.modules():
+            if isinstance(m, _BasicBlock):
+                m.fuse_residual = self.ctx.dtype == "float16" and m.slope == _RESIDUAL_SLOPE
             if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
                 if m.conv.bias is not None:

@@ -24,9 +24,11 @@ SIGNATURES = {
     "vol_ct_norm_f": "ppiilllllllffff",
     "vol_ct_norm_h": "ppiilllllllffff",
     "vol_merge_u8": "pppiiiilllllll",
+    "vol_residual_act_h": "pplf",
     "in_stats_h": "ppiip",
     "in_final_h": "pppppiiifp",
     "in_apply_h": "ppliifp",
+    "in_apply_residual_h": "ppliifppf",
     "vol_gaussian_h": "pppiiil",
     "vol_gaussian_fix_h": "ppl",
     "vol_accum_h": "pppiiiillli",
@@ -245,6 +247,27 @@ def supported(x: torch.Tensor) -> bool:
     )
 
 
+def residual_supported(x: torch.Tensor, residual: torch.Tensor) -> bool:
+    """Whether a residual can be fused into the aligned activation's in-place epilogue."""
+    return (
+        x.nbytes >= 4 << 20
+        and supported(x)
+        and supported(residual)
+        and residual.device == x.device
+        and residual.shape == x.shape
+        and abs(x.data_ptr() - residual.data_ptr()) >= x.nbytes
+    )
+
+
+def residual_act_(x: torch.Tensor, residual: torch.Tensor, slope: float) -> bool:
+    """Combine the FP16 add and the FP32 slope application on large owned activations when supported."""
+    if not residual_supported(x, residual):
+        return False
+    vectors = x.numel() // _V8
+    load(x.device).launch("vol_residual_act_h", *kernels.linear(vectors), x, residual, vectors, slope)
+    return True
+
+
 def norm_act_(  # noqa: PLR0913 - two distinct bias vectors in the convolution and normalization
     x: torch.Tensor,
     weight: torch.Tensor,
@@ -253,10 +276,15 @@ def norm_act_(  # noqa: PLR0913 - two distinct bias vectors in the convolution a
     slope: float,
     *,
     conv_bias: torch.Tensor | None = None,
+    residual: torch.Tensor | None = None,
+    residual_slope: float = 1.0,
 ) -> torch.Tensor:
     """Normalize and activate in place, optionally adding the convolution bias with fp16 rounding first."""
     if not supported(x):
         msg = "Volume norm needs a nonempty, aligned CUDA fp16 channels-last volume with channels divisible by 8"
+        raise ValueError(msg)
+    if residual is not None and not residual_supported(x, residual):
+        msg = "Expected a non-overlapping, aligned residual with the same activation shape and layout"
         raise ValueError(msg)
     n, c = x.shape[:2]
     if any(
@@ -295,7 +323,11 @@ def norm_act_(  # noqa: PLR0913 - two distinct bias vectors in the convolution a
         conv_bias,
     )
     total = n * s * c8
-    lib.launch("in_apply_h", *kernels.linear(total), x, stats, total, s, c, float(slope), conv_bias)
+    apply = (*kernels.linear(total), x, stats, total, s, c, float(slope), conv_bias)
+    if residual is None:
+        lib.launch("in_apply_h", *apply)
+    else:
+        lib.launch("in_apply_residual_h", *apply, residual, float(residual_slope))
     return x
 
 
