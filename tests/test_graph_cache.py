@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import torch
 
+from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.shared.cuda_graphs import GraphCache, graph_request
 
 pytestmark = pytest.mark.gpu
@@ -206,6 +207,33 @@ def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture, *, abandoned
 def _cuda():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
+
+
+def test_graph_keeps_an_evicted_lookup_table_until_release():
+    lookup = [torch.full((4,), 2.0, device="cuda")]
+    reference = weakref.ref(lookup[0])
+
+    def forward(x: torch.Tensor) -> torch.Tensor:
+        table = lookup[0]
+        retain_for_cuda_graph(table)
+        return x + table
+
+    cache = GraphCache(forward)
+    x = torch.ones(4, device="cuda")
+    expected = torch.full_like(x, 3)
+    assert cache.run("key", x) is None
+    held = cache.run("key", x)
+    assert torch.equal(held, expected)
+    lookup.clear()
+    assert reference() is not None
+
+    with torch.cuda.stream(torch.cuda.Stream()):
+        actual = cache.run("key", x)
+    cache.release()
+
+    assert reference() is None
+    assert torch.equal(actual, expected)
+    assert torch.equal(held, expected)
 
 
 def test_structured_outputs_replay_fresh_copies():

@@ -27,6 +27,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.tracing import exporting_for_mlx
+from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, gmflow
 from fastforks.shared import mlx_wrap
@@ -418,9 +419,9 @@ def _window_transformer(
     del kwargs
     b, c, h, w = feature0.shape
     windows = attn_num_splits**2
-    (to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back), groups = _window_orders(
-        h, w, attn_num_splits, feature0.device
-    )
+    orders, groups = _window_orders(h, w, attn_num_splits, feature0.device)
+    retain_for_cuda_graph(*orders)
+    to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = orders
     autocast = torch.is_autocast_enabled(feature0.device.type)
     dtype = torch.get_autocast_dtype(feature0.device.type) if autocast else feature0.dtype
     tokens = torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2).index_select(1, to_plain)  # [2B, HW, C]

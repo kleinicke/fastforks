@@ -8,6 +8,7 @@ allocator keeps the staging buffer alive until the copy has run, so the values c
 Inside a CUDA graph capture an upload becomes a copy node that every replay repeats from the same host memory, so the
 staging buffer must outlive the graph instead: `capture_uploads` collects those buffers for the capturing code to keep
 with its graph (`fastforks.shared.cuda_graphs` does), and an upload in a capture without it raises.
+Immutable device lookup tables borrowed from a cache may use the same owner without a copy.
 """
 
 from __future__ import annotations
@@ -22,14 +23,14 @@ import torch
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-_capture = threading.local()  # .uploads: the staging buffers of the capture open on this thread
+_capture = threading.local()  # .uploads: the tensors owned by the capture open on this thread
 
 
 @contextlib.contextmanager
 def capture_uploads() -> Generator[list[torch.Tensor]]:
-    """Around a CUDA graph capture: the list of pinned staging buffers the uploads on this thread make in it.
+    """Around a CUDA graph capture: the tensors needed by replay on this thread.
 
-    Keep the list as long as the graph: its replays copy from those buffers again.
+    Keep the list as long as the graph: replays read pinned staging buffers and immutable captured tables again.
     """
     outer = getattr(_capture, "uploads", None)
     held: list[torch.Tensor] = []
@@ -38,6 +39,15 @@ def capture_uploads() -> Generator[list[torch.Tensor]]:
         yield held
     finally:
         _capture.uploads = outer
+
+
+def retain_for_cuda_graph(*tensors: torch.Tensor) -> None:
+    """Keep immutable inputs allocated before recording alive until the graph is released."""
+    if torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return
+    held = getattr(_capture, "uploads", None)
+    if held is not None:
+        held.extend(tensors)
 
 
 def _staged(pinned: torch.Tensor) -> torch.Tensor:

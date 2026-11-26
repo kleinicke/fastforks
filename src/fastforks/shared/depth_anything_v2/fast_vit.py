@@ -30,6 +30,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate as _fp16_accumulate  # re-exported for the ViT families
 from fastforks._core.patch import override
+from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -131,6 +132,7 @@ class FastViT:
             if len(self._pos) >= POS_SIZES:
                 del self._pos[next(iter(self._pos))]
             pe = self._pos[h0, w0] = self.interpolate_pos(h0, w0).half()
+        retain_for_cuda_graph(pe)
         return pe
 
     def interpolate_pos(self, h0: int, w0: int) -> torch.Tensor:

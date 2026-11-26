@@ -75,7 +75,7 @@ def graph_request() -> Generator[None]:
 
 
 class _Graph(torch.cuda.CUDAGraph):
-    """A CUDA graph that holds the pinned host buffers its captured uploads copy from (`capture_uploads`)."""
+    """A CUDA graph that keeps borrowed tensors alive while its replays use their addresses."""
 
     uploads: list[torch.Tensor]
 
@@ -420,7 +420,7 @@ class GraphCache:
             collect_after_capture = False
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
-                with capture_uploads() as graph.uploads:  # replays copy from these host buffers again
+                with capture_uploads() as graph.uploads:  # replays read these externally owned tensors again
                     out = self._forward(*static)
             except BaseException as e:
                 collect_after_capture = not collect_in_capture
