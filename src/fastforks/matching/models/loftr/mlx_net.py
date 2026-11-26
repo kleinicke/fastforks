@@ -2,9 +2,9 @@
 
 `model.Matcher.forward` (grayscale, resize, `net.loftr.LoFTR.forward`), channels last, in two parts:
 
-- `_dense`, one compiled function per pair of image sizes: the ResNet-FPN, the coarse transformer and the coarse
-  matching. It returns each coarse cell's best partner, its confidence and whether the two are mutual maxima above
-  the threshold and off the border; the fine maps and the coarse features stay on the GPU.
+- `_dense`, three compiled stages evaluated one after the other: each image's ResNet-FPN, then the coarse
+  transformer and the coarse matching. It returns each coarse cell's best partner, its confidence and whether the two
+  are mutual maxima above the threshold and off the border; the fine maps and the coarse features stay on the GPU.
 - `_refine`, after the one host read of a call (which cells matched), compiled per `_BUCKET` matches (the ids padded
   with cell 0, the padding's offsets dropped): the 5 x 5 fine windows of the matched cells, the fine transformer and
   the expected offset.
@@ -21,9 +21,8 @@ in real arithmetic:
   there the masked GEMMs were 64 ms of zeros, the kernel 12 ms.
 - the layer norms as one Metal kernel (`layer_norm`, a simdgroup per row, the residual added in it): float16 in and
   out, float32 statistics; `mx.fast.layer_norm` with float32 weights returns float32 and took 10x as long.
-- the dual-softmax as `exp(2 s - logsumexp_rows - logsumexp_columns)`, with every reduction along the last axis (MLX
-  reduces along it several times faster than along the first): the column statistics come from the transposed
-  product `f1 f0^T`, and "mutual maximum" is the two argmaxes agreeing instead of the two maxima being equal.
+- the dual-softmax as `exp(2 s - logsumexp_rows - logsumexp_columns)`, and "mutual maximum" as the two argmaxes
+  agreeing instead of the two maxima being equal; a large score matrix in row blocks, two passes (`_dual_softmax`).
 
 Float16: the backbone's convolutions and both transformers' GEMMs; float32: the grayscale resize, the attention's
 `k^T v` sums and normalisers, the layer norms' statistics and weights, the position encoding's sum, the coarse and fine
@@ -62,6 +61,7 @@ _SLOPE = 0.01  # `nn.LeakyReLU()`
 _ATT_EPS = 1e-6
 _NORM_EPS = 1e-5
 _TEMPERATURE = 0.1  # fixed: upstream `dsmax_temperature`
+_SCORE_BYTES = 64 << 20  # float32 scores per block of the coarse matching (`_dual_softmax`)
 
 
 def _folded(sd: dict[str, torch.Tensor], conv: str, bn: str | None) -> tuple[np.ndarray, np.ndarray]:
@@ -236,6 +236,52 @@ def layer_norm(x: mx.array, w: mx.array, b: mx.array, residual: mx.array | None 
     )[0].reshape(x.shape)
 
 
+def _dual_softmax(a: mx.array, b: mx.array) -> tuple[mx.array, mx.array, mx.array]:
+    """Per row of `s = a b^T` (`[L, S]`, float32): the best column, its dual-softmax confidence, the best row of it.
+
+    The confidence is `exp(2 s - logsumexp_rows - logsumexp_columns)`; the best row of column `j` maximises
+    `2 s[:, j] - logsumexp_rows`. Small products are one matrix; a large one runs in blocks of `_SCORE_BYTES` rows,
+    one after the other (`mx.depends`), in two passes (the statistics, then the maxima), so at most one block of
+    scores is alive instead of the whole matrix and its transpose (loftr at 768 x 1024: 12288^2 scores, 604 MB each).
+    """
+    n_l, n_s = a.shape[0], b.shape[0]
+    rows = max(1, _SCORE_BYTES // (4 * n_s))
+    if n_l <= 2 * rows:
+        s, st = a @ b.T, b @ a.T  # [L, S] and its transpose: every reduction along the last axis
+        lse_l, lse_s = mx.logsumexp(s, axis=-1), mx.logsumexp(st, axis=-1)
+        r = 2 * s - lse_s  # log confidence + lse_l, per row
+        j = mx.argmax(r, axis=-1)
+        return j, mx.exp(mx.max(r, axis=-1) - lse_l), mx.argmax(2 * st - lse_l, axis=-1)[j]
+    starts = range(0, n_l, rows)
+    lse_rows: list[mx.array] = []
+    lse_s = None
+    for i in starts:  # pass 1: each block's row statistics, the columns' accumulated
+        ai = a[i : i + rows] if lse_s is None else mx.depends(a[i : i + rows], lse_s)
+        s = ai @ b.T
+        lse_rows.append(mx.logsumexp(s, axis=-1))
+        col = mx.logsumexp(s, axis=0)
+        lse_s = col if lse_s is None else mx.logaddexp(lse_s, col)
+    assert lse_s is not None  # noqa: S101 - at least one block
+    js, confs = [], []
+    best = arg = None
+    for i, lse_l in zip(starts, lse_rows, strict=True):  # pass 2: the rows' maxima, the columns' running maxima
+        ai = a[i : i + rows] if best is None else mx.depends(a[i : i + rows], best)
+        s = ai @ b.T
+        r = 2 * s - lse_s
+        js.append(mx.argmax(r, axis=-1))
+        confs.append(mx.exp(mx.max(r, axis=-1) - lse_l))
+        v = 2 * s - lse_l[:, None]
+        top, at = mx.max(v, axis=0), mx.argmax(v, axis=0) + i
+        if best is None or arg is None:
+            best, arg = top, at
+        else:  # the first maximum wins, as one argmax over the whole column does
+            arg = mx.where(top > best, at, arg)
+            best = mx.maximum(best, top)
+    assert arg is not None  # noqa: S101 - at least one block
+    j = mx.concatenate(js)
+    return j, mx.concatenate(confs), arg[j]
+
+
 def _relu(x: mx.array) -> mx.array:
     return mx.maximum(x, 0)
 
@@ -247,7 +293,7 @@ def _head_mask(c: int, dtype: mx.Dtype) -> mx.array:
 
 
 class MlxLoFTR:
-    """The MLX matcher: the converted weights, one compiled dense function per pair of image sizes."""
+    """The MLX matcher: the converted weights and the compiled stages of the dense pass and the refinement."""
 
     def __init__(self, p32: dict[str, mx.array], params: Params, dtype: str, **stages: str) -> None:
         """`p32` is `prepare`'s output, `params` the variant's parameters, `dtype` the run dtype.
@@ -267,7 +313,8 @@ class MlxLoFTR:
 
         self.p = {k: cast(k, v) for k, v in p32.items()}
         mx.eval(self.p)
-        self._compiled = mx.compile(self._dense)
+        self._features = mx.compile(self._image)
+        self._coarse = mx.compile(self._match)
         self._refine_compiled = mx.compile(self._refine)
 
     # ----------------------------------------------------------------------------------------------- backbone
@@ -375,28 +422,38 @@ class MlxLoFTR:
         y, x = np.arange(h), np.arange(w)
         return (((y >= b) & (y < h - b))[:, None] & ((x >= b) & (x < w - b))[None]).reshape(-1)
 
-    def _dense(self, image0: mx.array, image1: mx.array) -> tuple[mx.array, ...]:
-        """Both images' padded fine maps and coarse features; per cell of image 0 its partner, confidence, match."""
-        # one image at a time: a batch of two is no faster and doubles the Winograd convolutions' workspace
-        (c0, f0), (c1, f1) = (self._backbone(self._gray(image).astype(self.dt_backbone)) for image in (image0, image1))
-        c0, c1, f0, f1 = c0[0], c1[0], f0[0], f1[0]
+    def _image(self, image: mx.array) -> tuple[mx.array, mx.array]:
+        """One image's coarse map `[h, w, C]` and padded fine map `[H + 4, W + 4, C]`."""
+        coarse, fine = self._backbone(self._gray(image).astype(self.dt_backbone))
+        r = _WINDOW // 2
+        return coarse[0], mx.pad(fine[0], [(r, r), (r, r), (0, 0)])
+
+    def _match(self, c0: mx.array, c1: mx.array) -> tuple[mx.array, ...]:
+        """The coarse transformer's features and, per cell of image 0, its partner, confidence and match."""
         hw0, hw1 = c0.shape[:2], c1.shape[:2]
         t0, t1 = self._transformer(self._tokens(c0), self._tokens(c1), "loftr_coarse", _COARSE)
         # `LoFTR.coarse_matches`, float32
         scale = 1.0 / (t0.shape[-1] * _TEMPERATURE) ** 0.5
         a, b = t0.astype(mx.float32) * scale, t1.astype(mx.float32) * scale
-        s, st = a @ b.T, b @ a.T  # [L, S] and its transpose
-        lse_l, lse_s = mx.logsumexp(s, axis=-1), mx.logsumexp(st, axis=-1)
-        rows = 2 * s - lse_s  # log confidence + lse_l, per row
-        j = mx.argmax(rows, axis=-1)
-        conf = mx.exp(mx.max(rows, axis=-1) - lse_l)
-        i_back = mx.argmax(2 * st - lse_l, axis=-1)[j]  # the best cell of image 0 for each row's partner
-        keep = (conf > self.params.threshold) & (i_back == mx.arange(s.shape[0]))
+        j, conf, i_back = _dual_softmax(a, b)
+        keep = (conf > self.params.threshold) & (i_back == mx.arange(a.shape[0]))
         if self.params.border_rm > 0:
             keep = keep & mx.array(self._inside(*hw0)) & mx.array(self._inside(*hw1))[j]
-        r = _WINDOW // 2
-        pads = [(r, r), (r, r), (0, 0)]
-        return mx.pad(f0, pads), mx.pad(f1, pads), t0, t1, j, conf, keep
+        return t0, t1, j, conf, keep
+
+    def _dense(self, image0: mx.array, image1: mx.array) -> tuple[mx.array, ...]:
+        """Both images' padded fine maps and coarse features; per cell of image 0 its partner, confidence, match.
+
+        Three compiled stages, each evaluated before the next is queued: one image's backbone, the other's, then the
+        coarse transformer and matching. MLX returns a command buffer's transients only when it completes, so one
+        compiled function over all of it held both backbones' maps and the score blocks at once (1.5x the peak).
+        One image at a time: a batch of two is no faster and doubles the Winograd convolutions' workspace.
+        """
+        c0, f0 = self._features(image0)
+        mx.eval(c0, f0)
+        c1, f1 = self._features(image1)
+        mx.eval(c1, f1)
+        return f0, f1, *self._coarse(c0, c1)
 
     # ------------------------------------------------------------------------------------------------ refine
     @staticmethod
@@ -441,7 +498,7 @@ class MlxLoFTR:
         """Float32 RGB `[1, 3, H, W]` images in [0, 1] -> `Matcher.forward`'s keypoints of both images and scores."""
         (h0, w0), (h1, w1) = image0.shape[-2:], image1.shape[-2:]
         (rh0, rw0), (rh1, rw1) = self.sizes(h0, w0), self.sizes(h1, w1)
-        f0, f1, t0, t1, j, conf, keep = self._compiled(image0, image1)
+        f0, f1, t0, t1, j, conf, keep = self._dense(image0, image1)
         mx.async_eval(f0, f1, t0, t1, j, conf, keep)
         i_ids = np.flatnonzero(np.array(keep))
         j_ids = np.array(j)[i_ids].astype(np.int64)
