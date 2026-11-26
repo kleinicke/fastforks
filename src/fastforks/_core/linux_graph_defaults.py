@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, NamedTuple
 import torch
 
 from fastforks._core._measured_graphs import APPROVED
+from fastforks.shared import sdpa
 
 if TYPE_CHECKING:
     from fastforks._core._measured_graphs import MeasuredKey, TensorSignature
@@ -150,6 +151,33 @@ def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredK
     return ref, mode, dtype, layout, (shape[-2], shape[-1])
 
 
+def _standard_torch_settings(model: Model) -> bool:
+    """Keep the measured CUDA backend and precision settings for capture and replay."""
+    cudnn = torch.backends.cudnn
+    if (
+        torch.are_deterministic_algorithms_enabled()
+        or not cudnn.enabled
+        or cudnn.benchmark
+        or (cudnn.deterministic and not model._runner.deterministic_cudnn)  # noqa: SLF001 - runner policy
+    ):
+        return False
+    cuda = torch.backends.cuda
+    if cuda.matmul.allow_fp16_accumulation or not (
+        cuda.flash_sdp_enabled()
+        and cuda.mem_efficient_sdp_enabled()
+        and cuda.math_sdp_enabled()
+        and cuda.cudnn_sdp_enabled()
+    ):
+        return False
+    if os.getenv(sdpa.ENV, "auto").strip().lower() not in ("", "auto", "torch"):
+        return False
+    try:
+        return cudnn.allow_tf32 and torch.get_float32_matmul_precision() == "highest"
+    except RuntimeError:
+        # PyTorch can disable its legacy getters when backend-specific FP32 modes differ.
+        return False
+
+
 def allows(model: Model, call: object = None) -> bool:
     """The original public arguments match a graph-on/eager measured pair."""
     if sys.platform != "linux":
@@ -186,4 +214,4 @@ def allows(model: Model, call: object = None) -> bool:
         tuple(sorted(model.backend.kernels)),
         model.backend.weights,
     )
-    return runtime in profiles
+    return runtime in profiles and _standard_torch_settings(model)
