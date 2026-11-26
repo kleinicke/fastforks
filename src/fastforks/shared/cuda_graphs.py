@@ -228,19 +228,20 @@ class GraphCache:
         seen: int = 64,
         capture_after: int = 1,
         share_inputs: tuple[int, ...] = (),
-        capture_warmup: bool = True,
+        capture_warmup: bool | Callable[..., bool] = True,
     ) -> None:
         """Capture after `capture_after` eager calls and retain at most `graphs` graphs.
 
         Input positions in `share_inputs` reuse matching static buffers across keys. All warm-ups, replays and
         output copies on this cache are ordered, including when successive calls use different CUDA streams.
         Disable `capture_warmup` only if the preceding eager calls prepare the runner for capture and replay does
-        not depend on checks of the capture input. The async allocator always uses a warm-up.
+        not depend on checks of the capture input. A predicate can request the warm-up for an unprepared input.
+        The async allocator always uses a warm-up.
         """
         self._share_inputs = share_inputs
         self._forward = _weak(forward)
         self._capture_after = max(1, capture_after)  # one-off shapes never capture
-        self._capture_warmup = capture_warmup
+        self._capture_warmup = _weak(capture_warmup) if callable(capture_warmup) else capture_warmup
         self._max, self._stale, self._seen_max = graphs, stale, seen
         # key -> (graph, static inputs, static output)
         self.graphs: dict[Hashable, tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]] = {}
@@ -369,11 +370,13 @@ class GraphCache:
 
     def _capture(self, inputs: tuple[torch.Tensor, ...]) -> tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]:
         # With cudaMallocAsync, freeing live allocations after an invalidated capture can abort the process.
-        if not self._capture_warmup and torch.cuda.get_allocator_backend() == "native":
-            try:
-                return self._capture_once(inputs, warmup=False)
-            except Exception as e:  # noqa: BLE001 - a library may still need a forward on the capture stream
-                log.debug("Retrying CUDA graph capture with a warm-up: %s: %s", type(e).__name__, e)
+        if torch.cuda.get_allocator_backend() == "native":
+            warmup = self._capture_warmup
+            if not (warmup(*inputs) if callable(warmup) else warmup):
+                try:
+                    return self._capture_once(inputs, warmup=False)
+                except Exception as e:  # noqa: BLE001 - a library may still need a forward on the capture stream
+                    log.debug("Retrying CUDA graph capture with a warm-up: %s: %s", type(e).__name__, e)
         return self._capture_once(inputs, warmup=True)
 
     def _capture_once(
