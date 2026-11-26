@@ -480,6 +480,19 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("segformer-b5-face-parsing@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
         _SEGFORMER_B5_FACE, _TORCH_214_NATIVE
     ),
+    # mlsd@1 native 384x576. Request-15 deltas: -33.515, -25.224 ms.
+    # Receipt SHA-256 749ca6efa34639ab891d508d4eaf92eab100b615562dfcc5798be5c747c00425.
+    ("mlsd@1", "kernels", "float16", "f32-bchw-contiguous", (384, 576)): _profiles(
+        (_IGEV_KERNELS, ("5696f168eb2c30d4374bbfd45436f7415bb4d88da29bea97eea0101520fba082",)), _TORCH_214_NATIVE
+    ),
+    # u2net-human-seg@1 native 1080x1920. Request-15 deltas: -25.245, -42.496 ms.
+    # Receipt SHA-256 6d33dff729a1334e6312114f79a4db9c90e3344bcc5c33e82a39831ef878e2e2.
+    ("u2net-human-seg@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
+        (_U2NET_KERNELS, ("13f0396e3f6fbc1d7ab55a8558640bef306a59b9110a5c595eb949ff69cf2414",)), _TORCH_214_NATIVE
+    ),
+    # u2net@1 native 1080x1920. Request-15 deltas: -43.820, -43.698 ms.
+    # Receipt SHA-256 5dac1d13f13e811ccc17eb8bc24a3a4ecbc7014f4c6c0294cfc2b00281985ecb.
+    ("u2net@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(_U2NET, _TORCH_214_NATIVE),
     # SegNeXt MSCAN-S 1080p. Request-15 deltas: -108.928, -14.113 ms.
     # Receipt SHA-256 d9da8dcc671d775f3c42c9ca03a8e9935e59d41981b25d13034b7b8318309a2e.
     ("segnext-mscan-s-ade20k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
