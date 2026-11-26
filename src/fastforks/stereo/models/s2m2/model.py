@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -35,20 +37,41 @@ class Params:
 
 
 _UNUSED = ("feature_flow_attn.q_proj.", "feature_flow_attn.k_proj.", "upsample_mask_4x.", "disp_init.layer_norm1.")
+# M through XL saved at least 104 MiB of process VRAM during loading in the native CUDA measurements.
+_DIRECT_CHECKPOINTS = frozenset(("s2m2-m@1", "s2m2-l@1", "s2m2-xl@1"))
+
+
+def _direct_half_load(ctx: Context) -> bool:
+    return (
+        sys.platform == "linux"
+        and ctx.mode == "kernels"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.variant.ref in _DIRECT_CHECKPOINTS
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
 
 
 def _net(ctx: Context) -> S2M2:
     p: Params = ctx.params
-    net = S2M2(
-        feature_channels=p.feature_channels,
-        dim_expansion=p.dim_expansion,
-        num_transformer=p.num_transformer,
-        use_positivity=p.use_positivity,
-        refine_iter=p.refine_iter,
-    )
+    direct = _direct_half_load(ctx)
+    with torch.device("meta") if direct else nullcontext():
+        net = S2M2(
+            feature_channels=p.feature_channels,
+            dim_expansion=p.dim_expansion,
+            num_transformer=p.num_transformer,
+            use_positivity=p.use_positivity,
+            refine_iter=p.refine_iter,
+        )
     # Strict, unlike upstream's `my_load_state_dict` (which keeps the random init of a tensor whose shape differs and
     # ignores unknown keys), except for the tensors every released checkpoint carries but the network does not use.
-    load_strict(net, ctx.state_dict(key="state_dict"), f"{ctx.variant.ref} checkpoint", unused=_UNUSED)
+    load_strict(net, ctx.state_dict(key="state_dict"), f"{ctx.variant.ref} checkpoint", unused=_UNUSED, assign=direct)
+    if direct:
+        # Preparation derives the fp32 epilogue biases from these already-rounded fp16 tensors.
+        return net.eval().to(  # ty: ignore[no-matching-overload] - PyTorch combines device, dtype and layout at runtime.
+            device=ctx.device, dtype=torch.float16, memory_format=torch.channels_last
+        )
     return net.eval().to(ctx.device)
 
 
