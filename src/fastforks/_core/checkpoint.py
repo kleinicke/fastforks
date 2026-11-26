@@ -37,7 +37,7 @@ except ImportError:  # numpy 1
     from numpy.core.multiarray import scalar as _scalar
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from typing import BinaryIO
 
 __all__ = [
@@ -47,6 +47,7 @@ __all__ = [
     "SafetensorsReader",
     "empty_bytes",
     "latin1_encode",
+    "load_mapped_safetensors",
     "load_state_dict",
     "load_strict",
     "mismatch_details",
@@ -236,6 +237,7 @@ _SAFETENSORS_DTYPES = {
     "BOOL": torch.bool,
 }
 _READ_CHUNK = 1 << 30  # fixed: below Windows' 2 GiB limit of one read() call
+_SAFETENSORS_MMAP_MIN_BYTES = 1 << 20  # fixed: small tensors keep the shared mapping
 
 
 def _safetensors_header(f: io.RawIOBase, path: Path) -> tuple[int, dict[str, tuple[torch.dtype, torch.Size, int, int]]]:
@@ -255,6 +257,31 @@ def _safetensors_header(f: io.RawIOBase, path: Path) -> tuple[int, dict[str, tup
             raise WeightsError(msg)
         entries[k] = (_SAFETENSORS_DTYPES[e["dtype"]], torch.Size(e["shape"]), start, end)
     return 8 + n, entries
+
+
+def load_mapped_safetensors(
+    path: Path, *, rename: Callable[[str], str | None] | None = None
+) -> dict[str, torch.Tensor]:
+    """Read large tensors through independent file mappings so each can release its source pages.
+
+    Small tensors share the regular safetensors mapping. `rename` can return None for a known unused key.
+    """
+    from safetensors import safe_open  # noqa: PLC0415 - optional checkpoint reader
+
+    state = {}
+    with path.open("rb", buffering=0) as source, safe_open(path, framework="pt", device="cpu") as mapped:
+        # safe_open validates the complete file layout before the large tensor views are constructed.
+        base, entries = _safetensors_header(source, path)
+        for key, (dtype, shape, start, end) in entries.items():
+            name = key if rename is None else rename(key)
+            if name is None:
+                continue
+            if end - start < _SAFETENSORS_MMAP_MIN_BYTES:
+                state[name] = mapped.get_tensor(key)
+            else:
+                region = np.memmap(source, dtype=np.uint8, mode="c", offset=base + start, shape=(end - start,))
+                state[name] = torch.from_numpy(region).view(dtype).reshape(shape)
+    return state
 
 
 class SafetensorsReader:
