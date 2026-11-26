@@ -126,7 +126,7 @@ def _profile_model(
         options={},
     )
     monkeypatch.setattr(cuda_graphs.sys, "platform", "linux")
-    monkeypatch.setattr(linux_graph_defaults.os, "getenv", lambda _k: None)
+    monkeypatch.setattr(linux_graph_defaults.os, "getenv", lambda _key, default=None: default)
     monkeypatch.setattr(linux_graph_defaults, "_gpu_name", lambda _dev: "test GPU")
     monkeypatch.setattr(torch.cuda, "get_allocator_backend", lambda: "native")
     monkeypatch.setattr(torch.cuda, "device", lambda _dev: contextlib.nullcontext())
@@ -196,6 +196,34 @@ def test_options_cannot_force_unmeasured_requests(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(model, "options", {"cuda_graphs": True})
     monkeypatch.setattr(model, "weights", ("custom",))
     assert not linux_graph_defaults.allows(model, image)
+
+
+def test_measured_graph_uses_the_standard_cuda_backend_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    model, image = _profile_model(monkeypatch)
+    assert linux_graph_defaults.allows(model, image)
+    for obj, attr, changed in (
+        (torch, "are_deterministic_algorithms_enabled", lambda: True),
+        (torch.backends.cudnn, "benchmark", True),
+        (torch.backends.cudnn, "deterministic", True),
+        (torch.backends.cuda, "flash_sdp_enabled", lambda: False),
+        (torch.backends.cuda, "matmul", SimpleNamespace(allow_fp16_accumulation=True)),
+        (torch, "get_float32_matmul_precision", lambda: "high"),
+    ):
+        with monkeypatch.context() as override:
+            override.setattr(obj, attr, changed)
+            assert not linux_graph_defaults.allows(model, image)
+    with monkeypatch.context() as override:
+        override.setattr(torch.backends.cudnn, "deterministic", True)
+        override.setattr(model._runner, "deterministic_cudnn", True)
+        assert linux_graph_defaults.allows(model, image)
+
+    def custom_attention(key: str, default: str | None = None) -> str | None:
+        return "math" if key == "FASTFORKS_SDPA" else default
+
+    with monkeypatch.context() as override:
+        override.setattr(linux_graph_defaults.os, "getenv", custom_attention)
+        assert not linux_graph_defaults.allows(model, image)
+    assert linux_graph_defaults.allows(model, image)
 
 
 def test_windows_no_scope_keeps_legacy_and_explicit_deny_is_sticky(monkeypatch: pytest.MonkeyPatch) -> None:
