@@ -1046,6 +1046,7 @@ option restoration.seedvr2.seed
 option restoration.seedvr2.stream
 option retrieval.boq.stream
 option retrieval.megaloc.stream
+option segmentation.dinov2_linear.cuda_graphs
 option segmentation.sapiens.stream
 option stereo.aanet.cuda_graphs
 option stereo.bridgedepth.cuda_graphs

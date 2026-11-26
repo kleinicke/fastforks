@@ -188,6 +188,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/README.md#L660>
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), ADE20K (SceneParsing, 150 classes)
+- Options: `cuda_graphs` = False (speed only)
 - Kernel libraries: `fastbb`, `seg_up`, `dpt_fused`
 - Variants: `dinov2-s-linear-ade20k`, `dinov2-b-linear-ade20k`, `dinov2-l-linear-ade20k`
 - Outputs: logits; label_set: `ade20k-150`
