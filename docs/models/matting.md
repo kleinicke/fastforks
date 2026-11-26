@@ -202,7 +202,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- On Linux CUDA, the base 1024 × 1024 network runs eagerly by default. Set `cuda_graph_policy="on"` to enable graph replay or `"off"` to disable it for either variant.
+- On Linux CUDA, only measured workloads qualify for graph replay. The base 1024 × 1024 variant currently runs eagerly there. Set `cuda_graph_policy="off"` to keep either variant eager.
 
 </details>
 

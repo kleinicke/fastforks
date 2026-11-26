@@ -660,14 +660,16 @@ result.save("disparity.tif", bits=10)  # 7-10x smaller than raw, error <= 0.05 %
 
 ## Video and repeated sizes
 
-On Linux, Fastforks captures a CUDA graph only for a measured workload where replay has earned back the capture
-cost within 15 full requests. Eligibility depends on the model, GPU and its memory capacity, CUDA runtime,
-allocator, Torch backend settings, and input layout and size. Other requests run eagerly. Where a model exposes
-`cuda_graphs`, setting it to `False` always keeps inference eager.
+On Linux, Fastforks enables a CUDA graph for a repeated workload only when measured cumulative inference time
+is lower by request 15, including the first eager request and graph capture. Eligibility depends on the model,
+GPU and its memory capacity, CUDA runtime, allocator, Torch backend settings, and input layout and size. Other
+requests run eagerly. Where a model exposes `cuda_graphs`, setting it to `False` keeps inference eager.
 
-Keep the model and the frame size fixed. The first call at a new size is slower (memory planning, cuDNN plans), so
-warm up at each size before timing: 4 calls for kernels models that replay CUDA graphs (Fast-ACVNet, CoEx, LAS2,
-RT-MonSter++), 1-2 for the others. Stereo models also have `model.run_many(lefts, rights)` for a stream of pairs; it returns a pipeline that starts working at once, a bounded `prefetch` pairs ahead (with `save_to=`, files may appear before the first iteration). Iterate it (`for r in ...`, or `list(...)` with `save_to=`) to drain it; to stop early use `with model.run_many(...) as p: for r in p: ...` or `p.close()` (it finishes the writes in progress and drops the other queued pairs); a plain `break` does not close a pipeline that is still referenced. Outputs for the same input are
+Keep the loaded model and the frame size fixed when measuring repeated requests. Record the first request at
+each size separately because memory planning and cuDNN plan creation can slow it down. For a Linux workload
+that qualifies for replay, capture happens on a later request. Report that request separately from steady replay.
+
+Stereo models also have `model.run_many(lefts, rights)` for a stream of pairs; it returns a pipeline that starts working at once, a bounded `prefetch` pairs ahead (with `save_to=`, files may appear before the first iteration). Iterate it (`for r in ...`, or `list(...)` with `save_to=`) to drain it; to stop early use `with model.run_many(...) as p: for r in p: ...` or `p.close()` (it finishes the writes in progress and drops the other queued pairs); a plain `break` does not close a pipeline that is still referenced. Outputs for the same input are
 bitwise equal between calls and processes, except portable CoEx and Fast-ACVNet on CUDA (differences of 1-3 px on
 single pixels; set `torch.backends.cudnn.deterministic = True` to remove them, at about 5 % speed). Batched calls can
 differ from single calls in the last bits.
