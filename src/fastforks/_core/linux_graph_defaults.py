@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 _CHW = 3
 _BCHW = 4
 _RGB = 3
+_PAIR_TASKS = {"flow", "interpolation", "stereo"}
 
 
 class ImagePair(NamedTuple):
@@ -97,15 +98,16 @@ def _tracking_inputs(call: VideoQueries, device: torch.device) -> tuple[TensorSi
 
 def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredKey | None:
     ref, mode, dtype, task = model.variant.ref, model.backend.mode, model.backend.dtype, model.card.task
-    if isinstance(call, ImagePair) and task in {"flow", "stereo"}:
+    if isinstance(call, ImagePair) and task in _PAIR_TASKS:
         first, second = (_image_tensor(x, device) for x in call)
         if first is not None and second is not None and first[1][-2:] == second[1][-2:]:
-            return ref, mode, dtype, f"{task}-pair", (first, second)
+            route = "interpolation-midpoint-pair" if task == "interpolation" else f"{task}-pair"
+            return ref, mode, dtype, route, (first, second)
         return None
     if isinstance(call, VideoQueries) and task == "tracking":
         args = _tracking_inputs(call, device)
         return None if args is None else (ref, mode, dtype, "tracking-video-queries", args)
-    if task in {"flow", "stereo", "tracking"}:
+    if task in _PAIR_TASKS or task == "tracking":
         return None
     image = _image_tensor(call, device)
     if image is None:

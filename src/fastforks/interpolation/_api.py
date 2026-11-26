@@ -15,6 +15,7 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, to_rgb_pair, unbatch
 from fastforks._core.io import IMAGE_SUFFIXES, write_rgb
+from fastforks._core.linux_graph_defaults import ImagePair
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.interpolation._runner import crop, scale
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 __all__ = ["Backend", "InterpolationModel", "InterpolationResult", "list_models", "load", "model_card"]
 
 TASK = "interpolation"
+_MIDPOINT = 0.5
 
 
 @dataclass(frozen=True)
@@ -86,7 +88,7 @@ class InterpolationModel(core.Model):
         """
         return _PortableModule(self._runner, super().module())
 
-    def __call__(self, image1: ImageLike, image2: ImageLike, *, timestep: float = 0.5) -> InterpolationResult:
+    def __call__(self, image1: ImageLike, image2: ImageLike, *, timestep: float = _MIDPOINT) -> InterpolationResult:
         """Interpolate the frame between `image1` and `image2`.
 
         ```python
@@ -111,7 +113,10 @@ class InterpolationModel(core.Model):
             raise InputError(msg)
         t1, t2 = to_rgb_pair(image1, image2, self._device, ("image1", "image2"))
         self._check_size(t1)
-        maps = unbatch(self._batched(functools.partial(self._run, timestep=float(timestep)), t1, t2), image1)
+        t = float(timestep)
+        # Only the ordinary midpoint call can match the measured pair route.
+        call = ImagePair(image1, image2) if t == _MIDPOINT else None
+        maps = unbatch(self._batched(functools.partial(self._run, timestep=t), t1, t2, graph_input=call), image1)
         return InterpolationResult(maps["frame"], self.variant.ref, self.backend, self.options)
 
     def _run(self, image1: torch.Tensor, image2: torch.Tensor, *, timestep: float) -> dict[str, torch.Tensor]:

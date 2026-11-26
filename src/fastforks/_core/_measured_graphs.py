@@ -383,4 +383,70 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
             ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",),
         ),
     ),
+    # rife-4.25-lite@1 native 384x512 midpoint. Request-15 deltas: -73.780, -66.692 ms.
+    # Receipt SHA-256 f1017a4099985e0b113885c84d5230da8373177d9e8c6dc414a205003c4272f7.
+    (
+        "rife-4.25-lite@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400",),
+            ("81cdba223fe72a120130cc8552e5d2ecac824259d406f0c15323b3decf96b8b1",),
+        ),
+    ),
+    # rife-4.25@1 native 384x512 midpoint. Request-15 deltas: -72.846, -65.045 ms.
+    # Receipt SHA-256 fdedd72f8e4247764a8056cfe3a9571e2beb61d68a7c1db671371c254b322083.
+    (
+        "rife-4.25@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400",),
+            ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",),
+        ),
+    ),
+    # rife-4.26@1 native 384x512 midpoint. Request-15 deltas: -68.623, -64.815 ms.
+    # Receipt SHA-256 40d2536f1757b35c83f3e4a6dc522f60635025b014c5dd8d07975362557d668a.
+    (
+        "rife-4.26@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400",),
+            ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",),
+        ),
+    ),
 }
