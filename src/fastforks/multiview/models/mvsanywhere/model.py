@@ -612,6 +612,7 @@ class Kernels(_Base):
             GraphCache(
                 self._graphed,
                 graphs=2,
+                share_inputs=(0,),  # same image geometry with an explicit or inferred depth range
                 capture_after=cudnn_hacc.capture_after(),
                 capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
             )
