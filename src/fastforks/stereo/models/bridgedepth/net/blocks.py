@@ -257,13 +257,14 @@ class AlignmentLayer(nn.Module):
         self.readout = CrossBlock(q_dim=dim+31, kv_dim=dim, window_size=window_size, stride=0.5 if refine else 1, **kwargs)
         self.update = CrossBlock(q_dim=dim, kv_dim=dim+31, window_size=window_size // 2 if refine else window_size, stride=2 if refine else 1, **kwargs)
 
-    def forward(self, stereo_embed, mono_embed, stereo_pos_embed, attn_mask):
+    def forward(self, stereo_embed, mono_embed, stereo_pos_embed, attn_mask, *, update_mono=True):
         # readout
         stereo_embed = self.readout(stereo_embed, mono_embed, x_pos=stereo_pos_embed)
         # stereo aggregation
         stereo_embed = self.attn(stereo_embed, stereo_pos_embed, attn_mask)
         # update
-        mono_embed = self.update(mono_embed, stereo_embed, context_pos=stereo_pos_embed)
+        if update_mono:
+            mono_embed = self.update(mono_embed, stereo_embed, context_pos=stereo_pos_embed)
         return stereo_embed, mono_embed
 
 
@@ -320,7 +321,7 @@ class Alignment(nn.Module):
                 )
         return attn_mask
 
-    def forward(self, stereo_embed, mono_embed, stereo_pos_embed):
+    def forward(self, stereo_embed, mono_embed, stereo_pos_embed, *, final_mono=True):
         """
         stereo_embed: [B,H,W,N,C]
         mono_embed: [B,H,W,C]
@@ -336,7 +337,10 @@ class Alignment(nn.Module):
         stereo_embeds, mono_embeds = [], []
         mono_embed = mono_embed.unsqueeze(-2)
         for idx, layer in enumerate(self.layers):
-            stereo_embed, mono_embed = layer(stereo_embed, mono_embed, stereo_pos_embed, attn_mask[idx%2])
+            update_mono = final_mono or return_intermediate or idx + 1 < self.num_blocks
+            stereo_embed, mono_embed = layer(
+                stereo_embed, mono_embed, stereo_pos_embed, attn_mask[idx%2], update_mono=update_mono
+            )
             if return_intermediate:
                 stereo_embeds.append(self.norm(stereo_embed))
                 mono_embeds.append(mono_embed.squeeze(-2))
