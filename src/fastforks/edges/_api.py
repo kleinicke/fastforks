@@ -83,7 +83,7 @@ class EdgesModel(core.Model):
                 segments.extend(t.float() for t in lines)
             return self._check_outputs(out, {"edges": (chunk.shape[0], *chunk.shape[-2:])})  # ty: ignore[invalid-argument-type] - lines popped
 
-        maps = unbatch(self._batched(run, x), image)
+        maps = unbatch(self._batched(run, x, graph_input=image), image)
         lines = (segments if is_batch(image) else segments[0]) if segments else None
         return EdgesResult(maps["edges"], self.variant.ref, self.backend, lines, self.options)
 

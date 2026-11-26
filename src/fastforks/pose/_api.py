@@ -160,7 +160,9 @@ class PoseModel(core.Model):
         x = to_rgb_batch(image, self._device)
         per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
         if self._runner.batch == 1 or x.shape[0] == 1:
-            outs = [self._raw(x[i : i + 1], b, graph_input=image) for i, b in enumerate(per_image)]
+            outs = [
+                self._raw(x[i : i + 1], b, graph_input=image if b is None else None) for i, b in enumerate(per_image)
+            ]
         elif not self.needs_boxes:
             outs = self._raw_images(x)
         else:

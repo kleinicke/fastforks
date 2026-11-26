@@ -210,7 +210,11 @@ class FeaturesModel(core.Model):
         if idx and "hidden_states" not in self.variant.outputs:
             msg = f"{self.variant.ref} has no per-block hidden states; call it without layers="
             raise InputError(msg)
-        out = self._batched(lambda xb: self._runner(prepare(xb, hw, self.variant.io), idx), x)
+        out = self._batched(
+            lambda xb: self._runner(prepare(xb, hw, self.variant.io), idx),
+            x,
+            graph_input=image if size is None and not idx else None,
+        )
         b, c = x.shape[0], self.hidden_size
         n = self.num_prefix_tokens + (hw[0] // self.stride) * (hw[1] // self.stride)
         shapes = {
