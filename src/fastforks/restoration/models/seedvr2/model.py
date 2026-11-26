@@ -25,6 +25,7 @@ frame per call, so every 3-D window reads copies of the same frame (512 x 512 x2
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -40,7 +41,7 @@ from fastforks.shared.nf4 import code as nf4_code
 
 from .net import BF, CONFIGS, LATENT, SPATIAL, Net
 from .net import load as build_net
-from .net.vae import CausalConv3d, State, Upsample3D
+from .net.vae import CausalConv3d, ResnetBlock3D, State, Upsample3D
 
 if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
@@ -178,11 +179,26 @@ class Kernels(Runner):
         super().__init__(ctx)
         _announce(ctx)
         self.net = _build(ctx)
+        # This reduces the native allocator's VAE peak. On cudaMallocAsync, the changed lifetime also changed
+        # the full-resolution output during validation, so preserve the original evaluation order there.
+        early_release = (
+            sys.platform == "linux"
+            and ctx.device.type == "cuda"
+            and ctx.variant.ref == "seedvr2-3b@1"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+            and ctx.params.stream
+            and ctx.params.keep == 0
+            and ctx.params.quant == "none"
+            and torch.cuda.get_allocator_backend() == "native"
+        )
         for m in self.net.vae.modules():
             if isinstance(m, CausalConv3d):
                 m.fold_time()  # `infer` restores one frame per call
             if isinstance(m, Upsample3D):
                 override(m, _banded_upsample)
+            if early_release and isinstance(m, ResnetBlock3D):
+                m.release_first_activation = True
         if ctx.params.quant == "nf4":
             nf4.load(ctx.device)
             self.net.dit.dequant = _Dequant(ctx.device)
