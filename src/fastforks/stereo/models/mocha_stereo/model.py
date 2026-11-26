@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -115,6 +116,8 @@ class Kernels(Runner):
             graphs=_GRAPHS,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+            # The same shape's eager calls prepare its cuDNN plans on Linux.
+            capture_warmup=sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def release_graphs(self) -> None:
