@@ -145,7 +145,14 @@ class RestorationModel(core.Model):
         if m is not None:
             x = torch.cat([x, m], 1)
         try:
-            maps = unbatch(self._batched(functools.partial(self._run, tile=tile), x), image)
+            maps = unbatch(
+                self._batched(
+                    functools.partial(self._run, tile=tile),
+                    x,
+                    graph_input=image if mask is None and tile is None else None,
+                ),
+                image,
+            )
         except torch.OutOfMemoryError as e:
             if tile is not None:
                 raise

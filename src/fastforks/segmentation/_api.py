@@ -114,7 +114,7 @@ class SegmentationModel(core.Model):
                 logits_result = scores.float()
             return {"labels": labels, "logits": logits_result}
 
-        maps = unbatch(self._batched(run, x), image)
+        maps = unbatch(self._batched(run, x, graph_input=None if logits else image), image)
         return SegmentationResult(
             maps["labels"], maps.get("logits"), self.class_names, self.variant.ref, self.backend, self.options
         )

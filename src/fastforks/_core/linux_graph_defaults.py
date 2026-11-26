@@ -37,9 +37,9 @@ class VideoQueries(NamedTuple):
 def enrolled(model: Model) -> bool:
     return (
         sys.platform == "linux"
+        and (model.card.task, model.card.family) in ENROLLED
         and model._device.type == "cuda"  # noqa: SLF001 - the device of the runner
         and model.backend.mode == "kernels"
-        and (model.card.task, model.card.family) in ENROLLED
     )
 
 

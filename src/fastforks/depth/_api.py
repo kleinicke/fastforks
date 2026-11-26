@@ -243,7 +243,12 @@ class DepthModel(core.Model):
             )
         k = self._intrinsics(intrinsics, x.shape[0])
         p = self._prompt(prompt_depth, x.shape[0])
-        maps = self._batched(self._runner, x, k) if p is None else self._batched(self._runner, x, k, p)
+        if p is None:
+            maps = self._batched(
+                self._runner, x, k, graph_input=image if intrinsics is None and prompt_depth is None else None
+            )
+        else:
+            maps = self._batched(self._runner, x, k, p)
         return self._result(maps, x, k, batched=is_batch(image))
 
     def video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor) -> DepthResult:
