@@ -10,7 +10,8 @@ it is unstable (upstream `dynamic_multimask_via_stability`).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import sys
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import torch
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks.promptable_segmentation._runner import Context
+
+    from .fast import Lin
 
 PROMPT_DIM = 256  # fixed: SAM 2's FPN / prompt / mask-decoder width (all released checkpoints)
 PATCH_STRIDE = 4  # fixed: Hiera's patch-embedding stride (all released checkpoints)
@@ -120,6 +123,24 @@ def _net(ctx: Context) -> Sam2Image:
     net = Sam2Image(ctx.params)
     load_strict(net, ctx.state_dict(key="model"), f"{ctx.variant.ref} checkpoint", unused=VIDEO)
     return net.eval()
+
+
+def _samurai_coarse_fp32(ctx: Context) -> bool:
+    return (
+        sys.platform == "linux"
+        and torch.version.cuda is not None
+        and ctx.device.type == "cuda"
+        and ctx.mode == "portable"
+        and ctx.torch_dtype == torch.float16
+        and ctx.variant.ref == "sam2.1-hiera-small@1"
+        and ctx.params.samurai
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
+def _neck_linear(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+    return F.linear(x.to(weight.dtype), weight, bias)
 
 
 class _Sam2(Runner):
@@ -214,6 +235,10 @@ class _Sam2(Runner):
             )
         return self._video
 
+    def _video_embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Encode a resized video frame through the ordinary image path."""
+        return self.embed(image)
+
     @host
     def track(  # noqa: PLR0913 - one argument per prompt kind
         self,
@@ -255,7 +280,7 @@ class _Sam2(Runner):
         def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:
             host.put(t, masks=self.upsample(low, size)[:, 0] > 0, pred_masks=low[:, 0], object_score_logits=obj[:, 0])
 
-        feats = (self.embed(resize_frame(x, s)) for x in prefetch(frames, n_frames))
+        feats = (self._video_embed(resize_frame(x, s)) for x in prefetch(frames, n_frames))
         kf = self.ctx.params.kf_score_weight if self.ctx.params.samurai else None
         tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit, kf_weight=kf)
         host.flush()
@@ -276,6 +301,8 @@ class Portable(_Sam2):
         self.pos = pos_embed(t, ctx.params.image_size // PATCH_STRIDE).to(ctx.device, ctx.torch_dtype)
         self.trunk = t.to(ctx.device, ctx.torch_dtype)
         self.neck = n.to(ctx.device, ctx.torch_dtype)
+        # Retain only the original coarse weights on the CPU; upload them on the first SAMURAI frame.
+        self._video_neck: Neck | None = replace(self.neck, top=n.top, mid=n.mid) if _samurai_coarse_fp32(ctx) else None
         self.no_mem = self.neck.no_mem
         del net.image_encoder
         self.net = net.to(ctx.device)
@@ -287,6 +314,22 @@ class Portable(_Sam2):
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` and the projected high-resolution maps, float32."""
         return self._encode(image)
+
+    def _video_embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Widen the two coarse FPN projections used by the portable SAMURAI video path."""
+        n = self._video_neck
+        # `Model.compile` wraps `embed` in a subclass. Keep that video encoder path there as well.
+        if n is None or type(self) is not Portable:
+            return super()._video_embed(image)
+        dev = self.neck.no_mem.device
+        if n.top[0].device != dev:
+
+            def move(t: Lin) -> Lin:
+                return t[0].to(dev).contiguous(), t[1].to(dev)
+
+            n = self._video_neck = replace(n, top=move(n.top), mid=move(n.mid))
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size)
+        return neck(n, trunk(self.trunk, x, self.pos), linear=_neck_linear)
 
     def module(self) -> torch.nn.Module:
         """The image encoder (no prompt side): `[1, 3, H, W]` in `[0, 1]` -> `image_embeddings` `[1, 256, 64, 64]`."""
