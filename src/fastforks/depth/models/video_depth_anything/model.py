@@ -114,6 +114,26 @@ class SdpaTemporalAttention(TemporalAttention):
         return self.reshape_batch_dim_to_heads(out.flatten(0, 1))
 
 
+class _DirectTemporalAttention(SdpaTemporalAttention):
+    """Keep the position and head axes separate so SDPA can read the three projection views."""
+
+    def reshape_heads_to_batch_dim(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Use `[positions, heads, frames, channels]` in the unsliced eager path."""
+        if self._slice_size is None and _eager_gpu(tensor):
+            return tensor.unflatten(-1, (self.heads, -1)).transpose(1, 2)
+        return super().reshape_heads_to_batch_dim(tensor)
+
+    def _attention(self, query, key, value, attention_mask=None):  # noqa: ANN001, ANN202 - upstream signature
+        if query.ndim != 4 or attention_mask is not None:  # noqa: PLR2004 - direct `[positions, heads, frames, channels]`
+            return super()._attention(query, key, value, attention_mask)
+        if query.shape[-2] != INFER_LEN or key.shape[-2] != INFER_LEN:
+            # Keep the original layout for variable-length and cached calls.
+            q, k, v = (t.flatten(0, 1).contiguous() for t in (query, key, value))
+            return super()._attention(q, k, v)
+        out = F.scaled_dot_product_attention(query, key, value, scale=self.scale)
+        return out.transpose(1, 2).flatten(2).contiguous()
+
+
 def _eager_gpu(x: torch.Tensor) -> bool:
     return x.device.type in {"cuda", "mps"} and not (
         torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
@@ -165,9 +185,11 @@ class _DepthOutput(nn.Sequential):
 def _cpu_net(ctx: Context) -> Net:
     net = Net(ctx.params.arch)
     net.load_state_dict(ctx.state_dict())
+    # The direct layout reduces native reserve. The async allocator reserves more for a short clip with it.
+    direct = ctx.mode == "kernels" and ctx.device.type == "cuda" and torch.cuda.get_allocator_backend() == "native"
     for m in net.modules():
         if isinstance(m, TemporalAttention):
-            m.__class__ = SdpaTemporalAttention
+            m.__class__ = _DirectTemporalAttention if direct else SdpaTemporalAttention
         elif ctx.dtype == "float16" and isinstance(m, GEGLU):
             m.__class__ = _WorkspaceGEGLU
         elif isinstance(m, FeedForward):
