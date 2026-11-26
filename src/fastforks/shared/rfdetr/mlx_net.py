@@ -199,6 +199,7 @@ class MlxRFDETR:
             for n in ("norm1", "norm2"):
                 vit[o + n + ".weight"], vit[o + n + ".bias"] = wt.norm(k + n)
         self.vit, self.vit_norm = vit, wt.norm(_ENC + "layernorm")
+        self.vit_blocks = mlx_vit.Stepped(vit, self.depth, self.vit_heads, _EPS_VIT)  # one compiled block function
 
     @staticmethod
     def _load_projector(wq: _Weights, k: str, nb: int) -> dict[str, Any]:
@@ -353,12 +354,12 @@ class MlxRFDETR:
         c = t.shape[-1]
         t = t.reshape(b, nw, s, nw, s, c).transpose(0, 1, 3, 2, 4, 5).reshape(b * nw * nw, s * s, c)
         t = mx.concatenate([mx.broadcast_to(v["pos.cls"], (b * nw * nw, 1, c)), t], axis=1)
-        feats, prev = [], None
+        feats, prev, blk = [], None, self.vit_blocks.fn
         for i in range(self.depth):
             if i in self.global_blocks:
-                t = mlx_vit.block(v, i, t.reshape(b, -1, c), self.vit_heads, _EPS_VIT).reshape(b * nw * nw, -1, c)
+                t = blk(t.reshape(b, -1, c), self.vit_blocks.weights[i]).reshape(b * nw * nw, -1, c)
             else:
-                t = mlx_vit.block(v, i, t, self.vit_heads, _EPS_VIT)
+                t = blk(t, self.vit_blocks.weights[i])
             if i in self.out_blocks:
                 f = _ln(t[:, 1:], self.vit_norm, _EPS_VIT)
                 feats.append(f.reshape(b, nw, nw, s, s, c).transpose(0, 1, 3, 2, 4, 5).reshape(b, n, n, c))
@@ -412,7 +413,11 @@ class MlxRFDETR:
         """Memory `[B, HW, D]`, reference boxes `[B, Q, 4]` -> the normed last decoder output `[B, Q, D]`.
 
         With keypoints also the last layer's keypoint queries `[B, Q, K, D]` (`kp_memory`: their cross-attention's).
+        The inputs are evaluated first: left lazy, the projector and the two-stage selection ran in the first layers'
+        command buffers, their transients alive with two layers' (rf-detr-keypoint-preview float16: network peak 1.46
+        -> 1.09x the graph translation's, with the layers one in flight).
         """
+        mx.eval(memory, ref, *(() if kp_memory is None else (kp_memory,)))
         b, q = ref.shape[:2]
         e = mx.concatenate([ref[..., 1::-1], ref[..., 2:]], -1)[..., None] * self.sine_scale  # y, x, w, h
         sine = mx.where(self.sine_odd, mx.cos(e), mx.sin(e)).reshape(b, q, -1)
@@ -423,6 +428,7 @@ class MlxRFDETR:
         x = mx.broadcast_to(self.query_feat, (b, q, self.query_feat.shape[-1]))
         d = x.shape[-1]
         kt = mx.broadcast_to(self.kp_init, (b, *self.kp_init.shape)) if self.kp else None
+        prev: list[mx.array] = []
         for p in self.layers:
             qk = _linear(x + qpos, p["qk"])
             v = _linear(x, p["v"])
@@ -442,6 +448,13 @@ class MlxRFDETR:
             x = _ln(x + _linear(mx.maximum(_linear(x, p["fc1"]), 0), p["fc2"]), p["norm3"], _EPS)
             if kt is not None and kp_memory is not None:
                 x, kt = self._keypoint_layer(p, (x, kt), (qpos, ref), kp_memory)
+            # one layer in flight: as one lazy graph the layers' transients piled up (the keypoint queries'
+            # `[B, Q, K, D]` maps)
+            now = [x] if kt is None else [x, kt]
+            mx.async_eval(*now)
+            if prev:
+                mx.eval(*prev)
+            prev = now
         return _ln(x, self.dec_norm, _EPS), kt
 
     def _masks(self, feat: mx.array, hs: mx.array) -> mx.array:

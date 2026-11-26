@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = [
     "DinoFeatureEngine",
     "DinoLinearProbe",
+    "Stepped",
     "attention",
     "block",
     "blocks",
@@ -178,6 +179,42 @@ def blocks(
         if i + 1 in layers:
             hs.append(t)
     return t, hs
+
+
+class Stepped:
+    """The blocks of `p` as one compiled block function, evaluated one in flight.
+
+    Each block's weights are the function's arguments, so the blocks of one shape share one trace.
+    The compile of a whole forward is the fastest at a few hundred tokens but holds every block's transients until its
+    command buffer completes; `blocks(bounded=True)` bounds them but runs each block's ops uncompiled. Like this both:
+    a block is queued (`mx.async_eval`) and the one before it awaited.
+    """
+
+    def __init__(self, p: dict[str, mx.array], depth: int, heads: int, eps: float, act=None) -> None:
+        """`p`: the flat parameters (`blocks.<i>.*` read), `act`: `block`'s MLP activation."""
+        self.weights = []
+        for i in range(depth):
+            k = f"blocks.{i}."
+            self.weights.append({"blocks.0." + n[len(k) :]: v for n, v in p.items() if n.startswith(k)})
+
+        def run(x: mx.array, w: dict[str, mx.array], *rope: mx.array) -> mx.array:
+            return block(w, 0, x, heads, eps, rope or None, act)
+
+        self.fn = mx.compile(run)
+
+    def __call__(self, t: mx.array, rope=None, layers=()) -> tuple[mx.array, list[mx.array]]:
+        """`blocks(...)` on the embedded tokens `t`: the tokens after the last block and those at `layers`."""
+        hs = [t] if 0 in layers else []
+        prev = None
+        for i, w in enumerate(self.weights):
+            t = self.fn(t, w, *(rope or ()))
+            mx.async_eval(t)
+            if prev is not None:
+                mx.eval(prev)
+            prev = t
+            if i + 1 in layers:
+                hs.append(t)
+        return t, hs
 
 
 def _putter(out: dict[str, mx.array], dtype: mx.Dtype | None) -> Callable[[str, np.ndarray], None]:

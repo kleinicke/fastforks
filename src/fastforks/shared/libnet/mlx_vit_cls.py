@@ -2,9 +2,9 @@
 
 ViT, DeiT, SigLIP, EVA-02, the ViT / EVA-02 WD taggers and the Falconsai ViT: patch embedding as one matmul, the
 position table (with the patch bias and the cls token folded in), `norm_pre`, the blocks, the final norm, the pool
-(cls token, patch mean or `AttentionPoolLatent`), `fc_norm` and the head, all one `mx.compile`d forward. At these
-token counts (197-785) that is 1.5-5.5 % faster warm than `mlx_vit.blocks(bounded=True)` (M1 Pro, float16:
-wd-vit-large 189 -> 179 ms, wd-eva02-large 207 -> 195 ms).
+(cls token, patch mean or `AttentionPoolLatent`), `fc_norm` and the head. The embedding and the head are each one
+`mx.compile`d function; the blocks run through `mlx_vit.Stepped` (one compiled block, one in flight), since one
+compiled forward held every block's transients until it completed (network peak above the graph translation's).
 
 EVA-02's blocks: the separate q / k / v projections packed into one (k has no bias), the interleaved 2D RoPE turned
 into `mlx_vit.rotate`'s half layout by reordering each head's q and k channels (evens, then odds; `q . k` sums over
@@ -24,6 +24,7 @@ checkpoint (`lazy_build`) block by block in float64, each array cast to the run 
 from __future__ import annotations
 
 import dataclasses
+import functools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -32,7 +33,7 @@ import numpy as np
 import torch
 
 from fastforks._core.mlx import convert_cached, mx, to_mx, to_torch
-from fastforks.shared.mlx_vit import _putter, blocks, gelu, patches, rope_tables, transformer_params
+from fastforks.shared.mlx_vit import Stepped, _putter, gelu, patches, rope_tables, transformer_params
 
 from .mlx_features import _act, _deinterleave, _qk_order, gelu_tanh, quick_gelu
 
@@ -318,9 +319,11 @@ class Network:
         self.cfg, self.dtype = cfg, dtype
         self.rope: tuple[mx.array, mx.array] | None = (p.pop("rope.cos"), p.pop("rope.sin")) if cfg.rope else None
         self.p = p
-        self.forward = mx.compile(self._forward)
+        self._embed = mx.compile(self._embed_fn)
+        self._blocks = Stepped(p, cfg.depth, cfg.heads, cfg.eps, cfg.act)
+        self._head = mx.compile(functools.partial(_head, p, cfg))
 
-    def _forward(self, x: mx.array, *rope: mx.array) -> mx.array:
+    def _embed_fn(self, x: mx.array) -> mx.array:
         cfg, p = self.cfg, self.p
         table = p["table"]
         t = patches(x.astype(self.dtype), cfg.patch) @ p["patch.weight"] + table[cfg.prefix :]
@@ -328,8 +331,12 @@ class Network:
             t = mx.concatenate([mx.broadcast_to(table[:1], (x.shape[0], 1, t.shape[-1])), t], axis=1)
         if cfg.pre_eps is not None:
             t = mx.fast.layer_norm(t, p["norm_pre.weight"], p["norm_pre.bias"], cfg.pre_eps)
-        t, _ = blocks(p, cfg.depth, cfg.heads, cfg.eps, t, (), rope=rope or None, act=cfg.act)
-        return _head(p, cfg, t)
+        return t
+
+    def forward(self, x: mx.array, *rope: mx.array) -> mx.array:
+        """The embedding, the blocks (`mlx_vit.Stepped`) and the head."""
+        t, _ = self._blocks(self._embed(x), rope or None)
+        return self._head(t)
 
     def logits(self, x: mx.array) -> mx.array:
         """Normalised NCHW image batch -> logits in the run dtype (lazy)."""
@@ -367,7 +374,7 @@ def cached(
         del net
         return _params(twin(), cfg, getattr(mx, ctx.dtype)), _encode(cfg)
 
-    files = (Path(__file__), Path(__file__).with_name("mlx_features.py"), Path(blocks.__code__.co_filename), *sources)
+    files = (Path(__file__), Path(__file__).with_name("mlx_features.py"), Path(patches.__code__.co_filename), *sources)
     try:
         found = convert_cached(ctx, LAYOUT, build, dtype=ctx.dtype, fp32=("rope.",), sources=files)
     except _UnsupportedError:
