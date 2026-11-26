@@ -278,7 +278,7 @@ class FusedHead:
         A metric head returns the sigmoid instead of the ReLU of the last conv (the caller scales it by max_depth).
         """
         k = self.k
-        ls, rs = [], []
+        laterals = []
         for t, (wp, bp), rz, rn in zip(feats, self.projects, self.resize, self.rn, strict=True):
             x = k.gemm(t, wp, bp).view(t.shape[0], gh, gw, -1)
             if rz is not None and rz[0] == "deconv":
@@ -287,14 +287,23 @@ class FusedHead:
             elif rz is not None:
                 x = self._conv(x, rz[1:])
             r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
-            ls.append(self._conv(x, rn, y2=r))
-            rs.append(r)
-        l1, l2, l3, l4 = ls
-        p = self._fuse(3, l4, rs[3], None, None, l3.shape[1:3])
-        p = self._fuse(2, p, None, l3, rs[2], l2.shape[1:3])
-        p = self._fuse(1, p, None, l2, rs[1], l1.shape[1:3])
-        p = self._fuse(0, p, None, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]))
-        o = k.bilinear(self._conv(p, self.oc1), (14 * gh, 14 * gw), align_corners=True)
+            laterals.append((self._conv(x, rn, y2=r), r))
+            del x, r
+        lateral, relu = laterals.pop()
+        size = laterals[-1][0].shape
+        p = self._fuse(3, lateral, relu, None, None, (size[1], size[2]))
+        del lateral, relu
+        for i in (2, 1):
+            lateral, relu = laterals.pop()
+            size = laterals[-1][0].shape
+            p = self._fuse(i, p, None, lateral, relu, (size[1], size[2]))
+            del lateral, relu
+        lateral, relu = laterals.pop()
+        p = self._fuse(0, p, None, lateral, relu, (2 * lateral.shape[1], 2 * lateral.shape[2]))
+        del lateral, relu
+        p = self._conv(p, self.oc1)
+        o = k.bilinear(p, (14 * gh, 14 * gw), align_corners=True)
+        del p
         o = self._conv(o, self.oc2, act=ACT_RELU)
         z = k.head_dot(o, self.w_last, self.b_last)
         if not self.sigmoid:
