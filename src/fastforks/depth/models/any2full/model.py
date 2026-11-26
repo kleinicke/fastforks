@@ -267,16 +267,21 @@ class Kernels(Runner):
                 t = vit._block(i, t)  # noqa: SLF001 - the shared fused block
                 if i in layers:
                     feats.append(vit.vit.norm(t[:, 1:]))
-            p, has = self.embed(dn, pres[0].float())
+            del t, x
+            pres.reverse()  # consume each saved pre-block tensor at its last use
+            p, has = self.embed(dn, pres[-1].float())
+            del dn
             p = p.half()
             mask: torch.Tensor | None = has[:, None, None]
-            for j, pre in enumerate(pres):
-                p = self._branch(j, vit.blocks[layers[j + 1]].norm1(pre), p, mask)
+            for j, layer in enumerate(layers[1:]):
+                p = self._branch(j, vit.blocks[layer].norm1(pres.pop()), p, mask)
                 q = self.prompt_norm(p[:, 1:])
                 f = self._mlp(self.fusion[j], torch.cat([feats[j + 1], q], -1))
                 s = self._mlp(self.scale[j], q)
                 feats[j + 1] = f.addcmul_(s, feats[j + 1]).add_(feats[j + 1])
+                del q, f, s
                 mask = None
+            del p
             pred = self.head(feats, size[0] // PATCH, size[1] // PATCH)[:, None]
         return finish(pred, disp, image.shape[-2:])
 
