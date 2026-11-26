@@ -19,16 +19,21 @@ the shape. They try capturing directly and retry with a checked warm-up if the d
 Every warm-up and capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and
 kernels that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream
 for the life of the process, so a new stream per capture or per loaded model grew the memory by 32 MB each time.
+Linux native capture uses one nonblocking driver stream per CUDA context to avoid initializing PyTorch's
+whole stream pool. Torch's pooled stream is the fallback and is still used for side-stream work.
 """
 
 from __future__ import annotations
 
 import contextlib
 import contextvars
+import ctypes
 import functools
 import gc
 import inspect
 import logging
+import os
+import sys
 import threading
 import traceback
 import warnings
@@ -38,7 +43,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import torch
 
-from fastforks._core.kernels import checked, trim_cuda_graph_pool
+from fastforks._core.kernels import _check, _libcuda, checked, trim_cuda_graph_pool
 from fastforks._core.upload import capture_uploads
 
 if TYPE_CHECKING:
@@ -51,6 +56,8 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
 _REQUEST: contextvars.ContextVar[object | None] = contextvars.ContextVar("cuda_graph_request", default=None)
+_NATIVE_CAPTURE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}  # PID, device, driver context ID
+_NON_BLOCKING = 1  # CU_STREAM_NON_BLOCKING
 
 
 @contextlib.contextmanager
@@ -82,9 +89,70 @@ def _index(device: torch.device | str) -> int:
     return torch.cuda.current_device() if index is None else index
 
 
+def _current_context(lib: ctypes.CDLL) -> ctypes.c_void_p:
+    context = ctypes.c_void_p()
+    _check(lib.cuCtxGetCurrent(ctypes.byref(context)), "cuCtxGetCurrent")
+    return context
+
+
+def _new_capture_stream(lib: ctypes.CDLL, index: int, context: ctypes.c_void_p) -> torch.cuda.Stream:
+    active, requested = ctypes.c_int(), ctypes.c_int()
+    _check(lib.cuCtxGetDevice(ctypes.byref(active)), "cuCtxGetDevice")
+    _check(lib.cuDeviceGet(ctypes.byref(requested), index), "cuDeviceGet")
+    if active.value != requested.value:
+        msg = "The current CUDA context is on a different device"
+        raise RuntimeError(msg)
+    handle = ctypes.c_void_p()
+    _check(lib.cuStreamCreate(ctypes.byref(handle), _NON_BLOCKING), "cuStreamCreate")
+    if handle.value is None:
+        msg = "cuStreamCreate returned no stream"
+        raise RuntimeError(msg)
+    try:
+        stream = torch.cuda.ExternalStream(handle.value, device=index)
+        current = _current_context(lib)
+    except BaseException:
+        # No work was submitted. If a different context is current, its driver must not destroy the handle.
+        with contextlib.suppress(AttributeError, OSError, RuntimeError):
+            if handle.value and _current_context(lib).value == context.value:
+                _check(lib.cuStreamDestroy_v2(handle), "cuStreamDestroy_v2")
+        raise
+    if current.value != context.value:
+        msg = "The CUDA context changed while wrapping its capture stream"
+        raise RuntimeError(msg)
+    return stream
+
+
 def capture_stream(device: torch.device | str) -> torch.cuda.Stream:
     """The stream of every graph warm-up and capture on `device` (hold `CAPTURE_LOCK` while using it)."""
-    return _stream(_index(device), -1)
+    index = _index(device)
+    if sys.platform != "linux" or torch.cuda.get_allocator_backend() != "native":
+        return _stream(index, -1)
+    key = None
+    with CAPTURE_LOCK, torch.cuda.device(index):
+        try:
+            lib = _libcuda()
+            context = _current_context(lib)
+            if context.value is None:
+                # A standalone caller can ask for the stream before PyTorch has materialized its CUDA context.
+                torch.empty(1, device=torch.device("cuda", index))
+                context = _current_context(lib)
+            if context.value is None:
+                return _stream(index, -1)
+            identity = ctypes.c_uint64()
+            _check(lib.cuCtxGetId(context, ctypes.byref(identity)), "cuCtxGetId")
+            key = (os.getpid(), index, identity.value)
+            if key not in _NATIVE_CAPTURE:
+                # ExternalStream does not own the handle. CUDA owns it through context teardown, so it survives
+                # every graph, allocator event and cuBLAS workspace that may still refer to it.
+                _NATIVE_CAPTURE[key] = _new_capture_stream(lib, index, context)
+            stream = _NATIVE_CAPTURE[key]
+            if stream is not None:
+                return stream
+        except (AttributeError, OSError, RuntimeError) as e:
+            if key is not None:
+                _NATIVE_CAPTURE[key] = None
+            log.debug("Using a pooled CUDA capture stream: %s", e)
+        return _stream(index, -1)
 
 
 def side_stream(device: torch.device | str, i: int = 0) -> torch.cuda.Stream:
@@ -116,7 +184,7 @@ def _weak(forward: Callable[..., Any]) -> Callable[..., Any]:
     return call
 
 
-def free_captured(e: BaseException) -> None:
+def free_captured(e: BaseException, *, collect: bool = True) -> None:
     """Free, while the capture is still open, what a forward that raised during capture allocated.
 
     The tensors live on in the frames of the exception's traceback, the cuBLAS workspace in the handle pool. Freed after
@@ -131,7 +199,8 @@ def free_captured(e: BaseException) -> None:
         seen.add(id(err))
         traceback.clear_frames(err.__traceback__)  # skips the frames still running (this one and its callers)
         err = err.__cause__ or err.__context__
-    gc.collect()  # tensors in reference cycles of the cleared frames
+    if collect:
+        gc.collect()  # tensors in reference cycles of the cleared frames
     torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API; a workspace allocated during the capture
 
 
@@ -335,15 +404,22 @@ class GraphCache:
                 )
                 torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             torch.cuda.empty_cache()  # the warm-up's cached blocks: the capture's pool cannot reuse them
+            collect_in_capture = torch.cuda.get_allocator_backend() != "native"
+            collect_after_capture = False
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
                 with capture_uploads() as graph.uploads:  # replays copy from these host buffers again
                     out = self._forward(*static)
             except BaseException as e:
-                free_captured(e)
+                collect_after_capture = not collect_in_capture
+                free_captured(e, collect=collect_in_capture)
                 raise
             finally:
                 graph.capture_end()
+                if collect_after_capture:
+                    # Native allocations from cycles can be freed once capture has ended. Collecting sooner
+                    # can destroy a different graph, whose driver reset is prohibited while capturing.
+                    gc.collect()
         cur.wait_stream(side)
         self._pool = graph.pool()
         self._pool_device = device

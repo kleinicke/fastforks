@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import subprocess
 import sys
 import textwrap
+import weakref
 
 import numpy as np
 import pytest
@@ -157,7 +159,8 @@ def test_async_graph_pool_returns_unused_memory():
     assert p.returncode == 0, p.stderr[-4000:]
 
 
-def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture):
+@pytest.mark.parametrize("abandoned_graph", [False, True], ids=["ordinary", "abandoned-graph"])
+def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture, *, abandoned_graph: bool):
     def forward(x: torch.Tensor) -> torch.Tensor:
         y = x * 2  # the graph is not empty (an empty one warns, an error under pytest's filters)
         if torch.cuda.is_current_stream_capturing():
@@ -167,11 +170,36 @@ def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture):
 
     cache = GraphCache(forward)
     x = torch.ones(4, device="cuda")
-    with caplog.at_level("WARNING", logger="fastforks"):
-        cache.run("k", x)
-        cache.run("k", x)
-    assert "CUDA graph capture failed" in caplog.text
-    assert "unsupported op during capture" in caplog.text
+    if abandoned_graph and torch.cuda.get_allocator_backend() != "native":
+        pytest.skip("deferred graph collection requires the native CUDA allocator")
+    automatic_gc = gc.isenabled()
+    old_graph = None
+    if abandoned_graph:
+        gc.disable()
+    try:
+        if abandoned_graph:
+            stale = GraphCache(torch.square)
+            assert stale.run("old", x) is None
+            assert stale.run("old", x) is not None
+            old_graph = weakref.ref(stale.graphs["old"][0])
+            cycle: list[object] = [stale]
+            cycle.append(cycle)
+            del cycle, stale
+            assert old_graph() is not None
+        with caplog.at_level("WARNING", logger="fastforks"):
+            cache.run("k", x)
+            cache.run("k", x)
+        assert "CUDA graph capture failed" in caplog.text
+        assert "unsupported op during capture" in caplog.text
+        if old_graph is not None:
+            assert old_graph() is None
+            healthy = GraphCache(torch.square)
+            assert healthy.run("new", x) is None
+            assert torch.equal(healthy.run("new", x), x.square())
+            healthy.release()
+    finally:
+        if abandoned_graph and automatic_gc:
+            gc.enable()
 
 
 @pytest.fixture(autouse=True)
@@ -234,7 +262,7 @@ def test_capture_failure_falls_back_to_eager():
     assert torch.equal(forward(x), x * 2)  # the device is usable after the failed capture
 
 
-_PAGE = 20 * 2**20  # the allocator's large-pool page (expandable segments) / small-buffer segment size
+_PAGE = 20 * 2**20  # the native allocator's large-pool page (expandable segments) / small-buffer segment size
 
 
 @pytest.mark.parametrize(
@@ -247,11 +275,13 @@ _PAGE = 20 * 2**20  # the allocator's large-pool page (expandable segments) / sm
     ids=["small", "large", "matmul"],
 )
 def test_graph_pool_adds_only_the_intermediates(forward):
-    """Steady reserved memory of the replays <= eager reserved + the graph's intermediates in pages.
+    """Native reserved memory of the replays <= eager reserved + the graph's intermediates in pages.
 
     A graph's private pool keeps its intermediates reserved (one page at least); anything above that is the eager or
     warm-up blocks kept next to it (igev++ once reserved twice its eager memory).
     """
+    if torch.cuda.get_allocator_backend() != "native":
+        pytest.skip("the 20 MiB reservation bound applies to the native CUDA allocator")
     x = torch.rand(2048, 1024, device="cuda")
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
