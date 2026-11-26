@@ -453,6 +453,9 @@ def convert_cached(  # noqa: PLR0913 - the builder, its cache key and its storag
     if path.is_file():
         loaded, meta = cast("tuple[dict[str, mx.array], dict[str, str]]", mx.load(str(path), return_metadata=True))
         if meta.get("format") == mlx_cache.FORMAT and meta.get("dtype") == dtype:
+            # read now: a lazy load captured by `mx.compile` is traced into the graph, which then holds its own copy
+            # of the weights beside these (eva02-large: 1.2 GB resident instead of 0.6)
+            mx.eval(loaded)
             return Converted(dict(loaded), json.loads(meta.get("config", "{}")), hit=True)
         del loaded  # not ours (another format): converted again below and replaced
     arrays, config = build()
