@@ -19,8 +19,8 @@ the shape. They try capturing directly and retry with a checked warm-up if the d
 Every warm-up and capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and
 kernels that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream
 for the life of the process, so a new stream per capture or per loaded model grew the memory by 32 MB each time.
-Linux native capture uses one nonblocking driver stream per CUDA context to avoid initializing PyTorch's
-whole stream pool. Torch's pooled stream is the fallback and is still used for side-stream work.
+Linux native capture and opt-in eager side slot 0 use separate nonblocking driver streams per CUDA context to
+avoid initializing PyTorch's whole stream pool. Other side work and unavailable driver streams use the Torch pool.
 """
 
 from __future__ import annotations
@@ -57,6 +57,7 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 CAPTURE_LOCK = threading.RLock()
 _REQUEST: contextvars.ContextVar[object | None] = contextvars.ContextVar("cuda_graph_request", default=None)
 _NATIVE_CAPTURE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}  # PID, device, driver context ID
+_NATIVE_SIDE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}
 _NON_BLOCKING = 1  # CU_STREAM_NON_BLOCKING
 
 
@@ -95,7 +96,7 @@ def _current_context(lib: ctypes.CDLL) -> ctypes.c_void_p:
     return context
 
 
-def _new_capture_stream(lib: ctypes.CDLL, index: int, context: ctypes.c_void_p) -> torch.cuda.Stream:
+def _new_native_stream(lib: ctypes.CDLL, index: int, context: ctypes.c_void_p) -> torch.cuda.Stream:
     active, requested = ctypes.c_int(), ctypes.c_int()
     _check(lib.cuCtxGetDevice(ctypes.byref(active)), "cuCtxGetDevice")
     _check(lib.cuDeviceGet(ctypes.byref(requested), index), "cuDeviceGet")
@@ -117,16 +118,15 @@ def _new_capture_stream(lib: ctypes.CDLL, index: int, context: ctypes.c_void_p) 
                 _check(lib.cuStreamDestroy_v2(handle), "cuStreamDestroy_v2")
         raise
     if current.value != context.value:
-        msg = "The CUDA context changed while wrapping its capture stream"
+        msg = "The CUDA context changed while wrapping its stream"
         raise RuntimeError(msg)
     return stream
 
 
-def capture_stream(device: torch.device | str) -> torch.cuda.Stream:
-    """The stream of every graph warm-up and capture on `device` (hold `CAPTURE_LOCK` while using it)."""
-    index = _index(device)
+def _native_or_pooled(index: int, slot: int) -> torch.cuda.Stream:
     if sys.platform != "linux" or torch.cuda.get_allocator_backend() != "native":
-        return _stream(index, -1)
+        return _stream(index, slot)
+    cached = _NATIVE_CAPTURE if slot == -1 else _NATIVE_SIDE
     key = None
     with CAPTURE_LOCK, torch.cuda.device(index):
         try:
@@ -137,27 +137,36 @@ def capture_stream(device: torch.device | str) -> torch.cuda.Stream:
                 torch.empty(1, device=torch.device("cuda", index))
                 context = _current_context(lib)
             if context.value is None:
-                return _stream(index, -1)
+                return _stream(index, slot)
             identity = ctypes.c_uint64()
             _check(lib.cuCtxGetId(context, ctypes.byref(identity)), "cuCtxGetId")
             key = (os.getpid(), index, identity.value)
-            if key not in _NATIVE_CAPTURE:
+            if key not in cached:
                 # ExternalStream does not own the handle. CUDA owns it through context teardown, so it survives
                 # every graph, allocator event and cuBLAS workspace that may still refer to it.
-                _NATIVE_CAPTURE[key] = _new_capture_stream(lib, index, context)
-            stream = _NATIVE_CAPTURE[key]
+                cached[key] = _new_native_stream(lib, index, context)
+            stream = cached[key]
             if stream is not None:
                 return stream
         except (AttributeError, OSError, RuntimeError) as e:
             if key is not None:
-                _NATIVE_CAPTURE[key] = None
-            log.debug("Using a pooled CUDA capture stream: %s", e)
-        return _stream(index, -1)
+                cached[key] = None
+            log.debug("Using a pooled CUDA stream for slot %s: %s", slot, e)
+        return _stream(index, slot)
 
 
-def side_stream(device: torch.device | str, i: int = 0) -> torch.cuda.Stream:
-    """Side stream `i` of `device`, shared by every model that overlaps work (callers order it both ways)."""
-    return _stream(_index(device), i)
+def capture_stream(device: torch.device | str) -> torch.cuda.Stream:
+    """The stream of every graph warm-up and capture on `device` (hold `CAPTURE_LOCK` while using it)."""
+    return _native_or_pooled(_index(device), -1)
+
+
+def side_stream(device: torch.device | str, i: int = 0, *, driver_owned: bool = False) -> torch.cuda.Stream:
+    """Shared side stream `i` of `device`; callers order it both ways.
+
+    `driver_owned` opts slot 0 into a Linux native CUDA stream when available.
+    """
+    index = _index(device)
+    return _native_or_pooled(index, i) if driver_owned and i == 0 else _stream(index, i)
 
 
 def empty_graph_cache(device: torch.device, *, released: bool) -> None:

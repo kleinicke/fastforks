@@ -195,7 +195,7 @@ class Engine:
         self.W = Weights(sd, device)
         self.iters = iters
         self.k, self.fused, self.convs = k, fused, convs
-        self.side = side_stream(device)
+        self.side = side_stream(device, driver_owned=True)
         self._unfusable: set[str] = set()  # convs whose geometry the CUTLASS kernel rejected: cuDNN from then on
 
     def _new(self, h: int, w: int, c: int) -> torch.Tensor:
