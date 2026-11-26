@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import inspect
 import os
 import re
 import sys
 import threading
 import warnings
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -40,7 +42,7 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context
     from fastforks._optimize import FastModel
 
-__all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "timm", "torchvision"]
+__all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "skeleton", "timm", "torchvision"]
 
 # torchvision's DenseNet checkpoints predate its module names (`norm.1` -> `norm1`); torchvision renames on load too.
 _TIMM_INITS = ("trunc_normal_", "trunc_normal_tf_", "lecun_normal_", "variance_scaling_")  # timm.layers
@@ -210,6 +212,22 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
     raise CardError(msg)
 
 
+def skeleton(ctx: Context) -> torch.nn.Module:
+    """`build(ctx)`'s network without its weights (no checkpoint read): called under the meta device.
+
+    Raises:
+        MissingDependencyError: The library is not installed.
+        CardError: Unknown library.
+    """
+    p = ctx.params
+    if p.library == "timm":
+        return timm().create_model(p.arch, pretrained=False).eval()
+    if p.library == "torchvision":
+        return torchvision().models.get_model(p.arch, weights=None).eval()
+    msg = f"{ctx.card.family}: unknown library {p.library!r} (timm, torchvision)"
+    raise CardError(msg)
+
+
 class _LibRunner(Runner):
     """Shared part of `Portable` and `Kernels`: build `network(ctx)` and optimise it for `ctx.mode` on `ctx.device`."""
 
@@ -323,15 +341,17 @@ class Mlx(Runner):
         if ctx.card.family in VIT_FAMILIES and written:
             from . import mlx_vit_cls  # noqa: PLC0415 - optional MLX dependency
 
-            with warnings.catch_warnings(), torch.device("meta"):  # the configuration only, no weights
-                warnings.simplefilter("ignore")  # load_state_dict: "copying from a non-meta parameter" per tensor
-                meta = self.network(ctx)
-            if mlx_vit_cls.supports(meta):  # the twin (memory-mapped checkpoint) on a conversion cache miss only
-                twin = lambda: lazy_build(lambda: self.network(ctx))  # noqa: E731 - deferred
-                self.net = mlx_vit_cls.Network(meta, ctx.dtype, ctx=ctx, twin=twin)
-            else:  # the WD tagger's ConvNeXt
-                del meta
-                self.net = mlx_cnn.Network(ctx, lazy_build(lambda: self.network(ctx)), "convnext")
+            def meta() -> torch.nn.Module:  # the configuration only, no weights
+                with warnings.catch_warnings(), torch.device("meta"):
+                    warnings.simplefilter("ignore")  # load_state_dict: "copying from a non-meta parameter" per tensor
+                    return self.network(ctx)
+
+            # a conversion cache hit builds no network; a miss the meta one, then the twin (memory-mapped checkpoint)
+            vit = mlx_vit_cls.cached(
+                ctx, meta, lambda: lazy_build(lambda: self.network(ctx)), sources=(Path(inspect.getfile(type(self))),)
+            )
+            # else the WD tagger's ConvNeXt
+            self.net = vit or mlx_cnn.Network(ctx, lazy_build(lambda: self.network(ctx)), "convnext")
             return
         # every other timm / torchvision network: the generic exported-graph translation (it keeps the twin, whose
         # weights stay the memory-mapped checkpoint: `lazy_build`)

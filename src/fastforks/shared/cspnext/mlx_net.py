@@ -30,6 +30,7 @@ from fastforks._core.mlx import mx
 from fastforks._core.patch import base_type
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared import mlx_graph as mg
+from fastforks.shared import mlx_port
 
 from . import SPP_POOLS
 
@@ -60,10 +61,17 @@ POOL = SPP_POOLS[0]  # the SPP's smallest max pool, which the larger ones repeat
 
 
 def arr(t: Any, dtype: mx.Dtype) -> mx.array:
-    """A torch tensor as an evaluated MLX array in `dtype` (via float64: no double rounding to float16)."""
-    a = mx.array(t.detach().double().numpy().astype(np.float32)).astype(dtype)
-    mx.eval(a)
-    return a
+    """A torch tensor as an evaluated MLX array in `dtype` (via float64: no double rounding to float16).
+
+    Read through `mlx_port.tensor`: a network built by `mlx_port.recorded` takes it from the conversion cache.
+    """
+
+    def convert() -> mx.array:
+        a = mx.array(np.ascontiguousarray(t.detach().double().numpy(), dtype=np.float32)).astype(dtype)
+        mx.eval(a)
+        return a
+
+    return mlx_port.tensor(t, dtype, convert)
 
 
 def silu(x: mx.array) -> mx.array:

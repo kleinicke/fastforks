@@ -42,7 +42,6 @@ from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -120,20 +119,22 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
         super().__init__(ctx)
-        p: Params = ctx.params
-        net = RTMDet(p)
-        net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.mf = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
-        self.net = net.eval().to(ctx.device, ctx.torch_dtype).to(memory_format=self.mf)
+        self.net = _network(ctx).to(ctx.device, ctx.torch_dtype).to(memory_format=self.mf)
+        self._tables(ctx)
+        if ctx.device.type == "mps":  # MPS reduces over two axes ~30x slower than over one (same result)
+            for m in self.net.modules():
+                if isinstance(m, Attention):
+                    override(m, _attention_mps)
+
+    def _tables(self, ctx: Context) -> None:
+        """Normalisation, the cell grid and the cell range of each level."""
+        p: Params = ctx.params
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.grid = points(p.size, p.size, ctx.device)
         cells = [(p.size // s) ** 2 for s in STRIDES]
         self.levels = [(sum(cells[:i]), sum(cells[: i + 1])) for i in range(len(cells))]  # cell ranges per level
-        if ctx.device.type == "mps":  # MPS reduces over two axes ~30x slower than over one (same result)
-            for m in self.net.modules():
-                if isinstance(m, Attention):
-                    override(m, _attention_mps)
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The head maps of a normalised float32 input."""
@@ -264,12 +265,22 @@ class _MlxPortable(Portable):
     module = Runner.module  # the MLX network is not exportable
 
     def __init__(self, ctx: Context) -> None:
-        """The portable network (BatchNorm folded), its weights copied to MLX."""
-        super().__init__(ctx)
+        """The MLX network from the conversion cache (the first load converts the portable network's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
         from . import mlx_net  # noqa: PLC0415 - imports mlx
 
-        self.mlx = mlx_net.MlxRTMDet(self.net, mlx_wrap.run_dtype(ctx))
-        self.net = None  # the MLX copy replaces it
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxRTMDet(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: RTMDet(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self._tables(ctx)
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The float32 NCHW head maps of a normalised float32 input."""
@@ -278,6 +289,13 @@ class _MlxPortable(Portable):
         maps = self.mlx(to_mx(x.float().permute(0, 2, 3, 1)))
         mx.eval(*maps)
         return tuple(to_torch(m).permute(0, 3, 1, 2) for m in maps)
+
+
+def _network(ctx: Context) -> RTMDet:
+    """The float32 CPU network with the checkpoint, its batch norms folded."""
+    net = RTMDet(ctx.params)
+    net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
+    return net.eval()
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
@@ -299,5 +317,5 @@ def extra() -> dict[tuple[str, str], object]:
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
+    "portable_mlx": _MlxPortable,
 }

@@ -13,34 +13,49 @@ identity rows for the cls token), the SwiGLU's two input projections packed into
 output projection (`ffn_norm`).
 
 The exported-graph translation spent 0.8-2.8 s of the first call exporting and translating; written out, the first
-call builds the shaders only. The float32 conversion is cached (`converted`; a cache hit reads neither the checkpoint
-nor builds the twin, the configuration comes from a meta-device network). A miss converts the twin's memory-mapped
-checkpoint (`lazy_build`) block by block in float64; the cache is cast to the run dtype one by one.
+call builds the shaders only. The conversion is cached in the run dtype with the configuration in its metadata
+(`cached`, `convert_cached`; the RoPE tables float32): a hit builds no network at all (neither the meta-device one for
+the configuration nor the twin) and reads neither the checkpoint nor timm. A miss converts the twin's memory-mapped
+checkpoint (`lazy_build`) block by block in float64, each array cast to the run dtype as it is made.
 """
 
 # ruff: noqa: ANN401 - timm's architecture-specific modules
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from fastforks._core.mlx import converted, mx, to_mx, to_torch
-from fastforks.shared.mlx_vit import _putter, blocks, patches, rope_tables, transformer_params
+from fastforks._core.mlx import convert_cached, mx, to_mx, to_torch
+from fastforks.shared.mlx_vit import _putter, blocks, gelu, patches, rope_tables, transformer_params
 
-from .mlx_features import _act, _deinterleave, _qk_order
+from .mlx_features import _act, _deinterleave, _qk_order, gelu_tanh, quick_gelu
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks._core.runner import Context
 
-__all__ = ["Network", "supports"]
+__all__ = ["Network", "cached", "supports"]
 
-LAYOUT = "vit-cls-v1"  # the cached float32 layout of `_params` (change it with `_params`)
+LAYOUT = "vit-cls-v2"  # the cached layout of `_params` and `_encode` (change it with either)
+
+
+def _identity(x: mx.array) -> mx.array:
+    return x
+
+
+_ACTS: dict[str, Callable[[mx.array], mx.array]] = {
+    "identity": _identity,  # SwiGLU blocks: no activation of their own
+    "gelu": gelu,
+    "gelu_tanh": gelu_tanh,
+    "quick_gelu": quick_gelu,
+}
 
 
 @dataclass(frozen=True)
@@ -133,7 +148,7 @@ def _config(net: Any) -> Config:
         grid=tuple(net.patch_embed.grid_size),
         heads=b.attn.num_heads,
         eps=b.norm1.eps,
-        act=(lambda x: x) if _name(b.mlp) == "SwiGLU" else _act(b.mlp.act),
+        act=_identity if _name(b.mlp) == "SwiGLU" else _act(b.mlp.act),
         prefix=int(net.cls_token is not None),
         hidden_size=net.embed_dim,
         depth=len(net.blocks),
@@ -147,6 +162,27 @@ def _config(net: Any) -> Config:
         pool_eps=0.0 if pool is None else pool.norm.eps,
         pool_act=None if pool is None else _act(pool.mlp.act),
     )
+
+
+def _encode(cfg: Config) -> dict[str, Any]:
+    """`cfg` as JSON (the activations by name): what a conversion cache hit builds the network from."""
+    names = {f: n for n, f in _ACTS.items()}
+    # not `dataclasses.asdict`: it deep-copies the fields, and the (compiled) activations cannot be copied
+    out = {f.name: getattr(cfg, f.name) for f in dataclasses.fields(cfg)}
+    out["act"] = names[cfg.act]
+    out["pool_act"] = None if cfg.pool_act is None else names[cfg.pool_act]
+    return out
+
+
+def _decode(d: dict[str, Any]) -> Config:
+    """`_encode`'s inverse."""
+    fields: dict[str, Any] = {
+        **d,
+        "grid": tuple(d["grid"]),
+        "act": _ACTS[d["act"]],
+        "pool_act": None if d["pool_act"] is None else _ACTS[d["pool_act"]],
+    }
+    return Config(**fields)
 
 
 def _block_state(blk: Any, cfg: Config, order: torch.Tensor | None) -> dict[str, torch.Tensor]:
@@ -267,25 +303,19 @@ def _head(p: dict[str, mx.array], cfg: Config, t: mx.array) -> mx.array:
 class Network:
     """A timm ViT / EVA classifier in MLX: converted once at load, one compiled forward per call."""
 
-    def __init__(
-        self, net: Any, dtype: str, *, ctx: Context | None = None, twin: Callable[[], Any] | None = None
-    ) -> None:
-        """The (CPU, eval) timm network's weights in `dtype`.
+    def __init__(self, net: Any, dtype: str) -> None:
+        """The (CPU, eval) timm network's weights in `dtype`, not cached (`cached`: through the conversion cache)."""
+        cfg = _config(net)
+        self._setup(cfg, _params(net, cfg, getattr(mx, dtype)), getattr(mx, dtype))
 
-        With `ctx`, the float32 conversion is cached (`converted`): `net` then only gives the configuration (a
-        meta-device network will do) and `twin()` the weights, built on a cache miss only.
-        """
-        self.cfg = cfg = _config(net)
-        self.dtype = getattr(mx, dtype)
-        if ctx is None:
-            p = _params(net, cfg, self.dtype)
-        else:
-            p32 = converted(ctx, LAYOUT, lambda: _params(net if twin is None else twin(), cfg, None))
-            p = {}
-            for k in list(p32):  # one by one: a lazy cast keeps its float32 source until it is evaluated
-                v = p32.pop(k)
-                p[k] = v if k.startswith("rope.") else v.astype(self.dtype)
-                mx.eval(p[k])
+    @classmethod
+    def _from(cls, cfg: Config, p: dict[str, mx.array], dtype: mx.Dtype) -> Network:
+        self = cls.__new__(cls)
+        self._setup(cfg, p, dtype)
+        return self
+
+    def _setup(self, cfg: Config, p: dict[str, mx.array], dtype: mx.Dtype) -> None:
+        self.cfg, self.dtype = cfg, dtype
         self.rope: tuple[mx.array, mx.array] | None = (p.pop("rope.cos"), p.pop("rope.sin")) if cfg.rope else None
         self.p = p
         self.forward = mx.compile(self._forward)
@@ -313,3 +343,33 @@ class Network:
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised NCHW CPU images -> float32 CPU logits."""
         return to_torch(self.logits(to_mx(image)))
+
+
+class _UnsupportedError(Exception):
+    """The meta network is no ViT this module writes out (`cached` returns None)."""
+
+
+def cached(
+    ctx: Context, meta: Callable[[], Any], twin: Callable[[], Any], *, sources: tuple[Path, ...] = ()
+) -> Network | None:
+    """The network of `ctx.variant` in `ctx.dtype` through the conversion cache; None if `supports` says no.
+
+    A hit reads the arrays and the configuration from the cache file only. A miss builds `meta()` (the network on the
+    meta device: its configuration) and `twin()` (with the checkpoint) and converts it, each array in the run dtype
+    (the RoPE tables float32). `sources`: further files whose code shapes the arrays (the family's network).
+    """
+
+    def build() -> tuple[dict[str, mx.array], dict[str, Any]]:
+        net = meta()
+        if not supports(net):
+            raise _UnsupportedError
+        cfg = _config(net)
+        del net
+        return _params(twin(), cfg, getattr(mx, ctx.dtype)), _encode(cfg)
+
+    files = (Path(__file__), Path(__file__).with_name("mlx_features.py"), Path(blocks.__code__.co_filename), *sources)
+    try:
+        found = convert_cached(ctx, LAYOUT, build, dtype=ctx.dtype, fp32=("rope.",), sources=files)
+    except _UnsupportedError:
+        return None
+    return Network._from(_decode(found.config), found.arrays, getattr(mx, ctx.dtype))  # noqa: SLF001 - its builder

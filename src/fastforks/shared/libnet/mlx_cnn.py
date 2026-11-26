@@ -4,13 +4,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import torch
 from torch import nn
 
 from fastforks._core.mlx import mx, to_mx, to_torch
-from fastforks.shared.libnet import build
+from fastforks.shared import mlx_port
+from fastforks.shared.libnet import build, skeleton
 from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
 from fastforks.shared.mlx_wrap import lazy_build
 
@@ -20,6 +22,17 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context
 
 
+def _mx(t: torch.Tensor, dtype: mx.Dtype) -> mx.array:
+    """`t` as an evaluated `mx.array` in `dtype`, or its cached array (`mlx_port.tensor`: the recorded families)."""
+
+    def convert() -> mx.array:
+        a = to_mx(t).astype(dtype)
+        mx.eval(a)
+        return a
+
+    return mlx_port.tensor(t, dtype, convert)
+
+
 def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype, *, dw_kernel: bool = False) -> Callable:
     """Conv (+ eval batch norm) on NHWC.
 
@@ -27,13 +40,13 @@ def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype, *, dw_ker
     `mx.conv2d(groups=C)`, which falls off its fast path at some channel counts).
     """
     folded = torch.nn.utils.fuse_conv_bn_eval(conv, bn) if bn is not None else conv
-    bias = to_mx(folded.bias).astype(dtype) if folded.bias is not None else mx.zeros((conv.out_channels,), dtype)
+    bias = _mx(folded.bias, dtype) if folded.bias is not None else mx.zeros((conv.out_channels,), dtype)
     stride = (conv.stride[0], conv.stride[1])
     padding = (int(conv.padding[0]), int(conv.padding[1]))
     groups = conv.groups
     if conv1x1_ok(conv.in_channels, conv.out_channels, 0, conv.kernel_size, stride, padding, groups):
         # the pointwise conv as one GEMM, its weights stored `[in, out]` (a transposed view is copied on every call)
-        matrix = to_mx(folded.weight[:, :, 0, 0].t().contiguous()).astype(dtype)
+        matrix = _mx(folded.weight[:, :, 0, 0].t().contiguous(), dtype)
         mx.eval(matrix, bias)
         return lambda x: conv1x1(x, matrix, bias)
     if (
@@ -45,10 +58,10 @@ def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype, *, dw_ker
     ):
         from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - Metal only
 
-        taps = to_mx(folded.weight[:, 0].permute(1, 2, 0)).astype(dtype)
+        taps = _mx(folded.weight[:, 0].permute(1, 2, 0), dtype)
         mx.eval(taps, bias)
         return lambda x: ops.depthwise(x, taps, bias, stride, padding, (1, 1))
-    weight = to_mx(folded.weight.permute(0, 2, 3, 1)).astype(dtype)
+    weight = _mx(folded.weight.permute(0, 2, 3, 1), dtype)
     mx.eval(weight, bias)
 
     def apply(x: mx.array) -> mx.array:
@@ -135,8 +148,7 @@ def _linear(layer: Any, dtype: mx.Dtype, gamma: torch.Tensor | None = None) -> C
     weight, bias = layer.weight.detach().flatten(1), layer.bias.detach()
     if gamma is not None:
         weight, bias = weight * gamma[:, None], bias * gamma
-    w, b = to_mx(weight.T).astype(dtype), to_mx(bias).astype(dtype)
-    mx.eval(w, b)
+    w, b = _mx(weight.T, dtype), _mx(bias, dtype)
     return lambda x: mx.addmm(b, x, w)
 
 
@@ -583,6 +595,11 @@ def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, C
     return fastvit(net, dtype)
 
 
+# Families whose builder reads every weight through `_mx`: their arrays come from the conversion cache
+# (`mlx_port.recorded`), so a warm load builds a weightless skeleton and reads no checkpoint
+_RECORDED = {"resnet": "cnn-resnet-v1", "mobilenetv2": "cnn-mobilenetv2-v1"}
+
+
 class Network:
     """Fold and upload the weights once, then run the full classifier in MLX."""
 
@@ -592,14 +609,27 @@ class Network:
         `net`: the family's network (default: `build(ctx)`'s lazy twin); `family`: the architecture to write it out
         as (default: the card's family; the WD tagger's ConvNeXt is `"convnext"`).
         """
-        # timm and torchvision register architecture-specific layers; the weights stay the memory-mapped checkpoint
-        net = cast("Any", net if net is not None else lazy_build(lambda: build(ctx)))
         family = family or ctx.card.family
         self.dtype = getattr(mx, ctx.dtype)
-        if family in {"alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2"}:
-            self.forward = mx.compile(_classic(net, family, self.dtype))
+        if net is None and family in _RECORDED:
+            self.forward = mlx_port.recorded(
+                ctx,
+                _RECORDED[family],
+                lambda net: self._forward(net, family, ctx.mode),
+                real=lambda: build(ctx),
+                skeleton=lambda: skeleton(ctx),
+                sources=(Path(__file__),),
+            )
             return
-        pool = _pool_for(ctx.mode)
+        # timm and torchvision register architecture-specific layers; the weights stay the memory-mapped checkpoint
+        net = cast("Any", net if net is not None else lazy_build(lambda: build(ctx)))
+        self.forward = self._forward(net, family, ctx.mode)
+
+    def _forward(self, net: Any, family: str, mode: str) -> Callable:
+        """The compiled MLX forward of `net` written out as `family`."""
+        if family in {"alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2"}:
+            return mx.compile(_classic(net, family, self.dtype))
+        pool = _pool_for(mode)
         if family in {"convnext", "convnextv2"}:
             features = _convnext_trunk(net, self.dtype)
             head = _chain(_norm(net.head.norm, self.dtype), _linear(net.head.fc, self.dtype))
@@ -620,7 +650,7 @@ class Network:
         def forward(x: mx.array) -> mx.array:
             return head(pool(features(x)))
 
-        self.forward = mx.compile(forward)
+        return mx.compile(forward)
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """NCHW normalised images to float32 logits."""

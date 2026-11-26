@@ -11,6 +11,7 @@ the export and its translation were most of the first call.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastforks._core.mlx import mx
@@ -20,7 +21,13 @@ from fastforks.shared.cspnext import mlx_net as csp
 if TYPE_CHECKING:
     from fastforks.shared.cspnext.mlx_net import Layer
 
-__all__ = ["MlxYOLOX"]
+__all__ = ["LAYOUT", "SOURCES", "MlxYOLOX"]
+
+LAYOUT = "yolox-v1"
+"""The conversion cache layout of `MlxYOLOX`'s arrays (`fastforks.shared.mlx_port.recorded`; both graphs alike)."""
+
+SOURCES = (Path(__file__), Path(csp.__file__), Path(__file__).with_name("net.py"))
+"""The code the cached arrays come from: this builder, the shared layers, the checkpoint conversion."""
 
 
 def _csp_layer(layer: Any, d: mx.Dtype, graph: str) -> Layer:

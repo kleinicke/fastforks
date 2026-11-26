@@ -35,7 +35,6 @@ from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import STRIDES, YOLOX, Arch, cells, convert, decode
@@ -84,12 +83,9 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
         super().__init__(ctx)
-        p: Params = ctx.params
-        net = YOLOX(p)
-        net.load_state_dict(convert(ctx.state_dict(key="model", strip="")))
         self.mf = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
-        self.net = net.eval().to(ctx.device, ctx.torch_dtype).to(memory_format=self.mf)
-        self.grid = cells(p.size, p.size, ctx.device)
+        self.net = _network(ctx).to(ctx.device, ctx.torch_dtype).to(memory_format=self.mf)
+        self.grid = cells(ctx.params.size, ctx.params.size, ctx.device)
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The head maps of a float32 input in 0..255."""
@@ -211,16 +207,29 @@ class _MlxPortable(Portable):
     module = Runner.module  # the MLX network is not exportable
 
     def __init__(self, ctx: Context) -> None:
-        """The portable network (BatchNorm folded), its weights copied to MLX."""
-        super().__init__(ctx)
+        """The MLX network from the conversion cache (the first load converts the portable network's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
         from fastforks.shared.cspnext import mlx_net as csp  # noqa: PLC0415 - imports mlx
 
         from . import mlx_net  # noqa: PLC0415 - imports mlx
 
         self.graph = "kernels" if ctx.mode == "kernels" else "portable"
-        with csp.run_dtype_silu():  # as the exported network: the float32 one drifts yolox-m / -s float16 (see csp)
-            self.mlx = mlx_net.MlxYOLOX(self.net, mlx_wrap.run_dtype(ctx), self.graph)
-        self.net = None  # the MLX copy replaces it
+
+        def make(net: YOLOX) -> mlx_net.MlxYOLOX:
+            with csp.run_dtype_silu():  # as the exported network: the float32 one drifts yolox-m / -s float16 (csp)
+                return mlx_net.MlxYOLOX(net, ctx.dtype, self.graph)
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            make,
+            real=lambda: _network(ctx),
+            skeleton=lambda: YOLOX(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self.grid = cells(ctx.params.size, ctx.params.size, ctx.device)
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The float32 NCHW head maps of a float32 input in 0..255."""
@@ -233,11 +242,16 @@ class _MlxPortable(Portable):
         return tuple(to_torch(m).permute(0, 3, 1, 2) for m in maps)
 
 
-_MLX = mlx_wrap.port(_MlxPortable, attrs=())
+def _network(ctx: Context) -> YOLOX:
+    """The float32 CPU network with the checkpoint, its batch norms folded."""
+    net = YOLOX(ctx.params)
+    net.load_state_dict(convert(ctx.state_dict(key="model", strip="")))
+    return net.eval()
+
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": _MLX,
-    "kernels_mlx": _MLX,
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxPortable,
 }

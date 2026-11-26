@@ -10,12 +10,19 @@ translation were most of the first call (1.3-2.3 s).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastforks._core.mlx import mx
 from fastforks.shared.cspnext import mlx_net as csp
 
-__all__ = ["MlxRTMDet"]
+__all__ = ["LAYOUT", "SOURCES", "MlxRTMDet"]
+
+LAYOUT = "rtmdet-v1"
+"""The conversion cache layout of `MlxRTMDet`'s arrays (`fastforks.shared.mlx_port.recorded`)."""
+
+SOURCES = (Path(__file__), Path(csp.__file__), Path(__file__).with_name("net.py"))
+"""The code the cached arrays come from: this builder, the shared layers, the checkpoint conversion."""
 
 
 class MlxRTMDet:
