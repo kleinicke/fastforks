@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import math
+import sys
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -326,8 +327,15 @@ def _hyponet_addmm(
     return torch.cat(outs, 0).view(b, -1, outs[0].shape[-1])
 
 
-def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, and portable fusion policy
-    net: GIMMVFI_R, f: torch.Tensor, coord: torch.Tensor, t: torch.Tensor, flows: torch.Tensor, *, portable: bool
+def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, and splat policy
+    net: GIMMVFI_R,
+    f: torch.Tensor,
+    coord: torch.Tensor,
+    t: torch.Tensor,
+    flows: torch.Tensor,
+    *,
+    portable: bool,
+    reuse_splat_buffer: bool,
 ) -> torch.Tensor:
     """Upstream `predict_flow(f, [(coord, None)], [t], flows)[0]` without the coordinate assert: `[B, 2, 1, H, W]`.
 
@@ -339,14 +347,15 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
     mode = net.fwarp_type + "-zeroeps"
     lat0, lat1 = net.cnn_encoder(f[:, :, 0]), net.cnn_encoder(f[:, :, 1])
     tt = t.reshape(-1, 1, 1, 1)
-    if (
+    paired_splat = (
         not portable
         and lat0.is_cuda
         and mode == "linear-zeroeps"
         and tt.dtype == torch.float32
         and lat0.shape[-2] * lat0.shape[-1] <= _MAX_SPLAT_PIXELS
         and not (torch.is_grad_enabled() or torch.are_deterministic_algorithms_enabled())
-    ):
+    )
+    if paired_splat:
         lat = gimm_splat.pair((lat0, lat1), (flow01, flow10), (weights1, weights2), tt)
         del weights1, weights2
     else:
@@ -371,7 +380,8 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
     else:
         res = net.res_conv(res)
         del lat0, lat1
-    lat = lat + res
+    # Paired splatting owns its FP32 buffer, and res_conv already consumed the concatenated input.
+    lat = lat.add_(res) if paired_splat and reuse_splat_buffer else lat + res
     del res
     return _hyponet(net.hyponet, coord[:, 0], lat, bias_epilogue=not portable).unsqueeze(1).permute(0, 4, 1, 2, 3)
 
@@ -387,7 +397,14 @@ def _coords(b: int, h: int, w: int, t: torch.Tensor) -> torch.Tensor:
 
 
 def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params and the lookup
-    net: GIMMVFI_R, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor, p: Params, *, make: Callable
+    net: GIMMVFI_R,
+    image1: torch.Tensor,
+    image2: torch.Tensor,
+    t: torch.Tensor,
+    p: Params,
+    *,
+    make: Callable,
+    reuse_splat_buffer: bool = False,
 ) -> torch.Tensor:
     """`GIMMVFI_R.forward(xs, [coords at t], [t], ds_factor)["imgt_pred"][0]`; `t` is `[B]` in (0, 1)."""
     full = None
@@ -414,7 +431,9 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
     release(flows)  # MPS: the full-resolution decoder needs the room the encoders' cache holds
     if full is not None:
         h, w = int(full.shape[-2] * p.ds_factor), int(full.shape[-1] * p.ds_factor)  # upstream's upsample_ratio
-    flow_t = _predict_flow(net, normal, _coords(b, h, w, t), t, flows, portable=make is _VolumeCorr)
+    flow_t = _predict_flow(
+        net, normal, _coords(b, h, w, t), t, flows, portable=make is _VolumeCorr, reuse_splat_buffer=reuse_splat_buffer
+    )
     flow_t = unnormalize_flow(flow_t, scalers).squeeze(2)
     return net.frame_synthesize(xs, flow_t, features0, features1, corr_fn, t.reshape(-1, 1, 1, 1), full_img=full)[0]
 
@@ -542,6 +561,7 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.make: Callable = _VolumeCorr
+        self._reuse_splat_buffer = False
         self.graphs: SmallShapeGraphs | None = None  # kernels only: portable stays the eager reference network
 
     def _forward(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
@@ -549,7 +569,15 @@ class Portable(Runner):
         with (
             torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
         ):  # not `enabled=False`: export wraps it
-            return _interpolate(self.net, image1, image2, t, self.ctx.params, make=self.make).float()
+            return _interpolate(
+                self.net,
+                image1,
+                image2,
+                t,
+                self.ctx.params,
+                make=self.make,
+                reuse_splat_buffer=self._reuse_splat_buffer and _graph_size(image1) <= GRAPH_PIXELS,
+            ).float()
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
@@ -645,6 +673,13 @@ class Kernels(Portable):
             size=_graph_size,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
+        )
+        # Reuse the owned result on the small shapes that save async graph memory. Large eager shapes run faster
+        # with the separate residual buffer.
+        self._reuse_splat_buffer = (
+            sys.platform == "linux"
+            and ctx.params.cuda_graphs
+            and torch.cuda.get_allocator_backend() == "cudaMallocAsync"
         )
 
 
