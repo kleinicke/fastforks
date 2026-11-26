@@ -11,8 +11,10 @@ LiteMLA kernels in `kernels`. Its last `LayerNorm2d` runs in float32 on the floa
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
+from weakref import ReferenceType, ref
 
 import torch
 import torch.nn.functional as F
@@ -234,6 +236,18 @@ class Portable(_Sam):
         )
 
 
+def _linux_native_l1(ctx: Context) -> bool:
+    return (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.variant.ref == "efficientvit-sam-l1@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+        and torch.cuda.get_allocator_backend() == "native"
+    )
+
+
 class Kernels(_Sam):
     """Our kernels: fused fp16 convolutions and the LiteMLA linear-attention kernel (`fastforks._optimize`).
 
@@ -250,10 +264,18 @@ class Kernels(_Sam):
             msg = "the kernels image encoder is not a traced graph"
             raise TypeError(msg)
         self.trunk.report["points"] = wide_points(net)
+        self._defer_decoder = ctx.params.cuda_graphs and _linux_native_l1(ctx)
+        # The ordinary eager call already prepares the fixed encoder and the exact decoder layout.
+        warmup = not self._defer_decoder
         self.cache = (
-            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,), capture_warmup=warmup)
+            if ctx.params.cuda_graphs
+            else None
         )
-        self.encoder = SmallShapeGraphs(super()._enc, pixels=ENCODER_GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
+        self.encoder = SmallShapeGraphs(
+            super()._enc, pixels=ENCODER_GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_warmup=warmup
+        )
+        self._last_embedding: ReferenceType[torch.Tensor] | None = None
 
     def _enc(self, x: torch.Tensor) -> torch.Tensor:
         """`_Sam._enc` from a CUDA graph up to `ENCODER_GRAPH_PIXELS` (one input size per variant: one graph)."""
@@ -271,7 +293,16 @@ class Kernels(_Sam):
         if not given or len(given[0]) > GRAPH_PROMPTS:
             return super()._decode(embedding, points, boxes, masks)
         key = (len(given[0]), points[0].shape[1] if points else 0, boxes is not None, masks is not None)
-        out = None if self.cache is None else self.cache.run(key, embedding, *given)
+        cache = self.cache
+        if cache is not None and self._defer_decoder and key[0] == 1:
+            previous = self._last_embedding
+            if previous is None or previous() is not embedding:
+                self._last_embedding = ref(embedding)
+                # Predict and release are serialized by the public model. Reuse any captured key with the current
+                # embedding; identity only decides whether an absent decoder graph is worth starting.
+                if key not in cache.graphs:
+                    cache = None
+        out = None if cache is None else cache.run(key, embedding, *given)
         return super()._decode(embedding, points, boxes, masks) if out is None else out
 
     def _graph_forward(self, embedding: torch.Tensor, *given: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -283,6 +314,7 @@ class Kernels(_Sam):
 
     def release_graphs(self) -> None:
         """Free the encoder and prompt-decode CUDA graphs and their memory pools (captured again when needed)."""
+        self._last_embedding = None
         self.encoder.release()
         if self.cache is not None:
             self.cache.release()
