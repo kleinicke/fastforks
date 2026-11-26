@@ -358,7 +358,12 @@ testpaths = ["tests"]
 pythonpath = ["tests", "tools"]  # tests/synth.py (shared with tools/golden); tools checked by tests
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 xfail_strict = true
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # Triton 3.9 warns inside kernel dispatch when this default is implicit. Keep the warning visible
+  # without aborting that dispatch in tests.
+  'default:TRITON_DEFAULT_FP_FUSION is unset:UserWarning:triton\.knobs',
+]
 markers = [
   "model: needs model weights (per-model parity tests)",
   "gpu: needs a CUDA GPU",
