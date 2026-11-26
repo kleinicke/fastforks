@@ -13,6 +13,8 @@ the mask to inf; here it is kept and the mask returned).
 
 from __future__ import annotations
 
+import contextlib
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +22,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.deferred_init import skipped_init
 from fastforks._core.half import half_weights
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
@@ -50,9 +54,26 @@ class Params:
     resolution_level: int  # 0-9: 1200-3600 ViT tokens
 
 
+def _assign_checkpoint(ctx: Context) -> bool:
+    """Use the complete official CPU-mapped tensors for Linux CUDA startup."""
+    return (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.dtype == "float16"
+        and ctx.variant.ref in {"lingbot-depth@1", "lingbot-depth-dc@1"}
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
 def _net(ctx: Context) -> LingBotDepthNet:
-    net = LingBotDepthNet()
-    net.load_state_dict(ctx.state_dict(key="model"))
+    assign = _assign_checkpoint(ctx)
+    with skipped_init() if assign else contextlib.nullcontext():
+        net = LingBotDepthNet()
+    if assign:
+        load_strict(net, ctx.state_dict(key="model"), f"{ctx.variant.ref} checkpoint", assign=True)
+    else:
+        net.load_state_dict(ctx.state_dict(key="model"))
     return net.eval()
 
 
