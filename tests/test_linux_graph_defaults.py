@@ -24,10 +24,14 @@ def test_public_layouts_distinguish_rgb_views() -> None:
     chw = torch.empty((3, 16, 32), dtype=torch.uint8)
     interleaved = torch.empty((16, 32, 3), dtype=torch.uint8).permute(2, 0, 1)
     offset = torch.empty((17, 32, 3), dtype=torch.uint8)[1:].permute(2, 0, 1)
+    planar_offset = torch.empty(3 * 16 * 32 + 1, dtype=torch.uint8)[1:].view_as(chw)
     bchw = torch.empty((1, 3, 16, 32), dtype=torch.float32)
     assert linux_graph_defaults._image_layout(interleaved) == "u8-chw-rgb-interleaved"
     assert linux_graph_defaults._image_layout(bchw) == "f32-bchw-contiguous"
     assert linux_graph_defaults._image_layout(chw) is None
+    assert linux_graph_defaults._image_layout(chw, planar=True) == "u8-chw-rgb-planar"
+    assert linux_graph_defaults._image_layout(interleaved, planar=True) == "u8-chw-rgb-interleaved"
+    assert linux_graph_defaults._image_layout(planar_offset, planar=True) is None
     assert linux_graph_defaults._image_layout(offset) is None
     assert linux_graph_defaults._image_layout(bchw.expand(2, -1, -1, -1)) is None
 

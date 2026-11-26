@@ -478,6 +478,33 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # U2Net. Request-15 deltas: -39.335, -39.627 ms.
     # Receipt SHA-256 c14c19ac6ea92626198f17c526dbcc5f03591e436b2f8494ed301b49dddb365a.
     ("u2net@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NET, _TORCH_214_NATIVE),
+    # dfine-m-coco@1 native planar 480x640. Request-15 deltas: -24.769, -105.105 ms.
+    # Receipt SHA-256 f022e2098fe9f0a68d006a99f8fe963917cab52dddcde2d8137a49fa0d36f8b3.
+    ("dfine-m-coco@1", "kernels", "float16", "u8-chw-rgb-planar", (480, 640)): _profiles(
+        (
+            ("cudnn_hacc@cudnn92400", _FVM_BINARIES[0]),
+            ("5a53154fb87af91ad1ca3081599f21423a5681c46b613e15f2ff556837b02634",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
+    # dfine-n-coco@1 native planar 480x640. Request-15 deltas: -86.269, -150.660 ms.
+    # Receipt SHA-256 da7a6d0ba5994b545b2a45f1d3c933bc43153ae9a0f7be6ff3690fe9e3b9b9ab.
+    ("dfine-n-coco@1", "kernels", "float16", "u8-chw-rgb-planar", (480, 640)): _profiles(
+        (
+            ("cudnn_hacc@cudnn92400", _FVM_BINARIES[0]),
+            ("19e06bdc873da819920a8d373b879721a5b9759d822f8213220bb09abbdab58b",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
+    # deim-m-coco@1 native planar 480x640. Request-15 deltas: -96.379, -97.494 ms.
+    # Receipt SHA-256 6d951d0a21b91e1704b0daf5961f934b534ee9a226416a7f8a4e2827eb408ecc.
+    ("deim-m-coco@1", "kernels", "float16", "u8-chw-rgb-planar", (480, 640)): _profiles(
+        (
+            ("cudnn_hacc@cudnn92400", _FVM_BINARIES[0]),
+            ("2b6cd0582a4aa711f583982057b7fb0f3daebdd98e4dc168824714014c3219bc",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
     # EfficientFormerV2-L. Request-15 deltas: -124.620, -127.783 ms.
     # Receipt SHA-256 c378bf2ebe5d41ea90ec7c2210cf7ac90bbf4d7c89e6737c450a2cb040e37241.
     ("efficientformerv2_l.snap_dist_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
