@@ -438,7 +438,12 @@ def slide(
                 out = torch.zeros((b, s.shape[1], h, w), device=x.device, dtype=dtype)
             out[:, :, y1:y2, x1:x2] += s
             count[:, :, y1:y2, x1:x2] += 1
+            del s
+        # Split views keep the whole row's logits alive until their last reference is gone.
+        del logits, crops
     assert out is not None  # noqa: S101 - at least one window
+    if out.is_floating_point() and not out.requires_grad:
+        return out.div_(count)  # the privately accumulated logits can hold their own average
     return out / count
 
 
