@@ -6,6 +6,7 @@ PostProcess takes the top `num_select` (query, class) pairs of the sigmoid score
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -96,7 +97,19 @@ class Portable(Runner):
             return self.detect_batch(image, score_threshold)[0]
         raw = {k: v.float() for k, v in self._raw(image).items()}
         size = device_tensor([image.shape[-2:]], device=image.device)
-        r = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)[0]
+        return self._finish_segmentation(raw, size, score_threshold)
+
+    def _finish_segmentation(
+        self,
+        raw: dict[str, torch.Tensor],
+        size: torch.Tensor,
+        score_threshold: float,
+        *,
+        promote_selected_masks: bool = False,
+    ) -> dict[str, torch.Tensor]:
+        r = self.postprocess(
+            raw, target_sizes=size, score_threshold=score_threshold, promote_selected_masks=promote_selected_masks
+        )[0]
         labels = self.ids[r["labels"]]
         keep = ((labels >= 0) & (r["scores"] > score_threshold)).nonzero()[:, 0][: self.ctx.params.max_detections]
         out = {"boxes": r["boxes"][keep], "scores": r["scores"][keep], "labels": labels[keep]}
@@ -173,6 +186,34 @@ class Kernels(Portable):
         prepare_graph(self.net)
         # Seg: the network; box models: network and PostProcess (`_top`), which take the size as a graph input
         self.graphs = GraphCache(self.net if ctx.params.segmentation_head else self._top, graphs=1)
+        self._borrow_seg_masks = (
+            ctx.params.segmentation_head
+            and ctx.device.type == "cuda"
+            and sys.platform == "linux"
+            and torch.cuda.get_allocator_backend() == "native"
+        )
+
+    def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
+        """On native CUDA replay, select masks before copying or widening the graph-owned logits."""
+        if not self._borrow_seg_masks:
+            return super().__call__(image, score_threshold)
+        x = self._input(image)
+        size = device_tensor([image.shape[-2:]], device=image.device)
+
+        def selected(raw: tuple[torch.Tensor, ...]) -> dict[str, torch.Tensor]:
+            boxes, scores, masks = raw
+            return self._finish_segmentation(
+                {"pred_boxes": boxes.float(), "pred_logits": scores.float(), "pred_masks": masks},
+                size,
+                score_threshold,
+                promote_selected_masks=True,
+            )
+
+        out = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x, post=selected)
+        if out is not None:
+            return out
+        raw = {k: v.float() for k, v in zip(RAW, self.net(x), strict=False)}
+        return self._finish_segmentation(raw, size, score_threshold)
 
     def _top(self, x: torch.Tensor, size: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Box models: `_post` of the network outputs of the prepared input `x`, the graph's forward."""
