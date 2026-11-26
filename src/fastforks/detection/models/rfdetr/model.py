@@ -7,6 +7,8 @@ PostProcess takes the top `num_select` (query, class) pairs of the sigmoid score
 from __future__ import annotations
 
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -14,6 +16,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
+from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.detection._runner import Forward, Runner, split_kept
 from fastforks.kernels import rfdetr_input
@@ -22,12 +25,34 @@ from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, export_path, network
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from fastforks.detection._runner import Context
 
 MEAN = (0.485, 0.456, 0.406)  # fixed: upstream ImageNet RGB normalization
 STD = (0.229, 0.224, 0.225)  # fixed: upstream ImageNet RGB normalization
 UNUSED_IDS = (12, 26, 29, 30, 45, 66, 68, 69, 71, 83)  # fixed: COCO category ids without a class (1..90)
 RAW = ("pred_boxes", "pred_logits", "pred_masks")  # forward_export's output order
+
+
+_WIDE_SEG_M_FC2 = ContextVar("rfdetr_portable_wide_seg_m_fc2", default=False)
+
+
+@contextmanager
+def _seg_m_fc2_scope(*, enabled: bool) -> Generator[None]:
+    token = _WIDE_SEG_M_FC2.set(enabled)
+    try:
+        yield
+    finally:
+        _WIDE_SEG_M_FC2.reset(token)
+
+
+def _portable_seg_m_fc2(self: torch.nn.Linear, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - Linear keyword
+    if not torch.compiler.is_compiling() and not torch.jit.is_tracing() and _WIDE_SEG_M_FC2.get():
+        from fastforks.shared.rfdetr.kernels import _wide_fc2  # noqa: PLC0415 - CUDA FP16 path only
+
+        return _wide_fc2(self, input)
+    return torch.nn.Linear.forward(self, input)
 
 
 @dataclass(frozen=True)
@@ -72,6 +97,20 @@ class Portable(Runner):
                 state[k] = w.view(p.group_detr, -1, w.shape[-1])[:, : p.num_queries].reshape(-1, w.shape[-1])
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
+        self._wide_seg_m_fc2 = (
+            sys.platform == "linux"
+            and ctx.mode == "portable"
+            and ctx.device.type == "cuda"
+            and ctx.torch_dtype == torch.float16
+            and ctx.variant.ref == "rf-detr-seg-m-coco@1"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        )
+        if self._wide_seg_m_fc2:
+            # Only the final six DINO-S projections need the wider bias sum.
+            layers = cast("Any", self.net).backbone[0].encoder.encoder.encoder.layer
+            for block in layers[-6:]:
+                override(block.mlp.fc2, _portable_seg_m_fc2)
         export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
         from fastforks.shared.rfdetr.net.models.postprocess import (  # noqa: PLC0415 - lazy: heavy vendored import
             PostProcess,
@@ -91,11 +130,19 @@ class Portable(Runner):
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         return dict(zip(RAW, self.net(self._prepare(image)), strict=False))
 
+    def _segmentation_raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        if self._wide_seg_m_fc2 and not (
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+        ):
+            with _seg_m_fc2_scope(enabled=True):
+                return self._raw(image)
+        return self._raw(image)
+
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
         if not self.ctx.params.segmentation_head:
             return self.detect_batch(image, score_threshold)[0]
-        raw = {k: v.float() for k, v in self._raw(image).items()}
+        raw = {k: v.float() for k, v in self._segmentation_raw(image).items()}
         size = device_tensor([image.shape[-2:]], device=image.device)
         return self._finish_segmentation(raw, size, score_threshold)
 
@@ -149,7 +196,12 @@ class Portable(Runner):
         names = ("boxes", "logits", "masks")[: 2 + self.ctx.params.segmentation_head]
 
         def fn(_net: Any, image: torch.Tensor) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - vendored network
-            raw = self._raw(image)
+            if self._wide_seg_m_fc2 and not torch.compiler.is_compiling() and _WIDE_SEG_M_FC2.get():
+                # A raw module call can be nested in a hook on the public model.
+                with _seg_m_fc2_scope(enabled=False):
+                    raw = self._raw(image)
+            else:
+                raw = self._raw(image)
             return tuple(raw[k] for k in RAW[: len(names)])
 
         return Forward(self.net, fn, output_names=names, query_scores=lambda logits: logits.sigmoid().amax(-1))
