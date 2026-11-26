@@ -1678,7 +1678,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | depth-anything-v2-metric-vkitti-l | 4.87 | 0.84 (518x770) | 1.65 (518x770) | 0.14 | 0.15 (518x770) | 0.05 (518x770) |
 | depth-anything-v2-metric-vkitti-s | 1.46 | 0.13 (518x770) | 0.96 (518x770) | 0.04 | 0.16 (518x770) | 0.05 (518x770) |
 | depth-anything-v2-s | 0.71 | 0.11 | 0.08† | 0.38 | 0.03 | 0.01 |
-| depth-pro | 17.34 | 6.20 | 4.11 | 0.74 | 0.52 | 0.27 |
+| depth-pro | 17.34 | 6.20 (518x770) | 4.11 (518x770) | 0.74 | 0.70 (518x770) | 0.38 (518x770) |
 | depthfm-v1 | – | 3.58 | 4.59 | – | 6.00 | 3.73 |
 | distill-any-depth-b | 0.84 | 0.29 (518x770) | 1.13 (518x770) | 0.06 | 0.27 (518x770) | 0.04 (518x770) |
 | distill-any-depth-l | 3.03 | 0.82 (518x770) | 1.68 (518x770) | 0.14 | 0.14 (518x770) | 0.06 (518x770) |
@@ -1820,7 +1820,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | hrnet-w48-fcn-ade20k | 1.48 (512x512) | 1.18 (512x512) | 1.52 (512x512) | 0.08 (512x512) | 0.11 (512x512) | 0.03 (512x512) |
 | mask2former-swinl-ade20k | 4.86 (512x512) | 3.03 | 2.82 | 0.76 (512x512) | 0.13 | 0.32 |
 | oneformer-swinl-ade20k | 5.08 (512x512) | 6.95 | 4.46 | 0.81 (512x512) | 0.50 | 0.49 |
-| pspnet-r101-d8-ade20k | 1.35 (512x512) | 1.42 (512x512) | 1.59 | 0.09 (512x512) | 0.30 (512x512) | 0.03 |
+| pspnet-r101-d8-ade20k | 1.35 (512x512) | 1.42 (512x512) | 1.59 (512x512) | 0.09 (512x512) | 0.30 (512x512) | 0.04 (512x512) |
 | sapiens-seg-0.3b-goliath | 4.92 (512x512) | 1.28 | 0.76 | 1.02 (512x512) | 0.30 | 0.22 |
 | sapiens-seg-1b-goliath | 11.33 (512x512) | 0.80 | 1.03 | 0.57 (512x512) | 0.47 | 0.29 |
 | segformer-b0-ade20k | 4.83 (512x512) | 2.55 | 2.92 | 2.23 (512x512) | 0.08 | 0.01 |
@@ -1867,11 +1867,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sam-vit-b | 0.75 | 0.32 | 0.33 | 0.18 | 0.56 | 0.54 |
 | sam-vit-h | 4.61 | 1.38 | 1.27 | 0.38 | 0.53 | 0.44 |
 | sam-vit-l | 1.80 | 0.81 | 0.68 | 0.27 | 0.42 | 0.41 |
-| sam2.1-hiera-base-plus | 0.74 | 0.80 (840x1297) | 1.15 (840x1297) | 0.14 | 0.03 (840x1297) | 0.03 (840x1297) |
-| sam2.1-hiera-large | 1.95 | 1.46 (840x1297) | 2.07 (840x1297) | 0.18 | 0.07 (840x1297) | 0.05 (840x1297) |
+| sam2.1-hiera-base-plus | 0.74 | 0.80 | 1.15 | 0.14 | 0.26 | 0.24 |
+| sam2.1-hiera-large | 1.95 | 1.46 | 2.07 | 0.18 | 0.23 | 0.22 |
 | sam2.1-hiera-small | 0.48 | 0.36 | 0.13† | 0.14 | 0.02† | 0.02† |
 | sam2.1-hiera-tiny | 0.41 | 0.25 | 0.11† | 0.15 | 0.02† | 0.01† |
-| sam3 | 1.35 | 3.85 (840x1297) | 4.03 (840x1297) | 0.26 | 0.18 (840x1297) | 0.12 (840x1297) |
+| sam3 | 1.35 | 3.85 | 4.03 | 0.26 | 0.30 | 0.20 |
 | deim-l-coco | 2.34 | 1.51 | 1.61 | 0.52 | 0.67 | 0.32 |
 | deim-m-coco | 2.24 | 1.38 | 1.52 | 0.58 | 0.68 | 0.35 |
 | deim-n-coco | 2.39 | 1.61 | 1.25 | 0.62 | 1.35 | 0.58 |
@@ -2070,8 +2070,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | memflow-sintel | 0.14 | 0.10 | 0.95 | 3.06 | 0.98 | 0.88 |
 | memfof | 2.06 | 0.22 (375x1242) | 1.84 (375x1242) | 1.29 | 0.41 (375x1242) | 0.29 (375x1242) |
 | memfof-kitti | 2.59 (375x1242) | 0.21 (375x1242) | 1.07 (375x1242) | 0.96 (375x1242) | 0.65 (375x1242) | 0.56 (375x1242) |
-| memfof-sintel | 1.30 (375x1242) | 0.69 (375x1242) | 2.49 | 0.90 (375x1242) | 0.57 (375x1242) | 1.99 |
-| memfof-spring | 1.12 | 0.71 | 0.51 | 1.04 | 0.43 | 0.63 |
+| memfof-sintel | 1.30 (375x1242) | 0.69 (375x1242) | 2.49 (375x1242) | 0.90 (375x1242) | 0.57 (375x1242) | 1.04 (375x1242) |
+| memfof-spring | 1.12 | 0.71 | 0.51 | 1.04 | 0.43† | 0.63 |
 | neuflow-v2 | 0.20 | 0.26 | 0.96 (375x1242) | 0.22 | 0.07 | 0.18 (375x1242) |
 | neuflow-v2-sintel | 0.17 | 1.29 (375x1242) | 0.95 (375x1242) | 0.08 | 0.81 (375x1242) | 0.18 (375x1242) |
 | neuflow-v2-things | 0.17 | 0.38 | 0.26 | 0.08 | 0.07 | 0.06 |
@@ -2121,8 +2121,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | tapnext-pp | 4.83 | 1.34 | 1.28 | 1.80 | 0.77 | 0.67 |
 | track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
 | track-on2 | 3.77 | 1.16 | 0.63 | 3.63 | 1.96 | 1.76 |
-| ema-vfi | 2.69 | 0.83 | 0.81 | 0.50 | 0.23 | 0.21 |
-| ema-vfi-small | 0.36 | 0.27 | 0.56 | 0.18 | 0.09 | 0.09 |
+| ema-vfi | 2.69 | 0.83 (480x854) | 0.81 (480x854) | 0.50 | 0.43 (480x854) | 0.36 (480x854) |
+| ema-vfi-small | 0.36 | 0.27 (480x854) | 0.56 (480x854) | 0.18 | 0.48 (480x854) | 0.36 (480x854) |
 | ema-vfi-small-t | 1.05 | 0.28 (480x854) | 0.56 (480x854) | 0.17 | 0.44 (480x854) | 0.35 (480x854) |
 | ema-vfi-t | 2.77 | 0.73 (480x854) | 1.18 (480x854) | 0.49 | 0.40 (480x854) | 0.36 (480x854) |
 | film | 0.29 | 0.43 | 0.65 | 0.95 | 0.42 | 0.33 |
@@ -2175,7 +2175,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | totalsegmentator-v3-total-small | 0.05 | 1.17 | 0.96 | 7.76 | 3.55 | 1.73 |
 | totalsegmentator-v3-total-small-3mm | 0.05 | 1.28 | 1.26 | 2.80 | 0.34 | 0.18 |
 
-† measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+† measured after the portable load or an earlier input in the same process.
 <!-- tables:end -->
 
 ## torch.compile and TensorRT

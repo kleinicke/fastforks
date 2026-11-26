@@ -1156,10 +1156,7 @@ _LATER = {
     "promptable_segmentation": "1024x1024",
 }  # not the sweep's first size
 _WARM = "\u2020"
-_WARM_NOTE = (
-    f"{_WARM} measured in the speed sweep after the portable load (or an earlier size) in the same process: "
-    "file cache and kernels are warm, so the time is lower than a fresh start."
-)
+_WARM_NOTE = f"{_WARM} measured after the portable load or an earlier input in the same process."
 
 
 def _cold_rows() -> dict[str, list[dict]]:
@@ -1176,9 +1173,8 @@ def _cold_rows() -> dict[str, list[dict]]:
 def _startup(task: str, rows: list[dict], cold_rows: list[dict]) -> dict[str, tuple[dict, str, str]]:
     """Startup row per mode: `{mode: (row, load mark, first-call mark)}`.
 
-    One row per (id, mode), independent of the table size: a `cold: true` row if there is one, else the row at the
-    task's standard size, else the largest size with a first call (the input is then shown). A mark flags a time
-    measured warm (kernels load after the portable one; a size after an earlier one in the same process).
+    Prefer the first inference of a fresh process, then the task's standard size, then the largest size with a recorded
+    first call. Mark loads after the portable load and first calls after an earlier input in the same process.
     """
     all_rows = [r for r in [*rows, *cold_rows] if "first_call_s" in r]
     std = _std_input(task, {})
@@ -1189,13 +1185,14 @@ def _startup(task: str, rows: list[dict], cold_rows: list[dict]) -> dict[str, tu
             mine = [r for r in mine if r["mode"] == "upstream"]
         if not mine:
             continue
-        cold = [r for r in mine if r.get("cold")]
+        cold = [r for r in mine if r.get("cold") and r.get("first_call_cold") is not False]
         r = (cold or [x for x in mine if x["input"] == std] or [max(mine, key=lambda x: _pixels(x["input"]))])[0]
         warm = not r.get("cold") and mode != "upstream"
+        first_warm = r.get("first_call_cold") is False or (warm and r["input"] == _LATER.get(task))
         out[mode] = (
             r,
             _WARM if warm and mode == "kernels" else "",
-            _WARM if warm and r["input"] == _LATER.get(task) else "",
+            _WARM if first_warm else "",
         )
     return out
 

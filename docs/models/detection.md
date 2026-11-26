@@ -218,7 +218,7 @@ Commercial use: yes.
 - `detr-r101-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `detr-r50-coco` load / first call: original 2.55 s / 0.827 s, portable 0.7 s / 0.439 s, kernels 0.28† s / 0.032 s
 - `detr-r101-coco` load / first call: original 0.95 s / 0.063 s, portable 0.81 s / 0.019 s, kernels 0.22† s / 0.014 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -276,7 +276,7 @@ Commercial use: yes.
 - `faster-rcnn-r50-fpn-3x-coco` original 800x1344: torch.autocast(fp16) around the forward
 - `mask-rcnn-r50-fpn-3x-coco` load / first call: original 0.97 s / 0.836 s, portable 1.5 s / 0.417 s, kernels 0.22† s / 0.043 s
 - `faster-rcnn-r50-fpn-3x-coco` load / first call: original 0.73 s / 0.045 s, portable 0.53 s / 0.247 s, kernels 0.14† s / 0.04 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

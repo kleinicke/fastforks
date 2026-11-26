@@ -60,8 +60,8 @@ Commercial use: yes.
 - `ema-vfi-small` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-small-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
-- `ema-vfi` load / first call: original 2.69 s / 0.5 s, portable 0.83 s / 0.234 s, kernels 0.81 s / 0.207 s
-- `ema-vfi-small` load / first call: original 0.36 s / 0.179 s, portable 0.27 s / 0.09 s, kernels 0.56 s / 0.085 s
+- `ema-vfi` load / first call: original 2.69 s / 0.5 s, portable 0.83 s / 0.43 s (480x854), kernels 0.81 s / 0.364 s (480x854)
+- `ema-vfi-small` load / first call: original 0.36 s / 0.179 s, portable 0.27 s / 0.478 s (480x854), kernels 0.56 s / 0.357 s (480x854)
 - `ema-vfi-t` load / first call: original 2.77 s / 0.495 s, portable 0.73 s / 0.398 s (480x854), kernels 1.18 s / 0.359 s (480x854)
 - `ema-vfi-small-t` load / first call: original 1.05 s / 0.175 s, portable 0.28 s / 0.437 s (480x854), kernels 0.56 s / 0.348 s (480x854)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

@@ -11,6 +11,7 @@ from subprocess import CompletedProcess
 
 import pytest
 
+import gen_docs
 import merge_check
 import speed_check
 
@@ -26,6 +27,13 @@ def test_allowlist_entries_give_a_reason():
     for key, reason in json.loads(speed_check.ALLOW.read_text(encoding="utf-8")).items():
         assert isinstance(reason, str), key
         assert len(reason) > 20, key
+
+
+def test_startup_distinguishes_a_fresh_process_from_a_new_shape():
+    later = {"mode": "kernels", "input": "1080x1920", "cold": True, "first_call_cold": False, "first_call_s": 0.2}
+    first = later | {"input": "480x854", "first_call_cold": True, "first_call_s": 0.1}
+    assert gen_docs._startup("flow", [later, first], [])["kernels"] == (first, "", "")
+    assert gen_docs._startup("flow", [later], [])["kernels"] == (later, "", gen_docs._WARM)
 
 
 def test_speed_floor_recognizes_task_organized_scene(tmp_path):

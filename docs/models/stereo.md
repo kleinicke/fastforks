@@ -124,7 +124,7 @@ Commercial use: yes.
 - `aanet-plus-sceneflow` original 994x1482: torch.autocast(fp16) around the forward; deformable conv via torchvision.ops.deform_conv2d (original CUDA extension not built)
 - `aanet-sceneflow` load / first call: original 0.12 s / 0.067 s (375x1242), portable 0.19 s / 0.143† s, kernels 0.27† s / 0.101† s
 - `aanet-plus-sceneflow` load / first call: original 0.15 s / 0.701 s (375x1242), portable 0.16 s / 0.166† s, kernels 0.2† s / 0.09† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -274,7 +274,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.96 s / 2.087 s (375x1242), kernels 0.81 s / 1.376 s (375x1242)
 - `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.72 s / 0.552 s (375x1242)
 - `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.6 s / 0.493 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, `c-foundationstereo-s`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 - Protocol, `c-fast-foundationstereo`, `fast-foundationstereo`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -345,7 +345,7 @@ Commercial use: yes.
 - `cas-gwcnet-c-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `cas-gwcnet-gc-sceneflow` load / first call: original 0.39 s / 0.636 s, portable 1.1 s / 0.639 s, kernels 0.81 s / 0.397 s
 - `cas-gwcnet-c-sceneflow` load / first call: original 0.48 s / 0.415 s (375x1242), portable 1.29 s / 0.327† s, kernels 0.18† s / 0.226† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -511,7 +511,7 @@ Commercial use: yes.
 - `crestereo-eth3d` original (fp32) 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge)
 - `crestereo-eth3d` original 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge), the port's mixed_precision=True
 - `crestereo-eth3d` load / first call: original 0.05 s / 1.499 s, portable 0.16 s / 1.206 s, kernels 0.03† s / 0.229† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -635,7 +635,7 @@ Commercial use: yes.
 - `dlnr-middlebury` portable 994x1482, kernels 994x1482: Frees correlation, recurrent and refinement tensors before the full-resolution output. Paired synthetic and three labeled Middlebury disparities match bit for bit.
 - `dlnr-sceneflow` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.63 s / 0.399† s, kernels 0.26† s / 0.213† s
 - `dlnr-middlebury` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.55 s / 1.048 s, kernels 0.79 s / 0.575 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -813,7 +813,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 - `foundationstereo-vit-s` 994x1482, first call: portable + torch.compile 212 s (cold Inductor cache), TensorRT fp16 545 s (ONNX + engine).
 - `foundationstereo-vit-l` load / first call: original 10.86 s / 2.563 s (375x1242), portable 1.46 s / 3.776 s, kernels 1.4 s / 2.21 s
 - `foundationstereo-vit-s` load / first call: original 1.44 s / 1.058 s (375x1242), portable 1.03 s / 2.514† s, kernels 0.33† s / 1.12† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -888,7 +888,7 @@ Commercial use: yes.
 - `great-igev-kitti` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.65 s / 0.699 s (375x1242)
 - `great-igev-eth3d` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.7 s / 1.138 s (375x1242)
 - `great-igev-middlebury` load / first call: original 0.39 s / 4.586 s (375x1242), portable – s / 1.789 s, kernels 1.02 s / 0.732 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -960,7 +960,7 @@ Commercial use: yes.
 - `gwcnet-g-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `gwcnet-gc-sceneflow` load / first call: original 0.29 s / 0.119 s (375x1242), portable 0.53 s / 0.472 s, kernels 0.8 s / 0.288 s
 - `gwcnet-g-sceneflow` load / first call: original 0.26 s / 0.46 s (375x1242), portable 0.4 s / 0.344† s, kernels 0.14† s / 0.238† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1191,7 +1191,7 @@ Commercial use: yes.
 - `igev-stereo-eth3d` load / first call: original 0.32 s / 2.565 s (375x1242), portable 0.47 s / 0.763† s, kernels 0.15† s / 0.286† s
 - `igev-stereo-kitti12` load / first call: original 0.32 s / 2.565 s (375x1242), portable 0.47 s / 0.763† s, kernels 0.15† s / 0.286† s
 - `igev-stereo-kitti15` load / first call: original 0.32 s / 2.565 s (375x1242), portable 0.47 s / 0.763† s, kernels 0.15† s / 0.286† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1344,7 +1344,7 @@ Commercial use: yes.
 - `mocha-v2-sceneflow` 994x1482, first call: portable + torch.compile 148 s (cold Inductor cache), TensorRT fp16 361 s (ONNX + engine).
 - `mocha-v1-sceneflow` load / first call: original 1.95 s / 1.846 s (375x1242), portable 0.79 s / 1.057† s, kernels 0.48† s / 0.454† s
 - `mocha-v2-sceneflow` load / first call: original 2.37 s / 0.399 s (375x1242), portable 1.3 s / 1.033† s, kernels 0.45† s / 0.447† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1633,7 +1633,7 @@ Commercial use: yes.
 - `raft-stereo-middlebury` load / first call: original 0.27 s / 1.452 s (375x1242), portable 0.25 s / 0.746† s, kernels 0.73 s / 0.102 s (375x1242)
 - `raft-stereo-sceneflow` load / first call: original 0.27 s / 1.452 s (375x1242), portable 0.25 s / 0.746† s, kernels 0.46 s / 0.101 s (375x1242)
 - `raft-stereo-eth3d` load / first call: original 0.27 s / 1.452 s (375x1242), portable 0.25 s / 0.746† s, kernels 0.55 s / 0.103 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1763,7 +1763,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `s2m2-m` load / first call: original 3.95 s / 0.268 s (375x1242), portable 1.21 s / 0.699 s (375x1242), kernels 0.31† s / 0.249† s
 - `s2m2-l` load / first call: original 1.38 s / 1.007 s, portable 2.61 s / 0.755 s (375x1242), kernels 0.58† s / 0.374† s
 - `s2m2-xl` load / first call: original 4.5 s / 0.529 s (375x1242), portable 2.64 s / 0.888 s (375x1242), kernels 0.9† s / 0.681† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1844,7 +1844,7 @@ Commercial use: yes.
 - `selective-igev-middlebury-train` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
 - `selective-igev-eth3d-finetune` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.68 s / 1.017 s (375x1242), kernels 0.6 s / 0.57 s (375x1242)
 - `selective-igev-eth3d-train` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, `selective-igev-sceneflow`, `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-train`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 - Protocol, `selective-igev-eth3d-finetune`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
