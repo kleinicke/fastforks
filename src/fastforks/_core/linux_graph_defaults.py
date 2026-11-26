@@ -5,18 +5,33 @@ from __future__ import annotations
 import functools
 import os
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import torch
 
 from fastforks._core._measured_graphs import APPROVED, ENROLLED
 
 if TYPE_CHECKING:
+    from fastforks._core._measured_graphs import MeasuredKey, TensorSignature
     from fastforks._core.model import Model
 
 _CHW = 3
 _BCHW = 4
 _RGB = 3
+
+
+class ImagePair(NamedTuple):
+    """Original arguments to an ordinary ordered two-image public request."""
+
+    first: object
+    second: object
+
+
+class VideoQueries(NamedTuple):
+    """Original arguments to the public tracking request."""
+
+    video: object
+    queries: object
 
 
 def enrolled(model: Model) -> bool:
@@ -54,8 +69,62 @@ def _image_layout(image: torch.Tensor) -> str | None:
     return None
 
 
-def allows(model: Model, image: object = None) -> bool:
-    """An original public CUDA image matching a graph-on/eager measured pair."""
+def _image_tensor(value: object, device: torch.device) -> TensorSignature | None:
+    if not isinstance(value, torch.Tensor) or value.device != device:
+        return None
+    layout = _image_layout(value)
+    return None if layout is None else (layout, tuple(value.shape))
+
+
+def _tracking_inputs(call: VideoQueries, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
+    video, queries = call
+    if (
+        not isinstance(video, torch.Tensor)
+        or video.device != device
+        or video.dtype != torch.float32
+        or video.ndim != _BCHW
+        or video.shape[1] != _RGB
+        or not video.is_contiguous()
+        or video.storage_offset() != 0
+    ):
+        return None
+    if (
+        not isinstance(queries, torch.Tensor)
+        or (queries.device.type != "cpu" and queries.device != device)
+        or queries.dtype != torch.float32
+        or queries.ndim != 2  # noqa: PLR2004 - [Q, (t, x, y)]
+        or queries.shape[1] != 3  # noqa: PLR2004 - (t, x, y)
+        or not queries.is_contiguous()
+        or queries.storage_offset() != 0
+    ):
+        return None
+    return ("f32-tchw-cuda-contiguous", tuple(video.shape)), (
+        f"f32-q3-{queries.device.type}-contiguous",
+        tuple(queries.shape),
+    )
+
+
+def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredKey | None:
+    ref, dtype, task = model.variant.ref, model.backend.dtype, model.card.task
+    if isinstance(call, ImagePair) and task in {"flow", "stereo"}:
+        first, second = (_image_tensor(x, device) for x in call)
+        if first is not None and second is not None and first[1][-2:] == second[1][-2:]:
+            return ref, dtype, f"{task}-pair", (first, second)
+        return None
+    if isinstance(call, VideoQueries) and task == "tracking":
+        args = _tracking_inputs(call, device)
+        return None if args is None else (ref, dtype, "tracking-video-queries", args)
+    if task in {"flow", "stereo", "tracking"}:
+        return None
+    image = _image_tensor(call, device)
+    if image is None:
+        return None
+    layout, shape = image
+    return ref, dtype, layout, (shape[-2], shape[-1])
+
+
+def allows(model: Model, call: object = None) -> bool:
+    """The original public arguments match a graph-on/eager measured pair."""
     if not enrolled(model):
         return True
     options = model.options
@@ -65,12 +134,9 @@ def allows(model: Model, image: object = None) -> bool:
         or (options and (len(options) != 1 or "cuda_graphs" not in options))
     ):
         return False
-    if not isinstance(image, torch.Tensor) or image.device != model._device:  # noqa: SLF001 - the runner's device
-        return False
-    layout = _image_layout(image)
-    if layout is None:
-        return False
-    profiles = APPROVED.get((model.variant.ref, model.backend.dtype, layout, (image.shape[-2], image.shape[-1])))
+    device = model._device  # noqa: SLF001 - the runner's device
+    key = _workload_key(model, call, device)
+    profiles = APPROVED.get(key) if key is not None else None
     if profiles is None or os.getenv("FASTFORKS_ARENA") == "1":
         return False
     allocator = torch.cuda.get_allocator_backend()
@@ -80,7 +146,7 @@ def allows(model: Model, image: object = None) -> bool:
         settings = (None, None)
     runtime = (
         str(torch.__version__),
-        _gpu_name(image.device),
+        _gpu_name(device),
         allocator,
         *settings,
         os.getenv("TRITON_DEFAULT_FP_FUSION"),

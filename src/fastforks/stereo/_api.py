@@ -9,6 +9,7 @@ from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, _as_tensor, is_batch, to_rgb_pair, unbatch
+from fastforks._core.linux_graph_defaults import ImagePair
 from fastforks._core.model import Backend
 from fastforks.stereo._runner import crop, scale
 from fastforks.stereo.calibrated import (
@@ -116,7 +117,7 @@ class StereoModel(core.Model):
                 raise InputError(msg)
             lt, rt = to_rgb_pair(left, right, self._device)
             self._check_size(lt)
-            maps = unbatch(self._batched(self._run, lt, rt), left)
+            maps = unbatch(self._batched(self._run, lt, rt, graph_input=ImagePair(left, right)), left)
             disparity, confidence = maps.pop("disparity"), maps.pop("confidence", None)
             return plain_result(
                 disparity, confidence, maps, self.variant.ref, self.backend, self.options, device=self._device

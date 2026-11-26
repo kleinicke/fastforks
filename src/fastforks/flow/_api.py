@@ -12,6 +12,7 @@ from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.image import ImageLike, to_rgb_pair, unbatch
 from fastforks._core.io import FLOW_SUFFIXES, write_flow
+from fastforks._core.linux_graph_defaults import ImagePair
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.flow._runner import crop, scale
@@ -106,7 +107,7 @@ class FlowModel(core.Model):
         """
         t1, t2 = to_rgb_pair(image1, image2, self._device, ("image1", "image2"))
         self._check_size(t1)
-        maps = unbatch(self._batched(self._run, t1, t2), image1)
+        maps = unbatch(self._batched(self._run, t1, t2, graph_input=ImagePair(image1, image2)), image1)
         return FlowResult(maps["flow"], self.variant.ref, self.backend, self.options)
 
     def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:

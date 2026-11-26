@@ -461,7 +461,8 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
             hw = geometry.size if isinstance(geometry, Rectification) else peek[:2] if peek else None
             if hw is not None:
                 zeros = torch.zeros(1, 3, *hw, device=device)
-                model(zeros, zeros)
+                with model._without_graph_admission():  # noqa: SLF001 - pipeline warm-up is outside the pair workload
+                    model(zeros, zeros)
 
     workers = default_workers()
     return Pipeline(

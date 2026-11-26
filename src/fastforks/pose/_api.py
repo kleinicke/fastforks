@@ -160,7 +160,7 @@ class PoseModel(core.Model):
         x = to_rgb_batch(image, self._device)
         per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
         if self._runner.batch == 1 or x.shape[0] == 1:
-            outs = [self._raw(x[i : i + 1], b, graph_image=image) for i, b in enumerate(per_image)]
+            outs = [self._raw(x[i : i + 1], b, graph_input=image) for i, b in enumerate(per_image)]
         elif not self.needs_boxes:
             outs = self._raw_images(x)
         else:
@@ -195,12 +195,12 @@ class PoseModel(core.Model):
         return {"keypoints": x.new_zeros(0, k, 2), "keypoint_scores": x.new_zeros(0, k), "scores": x.new_zeros(0)}
 
     def _raw(
-        self, x: torch.Tensor, boxes: torch.Tensor | None, *, graph_image: object = None
+        self, x: torch.Tensor, boxes: torch.Tensor | None, *, graph_input: object = None
     ) -> dict[str, torch.Tensor]:
         if boxes is not None and boxes.shape[0] == 0:
             return self._empty(x)
         _check_fractions(x, boxes)
-        with self._session(graph_image=graph_image):
+        with self._session(graph_input=graph_input):
             return self._runner(x, boxes)
 
     def _raw_images(self, x: torch.Tensor) -> list[dict[str, torch.Tensor]]:

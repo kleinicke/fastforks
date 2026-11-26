@@ -35,8 +35,9 @@ def test_unmeasured_linux_input_stays_eager_and_windows_keeps_its_policy(
         "Model",
         SimpleNamespace(
             _device=torch.device("cuda:0"),
-            backend=SimpleNamespace(mode="kernels"),
+            backend=SimpleNamespace(mode="kernels", dtype="float16"),
             card=SimpleNamespace(task="pose", family="yunet"),
+            variant=SimpleNamespace(ref="yunet-n@1"),
             weights=None,
             options={"cuda_graphs": True},
         ),
