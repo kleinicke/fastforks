@@ -353,18 +353,22 @@ class BEN_Base(nn.Module):
             e3 = self.output3(f2)
             e2 = self.output2(f1)
             e1 = self.output1(f0)
+            del f0, f1, f2, f3, f4
+            if i + 1 == real_batch:
+                del features
             loc_e5, glb_e5 = e5.split([4, 1], dim=0)
             e5 = self.multifieldcrossatt(loc_e5, glb_e5)  # (4,128,16,16)
+            del loc_e5, glb_e5
 
 
-            e4, tokenattmap4 = self.dec_blk4(e4 + resize_as(e5, e4))
-            e4 = self.conv4(e4)
-            e3, tokenattmap3 = self.dec_blk3(e3 + resize_as(e4, e3))
-            e3 = self.conv3(e3)
-            e2, tokenattmap2 = self.dec_blk2(e2 + resize_as(e3, e2))
-            e2 = self.conv2(e2)
-            e1, tokenattmap1 = self.dec_blk1(e1 + resize_as(e2, e1))
-            e1 = self.conv1(e1)
+            e4 = self.conv4(self.dec_blk4(e4 + resize_as(e5, e4))[0])
+            del e5
+            e3 = self.conv3(self.dec_blk3(e3 + resize_as(e4, e3))[0])
+            del e4
+            e2 = self.conv2(self.dec_blk2(e2 + resize_as(e3, e2))[0])
+            del e3
+            e1 = self.conv1(self.dec_blk1(e1 + resize_as(e2, e1))[0])
+            del e2
 
             loc_e1, glb_e1 = e1.split([4, 1], dim=0)
 
@@ -372,8 +376,10 @@ class BEN_Base(nn.Module):
 
             # add glb feat in
             output1_cat = output1_cat + resize_as(glb_e1, output1_cat)
+            del e1, loc_e1, glb_e1
             # merge
             final_output = self.insmask_head(output1_cat)  # (1,128,256,256)
+            del output1_cat
             # shallow feature merge
             final_output = final_output + shallow_low[i:i+1]
             up1 = getattr(self, "up_deconv1", None)  # fastforks: the kernels runner's nearest 2x + conv as one deconv

@@ -15,6 +15,7 @@ larger reserved memory footprint.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
+from fastforks.kernels import cudnn_hacc
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cnn_kernels import CL, prepare_generic, up_deconv
@@ -107,7 +109,12 @@ class Kernels(_Matting):
         swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16
         self.net = net
-        self.graphs = SmallShapeGraphs(self._eager, pixels=2**21, enabled=ctx.params.cuda_graphs)
+        self.graphs = SmallShapeGraphs(
+            self._eager,
+            pixels=2**21,
+            enabled=ctx.params.cuda_graphs,
+            capture_warmup=sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0,
+        )
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x.contiguous(memory_format=CL))

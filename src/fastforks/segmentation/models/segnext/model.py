@@ -17,6 +17,7 @@ image always gives the same logits; upstream draws random ones on every call.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -200,7 +201,9 @@ class Kernels(Portable):
         Runner.__init__(self, ctx)
         self.net = network(ctx).to(ctx.device, torch.float16).to(memory_format=_CL)
         _prepare_kernels(self.net, ctx.device)
-        self._graphs = SmallShapeGraphs(self._eager, pixels=_GRAPH_PIXELS, graphs=_GRAPHS)
+        self._graphs = SmallShapeGraphs(
+            self._eager, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, capture_warmup=sys.platform != "linux"
+        )
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
