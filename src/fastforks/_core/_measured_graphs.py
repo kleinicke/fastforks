@@ -115,6 +115,10 @@ _U2NETP: _Resources = (
     (*_IGEV_KERNELS, "resize_cat@60f9273249a3:sm_120"),
     ("e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854",),
 )
+_RTMPOSE_T: _Resources = (
+    (*_FVM_KERNELS, "pose_warp@1589e39c4cb2:sm_120"),
+    ("026a1439c5695f74f2e6e744427fc8190b57d630923eb772c1e9b4409a036f2f",),
+)
 
 
 def _profiles(resources: _Resources, *runtimes: _HostRuntime) -> tuple[tuple[object, ...], ...]:
@@ -362,4 +366,13 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     # U2NetP. Request-15 deltas: -92.701, -88.629 ms.
     # Receipt SHA-256 c6cb651abf7a53c0525398406b9b3f49983680e271a5d6f1d8359e53dfd54b07.
     ("u2netp@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NETP, _TORCH_214_NATIVE),
+    # RTMPose-T, five person boxes. Request-15 deltas: -15.324, -10.711, -10.343, -12.267 ms.
+    # Receipt SHA-256 c973de6f90dc63d64c6f0b89b4a2f584282a63cae54d6a51639bc11a41486a21.
+    (
+        "rtmpose-t@1",
+        "kernels",
+        "float16",
+        "pose-boxes",
+        (("f32-chw-contiguous", (3, 480, 640)), ("f32-p4-cuda-contiguous", (5, 4))),
+    ): _profiles(_RTMPOSE_T, _TORCH_214_NATIVE),
 }

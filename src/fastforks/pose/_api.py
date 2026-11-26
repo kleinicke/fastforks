@@ -17,6 +17,7 @@ from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
+from fastforks._core.linux_graph_defaults import PoseBoxes
 from fastforks._core.model import Backend
 from fastforks.pose._runner import PEOPLE
 
@@ -158,17 +159,20 @@ class PoseModel(core.Model):
                 people itself.
         """
         x = to_rgb_batch(image, self._device)
-        per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
+        batch = is_batch(image)
+        per_image = self._boxes(boxes, x.shape[0], batch=batch)
         if self._runner.batch == 1 or x.shape[0] == 1:
+            box_input = PoseBoxes(image, boxes) if not batch and isinstance(boxes, torch.Tensor) else None
             outs = [
-                self._raw(x[i : i + 1], b, graph_input=image if b is None else None) for i, b in enumerate(per_image)
+                self._raw(x[i : i + 1], b, graph_input=image if b is None else box_input)
+                for i, b in enumerate(per_image)
             ]
         elif not self.needs_boxes:
             outs = self._raw_images(x)
         else:
             outs = self._raw_batch(x, per_image)
         results = [self._result(out, b) for out, b in zip(outs, per_image, strict=True)]
-        return results if is_batch(image) else results[0]
+        return results if batch else results[0]
 
     def _boxes(self, boxes: Any, n: int, *, batch: bool) -> list[torch.Tensor | None]:  # noqa: ANN401
         if not self.needs_boxes:

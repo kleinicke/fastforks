@@ -112,6 +112,33 @@ def test_interpolation_admits_only_the_measured_two_frame_storage_layout() -> No
         assert linux_graph_defaults._workload_key(model, operands, device) is None
 
 
+def test_top_down_pose_graph_key_includes_raw_box_count_and_layout() -> None:
+    device = torch.device("cuda:0")
+    image = torch.empty((3, 16, 32)).as_subclass(_CudaInput)
+    boxes = torch.empty((2, 4)).as_subclass(_CudaInput)
+    model = cast(
+        "Model",
+        SimpleNamespace(
+            variant=SimpleNamespace(ref="rtmpose-t@1"),
+            backend=SimpleNamespace(mode="kernels", dtype="float16"),
+            card=SimpleNamespace(task="pose"),
+        ),
+    )
+    pose_boxes = linux_graph_defaults.PoseBoxes
+    key = linux_graph_defaults._workload_key(model, pose_boxes(image, boxes), device)
+    assert key == (
+        "rtmpose-t@1",
+        "kernels",
+        "float16",
+        "pose-boxes",
+        (("f32-chw-contiguous", (3, 16, 32)), ("f32-p4-cuda-contiguous", (2, 4))),
+    )
+    assert linux_graph_defaults._workload_key(model, pose_boxes(image, boxes[:1]), device) != key
+    assert linux_graph_defaults._workload_key(model, pose_boxes(image, boxes[1:]), device) is None
+    assert linux_graph_defaults._workload_key(model, pose_boxes(image, boxes.half()), device) is None
+    assert linux_graph_defaults._workload_key(model, pose_boxes(image.unsqueeze(0), boxes), device) is None
+
+
 def _profile_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[Model, torch.Tensor]:
