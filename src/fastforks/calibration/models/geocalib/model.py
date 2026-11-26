@@ -19,6 +19,7 @@ each LM step replayed from a CUDA graph per field shape (the host still checks t
 from __future__ import annotations
 
 import functools
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -239,7 +240,16 @@ class Kernels(Portable):
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
-        self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(
+                self._eager,
+                graphs=1,
+                capture_after=after,
+                capture_warmup=sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0,
+            )
+            if ctx.params.cuda_graphs
+            else None
+        )
         self.step_graphs = GraphCache(self._step, graphs=2) if ctx.params.cuda_graphs else None
         self._step_shape: tuple[int, int, type[BaseCamera]] | None = None  # the step being run: grid h, w, camera class
 
