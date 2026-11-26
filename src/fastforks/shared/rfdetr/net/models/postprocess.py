@@ -1,4 +1,5 @@
 # Vendoring: imports are relative to fastforks; computation is unchanged from pinned RF-DETR.
+# Fastforks segmentation replay can widen only the selected masks before resizing them.
 # ------------------------------------------------------------------------
 # RF-DETR
 # Copyright (c) 2025 Roboflow. All Rights Reserved.
@@ -46,7 +47,12 @@ class PostProcess(nn.Module):
 
     @torch.no_grad()
     def forward(
-        self, outputs: dict[str, torch.Tensor], target_sizes: torch.Tensor, score_threshold: float | None = None
+        self,
+        outputs: dict[str, torch.Tensor],
+        target_sizes: torch.Tensor,
+        score_threshold: float | None = None,
+        *,
+        promote_selected_masks: bool = False,
     ) -> list[dict[str, torch.Tensor]]:
         """Convert raw model tensors into per-image detection dictionaries.
 
@@ -61,6 +67,7 @@ class PostProcess(nn.Module):
                 (uncertainty fusion), so filtering on the pre-fusion scores would not match the caller's own filter,
                 and the box-only path has no per-detection work worth skipping. ``None`` (the default) keeps every
                 selected detection, which is what evaluation relies on.
+            promote_selected_masks: Convert gathered segmentation masks to float32 before resizing them.
 
         Returns:
             One dictionary per image. Every dictionary contains ``scores``, ``labels``, and ``boxes`` in absolute
@@ -87,6 +94,7 @@ class PostProcess(nn.Module):
                 target_sizes,
                 self.upsample_masks_to_image_size,
                 score_threshold=score_threshold,
+                promote_selected_masks=promote_selected_masks,
             )
         if out_keypoints is not None:
             return self._postprocess_keypoints(out_keypoints, scores, labels, boxes, topk_boxes, target_sizes)
@@ -181,6 +189,7 @@ class PostProcess(nn.Module):
         upsample_masks_to_image_size: bool = True,
         *,
         score_threshold: float | None = None,
+        promote_selected_masks: bool = False,
     ) -> list[dict[str, torch.Tensor]]:
         """Attach segmentation masks for selected detections.
 
@@ -205,6 +214,7 @@ class PostProcess(nn.Module):
                 below it are dropped before the gather, so no mask the caller discards is ever gathered, resized or
                 thresholded. Applies to both ``upsample_masks_to_image_size`` branches. ``None`` (the default) keeps
                 every selected detection.
+            promote_selected_masks: Convert the gathered masks to float32 before thresholding or resizing them.
 
         Returns:
             One result dict per image containing scores, labels, boxes, and boolean masks —
@@ -228,6 +238,8 @@ class PostProcess(nn.Module):
             # `index_select` picks whole mask planes without materialising the [K, Hm, Wm] int64
             # index tensor a `gather` needs (84 MiB at K=300, 192x192 masks).
             masks_i = out_masks[i].index_select(0, k_idx)  # [K, Hm, Wm]
+            if promote_selected_masks:
+                masks_i = masks_i.float()
             if not upsample_masks_to_image_size:
                 res_i["masks"] = (masks_i > 0.0).unsqueeze(1)  # [K,1,Hm,Wm] bool, native resolution
                 results.append(res_i)
