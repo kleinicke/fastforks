@@ -248,9 +248,14 @@ class _LibRunner(Runner):
             family=self.family,
             fuse_convs=self.fuse_convs,
             cast_cpu_weights=ctx.mode == "kernels",
+            probe_batchnorm=self._probe_batchnorm(net),
         )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()
+
+    def _probe_batchnorm(self, _net: torch.nn.Module, /) -> bool:
+        """Try hook-based BatchNorm folding before the FX passes."""
+        return True
 
     def network(self, ctx: Context) -> torch.nn.Module:
         """The upstream network with its weights (CPU, eval); families override this to wrap or adapt it."""

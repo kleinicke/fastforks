@@ -372,10 +372,10 @@ def _no_tf32() -> Generator[None]:
 _FOLD_LOCK = threading.Lock()  # fx tracing patches `nn.Module.__call__` process-wide: loads fold one at a time
 
 
-def fold_bn(model: nn.Module) -> tuple[nn.Module, dict[str, int]]:
-    """Re-parameterize (timm), fold BN by hooks, fx flatten, fx conv/BN fuse for anything left that fx sees."""
+def fold_bn(model: nn.Module, *, probe: bool = True) -> tuple[nn.Module, dict[str, int]]:
+    """Fold BatchNorms, optionally skipping the hook probe; still re-parameterize, flatten and fuse via FX."""
     with _FOLD_LOCK:
-        return _fold_bn(model)
+        return _fold_bn(model, probe=probe)
 
 
 def module_uses(graph: fx.Graph) -> Counter[str]:
@@ -426,9 +426,9 @@ def _fuse(model: fx.GraphModule) -> fx.GraphModule:
     return fx.GraphModule(gm, graph)
 
 
-def _fold_bn(model: nn.Module) -> tuple[nn.Module, dict[str, int]]:
+def _fold_bn(model: nn.Module, *, probe: bool) -> tuple[nn.Module, dict[str, int]]:
     with _no_tf32():
-        rep = {"reparam": int(reparam(model)), "bn_folded": fold_bn_hooks(model)}
+        rep = {"reparam": int(reparam(model)), "bn_folded": fold_bn_hooks(model) if probe else 0}
     gm = flatten(model)
     rep["fx"] = int(gm is not None)
     if gm is None:
