@@ -3,7 +3,7 @@ name = "YOLOX (tiny / S / M / L / X)"
 summary = "YOLOX (Ge et al. 2021, Megvii): anchor-free one-stage detector, all convolutions: a CSPDarknet backbone, a PAFPN neck and a decoupled head that predicts, per cell of the stride 8 / 16 / 32 maps, a box (centre and size), an objectness and a score per class; a cell's score is objectness x its best class; class-wise NMS. COCO checkpoints (80 classes) from the authors. The image is fitted into 640 x 640 (tiny: 416 x 416); vendored from the reference (no yolox dependency). The portable `module()` is the whole network (decoded boxes, scores and labels per cell, before NMS)."
 tier = "experimental"
 outputs = ["boxes", "scores", "labels"]
-uses = ["cspnext", "cuda_graphs", "mlx_port"]  # fastforks.shared modules this family imports
+uses = ["cspnext", "cuda_graphs", "mlx_port", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
   "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",

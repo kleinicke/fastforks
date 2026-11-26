@@ -2701,3 +2701,36 @@ Tried and dropped:
 - locotrack-b (1597 against 1470 MB).
 - gimm-vfi-r and film at 1080p were not reached.
 - The timm fix also lowers the MPS rows of the other timm families; only siglip and deit were re-surveyed.
+
+## How to: A/B a hand-written MLX network against its graph translation (2026-11-26)
+
+A hand-written MLX network must be at least as fast (warm) and as lean (peak) as the exported-graph translation
+(`shared/mlx_graph`) it replaced, measured on the network alone. The survey rows include loading, the conversion cache
+and pre- and post-processing, so a slower core can hide behind a faster load. The results are in
+[mlx-core-ab.md](mlx-core-ab.md).
+
+- **The switch.** `FASTFORKS_MLX_GRAPH=1` (`fastforks._core.mlx.graph_switch`, diagnostics only, off by default)
+  builds the graph runner instead of the hand one.
+  - A family keeps the runner its MLX port had before the hand port as `GRAPH_RUNNERS` next to `RUNNERS` in its
+    `model.py`; `_core/model.py::_build_mlx` takes it when the switch is on.
+  - The libnet classifiers written out in `mlx_cnn` / `mlx_vit_cls` fall back to the generic `GraphNet`.
+  - `tests/test_golden.py::test_mlx_graph_switch` (yolox-tiny against its golden, both arms) and the
+    `GRAPH_RUNNERS` tests in `tests/test_mlx.py` keep it honest.
+  - A new hand port keeps the graph runner it replaces as `GRAPH_RUNNERS` (same arguments, minimal wrapper).
+- **The tool.** `tools/mlx_core_ab.py`, through the GPU lock, one family per call:
+
+  ```bash
+  python tools/mlx_core_ab.py list --family yolox            # the hand-ported refs (no GPU)
+  python tools/mlx_core_ab.py run --family yolox [--dtypes float16 float32] [--cache-mb 2048] [--force]
+  python tools/mlx_core_ab.py table                           # the markdown table of the rows
+  ```
+
+  - Per (ref, mode, dtype), each arm runs in its own process under the same buffer cache limit
+    (`FASTFORKS_MLX_CACHE_MB`), on the survey's input of the ref.
+  - A throwaway process loads and calls each arm once first, so both are measured with a warm conversion cache.
+  - It times every outermost network call (`MlxModule` / `GraphNet`, or a class of the family's `mlx*` modules),
+    synchronised: first call, warm median (4 warm-ups, median of 5), peak (`mx.reset_peak_memory` /
+    `mx.get_peak_memory`), resident memory, and end-to-end figures beside them.
+  - It compares the two arms' outputs (a sanity check, not a golden) and flags a ref where the hand network is more
+    than 2 % slower or heavier.
+  - Rows go to `docs/plans/mlx-core-ab.jsonl` (`--out`); it never writes survey rows.

@@ -2,8 +2,8 @@
 
     python tools/mlx_core_ab.py list [--only REF ...] [--family FAMILY ...]        # the hand-ported refs (no GPU)
     python tools/mlx_core_ab.py run [--only REF ...] [--family FAMILY ...] [--dtypes float16 float32]
-                                    [--modes portable] [--out FILE] [--cache-mb 2048] [--force]
-    python tools/mlx_core_ab.py table [--out FILE] [--md FILE]                     # the markdown table of the rows
+                                    [--modes portable] [--out FILE] [--cache-mb 2048] [--force] [--no-prime]
+    python tools/mlx_core_ab.py table [--out FILE]                                 # the markdown table of the rows
 
 The bar: a hand-written MLX network is at least as fast (warm) and as lean (peak) as the exported-graph translation
 (`shared/mlx_graph`) of its PyTorch network, on the network alone. The speed survey's rows include loading, the
@@ -26,6 +26,10 @@ an `mx.reset_peak_memory()`. Recorded per arm:
 - `resident_mb`: MLX active memory after the warm calls with the outputs dropped (the weights and what the network
   keeps), less the active memory before `load()`;
 - end to end: `load_s`, `first_s`, `ms` (the same protocol, without the network timers), `peak_footprint_mb`.
+
+Before each measured process a throwaway one loads the arm and calls it once (`prime_load_s`, `prime_first_s`), so
+both arms are measured with a warm MLX conversion cache (`_core/mlx_cache.py`) and warm OS file cache: a cold
+conversion does not skew either arm (`--no-prime` skips it).
 
 The two arms' outputs are compared per result key (`max_abs`, `max_rel` = max |hand - graph| / max |graph|): a sanity
 check, not a golden. A ref is flagged where the hand network is more than 2 % slower warm (`net_ms`) or heavier
@@ -65,6 +69,8 @@ _INFRA = frozenset(
     {
         "fastforks._core.mlx",
         "fastforks._core.mlx_cast",
+        "fastforks._core.mlx_cache",
+        "fastforks.shared.mlx_port",
         "fastforks.shared.mlx_graph",
         "fastforks.shared.mlx_wrap",
         "fastforks.shared.mlx_weights",
@@ -287,6 +293,9 @@ def worker(spec: dict[str, Any]) -> int:  # noqa: PLR0915 - one linear measureme
         timers.keep = False
         row["first_s"] = round(time.perf_counter() - t0, 3)
         row["net_first_s"] = round(timers.seconds, 3)
+        if spec.get("prime"):  # the priming process: the conversion cache (and its plans) are now on disk
+            Path(spec["row"]).write_text(json.dumps(row))
+            return 0
         row["net_calls"] = timers.calls
         row["net_inputs"] = timers.inputs
         row["net_outputs"] = [f"{'x'.join(map(str, o.shape))}" for o in timers.outputs]
@@ -404,6 +413,23 @@ def _flags(row: dict[str, Any]) -> list[str]:
     return out
 
 
+def _worker_cmd(spec: dict[str, Any]) -> list[str]:
+    return [sys.executable, __file__, "worker", json.dumps(spec)]
+
+
+def _prime(spec: dict[str, Any], env: dict[str, str]) -> dict[str, Any]:
+    """Load the arm and call it once in a throwaway process: the measured one then finds a warm conversion cache.
+
+    Returns that process's `load_s` / `first_s` as `prime_load_s` / `prime_first_s` (`_core/mlx_cache.py`).
+    """
+    subprocess.run(_worker_cmd(spec | {"prime": True}), env=env, timeout=TIMEOUT_S, check=False)
+    with contextlib.suppress(OSError, json.JSONDecodeError):
+        r = json.loads(Path(spec["row"]).read_text())
+        Path(spec["row"]).unlink()
+        return {f"prime_{k}": r[k] for k in ("load_s", "first_s") if k in r}
+    return {}
+
+
 def run(a: argparse.Namespace) -> int:
     """Measure both arms of every job not yet in `--out` (all with `--force`)."""
     out = Path(a.out)
@@ -426,10 +452,10 @@ def run(a: argparse.Namespace) -> int:
                 npz[arm] = Path(spec["npz"])
                 for p in (Path(spec["row"]), npz[arm]):
                     p.unlink(missing_ok=True)
-                cmd = [sys.executable, __file__, "worker", json.dumps(spec)]
                 try:
-                    subprocess.run(cmd, env=env, timeout=TIMEOUT_S, check=False)
-                    arm_row = json.loads(Path(spec["row"]).read_text())
+                    primed = _prime(spec, env) if a.prime else {}
+                    subprocess.run(_worker_cmd(spec), env=env, timeout=TIMEOUT_S, check=False)
+                    arm_row = json.loads(Path(spec["row"]).read_text()) | primed
                 except subprocess.TimeoutExpired:
                     arm_row = {"error": f"timeout after {TIMEOUT_S} s"}
                 except (OSError, json.JSONDecodeError):
@@ -533,6 +559,9 @@ def main() -> int:
             s.add_argument("--cache-mb", type=int, default=CACHE_MB)
             s.add_argument("--tmp", default=None, help="directory for the arms' outputs (default: the system temp)")
             s.add_argument("--force", action="store_true")
+            s.add_argument(
+                "--no-prime", dest="prime", action="store_false", help="skip the warm-up process before each arm"
+            )
     t = sub.add_parser("table")
     t.add_argument("--out", default=str(OUT))
     w = sub.add_parser("worker")
