@@ -22,6 +22,7 @@ from fastforks._core.arguments import renamed_attributes, warn_renamed
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import checked_ranges
 from fastforks._core.io import MAP_SUFFIXES, check_suffix
+from fastforks._core.model import Model
 from fastforks._core.outputs import MapOutputs, short_repr
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks.stereo.geometry.calib import read_calib
@@ -195,7 +196,7 @@ def run_views(
         # the mirrored pair of "both" has the pixel values just checked by the left run
         with (
             checked_ranges() if i else contextlib.nullcontext(),
-            model._without_graph_admission(),  # noqa: SLF001 - this public path can rectify and/or run both views
+            Model._without_graph_admission(model),  # noqa: SLF001 - allow callable models with the same device contract
         ):
             res = model(left, right) if view == "left" else model(right.flip(-1), left.flip(-1))
         out: dict[str, Any] = {"disparity": res.disparity, "confidence": res.confidence, **res.extras}

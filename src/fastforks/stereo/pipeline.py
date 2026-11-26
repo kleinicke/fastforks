@@ -21,6 +21,7 @@ from fastforks._core.arguments import renamed_attributes
 from fastforks._core.errors import InputError
 from fastforks._core.image import _as_tensor, is_batch, is_url
 from fastforks._core.io import atomic_write, write_map
+from fastforks._core.model import Model
 from fastforks._core.pipeline import Done, OnError, Pipeline, default_prefetch, default_workers
 from fastforks.stereo import calibrated as _calibrated
 from fastforks.stereo.calibrated import (
@@ -461,7 +462,7 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
             hw = geometry.size if isinstance(geometry, Rectification) else peek[:2] if peek else None
             if hw is not None:
                 zeros = torch.zeros(1, 3, *hw, device=device)
-                with model._without_graph_admission():  # noqa: SLF001 - pipeline warm-up is outside the pair workload
+                with Model._without_graph_admission(model):  # noqa: SLF001 - warm-up is outside the pair workload
                     model(zeros, zeros)
 
     workers = default_workers()
