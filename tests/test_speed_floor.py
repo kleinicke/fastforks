@@ -199,6 +199,23 @@ def test_full_timing_can_skip_runner_replay(monkeypatch, tmp_path):
     assert "core_ms" not in rows[0]
 
 
+def test_restoration_core_capture_preserves_runner_postprocessing():
+    """Record a runner-only replay without replacing the public output transform."""
+
+    class Runner:
+        def __call__(self, image):
+            return {"image": image * 2}
+
+        def run_with_post(self, image, post):
+            return post(self(image)["image"])
+
+    capture = speed_check._Capture(Runner())
+    assert capture.run_with_post(3, lambda image: image + 1) == 7
+    assert capture.run_with_post(5, lambda image: image + 1) == 11
+    runner, args, kwargs = capture.__dict__["_args"]
+    assert runner(*args, **kwargs) == {"image": 6}
+
+
 def test_resume_distinguishes_full_timing_and_runner_timing(monkeypatch):
     """A timing receipt without the optional runner result can only resume the same timing scope."""
     monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
