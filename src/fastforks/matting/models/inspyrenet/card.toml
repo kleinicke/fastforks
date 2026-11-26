@@ -4,7 +4,7 @@ summary = "InSPyReNet (Kim et al., ACCV 2022): salient object detection with an 
 tier = "experimental"
 outputs = ["alpha"]
 uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap", "swin_v1"]  # fastforks.shared modules this family imports
-limitations = ["On Linux CUDA, the base 1024 × 1024 network runs eagerly by default. Set `cuda_graph_policy=\"on\"` to enable graph replay or `\"off\"` to disable it for either variant."]
+limitations = ["On Linux CUDA, only measured workloads qualify for graph replay. The base 1024 × 1024 variant currently runs eagerly there. Set `cuda_graph_policy=\"off\"` to keep either variant eager."]
 
 [upstream]
 repo = "https://github.com/plemeri/transparent-background"
