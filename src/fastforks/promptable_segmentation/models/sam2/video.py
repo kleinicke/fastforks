@@ -416,10 +416,12 @@ class Tracker:
                     low, ptr, obj = self.mask_as_output(raw, hr, mask)
                 else:
                     multimask = labels is not None and labels.shape[1] <= 1
-                    low, _, ptr, obj = self.heads(pix, hr, coords, labels, None, multimask, motion)
+                    low, prompt_high, ptr, obj = self.heads(pix, hr, coords, labels, None, multimask, motion)
+                    del prompt_high  # Frame zero encodes the filled low mask instead.
                 low = fill_holes(low)
                 high = F.interpolate(low, (self.size, self.size), mode="bilinear", align_corners=False)
                 bank[0] = (self.encode(raw, high, obj, binarize=True), ptr)
+                del high
             else:
                 if motion is None:
                     cond = self.condition(raw, t, n_frames, bank)
@@ -434,6 +436,7 @@ class Tracker:
                             cond[idx] = self.condition(raw[idx], t, n_frames, bank, list(memory), idx)
                 low, high, ptr, obj = self.heads(cond, hr, None, None, None, True, motion)  # noqa: FBT003
                 bank[t] = (self.encode(raw, high, obj, binarize=False), ptr)
+                del high
                 keep = set() if motion is None else motion.kept(t, obj)
                 for k in [k for k in bank if 0 < k <= t - MAX_PTRS + 1 and k not in keep]:  # no later frame reads it
                     del bank[k]
