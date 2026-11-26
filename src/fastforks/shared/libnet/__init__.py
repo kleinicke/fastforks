@@ -272,10 +272,14 @@ class Kernels(_LibRunner):
     launch-bound there. The output is a fresh tensor per call; `release_graphs()` frees the graphs and their pool.
     """
 
+    _graph_capture_warmup = True
+
     def __init__(self, ctx: Context) -> None:
         """Build and optimise the network; set up the graph cache."""
         super().__init__(ctx)
-        self._graphs = SmallShapeGraphs(self.net, pixels=_GRAPH_PIXELS, graphs=_GRAPHS)
+        self._graphs = SmallShapeGraphs(
+            self.net, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, capture_warmup=self._graph_capture_warmup
+        )
 
     def release_graphs(self) -> None:
         """Free the CUDA graphs and their memory pool on the device."""
