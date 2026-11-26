@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import retain_for_cuda_graph
 
 from .net.attention import PositionEncodingSine
 
@@ -124,7 +125,9 @@ def _attention(net: CREStereo, fmap1: torch.Tensor, fmap2: torch.Tensor) -> tupl
 def _position_encoding(c: int, h: int, w: int, device: torch.device) -> torch.Tensor:
     if torch.compiler.is_compiling():  # dynamo cannot trace through lru_cache; the graph holds the encoding anyway
         return PositionEncodingSine(d_model=c, max_shape=(h, w)).pe.to(device)
-    return _cached_position_encoding(c, h, w, device)
+    pe = _cached_position_encoding(c, h, w, device)
+    retain_for_cuda_graph(pe)
+    return pe
 
 
 @functools.lru_cache(maxsize=8)
