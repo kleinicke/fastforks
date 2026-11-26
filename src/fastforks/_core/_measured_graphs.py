@@ -405,6 +405,51 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "stereo-pair",
         (("f32-bchw-contiguous", (1, 3, 256, 384)), ("f32-bchw-contiguous", (1, 3, 256, 384))),
     ): _profiles(_PSMNET, _TORCH_214_NATIVE),
+    # cas-gwcnet-c-sceneflow@1 native 256x384. Request-15 deltas: -55.955, -50.881 ms.
+    # Receipt SHA-256 18877052eff0fe6ae0a5246b8959e22ff8f159ed45371c603f55dce3f2f16c6b.
+    (
+        "cas-gwcnet-c-sceneflow@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 256, 384)), ("f32-bchw-contiguous", (1, 3, 256, 384))),
+    ): _profiles(
+        (
+            ("cfnet_volume@705cd0d85dc1:sm_120", *_IGEV_KERNELS),
+            ("9d30ee767111718e87728e09587263d0edecca76319e8cdbdd789946014ce85f",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
+    # cas-gwcnet-gc-sceneflow@1 native 256x384. Request-15 deltas: -15.404, -21.287 ms.
+    # Receipt SHA-256 9eba385d9549904bac308acc604c5f56d83188c91f95a11ead23b76ef2989ce8.
+    (
+        "cas-gwcnet-gc-sceneflow@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 256, 384)), ("f32-bchw-contiguous", (1, 3, 256, 384))),
+    ): _profiles(
+        (
+            ("cfnet_volume@705cd0d85dc1:sm_120", *_IGEV_KERNELS),
+            ("8a3638501cd5d4cb31d6ec523757134db967db8139715443d83f08913bffa8ab",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
+    # las2-l@1 native 384x640. Request-15 deltas: -193.768, -188.643 ms.
+    # Receipt SHA-256 49f095e9ce5dd2eba07018dbdd8567683079ba06bb4524225073b38b99a0e152.
+    (
+        "las2-l@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(
+        (
+            (*_IGEV_KERNELS, "stereo_ops@899b54f4a755:sm_120"),
+            ("12f86f758b0aa6cd59c11d40f41e7d954121d7626e4719eff71d9dd22da36539",),
+        ),
+        _TORCH_214_NATIVE,
+    ),
     # S2M2 Small. Request-15 deltas: -84.104, -94.813 ms.
     # Receipt SHA-256 b0e51da0f31a1d795de87ab926c9585999731b302f2673d3a32f72f1a201346f.
     (
