@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks._core.half import fp16_accumulate, fp32_accumulate, half_weights
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
 from fastforks._core.tracing import exporting_for_mlx
@@ -186,20 +186,41 @@ def _refine(  # noqa: PLR0913, PLR0917 - same signature as LocoTrack.refine
     occ: torch.Tensor,
     expd: torch.Tensor,
     f: Features,
+    *,
+    correlate: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Sample the local grids directly into the fp16 layouts consumed by the three batched GEMMs."""
     b, n, t, _ = points.shape
+    bmm = torch.bmm if correlate is None else correlate
     corrs = []
     for support, grid, cmdtop in zip(supports, f.grids, net.cmdtop, strict=True):
         samples = neighborhood(grid, points).view(b * n, t * SUPPORT**2, -1)
         query = support.reshape(b * n, SUPPORT**2, -1).transpose(1, 2)
-        corr = torch.bmm(samples, query)
+        corr = bmm(samples, query)
         corrs.append(cmdtop(corr.reshape(b * n * t, SUPPORT, SUPPORT, SUPPORT, SUPPORT)).view(b, n, t, -1))
     delta = points[..., :-1, :] - points[..., 1:, :]
     rel = torch.cat([F.pad(delta, (0, 0, 0, 1)), F.pad(-delta, (0, 0, 1, 0))], -1) / SIZE
     x = torch.cat([occ[..., None], expd[..., None], *corrs, posenc(rel)], -1)
     update = net.torch_pips_mixer(x.reshape(b * n, t, -1)).reshape(b, n, t, -1).float()
     return points + update[..., :2], occ + update[..., 2], expd + update[..., 3]
+
+
+def _correlate_fp32(samples: torch.Tensor, query: torch.Tensor) -> torch.Tensor:
+    """Accumulate the local dot products in FP32 while keeping the autocast output dtype."""
+    with fp32_accumulate():
+        return torch.bmm(samples, query)
+
+
+def _refine_small(  # noqa: PLR0913, PLR0917 - same signature as LocoTrack.refine
+    net: LocoTrack,
+    supports: list[torch.Tensor],
+    points: torch.Tensor,
+    occ: torch.Tensor,
+    expd: torch.Tensor,
+    f: Features,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Reduce correlation rounding error before each LocoTrack-S position update."""
+    return _refine(net, supports, points, occ, expd, f, correlate=_correlate_fp32)
 
 
 def _same_conv(conv: Conv2dSamePadding, x: torch.Tensor) -> torch.Tensor:
@@ -233,7 +254,8 @@ class Kernels(Portable):
         for cmd in self.net.cmdtop:
             final = cast("torch.nn.Sequential", cast("CMDTop", cmd).conv[-1])
             override(final[0], _last_corr_conv)
-        override(self.net, _refine, "refine")
+        small = ctx.variant.ref == "locotrack-s@1" and ctx.user_weights is None and ctx.user_state is None
+        override(self.net, _refine_small if small else _refine, "refine")
         mixer = self.net.torch_pips_mixer
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override
         if self.amp == torch.float16:
