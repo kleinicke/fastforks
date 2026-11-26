@@ -237,7 +237,9 @@ def _code_needs(source: str, package: list[str]) -> tuple[set[str], bool]:  # no
             needs.add("transformers")
         if (mod + ".").startswith("fastforks.shared.rfdetr.") or (mod == "fastforks.shared" and "rfdetr" in names):
             needs.update(("torchvision", "transformers"))  # the vendored RF-DETR net imports both
-        if (mod == "fastforks.detection._ops" and "ops" in names) or (mod == "fastforks.detection" and "_ops" in names):
+        if (mod == "fastforks.detection._ops" and names & {"ops", "cuda_nms"}) or (
+            mod == "fastforks.detection" and "_ops" in names
+        ):
             needs.add("torchvision")
 
     for n in ast.walk(ast.parse(source)):
