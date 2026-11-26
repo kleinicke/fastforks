@@ -878,9 +878,12 @@ def test_float_attention_mask_stays_finite_in_float16(fused):
     assert torch.isfinite(to_torch(clamped)[0, 0, :4]).all()
 
 
-@pytest.mark.parametrize(("d", "blocks"), [(32, False), (60, False), (160, False), (160, True)])
-def test_shared_attention_pads_and_blocks_exactly(monkeypatch, d, blocks):
-    """`mlx.attention`: a head size MLX does not fuse is zero-padded (smaller) or run in query blocks (larger)."""
+@pytest.mark.parametrize(
+    ("d", "lq", "blocks"), [(32, 300, False), (60, 300, False), (32, 50, False), (160, 300, False), (160, 300, True)]
+)
+def test_shared_attention_pads_and_blocks_exactly(monkeypatch, d, lq, blocks):
+    """`mlx.attention`: a head size MLX does not fuse is zero-padded (smaller; 300 x 260 scores, 50 x 260 unpadded)
+    or run in query blocks (larger)."""
     pytest.importorskip("mlx.core")
     import mlx.core as mx  # noqa: PLC0415 - optional (the mlx extra)
 
@@ -888,10 +891,10 @@ def test_shared_attention_pads_and_blocks_exactly(monkeypatch, d, blocks):
     from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415
 
     if blocks:  # one query block per 7 rows of scores
-        monkeypatch.setattr(mlx_core, "SDPA_BLOCK_BYTES", 2 * 3 * 40 * 4 * 7)
+        monkeypatch.setattr(mlx_core, "SDPA_BLOCK_BYTES", 2 * 3 * 260 * 4 * 7)
     torch.manual_seed(0)
-    q, k, v = (torch.randn(2, 3, n, d) for n in (50, 40, 40))
-    mask = torch.randn(1, 1, 50, 40)
+    q, k, v = (torch.randn(2, 3, n, d) for n in (lq, 260, 260))
+    mask = torch.randn(1, 1, lq, 260)
     for m in (None, mask):
         want = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=m, scale=0.1)
         got = mlx_core.attention(*map(to_mx, (q, k, v)), scale=0.1, mask=None if m is None else to_mx(m))

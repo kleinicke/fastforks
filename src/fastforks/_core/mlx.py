@@ -376,7 +376,9 @@ def attention(q: mx.array, k: mx.array, v: mx.array, *, scale: float, mask: mx.a
     """`mx.fast.scaled_dot_product_attention` of `[B, H, L, D]` heads, never materialising a large score matrix.
 
     MLX fuses only the head sizes `SDPA_FUSED_DIMS`; any other materialises the float32 scores. A smaller head size is
-    zero-padded to the next fused one (the same scores, the padded output columns zero, cut off), a larger one runs in
+    zero-padded to the next fused one (the same scores, the padded output columns zero, cut off) where the scores
+    outweigh the padded copies (`lq * lk > 2 * fused * (lq + lk)`; measured: 12 x 12 windows are leaner and in float32
+    faster unpadded, 16384 x 256 SegFormer scores 2.5 times leaner padded), a larger one runs in
     query blocks of `SDPA_BLOCK_BYTES` scores one after the other (`mx.depends`). The graph translation's attention
     (`mlx_graph`) and the hand-written networks share this.
     """
@@ -384,7 +386,11 @@ def attention(q: mx.array, k: mx.array, v: mx.array, *, scale: float, mask: mx.a
     if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):  # noqa: PLR2004 - [B, H, L, D]
         return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
     if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
-        pad = [(0, 0)] * 3 + [(0, next(f for f in SDPA_FUSED_DIMS if f > d) - d)]
+        fused = next(f for f in SDPA_FUSED_DIMS if f > d)
+        lq, lk = q.shape[-2], k.shape[-2]
+        if lq * lk <= 2 * fused * (lq + lk):  # the padded copies would outweigh the scores (short windows: 12 x 12)
+            return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+        pad = [(0, 0)] * 3 + [(0, fused - d)]
         out = mx.fast.scaled_dot_product_attention(
             mx.pad(q, pad), mx.pad(k, pad), mx.pad(v, pad), scale=scale, mask=mask
         )
