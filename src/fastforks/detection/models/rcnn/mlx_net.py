@@ -2,7 +2,7 @@
 
 The three parts of `model._Rcnn` that are not box arithmetic, channels last, in the run dtype:
 
-- `dense`: ResNet + FPN and the RPN head (one compiled function per input size). The levels P2..P5 stay on the GPU;
+- `dense`: ResNet + FPN and the RPN head (compiled stages, one in flight). The levels P2..P5 stay on the GPU;
   only the RPN head's maps come back (float32, in anchor order, all levels in two arrays).
 - `box_head`: ROIAlign of the proposals, the two FCs and the predictor (float32).
 - `mask_head`: ROIAlign of the detections, the four convs, the deconvolution and the predicted class's mask.
@@ -21,7 +21,7 @@ class only.
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -155,7 +155,7 @@ def _relu(x: mx.array) -> mx.array:
 
 
 class Net:
-    """The MLX network: the converted weights and one compiled dense function per input size."""
+    """The MLX network: the converted weights and the compiled stages of the dense pass."""
 
     def __init__(self, p32: dict[str, mx.array], a: Arch, dtype: str) -> None:
         """`p32` is `prepare`'s output, `a` the card's network shape, `dtype` the convolutions' and FCs' dtype."""
@@ -173,7 +173,13 @@ class Net:
                 p[key] = v if key.startswith(f32) else v.astype(dt)
         self.p = p
         mx.eval(p)
-        self._dense = mx.compile(self._forward)
+        names = [f"{_BU}.res{i + 2}.{j}" for i, n in enumerate(a.blocks) for j in range(n)]
+        self._stem = mx.compile(self._stem_fn)
+        self._blocks = [mx.compile(functools.partial(self._block, name=n, first=n.endswith(".0"))) for n in names]
+        levels = range(2, len(a.blocks) + 2)
+        self._lateral = {i: mx.compile(functools.partial(self._lateral_fn, level=i)) for i in levels}
+        self._output = {i: mx.compile(functools.partial(self._conv, name=f"backbone.fpn_output{i}")) for i in levels}
+        self._rpn = mx.compile(self._rpn_fn)
 
     def _gemm(self, name: str, w: mx.array) -> bool:
         """Whether the 1 x 1 convolution `name` (`[O, 1, 1, I]`) runs as a GEMM."""
@@ -192,8 +198,9 @@ class Net:
         wt = self.p[f"{name}.w"]
         return mx.conv2d(x, wt, stride=2 if name in self.strided else 1, padding=wt.shape[1] // 2) + b
 
-    def _features(self, x: mx.array) -> list[mx.array]:
-        """`model.features`: the network input `[1, H, W, 3]` -> P2..P6."""
+    def _stem_fn(self, x: mx.array) -> mx.array:
+        """The stem on the network input `[1, 3, H, W]` (float32): convolution, ReLU, max pooling, NHWC."""
+        x = x.transpose(0, 2, 3, 1).astype(self.dtype)
         w = self.p[f"{_BU}.stem.conv1.w"]
         x = _relu(mx.conv2d(x, w, stride=2, padding=3) + self.p[f"{_BU}.stem.conv1.b"])
         # 3 x 3 stride-2 max pooling with padding 1: zero padding is exact after the ReLU
@@ -204,37 +211,64 @@ class Net:
             (n, (h + 1) // 2, (wd + 1) // 2, 3, 3, c),
             ((h + 2) * (wd + 2) * c, 2 * (wd + 2) * c, 2 * c, (wd + 2) * c, c, 1),
         )
-        x = mx.max(windows, axis=(3, 4))
-        stages = []
-        for i, blocks in enumerate(self.a.blocks):
-            for j in range(blocks):
-                name = f"{_BU}.res{i + 2}.{j}"
-                out = _relu(self._conv(_relu(self._conv(x, f"{name}.conv1")), f"{name}.conv2"))
-                x = _relu(self._conv(out, f"{name}.conv3") + (self._conv(x, f"{name}.shortcut") if j == 0 else x))
-            stages.append(x)
-        top = len(stages) + 1
-        prev = self._conv(stages[-1], f"backbone.fpn_lateral{top}")
-        levels = [self._conv(prev, f"backbone.fpn_output{top}")]
-        for i in range(top - 1, 1, -1):
-            up = mx.repeat(mx.repeat(prev, 2, axis=1), 2, axis=2)  # nearest
-            prev = self._conv(stages[i - 2], f"backbone.fpn_lateral{i}") + up
-            levels.insert(0, self._conv(prev, f"backbone.fpn_output{i}"))
-        levels.append(levels[-1][:, ::2, ::2])  # `LastLevelMaxPool`: 1 x 1, stride 2
-        return levels
+        return mx.max(windows, axis=(3, 4))
+
+    def _block(self, x: mx.array, name: str, first: bool) -> mx.array:  # noqa: FBT001 - a partial's keyword
+        """The bottleneck block `name`."""
+        out = _relu(self._conv(_relu(self._conv(x, f"{name}.conv1")), f"{name}.conv2"))
+        return _relu(self._conv(out, f"{name}.conv3") + (self._conv(x, f"{name}.shortcut") if first else x))
+
+    def _lateral_fn(self, stage: mx.array, *prev: mx.array, level: int) -> mx.array:
+        """The FPN's top-down map at `level` (2..5): the lateral 1 x 1 [+ the nearest 2x upsampling of `prev`]."""
+        x = self._conv(stage, f"backbone.fpn_lateral{level}")
+        return x + mx.repeat(mx.repeat(prev[0], 2, axis=1), 2, axis=2) if prev else x
+
+    def _rpn_fn(self, f: mx.array) -> tuple[mx.array, mx.array]:
+        """The RPN head's objectness logits and anchor deltas of one level (flat, in the run dtype)."""
+        t = _relu(self._conv(f, f"{_RPN}.conv"))
+        obj = self._conv(t, f"{_RPN}.objectness_logits").reshape(-1)
+        return obj, self._conv(t, f"{_RPN}.anchor_deltas").reshape(-1)
 
     def _forward(self, x: mx.array) -> tuple[mx.array, ...]:
-        """P2..P5, and the RPN head's objectness logits and anchor deltas of P2..P6 (float32, flat, level-major)."""
-        feats = self._features(x.transpose(0, 2, 3, 1).astype(self.dtype))
-        obj, deltas = [], []
-        for f in feats:
-            t = _relu(self._conv(f, f"{_RPN}.conv"))
-            obj.append(self._conv(t, f"{_RPN}.objectness_logits").reshape(-1))
-            deltas.append(self._conv(t, f"{_RPN}.anchor_deltas").reshape(-1))
-        return (*feats[:-1], mx.concatenate(obj).astype(mx.float32), mx.concatenate(deltas).astype(mx.float32))
+        """P2..P5, and the RPN head's objectness logits and anchor deltas of P2..P6 (float32, flat, level-major).
+
+        Compiled steps (the stem, each block, each FPN lateral and output conv, the RPN head per level), each queued
+        while the one before it finishes (one in flight); the FPN's and RPN head's steps also wait for themselves.
+        MLX returns a command buffer's transients only when it completes: one compiled function over the whole pass
+        held every block's intermediates at once, and one over the FPN or the RPN head every level's 3 x 3 Winograd
+        transforms (800 x 1344 float16: network peak 745 MB, the graph translation 432 MB; stepped, 412 MB).
+        """
+        prev = None
+
+        def step(y: Any, *, wait: bool = False) -> Any:  # noqa: ANN401 - an array or a tuple of them
+            nonlocal prev
+            mx.async_eval(y)
+            if prev is not None:
+                mx.eval(prev)
+            prev = None if wait else y
+            if wait:
+                mx.eval(y)
+            return y
+
+        x = step(self._stem(x))
+        stages, ends = [], {sum(self.a.blocks[: i + 1]) - 1 for i in range(len(self.a.blocks))}
+        for k, block in enumerate(self._blocks):
+            x = step(block(x))
+            if k in ends:
+                stages.append(x)
+        top, feats, down = len(stages) + 1, [], ()
+        for level in range(top, 1, -1):
+            down = (step(self._lateral[level](stages[level - 2], *down), wait=True),)
+            feats.insert(0, step(self._output[level](down[0]), wait=True))
+        del stages, down
+        feats.append(feats[-1][:, ::2, ::2])  # `LastLevelMaxPool`: 1 x 1, stride 2
+        heads = [step(self._rpn(f), wait=True) for f in feats]
+        obj = mx.concatenate([o for o, _ in heads]).astype(mx.float32)
+        return (*feats[:-1], obj, mx.concatenate([d for _, d in heads]).astype(mx.float32))
 
     def dense(self, x: torch.Tensor) -> tuple[list[mx.array], list[tuple[torch.Tensor, torch.Tensor, tuple[int, int]]]]:
         """The network input `[1, 3, H, W]` (float32, CPU) -> P2..P5 (on the GPU) and `model._top_proposals`' maps."""
-        *levels, obj, deltas = self._dense(to_mx(x.float()))
+        *levels, obj, deltas = self._forward(to_mx(x.float()))
         mx.eval(obj, deltas)
         obj_t, deltas_t = to_torch(obj), to_torch(deltas).view(-1, 4)
         maps, at = [], 0
