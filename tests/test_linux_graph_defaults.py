@@ -128,6 +128,7 @@ def _profile_model(
     monkeypatch.setattr(cuda_graphs.sys, "platform", "linux")
     monkeypatch.setattr(linux_graph_defaults.os, "getenv", lambda _key, default=None: default)
     monkeypatch.setattr(linux_graph_defaults, "_gpu_name", lambda _dev: "test GPU")
+    monkeypatch.setattr(linux_graph_defaults, "_gpu_memory", lambda _dev: 16_616_521_728)
     monkeypatch.setattr(torch.cuda, "get_allocator_backend", lambda: "native")
     monkeypatch.setattr(torch.cuda, "device", lambda _dev: contextlib.nullcontext())
     monkeypatch.setattr(model_api.warmup, "wait", lambda _dev: None)
@@ -224,6 +225,13 @@ def test_measured_graph_uses_the_standard_cuda_backend_settings(monkeypatch: pyt
         override.setattr(linux_graph_defaults.os, "getenv", custom_attention)
         assert not linux_graph_defaults.allows(model, image)
     assert linux_graph_defaults.allows(model, image)
+
+
+def test_lower_vram_board_with_matching_name_stays_eager(monkeypatch: pytest.MonkeyPatch) -> None:
+    model, image = _profile_model(monkeypatch)
+    assert linux_graph_defaults.allows(model, image)
+    monkeypatch.setattr(linux_graph_defaults, "_gpu_memory", lambda _dev: 8 << 30)
+    assert not linux_graph_defaults.allows(model, image)
 
 
 def test_windows_no_scope_keeps_legacy_and_explicit_deny_is_sticky(monkeypatch: pytest.MonkeyPatch) -> None:

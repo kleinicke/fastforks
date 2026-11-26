@@ -661,9 +661,9 @@ result.save("disparity.tif", bits=10)  # 7-10x smaller than raw, error <= 0.05 %
 ## Video and repeated sizes
 
 On Linux, Fastforks captures a CUDA graph only for a measured workload where replay has earned back the capture
-cost within 15 full requests. Eligibility depends on the model, CUDA runtime, allocator, Torch backend settings,
-and input layout and size. Other requests run eagerly. Where a model exposes `cuda_graphs`, setting it to `False`
-always keeps inference eager.
+cost within 15 full requests. Eligibility depends on the model, GPU and its memory capacity, CUDA runtime,
+allocator, Torch backend settings, and input layout and size. Other requests run eagerly. Where a model exposes
+`cuda_graphs`, setting it to `False` always keeps inference eager.
 
 Keep the model and the frame size fixed. The first call at a new size is slower (memory planning, cuDNN plans), so
 warm up at each size before timing: 4 calls for kernels models that replay CUDA graphs (Fast-ACVNet, CoEx, LAS2,
