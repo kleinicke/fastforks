@@ -28,6 +28,7 @@ in float32 and its memory modules in the compute dtype.
 from __future__ import annotations
 
 import bisect
+import sys
 import threading
 from dataclasses import dataclass
 from functools import partial
@@ -36,7 +37,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.checkpoint import load_strict
+from fastforks._core.checkpoint import _safetensors_header, load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
@@ -68,6 +69,7 @@ from .video import HostCopies, Tracker, prefetch
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
 SIZE = 1008  # fixed: SAM 3 input side (upstream Sam3Processor resolution)
 PATCH = 14  # fixed: ViT patch size
@@ -83,6 +85,7 @@ VISUAL = "visual"  # fixed: the text of a boxes-only prompt (upstream Sam3Proces
 PREFIX = "detector_model."  # fixed: the image detector's keys in model.safetensors (the rest is the video tracker)
 TRACKER = ("tracker_model.", "tracker_neck.")  # the video tracker's keys (not loaded); every other tensor must fit
 TRACKER_UNUSED = ("fpn_layers.3.",)  # fixed: the tracker neck's 0.5x level (upstream drops it)
+_DET_WINDOW_BYTES = 1 << 20  # small tensors share the ordinary mapping
 
 
 def build() -> Sam3:
@@ -92,11 +95,47 @@ def build() -> Sam3:
     return Sam3(VisionEncoder(vit, Neck(1024, 256)), TextEncoder(text))
 
 
+def _mapped_detector(ctx: Context) -> bool:
+    """Use independent checkpoint mappings only for the verified Linux CUDA detector."""
+    return (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.variant.ref == "sam3@1"
+        and not ctx.params.stream
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
+def _detector_state(path: Path, expected: set[str]) -> dict[str, torch.Tensor]:
+    """Give large detector tensors independent COW mappings so consumed source pages can leave RSS."""
+    import numpy as np  # noqa: PLC0415 - Linux CUDA checkpoint scratch
+    from safetensors import safe_open  # noqa: PLC0415 - optional checkpoint path
+
+    state = {}
+    with path.open("rb", buffering=0) as source, safe_open(path, framework="pt", device="cpu") as mapped:
+        # safe_open validates the complete layout and serves the small tensor views.
+        base, entries = _safetensors_header(source, path)
+        for k, (dtype, shape, start, end) in entries.items():
+            name = k.removeprefix(PREFIX)
+            if name not in expected and name.startswith((*TRACKER, *UNUSED)):
+                continue
+            if end - start < _DET_WINDOW_BYTES:
+                state[name] = mapped.get_tensor(k)
+            else:
+                region = np.memmap(source, dtype=np.uint8, mode="c", offset=base + start, shape=(end - start,))
+                state[name] = torch.from_numpy(region).view(dtype).reshape(shape)
+    return state
+
+
 def load_net(ctx: Context) -> Sam3:
     """`build()` with the checkpoint's detector weights (CPU, float32; the tracker's keys are skipped)."""
-    sd = {k.removeprefix(PREFIX): v for k, v in ctx.state_dict(0, strip="").items()}
+    split = _mapped_detector(ctx)
+    sd = None if split else {k.removeprefix(PREFIX): v for k, v in ctx.state_dict(0, strip="").items()}
     with torch.device("meta"):
         net = build()
+    if sd is None:
+        sd = _detector_state(ctx.weights()[0], set(net.state_dict()))
     load_strict(net, sd, f"{ctx.variant.ref} checkpoint", unused=(*TRACKER, *UNUSED), assign=True)
     return net.eval()
 
@@ -450,7 +489,9 @@ class Kernels(_Sam3):
         fastbb.load(ctx.device)  # BackendUnavailableError before the 3.4 GB checkpoint is read
         cudnn_hacc.load(ctx.device)
         net = load_net(ctx)
-        self.encoder = FastEncoder(net.vision_encoder, ctx.device, stream=ctx.params.stream)
+        self.encoder = FastEncoder(
+            net.vision_encoder, ctx.device, stream=ctx.params.stream, consume=_mapped_detector(ctx)
+        )
         override(net.mask_decoder.pixel_decoder, pixel_decode)
         self.prepare = normalized_rgb
         self.fp16_accumulate = fp16_accumulate

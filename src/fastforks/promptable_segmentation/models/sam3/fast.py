@@ -11,6 +11,7 @@ Input: the normalised `[1, 3, 1008, 1008]` image; output: the three neck levels 
 
 from __future__ import annotations
 
+from collections import deque
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -57,14 +58,16 @@ def _bias(conv: torch.nn.Conv2d | torch.nn.ConvTranspose2d) -> torch.Tensor:
 class FastEncoder:
     """`VisionEncoder` (trunk + neck) in fp16 with fp16 accumulation, for the 1008 x 1008 input only."""
 
-    def __init__(self, enc: VisionEncoder, device: torch.device, *, stream: bool = False) -> None:
+    def __init__(
+        self, enc: VisionEncoder, device: torch.device, *, stream: bool = False, consume: bool = False
+    ) -> None:
         """Convert the CPU float32 encoder to fp16 (packed q / k / v, channels-last convs) on `device`.
 
         Raises:
             BackendUnavailableError: An unexpected structure (head size, window grid), or a kernel library is unusable.
         """
         vit = enc.backbone
-        layers = cast("list[ViTLayer]", list(vit.layers))
+        layers = deque(cast("list[ViTLayer]", list(vit.layers)))
         dim, heads = int(layers[0].layer_norm1.normalized_shape[0]), int(layers[0].attention.heads)
         window = int(next(layer.window for layer in layers if layer.window))
         if dim // heads != HEAD or GRID % window:
@@ -77,7 +80,11 @@ class FastEncoder:
         self.flash = fastbb.Flash64("hh")
         self.layout = [(layer.window, layer.layer_norm1.eps, layer.layer_norm2.eps) for layer in layers]
         storage = torch.device("cpu") if stream else device
-        self.layers = [self._layer(layer, storage) for layer in layers]
+        if consume:
+            del vit.layers  # each independently mapped layer can die as soon as it has been converted
+            self.layers = [self._layer(layers.popleft(), storage) for _ in range(len(layers))]
+        else:
+            self.layers = [self._layer(layer, storage) for layer in layers]
         self.host: HostBlocks | None = None
         if stream:
             # The packed projections feed the native GEMMs directly in both modes.
