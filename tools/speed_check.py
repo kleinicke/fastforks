@@ -365,6 +365,13 @@ class _Capture:
     def __call__(self, *args: Any, **kw: Any) -> Any:  # noqa: ANN401
         return self._record(self.__dict__["_runner"])(*args, **kw)
 
+    def run_with_post(self, image: Any, post: Callable[[Any], Any]) -> Any:  # noqa: ANN401
+        """Record the restoration runner's input while preserving its public output handling."""
+        runner = self.__dict__["_runner"]
+        if self.__dict__["_args"] is None:
+            self.__dict__["_args"] = (runner, (image,), {})
+        return runner.run_with_post(image, post)
+
     def __getattr__(self, name: str) -> Any:  # noqa: ANN401
         value = getattr(self.__dict__["_runner"], name)
         return self._record(value) if name in self.METHODS else value
