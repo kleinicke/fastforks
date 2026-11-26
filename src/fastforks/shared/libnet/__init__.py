@@ -148,7 +148,7 @@ def _mapped_timm_implementation(ctx: Context, index: int = 0) -> str | None:
         and sys.platform == "linux"
         and ctx.dtype == "float16"
         and getattr(getattr(ctx, "card", None), "family", None) == "siglip2"
-        and ctx.variant.ref == "siglip2-g16-256@1"
+        and ctx.variant.ref in {"siglip2-g16-256@1", "siglip2-g16-384@1"}
     ):
         return None
     if (
