@@ -88,12 +88,23 @@ def _block_fn(heads: int, sr: int, eps: tuple[float, float, float], scale: float
 _PENDING: list[mx.array] = []  # the step in flight (`_step`)
 
 
+SYNC_BYTES = 8 << 20
+"""A step whose output is at least this large also waits for itself (`_step`)."""
+
+
 def _step(x: mx.array) -> mx.array:
-    """Schedule `x` and wait for the step before it (pipeline depth 1: the GPU stays busy, the transients bounded)."""
+    """Schedule `x` and wait for the step before it (pipeline depth 1: the GPU stays busy, the transients bounded).
+
+    A step of at least `SYNC_BYTES` (stage 1 and the head) waits for itself
+    too: its transients are many times its output, and two such steps in flight held both.
+    """
     mx.async_eval(x)
     if _PENDING:
         mx.eval(_PENDING.pop())
-    _PENDING.append(x)
+    if x.nbytes >= SYNC_BYTES:
+        mx.eval(x)
+    else:
+        _PENDING.append(x)
     return x
 
 
@@ -164,11 +175,18 @@ class MlxSegFormer:
                 x = _step(fn(x, *w))
             x = _step(_norm(feps)(x, fw, fb))
             feats.append(x)
+        # the head's sum at stage 1's resolution, a stage per step; no name keeps the summands or the sum before, so
+        # MLX can write each sum into a summand's buffer (with them held: about 5 maps of the 768-channel sum alive
+        # in b5, network peak 1.4x the graph translation's in float32)
         size = feats[0].shape[1:3]
         acc = None
-        for f, w in zip(feats, self.head, strict=True):
-            y = resize(f @ w, size)
-            acc = y if acc is None else acc + y
-            acc = _step(acc)
+        for i, w in enumerate(self.head):
+            y = resize(feats[i] @ w, size)
+            if acc is not None:
+                y, acc = acc + y, None
+            if i == len(self.head) - 1:
+                y = mx.maximum(y + self.head_b, 0)
+            acc = _step(y)
+            del y
         assert acc is not None  # noqa: S101 - four stages
-        return mx.addmm(self.cls_b, mx.maximum(acc + self.head_b, 0), self.cls_w).astype(mx.float32)
+        return mx.addmm(self.cls_b, acc, self.cls_w).astype(mx.float32)
