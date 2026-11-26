@@ -421,7 +421,13 @@ def test_card_kernels_match_imports(task):
         # the CUDA one's: check each list on its own.
         metal, mlx = {u for u in used if u.endswith("_metal")}, {u for u in used if u.endswith("_mlx")}
         cuda = used - metal - mlx
-        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
+        # Recover-MN reports seg_conv when its guarded Linux acceleration loads it. Other devices and shapes
+        # can use the same runner and the original depthwise convolution without that library.
+        optional_cuda = {"seg_conv"} if (task, card.family) == ("flow", "recover") else set()
+        required_cuda = set(card.kernel_libs)
+        assert optional_cuda <= direct & cuda
+        assert optional_cuda.isdisjoint(required_cuda)
+        _kernel_import_bounds(card.family, required_cuda, (direct & cuda) - optional_cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
         # A hand-written MLX network (AANet, CoEx, DLNR, HITNet) calls the `graph_mlx` ops from its portable runner
         # too: without an MLX kernels mode there is no kernels list for them to go in.
