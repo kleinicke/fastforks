@@ -21,6 +21,7 @@ shape.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from math import sqrt
 from typing import TYPE_CHECKING, Any
@@ -259,6 +260,11 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _capture_warmup(x: torch.Tensor) -> bool:
+    """Keep the checked warm-up for deferred plans, exotic layouts and other platforms."""
+    return sys.platform != "linux" or cudnn_hacc.BUILD_AFTER > 0 or not x.is_contiguous()
+
+
 class Kernels(_AnyCalib):
     """`fastbb` ViT-L (flash attention, fused block GEMMs), `cudnn_hacc` decoder, network + fit in a CUDA graph."""
 
@@ -283,7 +289,11 @@ class Kernels(_AnyCalib):
         after = cudnn_hacc.capture_after()
         # the network and the camera fit (its ~2,000 small Gauss-Newton launches are host-bound on Windows)
         eager = super()._camera
-        self.graphs = GraphCache(eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(eager, graphs=1, capture_after=after, capture_warmup=_capture_warmup)
+            if ctx.params.cuda_graphs
+            else None
+        )
 
     def _rays(self, x: torch.Tensor) -> torch.Tensor:
         net, fast = self.net, self.fast
