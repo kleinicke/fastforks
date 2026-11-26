@@ -49,7 +49,7 @@ def _model() -> TrackingModel:
     m = object.__new__(TrackingModel)
     m.device = torch.device("cpu")
     m._check_size = lambda _: None
-    m._session = torch.no_grad
+    m._session = lambda **_kwargs: torch.no_grad()
     m._runner = SimpleNamespace()
     return m
 
