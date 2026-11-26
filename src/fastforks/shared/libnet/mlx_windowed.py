@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from torch import nn
 
-from fastforks._core.mlx import mx, to_mx
+from fastforks._core.mlx import attention, mx, to_mx
 from fastforks.shared.libnet.mlx_cnn import _chain, _conv, _norm
 from fastforks.shared.mlx_vit import gelu
 
@@ -94,7 +94,7 @@ def _window_attention(
             q, k, v = (t.reshape(b, nw * heads, n, d) for t in (q, k, v))
         else:
             q, k, v = (t.reshape(b * nw, heads, n, d) for t in (q, k, v))
-        y = mx.fast.scaled_dot_product_attention(q, k, v, scale=d**-0.5, mask=bias)
+        y = attention(q, k, v, scale=d**-0.5, mask=bias)
         y = y.reshape(b, nw, heads, n, d).transpose(0, 1, 3, 2, 4).reshape(b, nw, n, heads * d)
         return proj(y)
 

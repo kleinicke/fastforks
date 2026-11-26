@@ -41,6 +41,7 @@ import torch
 import torch.utils._pytree as pytree
 
 from fastforks._core import decoder_ops as _decoder_ops  # noqa: F401 - registers `fastforks::up2_skip`
+from fastforks._core import mlx as mlx_core
 from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype` / `float32`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.mlx import mx, to_mx, to_torch
@@ -851,10 +852,7 @@ OPS[aten.dot.default] = mx.inner
 OPS[aten.einsum.default] = lambda eq, ts: mx.einsum(eq, *ts)
 
 
-SDPA_FUSED_DIMS = (64, 72, 80, 96, 128)
-"""Head sizes `mx.fast.scaled_dot_product_attention` runs fused (measured, MLX 0.32); others materialise the scores."""
-SDPA_BLOCK_BYTES = 128 << 20
-"""Float32 scores per query block of an unfused attention whose whole score matrix would exceed twice this."""
+SDPA_FUSED_DIMS, SDPA_BLOCK_BYTES = mlx_core.SDPA_FUSED_DIMS, mlx_core.SDPA_BLOCK_BYTES  # see `mlx_core.attention`
 
 
 _MASK_FLOOR = {mx.float16: -32752.0, mx.bfloat16: -1.6947656946257677e38}  # half the dtype's finite minimum
@@ -891,31 +889,7 @@ def _sdpa(
         mask = "causal"
     elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
         mask = _additive_mask(mask, q.dtype)
-    d = q.shape[-1]
-    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):
-        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
-    if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
-        # zero-padded to the next fused head size: the same scores, no materialised score matrix (and faster)
-        pad = [(0, 0)] * 3 + [(0, next(f for f in SDPA_FUSED_DIMS if f > d) - d)]
-        out = mx.fast.scaled_dot_product_attention(
-            mx.pad(q, pad), mx.pad(k, pad), mx.pad(v, pad), scale=scale, mask=mask
-        )
-        return out[..., :d]
-    b, h, lq, _ = q.shape
-    row = b * h * k.shape[-2] * 4  # bytes of one query's float32 scores
-    if lq * row <= 2 * SDPA_BLOCK_BYTES:
-        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
-    # a head size MLX does not fuse materialises the scores: query blocks one after the other (`mx.depends`) bound them
-    blk = max(1, SDPA_BLOCK_BYTES // row)
-    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq
-    outs: list[mx.array] = []
-    for i in range(0, lq, blk):
-        qi = q[:, :, i : i + blk]
-        if outs:
-            qi = mx.depends(qi, outs[-1])
-        mi = mask[..., i : i + blk, :] if per_query else mask
-        outs.append(mx.fast.scaled_dot_product_attention(qi, k, v, scale=scale, mask=mi))
-    return mx.concatenate(outs, axis=2)
+    return mlx_core.attention(q, k, v, scale=scale, mask=mask)
 
 
 WIN_ATTN_OFF = bool(os.environ.get("FF_MLX_NO_WIN_ATTN"))  # masked short attention through `_sdpa` (summed mask)

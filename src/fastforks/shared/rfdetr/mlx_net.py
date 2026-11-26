@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core.mlx import attention, mx, to_mx, to_torch
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared import mlx_vit
 
@@ -427,7 +427,7 @@ class MlxRFDETR:
             qk = _linear(x + qpos, p["qk"])
             v = _linear(x, p["v"])
             hd = d // self.sa_heads
-            att = mx.fast.scaled_dot_product_attention(
+            att = attention(
                 _heads(qk[..., :d], self.sa_heads), _heads(qk[..., d:], self.sa_heads), _heads(v, self.sa_heads),
                 scale=hd**-0.5,
             ).transpose(0, 2, 1, 3).reshape(b, q, d)  # fmt: skip
@@ -474,7 +474,7 @@ class MlxRFDETR:
         qk = _linear(comb + self.kp_pos, p["kp_qk"])
         v = _linear(comb, p["kp_v"])
         nh = self.kp_heads
-        att = mx.fast.scaled_dot_product_attention(
+        att = attention(
             _heads(qk[..., :d], nh), _heads(qk[..., d:], nh), _heads(v, nh), scale=(d // nh) ** -0.5,
             mask=self.kp_mask,
         ).transpose(0, 2, 1, 3).reshape(b * q, 1 + k, d)  # fmt: skip

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import nn
 
-from fastforks._core.mlx import mx, to_mx
+from fastforks._core.mlx import attention, mx, to_mx
 from fastforks.shared.libnet.mlx_cnn import _activation, _chain, _conv, _linear, _norm, _pool2d
 
 if TYPE_CHECKING:
@@ -137,7 +137,7 @@ def _attention(attn: Any, dtype: mx.Dtype, gamma: torch.Tensor | None) -> Callab
         b, h, w, _ = x.shape
         # the qkv channels are (head, q / k / v, dim) (`head_first`)
         t = qkv(x.reshape(b, h * w, -1)).reshape(b, h * w, heads, 3, d).transpose(3, 0, 2, 1, 4)
-        out = mx.fast.scaled_dot_product_attention(t[0], t[1], t[2], scale=scale, mask=bias)
+        out = attention(t[0], t[1], t[2], scale=scale, mask=bias)
         return proj(out.transpose(0, 2, 1, 3).reshape(b, h, w, heads * d))
 
     return apply

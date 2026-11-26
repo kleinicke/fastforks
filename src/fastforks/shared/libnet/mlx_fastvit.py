@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import nn
 
-from fastforks._core.mlx import mx
+from fastforks._core.mlx import attention, mx
 from fastforks.shared.libnet.mlx_cnn import _chain, _linear
 from fastforks.shared.libnet.mlx_cnn import _conv_k as _conv
 from fastforks.shared.libnet.mlx_cnn import _gelu_f32 as _gelu
@@ -119,7 +119,7 @@ def _attention(block: Any, dtype: mx.Dtype) -> Callable:
         b, h, w_, c = x.shape
         n = h * w_
         t = qkv(x.reshape(b, n, c)).reshape(b, n, 3, heads, hd).transpose(2, 0, 3, 1, 4)
-        o = mx.fast.scaled_dot_product_attention(t[0], t[1], t[2], scale=scale)
+        o = attention(t[0], t[1], t[2], scale=scale)
         return proj(o.transpose(0, 2, 1, 3).reshape(b, n, c)).reshape(b, h, w_, c)
 
     return apply

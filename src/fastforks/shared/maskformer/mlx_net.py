@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import numpy as np
 import torch
 
-from fastforks._core.mlx import metal_kernel, mx
+from fastforks._core.mlx import attention, metal_kernel, mx
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared import mlx_vit
 
@@ -255,7 +255,7 @@ def _attend(q: mx.array, k: mx.array, v: mx.array, mask: mx.array | None = None)
     def heads(t: mx.array) -> mx.array:
         return t.reshape(1, -1, _HEADS, d).transpose(0, 2, 1, 3)
 
-    o = mx.fast.scaled_dot_product_attention(heads(q), heads(k), heads(v), scale=d**-0.5, mask=mask)
+    o = attention(heads(q), heads(k), heads(v), scale=d**-0.5, mask=mask)
     return o.transpose(0, 2, 1, 3).reshape(-1, e)
 
 
@@ -291,7 +291,7 @@ class _Swin:
             else:
                 q, k, v = (part[:, :, i].transpose(0, 2, 1, 3) for i in range(3))
                 bias = masks[0] if len(masks) == 1 else masks[0] + masks[1]
-                o = mx.fast.scaled_dot_product_attention(q, k, v, scale=self.scale, mask=bias)
+                o = attention(q, k, v, scale=self.scale, mask=bias)
             out.append(o.transpose(0, 2, 1, 3).reshape(-1, c))
         return out[0] if len(out) == 1 else mx.concatenate(out)
 

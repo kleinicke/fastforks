@@ -26,6 +26,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from fastforks._core import mlx as mlx_core
 from fastforks._core.mlx import mx, to_mx, to_torch
 
 if TYPE_CHECKING:
@@ -111,7 +112,7 @@ def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
         q, k = y[0], y[1]
     if rope is not None:  # float32 tables (Perception Encoder): rotated in float32, as timm
         q, k = rotate(q, *rope).astype(qkv.dtype), rotate(k, *rope).astype(qkv.dtype)
-    out = mx.fast.scaled_dot_product_attention(q, k, qkv[2], scale=d**-0.5)
+    out = mlx_core.attention(q, k, qkv[2], scale=d**-0.5)
     return out.transpose(0, 2, 1, 3).reshape(b, n, heads * d)
 
 

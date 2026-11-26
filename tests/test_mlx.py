@@ -878,6 +878,28 @@ def test_float_attention_mask_stays_finite_in_float16(fused):
     assert torch.isfinite(to_torch(clamped)[0, 0, :4]).all()
 
 
+@pytest.mark.parametrize(("d", "blocks"), [(32, False), (60, False), (160, False), (160, True)])
+def test_shared_attention_pads_and_blocks_exactly(monkeypatch, d, blocks):
+    """`mlx.attention`: a head size MLX does not fuse is zero-padded (smaller) or run in query blocks (larger)."""
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415 - optional (the mlx extra)
+
+    from fastforks._core import mlx as mlx_core  # noqa: PLC0415
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415
+
+    if blocks:  # one query block per 7 rows of scores
+        monkeypatch.setattr(mlx_core, "SDPA_BLOCK_BYTES", 2 * 3 * 40 * 4 * 7)
+    torch.manual_seed(0)
+    q, k, v = (torch.randn(2, 3, n, d) for n in (50, 40, 40))
+    mask = torch.randn(1, 1, 50, 40)
+    for m in (None, mask):
+        want = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=m, scale=0.1)
+        got = mlx_core.attention(*map(to_mx, (q, k, v)), scale=0.1, mask=None if m is None else to_mx(m))
+        torch.testing.assert_close(to_torch(got), want, atol=1e-5, rtol=1e-5)
+    half = mlx_core.attention(*(to_mx(t).astype(mx.float16) for t in (q, k, v)), scale=0.1)
+    assert half.dtype == mx.float16
+
+
 def test_signature_caches_keep_the_most_recent_shapes(caplog):
     """`MlxModule` holds one exported graph per input signature, at most `SIGNATURES`; an evicted one exports again."""
     pytest.importorskip("mlx.core")

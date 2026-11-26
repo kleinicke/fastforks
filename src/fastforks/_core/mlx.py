@@ -65,10 +65,13 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DTYPES",
+    "SDPA_BLOCK_BYTES",
+    "SDPA_FUSED_DIMS",
     "TUNING",
     "Converted",
     "Gpu",
     "Tuning",
+    "attention",
     "cache_request_limit",
     "convert_cached",
     "converted",
@@ -361,6 +364,45 @@ def to_torch(a: mx.array) -> torch.Tensor:
     a = a.astype(mx.float32)
     mx.eval(a)
     return torch.from_numpy(np.array(a))
+
+
+SDPA_FUSED_DIMS = (64, 72, 80, 96, 128)
+"""Head sizes `mx.fast.scaled_dot_product_attention` runs fused (measured, MLX 0.32); others materialise the scores."""
+SDPA_BLOCK_BYTES = 128 << 20
+"""Float32 scores per query block of an unfused attention whose whole score matrix would exceed twice this."""
+
+
+def attention(q: mx.array, k: mx.array, v: mx.array, *, scale: float, mask: mx.array | str | None = None) -> mx.array:
+    """`mx.fast.scaled_dot_product_attention` of `[B, H, L, D]` heads, never materialising a large score matrix.
+
+    MLX fuses only the head sizes `SDPA_FUSED_DIMS`; any other materialises the float32 scores. A smaller head size is
+    zero-padded to the next fused one (the same scores, the padded output columns zero, cut off), a larger one runs in
+    query blocks of `SDPA_BLOCK_BYTES` scores one after the other (`mx.depends`). The graph translation's attention
+    (`mlx_graph`) and the hand-written networks share this.
+    """
+    d = q.shape[-1]
+    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):  # noqa: PLR2004 - [B, H, L, D]
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
+        pad = [(0, 0)] * 3 + [(0, next(f for f in SDPA_FUSED_DIMS if f > d) - d)]
+        out = mx.fast.scaled_dot_product_attention(
+            mx.pad(q, pad), mx.pad(k, pad), mx.pad(v, pad), scale=scale, mask=mask
+        )
+        return out[..., :d]
+    b, h, lq, _ = q.shape
+    row = b * h * k.shape[-2] * 4  # bytes of one query's float32 scores
+    if lq * row <= 2 * SDPA_BLOCK_BYTES:
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    blk = max(1, SDPA_BLOCK_BYTES // row)
+    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq  # noqa: PLR2004
+    outs: list[mx.array] = []
+    for i in range(0, lq, blk):
+        qi = q[:, :, i : i + blk]
+        if outs:
+            qi = mx.depends(qi, outs[-1])
+        mi = mask[..., i : i + blk, :] if per_query else mask
+        outs.append(mx.fast.scaled_dot_product_attention(qi, k, v, scale=scale, mask=mi))
+    return mx.concatenate(outs, axis=2)
 
 
 DTYPES = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}

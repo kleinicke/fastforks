@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from torch import nn
 
-from fastforks._core.mlx import mx, to_mx
+from fastforks._core.mlx import attention, mx, to_mx
 from fastforks.shared.libnet.mlx_cnn import _chain, _linear
 from fastforks.shared.libnet.mlx_cnn import _conv_k as _conv
 
@@ -76,7 +76,7 @@ def _shsa(m: Any, dtype: mx.Dtype) -> Callable:
         b, h, w, _ = x.shape
         t = qkv(norm(x[..., :pdim])).reshape(b, 1, h * w, 2 * qk + pdim)
         q, k, v = t[..., :qk], t[..., qk : 2 * qk], t[..., 2 * qk :]
-        o = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale).reshape(b, h, w, pdim)
+        o = attention(q, k, v, scale=scale).reshape(b, h, w, pdim)
         return proj(_relu(mx.concatenate([o, x[..., pdim:]], axis=-1)))
 
     return apply
