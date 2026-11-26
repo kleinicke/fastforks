@@ -188,6 +188,9 @@ class FastViT:
         """Context of the GEMMs: fp16 accumulation (subclasses without the kernels / flag return a null context)."""
         return _fp16_accumulate()
 
+    def _project_qkv(self, projection: nn.Linear, x: torch.Tensor) -> torch.Tensor:
+        return F.linear(x, projection.weight, projection.bias)
+
     def block(self, blk: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - duck-typed DINOv2 block
         """One pre-norm block (eval, no drop path)."""
         a, m = blk.attn, blk.mlp
@@ -195,7 +198,7 @@ class FastViT:
         h = a.num_heads
         if self.fused is not None and b * n >= FUSED_ROWS:
             return self._fused(self.fused, blk, x)
-        qkv = F.linear(blk.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
+        qkv = self._project_qkv(a.qkv, blk.norm1(x)).view(b, n, 3, h, c // h)
         o = F.linear(self.attend(qkv, (c // h) ** -0.5), a.proj.weight, a.proj.bias)
         g1 = getattr(blk.ls1, "gamma", None)
         x = torch.addcmul(x, o, g1) if g1 is not None else x + o
