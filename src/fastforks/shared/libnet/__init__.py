@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from fastforks._core.checkpoint import load_strict, mismatch_details, torch_mismatch
+from fastforks._core.checkpoint import load_mapped_safetensors, load_strict, mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_library_inits
 from fastforks._core.errors import (
     CardError,
@@ -191,11 +191,16 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
     """
     p = ctx.params
     if p.library == "timm":
-        overlay = {"state_dict": ctx.state_dict(index, strip="")}  # read (and hash-checked) by the core, loaded by timm
+        implementation = _mapped_timm_implementation(ctx, index) if "num_classes" not in kwargs else None
+        if implementation is not None and ctx.mode == "portable" and ctx.variant.ref == "siglip2-g16-256@1":
+            state = load_mapped_safetensors(ctx.weights()[index])
+        else:
+            state = ctx.state_dict(index, strip="")
+        overlay = {"state_dict": state}
         if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
             overlay["num_classes"] = kwargs["num_classes"]
         lib = timm()
-        if "num_classes" not in kwargs and (implementation := _mapped_timm_implementation(ctx, index)) is not None:
+        if implementation is not None:
             return _mapped_timm(ctx, lib, implementation, overlay["state_dict"], kwargs)
         # timm's ViT-style initialisers bypass torch.nn.init: deferred as well, every tensor the checkpoint loads skips
         # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)

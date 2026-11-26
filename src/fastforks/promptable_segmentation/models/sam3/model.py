@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.checkpoint import _safetensors_header, load_strict
+from fastforks._core.checkpoint import load_mapped_safetensors, load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
@@ -85,7 +85,6 @@ VISUAL = "visual"  # fixed: the text of a boxes-only prompt (upstream Sam3Proces
 PREFIX = "detector_model."  # fixed: the image detector's keys in model.safetensors (the rest is the video tracker)
 TRACKER = ("tracker_model.", "tracker_neck.")  # the video tracker's keys (not loaded); every other tensor must fit
 TRACKER_UNUSED = ("fpn_layers.3.",)  # fixed: the tracker neck's 0.5x level (upstream drops it)
-_DET_WINDOW_BYTES = 1 << 20  # small tensors share the ordinary mapping
 
 
 def build() -> Sam3:
@@ -109,23 +108,12 @@ def _mapped_detector(ctx: Context) -> bool:
 
 def _detector_state(path: Path, expected: set[str]) -> dict[str, torch.Tensor]:
     """Give large detector tensors independent COW mappings so consumed source pages can leave RSS."""
-    import numpy as np  # noqa: PLC0415 - Linux CUDA checkpoint scratch
-    from safetensors import safe_open  # noqa: PLC0415 - optional checkpoint path
 
-    state = {}
-    with path.open("rb", buffering=0) as source, safe_open(path, framework="pt", device="cpu") as mapped:
-        # safe_open validates the complete layout and serves the small tensor views.
-        base, entries = _safetensors_header(source, path)
-        for k, (dtype, shape, start, end) in entries.items():
-            name = k.removeprefix(PREFIX)
-            if name not in expected and name.startswith((*TRACKER, *UNUSED)):
-                continue
-            if end - start < _DET_WINDOW_BYTES:
-                state[name] = mapped.get_tensor(k)
-            else:
-                region = np.memmap(source, dtype=np.uint8, mode="c", offset=base + start, shape=(end - start,))
-                state[name] = torch.from_numpy(region).view(dtype).reshape(shape)
-    return state
+    def rename(key: str) -> str | None:
+        name = key.removeprefix(PREFIX)
+        return None if name not in expected and name.startswith((*TRACKER, *UNUSED)) else name
+
+    return load_mapped_safetensors(path, rename=rename)
 
 
 def load_net(ctx: Context) -> Sam3:

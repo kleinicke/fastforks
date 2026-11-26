@@ -252,6 +252,23 @@ def test_safetensors_reader_reads_every_dtype_into_buffers(tmp_path):
             f.read_into("f32", torch.empty(14)[::2])  # not contiguous
 
 
+def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path):
+    from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
+
+    path = tmp_path / "model.safetensors"
+    weight = torch.arange(1, (1 << 18) + 1, dtype=torch.float32).reshape(512, 512)
+    scale = torch.tensor([1, 2], dtype=torch.bfloat16)
+    save_file({"encoder.weight": weight, "scale": scale, "unused": torch.zeros(1)}, path)
+    names = {"encoder.weight": "weight", "scale": "scale"}
+    state = checkpoint.load_mapped_safetensors(path, rename=names.get)
+    assert state.keys() == set(names.values())
+    assert torch.equal(state["weight"], weight)
+    assert state["scale"].dtype == scale.dtype
+    assert torch.equal(state["scale"], scale)
+    state["weight"][0].zero_()
+    assert torch.equal(load_state_dict(path)["encoder.weight"], weight)
+
+
 def test_safetensors_reader_reads_from_threads(tmp_path):
     """`read_into` from several threads at once (`HostBlocks(workers=)`): each thread seeks its own handle."""
     import concurrent.futures  # noqa: PLC0415
