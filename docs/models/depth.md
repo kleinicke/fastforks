@@ -316,7 +316,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 - `distill-any-depth-s` load / first call: original 0.25 s / 0.036 s, portable 0.13 s / 0.159 s (518x770), kernels 0.96 s / 0.039 s (518x770)
 - `distill-any-depth-b` load / first call: original 0.84 s / 0.06 s, portable 0.29 s / 0.267 s (518x770), kernels 1.13 s / 0.039 s (518x770)
 - `distill-any-depth-l` load / first call: original 3.03 s / 0.14 s, portable 0.82 s / 0.142 s (518x770), kernels 1.68 s / 0.059 s (518x770)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, `depth-anything-v2-s`, `depth-anything-v2-b`, `depth-anything-v2-l`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 - Protocol, `depth-anything-v2-metric-hypersim-s`, `depth-anything-v2-metric-hypersim-b`, `depth-anything-v2-metric-hypersim-l`, `depth-anything-v2-metric-vkitti-s`, `depth-anything-v2-metric-vkitti-b`, `depth-anything-v2-metric-vkitti-l`, `distill-any-depth-s`, `distill-any-depth-b`, `distill-any-depth-l`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -431,7 +431,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 - `depth-pro` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 163 s (ONNX + engine).
 - `depth-pro` original 994x1482: torch.autocast(fp16) around the forward; fp16 = original's own precision=float16 model
 - `depth-pro` portable 994x1482: Temporary activations released after last use. Paired depth and camera outputs matched bitwise.
-- `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 6.2 s / 0.522 s, kernels 4.11 s / 0.265 s
+- `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 6.2 s / 0.701 s (518x770), kernels 4.11 s / 0.383 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -929,7 +929,7 @@ Commercial use: yes.
 - `midas-dpt-beit-large-512` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `midas-dpt-beit-large-512` original 994x1482: torch.autocast(fp16) around the forward
 - `midas-dpt-beit-large-512` load / first call: original 5.16 s / 1.135 s, portable 2.49 s / 0.093 s, kernels 0.28† s / 0.067 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -996,7 +996,7 @@ Commercial use: yes.
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 0.9 s / 0.329 s, kernels 0.63† s / 0.131 s
 - `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 2.31 s / 0.69 s (518x770), kernels 1.16 s / 0.742 s (518x770)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 - Protocol, `moge-2-vitl-normal`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1548,7 +1548,7 @@ Commercial use: yes.
 - `zoedepth-nk` original 994x1482: torch.autocast(fp16) around the forward
 - `zoedepth-nk` portable 994x1482: Batches the per-pixel distribution head in row groups, with bitwise identical synthetic and three iBims predictions.
 - `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 0.46 s / 0.493 s, kernels 0.33† s / 0.122 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

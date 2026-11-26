@@ -461,9 +461,9 @@ Commercial use: yes.
 - `sam2.1-hiera-large` original 1024x1024: torch.autocast(float16) around the call
 - `sam2.1-hiera-tiny` load / first call: original 0.41 s / 0.147 s, portable 0.25 s / 0.017† s, kernels 0.11† s / 0.014† s
 - `sam2.1-hiera-small` load / first call: original 0.48 s / 0.136 s, portable 0.36 s / 0.019† s, kernels 0.13† s / 0.016† s
-- `sam2.1-hiera-base-plus` load / first call: original 0.74 s / 0.143 s, portable 0.8 s / 0.032 s (840x1297), kernels 1.15 s / 0.026 s (840x1297)
-- `sam2.1-hiera-large` load / first call: original 1.95 s / 0.184 s, portable 1.46 s / 0.069 s (840x1297), kernels 2.07 s / 0.05 s (840x1297)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `sam2.1-hiera-base-plus` load / first call: original 0.74 s / 0.143 s, portable 0.8 s / 0.263 s, kernels 1.15 s / 0.24 s
+- `sam2.1-hiera-large` load / first call: original 1.95 s / 0.184 s, portable 1.46 s / 0.235 s, kernels 2.07 s / 0.218 s
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, `sam2.1-hiera-tiny`, `sam2.1-hiera-small`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 - Protocol, `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -541,7 +541,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - `sam3` 1024x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; 500-image COCO accuracy checked
 - `sam3` portable 1024x1024: Synthetic object prompt through the full API. No query exceeded the default threshold, so the portable mask decoder was skipped.
-- `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
+- `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.299 s, kernels 4.03 s / 0.205 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

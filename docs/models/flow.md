@@ -568,8 +568,9 @@ Commercial use: yes.
 - `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
 - `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
-- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242), kernels 2.49 s / 1.994 s
-- `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s, kernels 0.51 s / 0.632 s
+- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242), kernels 2.49 s / 1.04 s (375x1242)
+- `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433† s, kernels 0.51 s / 0.632 s
+- † measured after the portable load or an earlier input in the same process.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

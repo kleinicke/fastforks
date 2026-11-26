@@ -133,7 +133,7 @@ Commercial use: yes.
 - `deeplabv3plus-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `hrnet-w48-fcn-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `fcn-r101-d8-ade20k` load / first call: original 4.72 s / 0.393 s (512x512), portable 1.42 s / 0.102 s (512x512), kernels 4.35 s / 0.02 s (512x512)
-- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 1.42 s / 0.296 s (512x512), kernels 1.59 s / 0.025 s
+- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 1.42 s / 0.296 s (512x512), kernels 1.59 s / 0.041 s (512x512)
 - `deeplabv3-r101-d8-ade20k` load / first call: original 1.64 s / 0.031 s (512x512), portable 2.28 s / 0.112 s (512x512), kernels 1.92 s / 0.033 s (512x512)
 - `deeplabv3plus-r101-d8-ade20k` load / first call: original 4.72 s / 0.662 s (512x512), portable 1.11 s / 0.111 s (512x512), kernels 1.15 s / 0.022 s (512x512)
 - `hrnet-w48-fcn-ade20k` load / first call: original 1.48 s / 0.079 s (512x512), portable 1.18 s / 0.107 s (512x512), kernels 1.52 s / 0.025 s (512x512)
