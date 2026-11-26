@@ -393,7 +393,7 @@ def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the 
     `kernels` is always fp16. `auto`: a covered model on which no kernels pass applies comes back portable instead of
     raising (`patch(mode="auto")`). `family` (a `COVERED` key): the architecture family of a registry network that its
     class names do not reveal (e.g. `"cnn"`: a plain conv / SiLU / concat / pool net of our own).
-    `cast_cpu_weights`: upload trusted registry transformer weights in their final fp16 dtype.
+    `cast_cpu_weights`: upload trusted registry transformer weights directly in fp16 on CUDA.
     """
     if mode not in MODES:
         msg = f"optimize: mode must be one of {MODES}, got {mode!r}"
@@ -429,9 +429,8 @@ def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the 
         libs = []
     # after the kernels checks: a refusal up to here leaves the user's model as it was; the refusals after the passes
     # (no fast path applies, cudnn_hacc fails to load) leave it modified (see `patch`)
-    model = _move_weights(
-        model.eval(), dev, cast_cpu_weights=cast_cpu_weights and mode == "kernels" and family in {"vit", "swin"}
-    )
+    direct_half = cast_cpu_weights and fp16 and dev.type == "cuda" and family in {"vit", "swin"}
+    model = _move_weights(model.eval(), dev, cast_cpu_weights=direct_half)
     report: dict[str, Any] = {"mode": mode, "family": family or "generic", "device": str(dev)}
     if libs:
         report["kernels"] = libs

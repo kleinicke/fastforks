@@ -140,6 +140,29 @@ def torchvision() -> ModuleType:
     return torchvision
 
 
+def _mapped_timm_implementation(ctx: Context, index: int = 0) -> str | None:
+    """Select the mapped loader for a verified resident timm checkpoint on CUDA."""
+    mode = getattr(ctx, "mode", None)
+    if mode != "kernels" and not (
+        mode == "portable"
+        and sys.platform == "linux"
+        and ctx.dtype == "float16"
+        and getattr(getattr(ctx, "card", None), "family", None) == "siglip2"
+        and ctx.variant.ref == "siglip2-g16-256@1"
+    ):
+        return None
+    if (
+        ctx.device.type != "cuda"
+        or (implementation := _MAPPED_TIMM.get(ctx.card.family)) is None
+        or ctx.user_weights is not None
+        or ctx.user_state is not None
+        or (ctx.variant.weights[index].size or 0) < _MAPPED_WEIGHT_BYTES
+        or getattr(ctx.params, "stream", False)
+    ):
+        return None
+    return implementation
+
+
 def _mapped_timm(
     ctx: Context, lib: ModuleType, implementation: str, checkpoint: dict[str, torch.Tensor], options: dict[str, Any]
 ) -> torch.nn.Module:
@@ -172,16 +195,7 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
         if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
             overlay["num_classes"] = kwargs["num_classes"]
         lib = timm()
-        if (
-            getattr(ctx, "mode", None) == "kernels"
-            and ctx.device.type == "cuda"
-            and (implementation := _MAPPED_TIMM.get(ctx.card.family)) is not None
-            and ctx.user_weights is None
-            and ctx.user_state is None
-            and (ctx.variant.weights[index].size or 0) >= _MAPPED_WEIGHT_BYTES
-            and not getattr(p, "stream", False)
-            and "num_classes" not in kwargs
-        ):
+        if "num_classes" not in kwargs and (implementation := _mapped_timm_implementation(ctx, index)) is not None:
             return _mapped_timm(ctx, lib, implementation, overlay["state_dict"], kwargs)
         # timm's ViT-style initialisers bypass torch.nn.init: deferred as well, every tensor the checkpoint loads skips
         # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)
@@ -228,7 +242,7 @@ class _LibRunner(Runner):
             fp16=ctx.dtype == "float16",
             family=self.family,
             fuse_convs=self.fuse_convs,
-            cast_cpu_weights=True,
+            cast_cpu_weights=ctx.mode == "kernels",
         )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()
