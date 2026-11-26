@@ -37,6 +37,7 @@ from .net.modules.layers import Conv2d
 
 if TYPE_CHECKING:
     from fastforks.matting._runner import Context
+    from fastforks.shared.swin_v1.net.swin_v1 import BasicLayer
 
 
 @dataclass(frozen=True)
@@ -257,8 +258,8 @@ class Kernels(Portable):
             or self._prepared_geometry != geometry_stamp()
             or any(
                 (bias := getattr(block.attn, "_fast_bias", None)) is None or bias.dtype != image.dtype
-                for layer in self.net.backbone.layers
-                for block in layer.blocks
+                for layer in cast("swin_v1.SwinTransformer", self.net.backbone).layers
+                for block in cast("BasicLayer", layer).blocks
             )
         )
 
