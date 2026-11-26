@@ -9,6 +9,8 @@ it (upstream recomputes it per call).
 
 from __future__ import annotations
 
+import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING
@@ -89,9 +91,26 @@ class Sam(torch.nn.Module):
         )
 
 
+def _mapped_checkpoint(ctx: Context) -> bool:
+    """Use strict assignment from the verified Linux CUDA checkpoint."""
+    return (
+        sys.platform == "linux"
+        and ctx.device.type == "cuda"
+        and ctx.variant.ref == "sam-hq-vit-h@1"
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
 def _sam(ctx: Context) -> Sam:
-    sam = Sam(ctx.params)
-    load_strict(sam, ctx.state_dict(), f"{ctx.variant.ref} checkpoint")
+    assign = _mapped_checkpoint(ctx)
+    with torch.device("meta") if assign else nullcontext():
+        sam = Sam(ctx.params)
+    state = ctx.state_dict()
+    if assign and "image_encoder.pos_embed" in state:
+        # The checkpoint's channel-major table becomes NHWC-contiguous in the original copy.
+        state["image_encoder.pos_embed"] = state["image_encoder.pos_embed"].contiguous()
+    load_strict(sam, state, f"{ctx.variant.ref} checkpoint", assign=assign)
     return sam.eval()
 
 
@@ -154,8 +173,15 @@ class Portable(_Sam):
     def __init__(self, ctx: Context) -> None:
         """Build the network; the image encoder in the compute dtype."""
         super().__init__(ctx)
-        self.sam = _sam(ctx).to(ctx.device)
-        enc = self.sam.image_encoder.to(ctx.torch_dtype)
+        self.sam = _sam(ctx)
+        enc = self.sam.image_encoder
+        if ctx.torch_dtype == torch.float16 and _mapped_checkpoint(ctx):
+            # Upload the encoder directly in FP16; the prompts and HQ decoder run in FP32.
+            enc.to(device=ctx.device, dtype=ctx.torch_dtype)
+            self.sam.to(ctx.device)
+        else:
+            self.sam.to(ctx.device)
+            enc.to(ctx.torch_dtype)
         tokens = ctx.params.image_size // PATCH
         self.rel = [rel_tables(b, tokens, ctx.torch_dtype) for b in enc.blocks]
 
