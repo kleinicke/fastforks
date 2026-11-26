@@ -18,6 +18,7 @@ feature levels from a CUDA graph per input size. Scoring and NMS use ordinary al
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -56,10 +57,13 @@ def graph_maps(aliked: ALIKED, graphs: int = 2) -> GraphCache:
     extraction at a time, and none of the extraction's outputs is a view of them.
     """
     # The cache holds the bound method weakly, so it releases the pool when the model goes away.
-    override(aliked, _feature_levels, "feature_levels")
+    # Keep the full-resolution stem and projection out of the Linux native graph's private pool.
+    coarse = sys.platform == "linux" and torch.cuda.get_allocator_backend() == "native"
+    override(aliked, _coarse_levels if coarse else _feature_levels, "feature_levels")
     forward = cast("Callable[[torch.Tensor], tuple[torch.Tensor, ...]]", aliked.feature_levels)
     cache = GraphCache(forward, graphs=graphs)
     vars(aliked)["maps_graphs"] = cache
+    vars(aliked)["coarse_maps_graphs"] = coarse
     return cache
 
 
@@ -68,27 +72,56 @@ def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
     return out
 
 
+def _stem(self: ALIKED, image: torch.Tensor) -> torch.Tensor:
+    return self.block1(InputPadder(image.shape[-2], image.shape[-1], _DIV_BY).pad(image))
+
+
+def _coarse_blocks(self: ALIKED, pooled: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    x2 = self.block2(pooled)
+    x3 = self.block3(self.pool4(x2))
+    x4 = self.block4(self.pool4(x3))
+    return x2, x3, x4
+
+
+def _coarse_projections(self: ALIKED, blocks: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
+    return tuple(self.gate(head(x)) for head, x in zip((self.conv2, self.conv3, self.conv4), blocks, strict=True))
+
+
 def _feature_levels(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """The four feature levels of the padded image."""
+    """The four feature levels of the padded image, entirely eager or captured together."""
     with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
-        padder = InputPadder(image.shape[-2], image.shape[-1], _DIV_BY)
-        x1 = self.block1(padder.pad(image))
-        x2 = self.block2(self.pool2(x1))
-        x3 = self.block3(self.pool4(x2))
-        x4 = self.block4(self.pool4(x3))
-        return (
-            self.gate(self.conv1(x1)),
-            self.gate(self.conv2(x2)),
-            self.gate(self.conv3(x3)),
-            self.gate(self.conv4(x4)),
-        )
+        x1 = _stem(self, image)
+        blocks = _coarse_blocks(self, self.pool2(x1))
+        return self.gate(self.conv1(x1)), *_coarse_projections(self, blocks)
+
+
+def _coarse_levels(self: ALIKED, pooled: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """The three lower-resolution levels used by the Linux native graph."""
+    with torch.autocast(pooled.device.type, dtype=torch.float16, enabled=self.fp16):
+        return _coarse_projections(self, _coarse_blocks(self, pooled))
+
+
+def _graph_feature_levels(self: ALIKED, image: torch.Tensor, cache: GraphCache) -> tuple[torch.Tensor, ...]:
+    key = (image.device, image.dtype, tuple(image.shape))
+    if not vars(self).get("coarse_maps_graphs", False):
+        levels = cache.run(key, image, post=_static)
+        return _feature_levels(self, image) if levels is None else levels
+
+    with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
+        x1 = _stem(self, image)
+        pooled = self.pool2(x1)
+    levels = cache.run(key, pooled, post=_static)
+    if levels is None:
+        levels = _coarse_levels(self, pooled)
+    del pooled
+    with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
+        return self.gate(self.conv1(x1)), *levels
 
 
 def detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
     """The feature levels, score map and NMS, with the score workspace outside the graph's pool."""
     cache: GraphCache | None = vars(self).get("maps_graphs")
-    levels = None if cache is None else cache.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
-    levels = _feature_levels(self, image) if levels is None else levels
+    levels = _feature_levels(self, image) if cache is None else _graph_feature_levels(self, image, cache)
     padder = InputPadder(image.shape[-2], image.shape[-1], _DIV_BY)
     with torch.autocast(image.device.type, enabled=False):  # upstream's float32 score head
         first, rest = cast("torch.nn.Conv2d", self.score_head[0]), self.score_head[1:]
