@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import sys
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 import cv2
 import numpy as np
@@ -13,10 +15,13 @@ import torch.nn.functional as F
 from fastforks import matting
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_image
+from fastforks.matting.models.inspyrenet.model import _assign_checkpoint
 from fastforks.matting.models.inspyrenet.net import InSPyReNet_SwinB, _cv2
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from fastforks.matting._runner import Context
 
 
 def test_card() -> None:
@@ -26,6 +31,27 @@ def test_card() -> None:
         card, variant = cards[vid]
         assert card.licence.code == card.licence.weights == "MIT"
         assert {**card.params, **variant.params}["size"] == size
+
+
+def test_mapped_checkpoint_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+    params = SimpleNamespace(
+        mode="kernels",
+        device=torch.device("cuda:0"),
+        dtype="float16",
+        variant=SimpleNamespace(ref="inspyrenet@1"),
+        user_weights=None,
+        user_state=None,
+    )
+    ctx = cast("Context", params)
+    monkeypatch.setattr(torch.cuda, "get_allocator_backend", lambda: "native")
+    assert _assign_checkpoint(ctx)
+    monkeypatch.setattr(torch.cuda, "get_allocator_backend", lambda: "cudaMallocAsync")
+    assert not _assign_checkpoint(ctx)
+    params.variant.ref = "inspyrenet-fast@1"
+    assert _assign_checkpoint(ctx)
+    params.user_weights = ("custom",)
+    assert not _assign_checkpoint(ctx)
 
 
 @pytest.mark.parametrize("k", [5, 7, 9, 17])
