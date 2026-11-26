@@ -615,33 +615,38 @@ def paired_detections(want: dict[str, np.ndarray], got: dict[str, torch.Tensor])
     return {k: v[order] if v.ndim and v.shape[0] == n else v for k, v in got.items()}
 
 
-def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
-    """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
+def gpu_errors(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> dict[str, Any]:
+    """The measures the GPU golden check bounds, of `got` against the golden's outputs `want` (shapes must match).
+
+    `err`: the error map of the primary output (sparse matchers: the distances of the recalled keypoints); `rows`:
+    `{output: (mean, p99, bound mean, bound p99)}`, the primary output first, then the family's `gpu_extra` outputs;
+    sparse matchers add `recall` / `match` (with `min_recall` / `min_match`), the score-masked tasks `sure` (the share
+    of the points the score mask keeps). `tools/mlx_core_ab.py` records them as the A/B's quality column.
+    """
     if TASK[ref] == "detection":
         got = paired_detections(want, got)
-    for k in want.keys() & got.keys() if "pairs" not in want else ():  # e.g. the same detections (not sparse counts)
-        assert tuple(got[k].shape) == want[k].shape, f"{what}{k}: shape {tuple(got[k].shape)}, golden {want[k].shape}"
-    if TASK[ref] == "features":  # hidden states are not compared below: at least no fp16 overflow
-        assert all(bool(torch.isfinite(v).all()) for v in got.values()), f"{what}non-finite features"
     key = primary(ref, want)
     tol = tolerance(ref, mode)
+    out: dict[str, Any] = {"primary": "keypoints" if "pairs" in want else key, "rows": {}}
     if "pairs" in want:  # sparse matchers: the distances of the recalled keypoints
         recall, agree, err, _ = sparse_parity(want, got)
-        assert recall >= tol["gpu_min_recall"], f"{what}keypoints: recall {recall:.4f}"
-        assert agree >= tol["gpu_min_match"], f"{what}matches: agreement {agree:.4f}"
-        assert err.mean() < tol["gpu_mean"], f"{what}keypoints: mean |diff| {err.mean():.4f}"
-        assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}keypoints: p99 |diff| {np.percentile(err, 99):.4f}"
-        return err
+        out |= {
+            "recall": recall,
+            "match": agree,
+            "min_recall": tol["gpu_min_recall"],
+            "min_match": tol["gpu_min_match"],
+        }
+        out["rows"]["keypoints"] = (*_mean_p99(err), tol["gpu_mean"], tol["gpu_p99"])
+        return out | {"err": err}
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
     if key in {"labels", "mask"}:  # volume label maps / masks: the share of differing voxels (mean), p99 0 below 1 %
         err = (err > 0).astype(np.float64)
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
         sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
-        assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the points"
+        out["sure"] = float(sure.mean())
         err = err[sure]
-    assert err.mean() < tol["gpu_mean"], f"{what}{key}: mean |diff| {err.mean():.4f}"
-    assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}{key}: p99 |diff| {np.percentile(err, 99):.4f}"
+    out["rows"][key] = (*_mean_p99(err), tol["gpu_mean"], tol["gpu_p99"])
     rows = tol.get("gpu_extra", [])
     assert isinstance(rows, list)
     extra = {k: (mean, p99) for k, mean, p99 in rows}
@@ -650,9 +655,35 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
     for k, (mean, p99) in ((k, v) for k, v in extra.items() if k in want):
         nz = np.abs(want[k])[want[k] != 0]
         e = np.abs(got[k].numpy() - want[k]) / (np.median(nz) if nz.size else 1.0)  # all-zero reference: absolute
-        assert e.mean() < mean, f"{what}{k}: mean |diff| {e.mean():.4f}"
-        assert np.percentile(e, 99) < p99, f"{what}{k}: p99 |diff| {np.percentile(e, 99):.4f}"
-    return err
+        out["rows"][k] = (*_mean_p99(e), mean, p99)
+    return out | {"err": err}
+
+
+def _mean_p99(err: np.ndarray) -> tuple[float, float]:
+    """Mean and 99th percentile of an error map (NaN for an empty one: no bound holds)."""
+    if not err.size:
+        return float("nan"), float("nan")
+    return float(err.mean()), float(np.percentile(err, 99))
+
+
+def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
+    """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
+    if TASK[ref] == "detection":
+        got = paired_detections(want, got)
+    for k in want.keys() & got.keys() if "pairs" not in want else ():  # e.g. the same detections (not sparse counts)
+        assert tuple(got[k].shape) == want[k].shape, f"{what}{k}: shape {tuple(got[k].shape)}, golden {want[k].shape}"
+    if TASK[ref] == "features":  # hidden states are not compared below: at least no fp16 overflow
+        assert all(bool(torch.isfinite(v).all()) for v in got.values()), f"{what}non-finite features"
+    q = gpu_errors(ref, mode, want, got)
+    if "recall" in q:
+        assert q["recall"] >= q["min_recall"], f"{what}keypoints: recall {q['recall']:.4f}"
+        assert q["match"] >= q["min_match"], f"{what}matches: agreement {q['match']:.4f}"
+    if "sure" in q:
+        assert q["sure"] >= MIN_SURE, f"{what}{q['primary']}: the score mask keeps {q['sure']:.0%} of the points"
+    for k, (mean, p99, bound_mean, bound_p99) in q["rows"].items():
+        assert mean < bound_mean, f"{what}{k}: mean |diff| {mean:.4f}"
+        assert p99 < bound_p99, f"{what}{k}: p99 |diff| {p99:.4f}"
+    return q["err"]
 
 
 def gpu_built(ref: str, mode: str) -> bool:
