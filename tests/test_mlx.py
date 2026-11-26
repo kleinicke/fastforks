@@ -2059,6 +2059,154 @@ def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):
         torch.testing.assert_close(got[k], w, atol=tol, rtol=tol)
 
 
+def _sam2_prompt_side(tokens: int):
+    """SAM 2's prompt encoder and mask decoder (the released configuration) for a `tokens` x `tokens` embedding."""
+    from fastforks.promptable_segmentation.models.sam2.net.mask_decoder import MaskDecoder  # noqa: PLC0415
+    from fastforks.promptable_segmentation.models.sam2.net.prompt_encoder import PromptEncoder  # noqa: PLC0415
+    from fastforks.promptable_segmentation.models.sam2.net.transformer import TwoWayTransformer  # noqa: PLC0415
+
+    pe = PromptEncoder(
+        embed_dim=256, image_embedding_size=(tokens, tokens), input_image_size=(16 * tokens, 16 * tokens),
+        mask_in_chans=16,
+    )  # fmt: skip
+    dec = MaskDecoder(
+        num_multimask_outputs=3, transformer=TwoWayTransformer(depth=2, embedding_dim=256, mlp_dim=2048, num_heads=8),
+        transformer_dim=256, iou_head_depth=3, iou_head_hidden_dim=256, use_high_res_features=True,
+        iou_prediction_use_sigmoid=True, pred_obj_scores=True, pred_obj_scores_mlp=True,
+        use_multimask_token_for_obj_ptr=True, dynamic_multimask_via_stability=True,
+        dynamic_multimask_stability_delta=0.05, dynamic_multimask_stability_thresh=0.98,
+    )  # fmt: skip
+    return _randomise(pe), _randomise(dec)
+
+
+@pytest.mark.parametrize("mask_prompt", [False, True])
+@pytest.mark.parametrize("prompts", [1, 3])
+def test_mlx_sam2_decoder_matches_torch(prompts, mask_prompt):
+    """`sam2.mlx_heads.MlxDecoder` against upstream `MaskDecoder.predict_masks`: one image for `prompts` prompts.
+
+    With and without a mask prompt (the dense embedding a map, or one vector expanded over the map), the feature maps
+    as PyTorch tensors of the encoder's MLX arrays (`Twins`, not converted again) and as plain tensors.
+    """
+    pytest.importorskip("mlx.core")
+    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net  # noqa: PLC0415 - optional (mlx extra)
+
+    t = 12
+    pe, dec = _sam2_prompt_side(t)
+    torch.manual_seed(1)
+    embed, s1, s0 = torch.randn(1, 256, t, t), torch.randn(1, 64, 2 * t, 2 * t), torch.randn(1, 32, 4 * t, 4 * t)
+    pts = (torch.rand(prompts, 2, 2) * 16 * t, torch.tensor([[1, 0]]).expand(prompts, 2))
+    masks = torch.randn(prompts, 1, 4 * t, 4 * t) if mask_prompt else None
+    with torch.no_grad():
+        sparse, dense = pe(points=pts, boxes=None, masks=masks)
+    kw = {
+        "image_pe": pe.get_dense_pe(), "sparse_prompt_embeddings": sparse, "dense_prompt_embeddings": dense,
+        "repeat_image": prompts > 1,
+    }  # fmt: skip
+    with torch.no_grad():
+        want = dec.predict_masks(image_embeddings=embed, high_res_features=[s0, s1], **kw)
+    twins = mlx_net.Twins()
+    run = mlx_heads.MlxDecoder(dec, twins)
+    plain = run(image_embeddings=embed, high_res_features=[s0, s1], **kw)
+    kept = [twins.tensor(mlx_net.to_mx(x.permute(0, 2, 3, 1))) for x in (embed, s0, s1)]
+    seen = len(twins.items)
+    found = run(image_embeddings=kept[0], high_res_features=kept[1:], **kw)
+    assert len(twins.items) == seen  # all three found again
+    for got in (plain, found):
+        for g, w in zip(got, want, strict=True):
+            torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
+def test_mlx_sam2_memory_matches_torch(dtype, tol):
+    """`sam2.mlx_heads` memory attention and memory encoder against the upstream modules, two objects.
+
+    The memory is two frames and three object pointers (12 tokens the rotary encoding skips); the mask is 16x the
+    features' side, as the image-size mask is.
+    """
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net, video  # noqa: PLC0415 - optional
+
+    t, p, plain = 8, 2, 12
+    mods = _randomise(video.VideoModules(t))
+    torch.manual_seed(2)
+    n, m = t * t, 2 * t * t + plain
+    curr, pos = torch.randn(n, p, 256), torch.randn(n, 1, 256)
+    memory, memory_pos = torch.randn(m, p, 64), torch.randn(m, 1, 64)
+    pix, mask = torch.randn(p, 256, t, t), torch.randn(p, 1, 16 * t, 16 * t) * 10
+    with torch.no_grad():
+        want = mods.memory_attention(
+            curr=curr, curr_pos=pos.expand(-1, p, -1), memory=memory, memory_pos=memory_pos.expand(-1, p, -1),
+            num_obj_ptr_tokens=plain,
+        )  # fmt: skip
+        want_mem = mods.memory_encoder(pix, mask, skip_mask_sigmoid=True)["vision_features"]
+
+    def batch_first(x: torch.Tensor) -> mx.array:
+        return mlx_net.to_mx(x.permute(1, 0, 2).contiguous())
+
+    att = mlx_heads.MlxMemoryAttention(mods.memory_attention, getattr(mx, dtype))
+    got = att(batch_first(curr), mlx_net.to_mx(pos[:, 0]), batch_first(memory), mlx_net.to_mx(memory_pos[:, 0]), plain)
+    torch.testing.assert_close(mlx_net.to_torch(got).permute(1, 0, 2), want, atol=tol, rtol=tol)
+    enc = mlx_heads.MlxMemoryEncoder(mods.memory_encoder, getattr(mx, dtype))
+    got = enc(mlx_net.to_mx(pix.permute(0, 2, 3, 1)), mlx_net.to_mx(mask.permute(0, 2, 3, 1)))
+    torch.testing.assert_close(
+        mlx_net.to_torch(got.astype(mx.float32)).permute(0, 3, 1, 2), want_mem, atol=tol, rtol=tol
+    )
+
+
+@pytest.mark.parametrize("p_bg", [0.02, 0.3, 0.6, 0.97])
+def test_mlx_sam2_fill_holes_matches_torch(p_bg):
+    """`sam2.mlx_heads.fill_holes` gives exactly `video.fill_holes`, from sparse to mostly-background masks."""
+    pytest.importorskip("mlx.core")
+    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net, video  # noqa: PLC0415 - optional
+
+    torch.manual_seed(4)
+    low = torch.where(torch.rand(3, 1, 48, 40) < p_bg, -1.0, 1.0) * (torch.rand(3, 1, 48, 40) + 0.5)
+    got = mlx_net.to_torch(mlx_heads.fill_holes(mlx_net.to_mx(low[:, 0])))[:, None]
+    assert torch.equal(got, video.fill_holes(low))
+    assert (got != low).any() or p_bg > 0.9
+
+
+def test_mlx_sam2_tracker_matches_torch():
+    """`sam2.mlx_heads.MlxTracker` against `video.Tracker` over 10 frames, two objects (float32).
+
+    Ten frames fill the six-frame memory window and release the oldest maps; the heads run the MLX mask decoder on
+    the conditioned maps handed back as PyTorch tensors.
+    """
+    pytest.importorskip("mlx.core")
+    import copy  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net, video  # noqa: PLC0415 - optional
+
+    t, frames = 8, 10
+    pe, dec = _sam2_prompt_side(t)
+    mods = _randomise(video.VideoModules(t))
+    torch.manual_seed(3)
+    no_mem = torch.randn(256) / 10
+    feats = [
+        {"image_embed": torch.randn(1, 256, t, t), "feat_s0": torch.randn(1, 32, 4 * t, 4 * t),
+         "feat_s1": torch.randn(1, 64, 2 * t, 2 * t)}
+        for _ in range(frames)
+    ]  # fmt: skip
+    coords, labels = torch.tensor([[[40.0, 50.0]], [[90.0, 30.0]]]), torch.ones(2, 1, dtype=torch.int32)
+
+    def track(tracker: video.Tracker) -> list[tuple[torch.Tensor, torch.Tensor]]:
+        out = []
+        with torch.no_grad():
+            tracker.run(iter(feats), frames, coords=coords, labels=labels, mask=None, emit=lambda *a: out.append(a[1:]))
+        return out
+
+    want = track(video.Tracker(copy.deepcopy(mods), pe, copy.deepcopy(dec), no_mem, torch.float32, 16 * t))
+    twins = mlx_net.Twins()
+    dec.predict_masks = mlx_heads.MlxDecoder(dec, twins)
+    got = track(mlx_heads.MlxTracker(mods, pe, dec, no_mem, "float32", 16 * t, twins))
+    assert len(got) == frames
+    for (low, obj), (want_low, want_obj) in zip(got, want, strict=True):
+        torch.testing.assert_close(obj, want_obj, atol=5e-3, rtol=5e-3)
+        torch.testing.assert_close(low, want_low, atol=5e-3, rtol=5e-3)
+
+
 @pytest.mark.parametrize("count", [0, 1, 3])
 def test_mlx_sam3_geometry_matches_torch(count):
     """`sam3.net.mlx_net.Net.geometry` against `sam3.GeometryEncoder`: the exemplar boxes' RoI pooling (two matmuls

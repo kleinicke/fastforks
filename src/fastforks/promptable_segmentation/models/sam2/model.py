@@ -380,23 +380,52 @@ class Kernels(_Sam2):
 
 
 class _MlxPortable(Portable):
-    """Apple MLX: the image encoder written in MLX operations (`mlx_net`), the prompt side as portable (float32)."""
+    """Apple MLX: the image encoder (`mlx_net`), the mask decoder and the video memory (`mlx_heads`) in MLX operations.
+
+    The prompt encoder and the choice among the masks stay the upstream PyTorch modules (float32, CPU).
+    """
 
     module = Runner.module  # the MLX encoder is not exportable
 
     def __init__(self, ctx: Context) -> None:
         """The portable network; the trunk's and neck's weights copied to MLX (and dropped from the twin)."""
         super().__init__(ctx)
+        from .mlx_heads import MlxDecoder, Twins  # noqa: PLC0415 - imports mlx
         from .mlx_net import MlxEncoder  # noqa: PLC0415 - imports mlx
 
-        self.mlx = MlxEncoder(self.trunk, self.neck, self.pos, mlx_wrap.run_dtype(ctx))
+        self.twins = Twins()
+        self.run_dtype = mlx_wrap.run_dtype(ctx)  # known only while the runner is built
+        self.mlx = MlxEncoder(self.trunk, self.neck, self.pos, self.run_dtype, twins=self.twins)
         del self.trunk, self.pos
+        dec = self.net.sam_mask_decoder
+        dec.predict_masks = MlxDecoder(dec, self.twins)  # ty: ignore[invalid-assignment] - the method's MLX twin
+        del dec.transformer, dec.output_upscaling, dec.output_hypernetworks_mlps, dec.iou_prediction_head
 
     def _encode(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         return self.mlx(prepare(image, self.ctx.io, self.ctx.params.image_size))
 
+    def _tracker(self) -> Tracker:
+        """As `_Sam2._tracker`, the memory attention and encoder on MLX in the run dtype."""
+        if self._video is None:
+            from .mlx_heads import MlxTracker  # noqa: PLC0415 - imports mlx
+
+            ctx = self.ctx
+            mods = VideoModules.load(
+                ctx.state_dict(key="model"), ctx.params.image_size // STRIDE, f"{ctx.variant.ref} checkpoint"
+            )
+            self._video = MlxTracker(
+                mods,
+                self.net.sam_prompt_encoder,
+                self.net.sam_mask_decoder,
+                self.no_mem,
+                self.run_dtype,
+                ctx.params.image_size,
+                self.twins,
+            )
+        return self._video
+
     def networks(self) -> tuple[torch.nn.Module, ...]:
-        """The prompt side (the encoder's weights live on MLX)."""
+        """The prompt encoder and what is left of the decoder (the other weights live on MLX)."""
         return (self.net,)
 
 

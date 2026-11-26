@@ -323,6 +323,10 @@ class Tracker:
         obj = MEM_SCALE * lam + MEM_BIAS
         return low, lam * ptr + (1 - lam) * self.m.no_obj_ptr, obj
 
+    def fill(self, low: torch.Tensor) -> torch.Tensor:
+        """`fill_holes` of the low-resolution logits `[P, 1, h, w]`."""
+        return fill_holes(low)
+
     def encode(self, raw: torch.Tensor, high: torch.Tensor, obj: torch.Tensor, *, binarize: bool) -> torch.Tensor:
         """Upstream `_encode_new_memory`: bfloat16 memory features `[P, 64, t, t]`."""
         m = (high > 0).float() if binarize else high.sigmoid()
@@ -330,6 +334,37 @@ class Tracker:
         feats = self.m.memory_encoder(raw.to(self.dtype), m.to(self.dtype), skip_mask_sigmoid=True)["vision_features"]
         absent = (obj <= 0).to(feats.dtype)[..., None, None]
         return (feats + absent * self.m.no_obj_embed_spatial.to(feats.dtype)[..., None, None]).to(torch.bfloat16)
+
+    @staticmethod
+    def plan(t: int, n_frames: int, memory: list[int] | None) -> tuple[list[tuple[int, int]], list[int], int]:
+        """What frame `t` reads: the memory `(frame, age)` slots, the object-pointer frames, the pointer window.
+
+        Slots: frame 0, then the others, oldest first; pointer frames: frame 0, then the most recent first.
+        """
+        if memory is None:
+            memory = list(range(max(1, t - NUM_MASKMEM + 1), t))
+            ages = [t - k for k in memory]
+        else:
+            ages = list(range(len(memory), 0, -1))
+        max_ptrs = min(n_frames, MAX_PTRS)
+        ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]
+        return [(0, NUM_MASKMEM), *zip(memory, ages, strict=True)], ptr_frames, max_ptrs
+
+    def pointers(
+        self,
+        bank: dict[int, tuple[torch.Tensor | None, torch.Tensor]],
+        ptr_frames: list[int],
+        t: int,
+        max_ptrs: int,
+        rows: torch.Tensor | slice,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """The object pointers as memory tokens `[n, P, 64]` (each pointer split in 4) and their positions `[n, 64]`."""
+        ptrs = torch.stack([bank[k][1][rows] for k in ptr_frames])  # [frames, P, 256]
+        split = ptrs.shape[-1] // MEM_DIM
+        rel = to_device([t - k for k in ptr_frames], ptrs.device)
+        pos = self.m.obj_ptr_tpos_proj(get_1d_sine_pe(rel / (max_ptrs - 1), dim=DIM))
+        ptrs = ptrs.reshape(len(ptr_frames), -1, split, MEM_DIM).permute(0, 2, 1, 3).flatten(0, 1)
+        return ptrs, pos.repeat_interleave(split, dim=0)
 
     def condition(  # noqa: PLR0913, PLR0917 - the memory frames and the objects that use them
         self,
@@ -349,18 +384,11 @@ class Tracker:
         dt = self.dtype
         tpos = self.m.maskmem_tpos_enc.to(dt)
         rows = slice(None) if objects is None else objects
-        if memory is None:
-            memory = list(range(max(1, t - NUM_MASKMEM + 1), t))
-            ages = [t - k for k in memory]
-        else:
-            ages = list(range(len(memory), 0, -1))
-        slots = [(0, NUM_MASKMEM), *zip(memory, ages, strict=True)]  # frame 0, then the others, oldest first
-        max_ptrs = min(n_frames, MAX_PTRS)
-        ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]  # frame 0, then the most recent first
-        split = c // MEM_DIM
+        slots, ptr_frames, max_ptrs = self.plan(t, n_frames, memory)
         frame_tokens = h * w
         bank_tokens = len(slots) * frame_tokens
-        mem_input = raw.new_empty(bank_tokens + len(ptr_frames) * split, p, MEM_DIM, dtype=dt)
+        ptrs, pos = self.pointers(bank, ptr_frames, t, max_ptrs, rows)
+        mem_input = raw.new_empty(bank_tokens + ptrs.shape[0], p, MEM_DIM, dtype=dt)
         poss = []
         for index, (k, age) in enumerate(slots):
             encoded = bank[k][0]
@@ -372,13 +400,8 @@ class Tracker:
             mem_input[start : start + frame_tokens].copy_(feats)
             del feats
             poss.append(self.mem_pos + tpos[age - 1])
-        rel = to_device([t - k for k in ptr_frames], raw.device)
-        ptrs = torch.stack([bank[k][1][rows] for k in ptr_frames])  # [n, P, 256]
-        pos = self.m.obj_ptr_tpos_proj(get_1d_sine_pe(rel / (max_ptrs - 1), dim=DIM))
-        ptrs = ptrs.reshape(-1, p, split, MEM_DIM).permute(0, 2, 1, 3).flatten(0, 1)
         mem_input[bank_tokens:].copy_(ptrs)
-        pos = pos[:, None].repeat_interleave(split, dim=0).to(dt)
-        poss.append(pos)
+        poss.append(pos[:, None].to(dt))
         out = self.m.memory_attention(
             curr=raw.to(dt).flatten(2).permute(2, 0, 1),
             curr_pos=self.pos.expand(-1, p, -1),
@@ -417,7 +440,7 @@ class Tracker:
                 else:
                     multimask = labels is not None and labels.shape[1] <= 1
                     low, _, ptr, obj = self.heads(pix, hr, coords, labels, None, multimask, motion)
-                low = fill_holes(low)
+                low = self.fill(low)
                 high = F.interpolate(low, (self.size, self.size), mode="bilinear", align_corners=False)
                 bank[0] = (self.encode(raw, high, obj, binarize=True), ptr)
             else:
@@ -442,7 +465,7 @@ class Tracker:
                 old = t - NUM_MASKMEM + 1
                 if motion is None and old > 0 and old in bank:
                     bank[old] = (None, bank[old][1])
-                low = fill_holes(low)
+                low = self.fill(low)
             emit(t, low, obj)
 
 
