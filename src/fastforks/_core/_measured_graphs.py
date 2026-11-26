@@ -36,13 +36,13 @@ _TORCH_214_ASYNC_TRITON_FUSION: _HostRuntime = (
 _TORCH_215_ASYNC: _HostRuntime = ("2.15.0+cu132", _RTX_5060_TI, "cudaMallocAsync", None, None, None, "4", 1)
 
 # Resources retain ordered official checkpoint digests and sorted binary tags.
-_FVM_KERNELS = (
-    "cudnn_hacc@cudnn92400",
+_FVM_BINARIES = (
     "fvm_conv@f1d064e539e1:sm_120",
     "fvm_extra@3208ce525a91:sm_120",
     "fvm_mb@720dd3f29bf7:sm_120",
     "fvm_r3@f54eb890e23c:sm_120",
 )
+_FVM_KERNELS = ("cudnn_hacc@cudnn92400", *_FVM_BINARIES)
 _YUNET_KERNELS = ("box_nms@daa010d75e1a:sm_120", *_FVM_KERNELS)
 _TAPNEXT_KERNELS = ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120")
 _RIFE_KERNELS = ("cudnn_hacc@cudnn92400",)
@@ -55,6 +55,8 @@ _CRESTEREO_KERNELS = (
     "fastbb@7d058322634d:sm_120",
     "igev@f075827d68c6:sm_120",
 )
+_DINOV3_CONVNEXT_KERNELS = ("fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120")
+_IGEV_KERNELS = ("cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120")
 
 _MOBILENET_V2: _Resources = (_FVM_KERNELS, ("7ebf99e03e254b273379b23edca7ec0da9f48273b23a332b93c1c99d49e86e8f",))
 _YUNET_N: _Resources = (_YUNET_KERNELS, ("9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06",))
@@ -74,6 +76,39 @@ _CRESTEREO_ETH3D: _Resources = (
 _RAFT_SMALL_ALTERNATE: _Resources = (
     ("cudnn_hacc@cudnn92600", *_RAFT_CUDA_KERNELS),
     _RAFT_SMALL_WEIGHTS,
+)
+_DINOV3_VITS16: _Resources = (
+    ("dpt_fused@48e0065bb7cf:sm_120", "fastbb@7d058322634d:sm_120", "swiglu@25fe34a2d389:sm_120"),
+    ("4610ad75edef83e75afdebf162d148dc628045ea6cbb83d67d4708c709c4f91d",),
+)
+_DINOV3_CONVNEXT_BASE: _Resources = (
+    _DINOV3_CONVNEXT_KERNELS,
+    ("ec90bd798b5fc5b8e30443796a6c24a7a73e28ad85c6c0ceda78b1d249a694cc",),
+)
+_DINOV3_CONVNEXT_SMALL: _Resources = (
+    _DINOV3_CONVNEXT_KERNELS,
+    ("8182492b73345ceb449ed6be0de486d778a73afb273ba2684de785a71ef1da9d",),
+)
+_SEGNEXT_S: _Resources = (
+    (*_FVM_BINARIES, "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"),
+    ("ae9f7baa30817e62e36c9058ea3eeab0952baa3ce7ce52afef01423f68cbe1d8",),
+)
+_NEUFLOW_V2_SINTEL: _Resources = (
+    ("raft_flow@639b3b16ea48:sm_120",),
+    ("9bc12c9ef8298e3cca08a33a04bf99b63dc989e16808daca0c10ac5be4291eb1",),
+)
+_LAS2_S: _Resources = (
+    (*_IGEV_KERNELS, "stereo_ops@899b54f4a755:sm_120"),
+    ("dda5ad5495710466f7e5c5a2dff395223893ef68a17d57d88e7ea7dfbb9d08e1",),
+)
+_PSMNET: _Resources = (_IGEV_KERNELS, ("eb3029f7ed5e62eae26dff42e3e5a44d47f014292ff680c7d76adca4749a9113",))
+_S2M2_S: _Resources = (
+    ("cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"),
+    ("93f7177d8159d6666506df3abb0cdd75473614fab0e39f25e397acade0f9e241",),
+)
+_U2NETP: _Resources = (
+    (*_IGEV_KERNELS, "resize_cat@60f9273249a3:sm_120"),
+    ("e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854",),
 )
 
 
@@ -247,4 +282,63 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "stereo-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
     ): _profiles(_CRESTEREO_ETH3D, _TORCH_214_NATIVE),
+    # DINOv3 ViT-S/16. Request-15 deltas: -18.471, -24.501 ms.
+    # Receipt SHA-256 a5f13c681831cf0407ee9b1d2d6bd62c70699bdacc3fe5c59b6dff1145efa48c.
+    ("dinov3-vits16@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        _DINOV3_VITS16, _TORCH_214_NATIVE
+    ),
+    # DINOv3 ConvNeXt Base. Request-15 deltas: -17.271, -15.698 ms.
+    # Receipt SHA-256 3f03004acd403c87509e50ed50e0e0959d115dbfa4958bd046c7ea31b72cfb2b.
+    ("dinov3-convnext-base@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        _DINOV3_CONVNEXT_BASE, _TORCH_214_NATIVE
+    ),
+    # DINOv3 ConvNeXt Small. Request-15 deltas: -17.824, -19.294 ms.
+    # Receipt SHA-256 a70293a99b21e39f6cd78f304241fe6bdeafedeb16160a18b4c8d1a0390df78e.
+    ("dinov3-convnext-small@1", "kernels", "float16", "f32-bchw-contiguous", (224, 224)): _profiles(
+        _DINOV3_CONVNEXT_SMALL, _TORCH_214_NATIVE
+    ),
+    # SegNeXt MSCAN-S. Request-15 deltas: -13.554, -23.325 ms.
+    # Receipt SHA-256 37b289ec759650893d852131ed7744afae6ae9c7b562ce96c0051468df611922.
+    ("segnext-mscan-s-ade20k@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(
+        _SEGNEXT_S, _TORCH_214_NATIVE
+    ),
+    # NeuFlow v2 Sintel. Request-15 deltas: -110.079, -38.360 ms.
+    # Receipt SHA-256 75b3bb15a5ee36eb4a7932c0b6ee4f6864d1e056e5ec01b4af608761f953c2ff.
+    (
+        "neuflow-v2-sintel@1",
+        "kernels",
+        "float16",
+        "flow-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_NEUFLOW_V2_SINTEL, _TORCH_214_NATIVE),
+    # LAS2 Small. Request-15 deltas: -101.184, -99.125 ms.
+    # Receipt SHA-256 e190c59c24a9781f469d058efa77187bc9ab78303092b800a5427bf8acb2ae81.
+    (
+        "las2-s@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_LAS2_S, _TORCH_214_NATIVE),
+    # PSMNet Scene Flow. Request-15 deltas: -44.002, -63.959 ms.
+    # Receipt SHA-256 b2ca5bf8d7b355002e9adade682a7edd195b71aa742890b5511b1d4b7516216e.
+    (
+        "psmnet-sceneflow@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 256, 384)), ("f32-bchw-contiguous", (1, 3, 256, 384))),
+    ): _profiles(_PSMNET, _TORCH_214_NATIVE),
+    # S2M2 Small. Request-15 deltas: -84.104, -94.813 ms.
+    # Receipt SHA-256 b0e51da0f31a1d795de87ab926c9585999731b302f2673d3a32f72f1a201346f.
+    (
+        "s2m2-s@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_S2M2_S, _TORCH_214_NATIVE),
+    # U2NetP. Request-15 deltas: -92.701, -88.629 ms.
+    # Receipt SHA-256 c6cb651abf7a53c0525398406b9b3f49983680e271a5d6f1d8359e53dfd54b07.
+    ("u2netp@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(_U2NETP, _TORCH_214_NATIVE),
 }
