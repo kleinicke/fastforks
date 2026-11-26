@@ -89,6 +89,23 @@ def use_fp16_accumulate(net: Any) -> None:  # noqa: ANN401 - lazy vendored LWDET
     override(net.backbone[0].encoder, _encoder)
 
 
+def _wide_fc2(self: nn.Linear, x: torch.Tensor) -> torch.Tensor:
+    """Keep the DINOv2 feed-forward output in float32 until after its bias."""
+    rows = x.reshape(-1, x.shape[-1])
+    weights = self.weight.t()
+    if self.bias is None:
+        y = torch.mm(rows, weights, out_dtype=torch.float32)
+    else:
+        y = torch.addmm(self.bias, rows, weights, out_dtype=torch.float32)
+    return y.reshape(*x.shape[:-1], self.out_features).to(x.dtype)
+
+
+def use_wide_dino_fc2(net: Any) -> None:  # noqa: ANN401 - lazy vendored RF-DETR API
+    """Use a wide output for the DINOv2 MLP projections that feed Seg-M's mask head."""
+    for layer in net.backbone[0].encoder.encoder.encoder.layer:
+        override(layer.mlp.fc2, _wide_fc2)
+
+
 def prepare_graph(net: Any) -> None:  # noqa: ANN401 - lazy vendored LWDETR API
     """Select the authors' graph-safe inference path without bound-method reference cycles."""
     net.transformer.enable_cuda_graph_capture()

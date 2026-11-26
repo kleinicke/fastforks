@@ -155,12 +155,20 @@ class Kernels(Portable):
             use_fast_attention,
             use_fast_blocks,
             use_fp16_accumulate,
+            use_wide_dino_fc2,
         )
 
         use_fast_attention(self.net)
         use_fast_blocks(self.net)
         if not ctx.params.segmentation_head:  # the mask head amplifies the backbone's fp16-accumulation differences
             use_fp16_accumulate(self.net)
+        elif (
+            ctx.variant.ref == "rf-detr-seg-m-coco@1"
+            and ctx.torch_dtype == torch.float16
+            and ctx.user_weights is None
+            and ctx.user_state is None
+        ):
+            use_wide_dino_fc2(self.net)
         # The authors offer this fixed-shape inference path and spatial-tensor cache for graph capture.
         prepare_graph(self.net)
         # Seg: the network; box models: network and PostProcess (`_top`), which take the size as a graph input
