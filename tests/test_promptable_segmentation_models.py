@@ -186,10 +186,16 @@ def test_kernels_graphs_from_two_streams():
     def segment(i: int) -> dict[str, torch.Tensor]:
         return r.segment_concept(feats[i], texts[i], boxes[i])
 
-    with m._session():
-        for i in range(2):
-            segment(i)
-        want = [segment(i) for i in range(2)]
+    def request_both() -> list[dict[str, torch.Tensor]]:
+        with m._session():
+            return [segment(i) for i in range(2)]
+
+    # A bucket stays eager throughout its first logical request. Warm both across requests before comparing replays.
+    request_both()
+    request_both()
+    assert set(r.cache.graphs) == {(8, 0), (8, BOX_BUCKET)}
+
+    want = request_both()
     torch.cuda.synchronize()
     got: list[list[dict[str, torch.Tensor]]] = [[], []]
     start = threading.Barrier(2)
