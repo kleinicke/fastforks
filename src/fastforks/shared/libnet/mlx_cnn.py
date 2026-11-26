@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -164,7 +165,70 @@ def _chain(*ops: Callable) -> Callable:
             x = op(x)
         return x
 
+    apply.ops = ops  # ty: ignore[unresolved-attribute] - read by `_segmented`
     return apply
+
+
+SEGMENTS = 16
+"""Compiled segments of `_segmented`: the top-level ops (stages, blocks) cut into this many of equal output bytes.
+
+M1 Pro, network peak MB / warm ms at 1 / 8 / 16 segments / one per op, graph translation last:
+convnext_small 384 float32 443 / 314 / 260 / 256 (26.2 / 26.3 / 26.2 / 27.4 ms), graph 308 (24.5 ms);
+davit_small float32 403 / 268 / 244 / 245 (17.0 / 16.6 / 16.5 / 17.9 ms), graph 279 (15.7 ms);
+efficientformerv2_l float16 107 / 79 / 70 / 57 (8.7 / 8.4 / 8.4 / 9.7 ms), graph 101 (9.2 ms).
+"""
+SEGMENT_MIN_OPS = 3
+"""Top-level ops per segment at least: each wait costs a GPU round trip, which a small network feels
+(efficientformerv2_s0 float16: 3.3 ms at 16 segments, 3.0 at 8, the graph translation 3.0)."""
+
+
+def _segmented(features: Callable, tail: Callable) -> Callable:
+    """`tail(features(x))` as compiled segments of `features`' ops, evaluated one after the other (one in flight).
+
+    MLX returns a command buffer's transients only when it completes: one compiled function over a whole network
+    holds every block's intermediates until the end (up to twice the graph translation's peak, which evaluates every
+    256 MB of activations). Per input shape the ops' outputs are sized lazily (nothing runs) and cut into `SEGMENTS`
+    of about equal output bytes; a block's transients are a multiple of its output, so each segment holds a share.
+    """
+    found = getattr(features, "ops", None)
+    if found is None:
+        return mx.compile(lambda x: tail(features(x)))
+    ops: tuple[Callable, ...] = tuple(found)
+    plans: dict[tuple[tuple[int, ...], mx.Dtype], list[Callable]] = {}
+
+    def plan(x: mx.array) -> list[Callable]:
+        sizes = []
+        for op in ops:
+            x = op(x)
+            sizes.append(x.nbytes)
+        del x
+        cuts, pending, share = [0], 0, sum(sizes) / SEGMENTS
+        for i, n in enumerate(sizes[:-1]):
+            pending += n
+            if pending >= share and i + 1 - cuts[-1] >= SEGMENT_MIN_OPS:
+                cuts.append(i + 1)
+                pending = 0
+        cuts.append(len(ops))
+        segs = [_chain(*ops[a:b]) for a, b in itertools.pairwise(cuts)]
+        last = segs[-1]
+        segs[-1] = lambda x: tail(last(x))
+        return [mx.compile(s) for s in segs]
+
+    def run(x: mx.array) -> mx.array:
+        key = (tuple(x.shape), x.dtype)
+        segs = plans.get(key)
+        if segs is None:
+            segs = plans[key] = plan(x)
+        prev = None
+        for seg in segs[:-1]:
+            x = seg(x)
+            mx.async_eval(x)
+            if prev is not None:
+                mx.eval(prev)
+            prev = x
+        return segs[-1](x)
+
+    return run
 
 
 def _grn(layer: Any, dtype: mx.Dtype) -> Callable:
@@ -647,10 +711,7 @@ class Network:
             msg = f"No MLX classifier implementation for {family}"
             raise ValueError(msg)
 
-        def forward(x: mx.array) -> mx.array:
-            return head(pool(features(x)))
-
-        return mx.compile(forward)
+        return _segmented(features, lambda x: head(pool(x)))
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """NCHW normalised images to float32 logits."""
