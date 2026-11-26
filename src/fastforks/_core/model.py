@@ -1618,7 +1618,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         mode,
         str(device),
         dtype,
-        tags,
+        (*tags, *runner.extra_kernel_tags),
         _checkpoint_id(weights),
         library=_library_version(),
         weights=() if weights else tuple(f.sha256 for f in variant.weights),

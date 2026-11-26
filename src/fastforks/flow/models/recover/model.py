@@ -9,6 +9,8 @@ and cuDNN fp16-accumulate convolutions.
 from __future__ import annotations
 
 import contextlib
+import logging
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -17,10 +19,11 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.errors import KernelUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc, flow_upsample, recover_motion
+from fastforks.kernels import cudnn_hacc, flow_upsample, recover_motion, seg_conv
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -121,6 +124,65 @@ def _hacc_convs(module: nn.Module) -> int:
     return n
 
 
+_MN_DW_INPUT = (1, 64, 540, 960)
+_MN_DW_OUTPUT = (1, 64, 270, 480)
+log = logging.getLogger(__name__)
+
+
+def _mn_depthwise(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    packed = cast("torch.Tensor", self.recover_depthwise_rsc)
+    if (
+        not x.is_cuda
+        or x.shape != _MN_DW_INPUT
+        or x.device != packed.device
+        or x.dtype != torch.float16
+        or not x.is_contiguous(memory_format=torch.channels_last)
+        or x.data_ptr() % 16
+    ):
+        return nn.Conv2d.forward(self, x)
+    y = torch.empty(_MN_DW_OUTPUT, device=x.device, dtype=x.dtype, memory_format=torch.channels_last)
+    if not seg_conv.load(x.device).dwconv(
+        x,
+        packed,
+        y,
+        None,
+        None,
+        padding=(1, 1),
+        stride=(2, 2),
+        dilation=(1, 1),
+        act=0,
+    ):
+        return nn.Conv2d.forward(self, x)
+    # PyTorch rounds its convolution output to half before adding the folded bias.
+    return y.add_(cast("torch.Tensor", self.bias).view(1, -1, 1, 1))
+
+
+def _prepare_mn_depthwise(net: ReCoVEr, ctx: Context) -> str | None:
+    """Optionally accelerate the original checkpoint's measured CUDA depthwise geometry."""
+    if (
+        sys.platform != "linux"
+        or ctx.variant.ref != "recover-mn@1"
+        or ctx.user_weights is not None
+        or ctx.user_state is not None
+        or ctx.device.type != "cuda"
+        or ctx.dtype != "float16"
+    ):
+        return None
+    if torch.cuda.get_device_capability(ctx.device) != (12, 0):
+        return None
+    try:
+        lib = seg_conv.load(ctx.device)
+    except KernelUnavailableError as exc:
+        log.info("ReCoVEr keeps its PyTorch depthwise convolution: %s", exc.reason)
+        return None
+    # The second MobileNetV3 bottleneck's stride-two grouped convolution, after batch-norm folding.
+    conv = cast("nn.Conv2d", net.get_submodule("cnet.features.2.block.1.0"))
+    w = conv.weight.detach()[:, 0].permute(1, 2, 0).contiguous()
+    conv.register_buffer("recover_depthwise_rsc", w, persistent=False)
+    override(conv, _mn_depthwise)
+    return lib.tag
+
+
 class Portable(Runner):
     """Plain PyTorch: float32, or on CUDA the fp16 network (see the module docstring)."""
 
@@ -199,6 +261,8 @@ class Kernels(Portable):
             msg = "ReCoVEr kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
 
+        if tag := _prepare_mn_depthwise(self.net, ctx):
+            self.extra_kernel_tags = (tag,)
         encoder = self.net.update_block.encoder
         with torch.inference_mode(), self.accumulate():
             tile = encoder.corr_term(5, 5).contiguous(memory_format=torch.channels_last)
