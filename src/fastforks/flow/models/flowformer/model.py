@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
@@ -198,6 +199,14 @@ def _corr(enc: MemoryEncoder, fmap1: torch.Tensor, fmap2: torch.Tensor) -> _Volu
     return _Volume(fmap1, fmap2)
 
 
+def _padded_cost_maps(f1: torch.Tensor, f2: torch.Tensor, h: int, w: int, rows: int) -> torch.Tensor:
+    """Write the product into strided rows of the final cost map and clear the bottom fringe."""
+    out = f1.new_empty((f1.shape[0], h + rows, w))
+    torch.mm(f1, f2, out=out[:, :h, :].flatten(1))
+    out[:, h:, :].zero_()
+    return out[:, None]
+
+
 def _encode(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Tensor | None = None) -> torch.Tensor:
     """Upstream `CostPerceiverEncoder.forward`, the cost maps made and embedded per chunk of query pixels.
 
@@ -210,11 +219,23 @@ def _encode(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Te
     data["cost_maps"] = vol
     pe = m.patch_embed
     pad = (0, -w % pe.patch_size, 0, -h % pe.patch_size)
+    # On Linux's native allocator the strided output avoids a padded copy and keeps the same process peak.
+    direct_rows = (
+        pad[1] == 0
+        and pad[3] != 0
+        and f1.is_cuda
+        and sys.platform == "linux"
+        and torch.cuda.get_allocator_backend() == "native"
+    )
     x, size = None, None
     for i in range(b):
         for s in range(0, n, pe.chunk):
             with torch.autocast(f2.device.type, torch.float16, enabled=f2.is_cuda):
-                maps = F.pad(torch.matmul(f1[i, s : s + pe.chunk], f2[i].flatten(1)).view(-1, 1, h, w), pad)
+                left, right = f1[i, s : s + pe.chunk], f2[i].flatten(1)
+                if direct_rows:
+                    maps = _padded_cost_maps(left, right, h, w, pad[3])
+                else:
+                    maps = F.pad(torch.matmul(left, right).view(-1, 1, h, w), pad)
                 emb, size = pe._embed(maps, share_position=True)  # noqa: SLF001 - upstream's per-chunk embedding
                 del maps
                 emb = m.input_layer(m.latent_tokens, emb)
