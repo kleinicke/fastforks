@@ -318,8 +318,8 @@ class Portable(_Sam2):
     def _video_embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Widen the two coarse FPN projections used by the portable SAMURAI video path."""
         n = self._video_neck
-        # `Model.compile` wraps `embed` in a subclass. Keep that video encoder path there as well.
-        if n is None or type(self) is not Portable:
+        # Honor a replacement encoder, including the runner subclass created by `Model.compile`.
+        if n is None or type(self).embed is not Portable.embed:
             return super()._video_embed(image)
         dev = self.neck.no_mem.device
         if n.top[0].device != dev:
