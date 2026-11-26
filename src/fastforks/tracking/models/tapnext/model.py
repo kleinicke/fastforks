@@ -18,9 +18,11 @@ from __future__ import annotations
 import contextlib
 import math
 import struct
+import sys
 import threading
 import zipfile
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import numpy as np
@@ -241,6 +243,14 @@ def _reset_state(inputs: tuple[torch.Tensor, ...]) -> None:
     torch._foreach_zero_(inputs[5:])  # batched GPU fill of the recurrent buffers
 
 
+def _initial_graph_state(video: torch.Tensor, queries: int) -> tuple[torch.Tensor, ...]:
+    """Two scalar zeros viewed as the recurrent inputs that GraphCache clones into its owned, dense buffers."""
+    state_shape = ((SIZE // PATCH) ** 2 + queries, WIDTH)
+    hidden = video.new_zeros((), dtype=torch.float32).expand(state_shape)
+    history = video.new_zeros((), dtype=torch.float16).expand(CONV_WIDTH - 1, *state_shape)
+    return (hidden, history) * DEPTH
+
+
 def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
     """`RecurrentBlock.forward` with fused GEMMs (GELU-tanh epilogue on the gate branch)."""
     from fastforks._optimize.conv_ops import lin  # noqa: PLC0415 - loads the fvm_conv kernels (kernels mode only)
@@ -348,14 +358,23 @@ class Kernels(Portable):
         yx, logit, _, _ = self.net(video, qt, point, t0, cache)
         return yx, logit
 
-    def _step(
-        self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t: int, state: list | None
+    def _step(  # noqa: PLR0913 - the frame step also handles single-frame clips
+        self,
+        video: torch.Tensor,
+        qt: torch.Tensor,
+        point: torch.Tensor,
+        t: int,
+        state: list | None,
+        *,
+        capture_first_frame: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, list]:
         """`track`'s frame step: from the frame's graph once it is captured, else eager."""
         if self.steps is not None:
             key = (video.device, tuple(video.shape), tuple(qt.shape), torch.is_autocast_enabled(video.device.type))
             static = self.steps.static_inputs(key)
-            if static is not None or (state is not None and not self.steps.defer_first_request(key)):
+            if static is not None or (
+                (state is not None or capture_first_frame) and not self.steps.defer_first_request(key)
+            ):
                 if state is None or static is None or state[0][0] is not static[5]:
                     # Start rotating when entering a graph from eager state, or on a fresh clip.
                     self._ring_origin = t
@@ -363,14 +382,16 @@ class Kernels(Portable):
                 phase = t - self._ring_origin
                 order = device_tensor(tuple((phase + i) % history for i in range(history)), device=video.device)
                 t0 = torch.full((), t, dtype=qt.dtype, device=qt.device)
-                if state is None:
-                    assert static is not None  # noqa: S101 - the first frame can only replay an existing graph
-                    inputs = static[5:]
-                else:
+                reset = None
+                if state is not None:
                     inputs = tuple(v for pair in state for v in pair)
-                out = self.steps.run(
-                    key, video, qt, point, t0, order, *inputs, before_replay=_reset_state if state is None else None
-                )
+                elif static is not None:
+                    inputs, reset = static[5:], _reset_state
+                else:
+                    # Capturing frame zero avoids creating an eager frame's dense state just to copy it.
+                    # GraphCache recopies the zero views after any capture warm-up and before replay.
+                    inputs = _initial_graph_state(video, qt.numel())
+                out = self.steps.run(key, video, qt, point, t0, order, *inputs, before_replay=reset)
                 static = self.steps.static_inputs(key)
                 if out is not None and static is not None:
                     return out[0], out[1], list(zip(static[5::2], static[6::2], strict=True))
@@ -388,7 +409,10 @@ class Kernels(Portable):
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
         with self._lock, fp16_accumulate():
-            return track(self.net, frames, n, size, queries, self.amp, step=self._step)
+            step = self._step
+            if sys.platform == "linux" and n > 1 and self.steps is not None:
+                step = partial(self._step, capture_first_frame=True)
+            return track(self.net, frames, n, size, queries, self.amp, step=step)
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the GEMMs are kernel launches."""
