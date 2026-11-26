@@ -1457,6 +1457,39 @@ def test_mlx_features_vit_matches_torch(monkeypatch, kind):
     torch.testing.assert_close(got[0], hs[0], atol=2e-3, rtol=2e-3)
 
 
+@pytest.mark.parametrize("kind", ["token", "avg-fc-norm", "map", "eva-swiglu", "eva-fused"])
+def test_mlx_vit_classifier_matches_torch(kind):
+    """`mlx_vit_cls.Network` against timm: ViT (cls token / patch mean with `fc_norm` / attention pool, LayerScale) and
+    EVA-02 (separate q / k / v with k unbiased, interleaved RoPE, SwiGLU with its LayerNorm; fused qkv, plain MLP)."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.libnet import mlx_vit_cls, timm  # noqa: PLC0415 - optional (the mlx extra)
+
+    models = timm().models
+    if kind.startswith("eva"):
+        swiglu = kind == "eva-swiglu"
+        net = models.eva.Eva(
+            img_size=64, patch_size=16, embed_dim=64, depth=3, num_heads=4, num_classes=7, qkv_fused=not swiglu,
+            swiglu_mlp=swiglu, scale_mlp=swiglu, mlp_ratio=4 * 2 / 3 if swiglu else 4.0, use_rot_pos_emb=True,
+            ref_feat_shape=(4, 4), global_pool="avg", init_values=1.0 if not swiglu else None,
+        )  # fmt: skip
+    else:
+        net = models.vision_transformer.VisionTransformer(
+            img_size=64, patch_size=16, embed_dim=64, depth=3, num_heads=4, num_classes=7,
+            global_pool="token" if kind == "token" else "avg" if kind.startswith("avg") else "map",
+            class_token=kind != "map", fc_norm=kind.startswith("avg") or None, init_values=1.0, pre_norm=kind == "map",
+        )  # fmt: skip
+    net = _randomise(net)
+    engine = mlx_vit_cls.Network(net, "float32")
+    x = torch.randn(2, 3, 64, 64)
+    with torch.no_grad():
+        want = net(x)
+    torch.testing.assert_close(engine(x), want, atol=2e-3, rtol=2e-3)
+    half = mlx_vit_cls.Network(net, "float16")
+    torch.testing.assert_close(half(x), want, atol=5e-2, rtol=5e-2)
+    with pytest.raises(ValueError, match="takes 64 x 64"):
+        engine(torch.randn(1, 3, 48, 64))
+
+
 @pytest.mark.parametrize("pad_to", [{}, {16: 64, 32: 64}])
 @pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
 def test_mlx_sam2_encoder_matches_torch(dtype, tol, pad_to):

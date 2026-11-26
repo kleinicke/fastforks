@@ -75,9 +75,9 @@ class Kernels(libnet.Kernels):
 
 
 class Mlx(libnet.Mlx):
-    """Apple MLX: the same adapted network through the generic MLX translation."""
+    """Apple MLX: the same adapted network, written out in MLX (`libnet.mlx_vit_cls`)."""
 
     network = staticmethod(network)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx, "kernels_mlx": Mlx}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx}

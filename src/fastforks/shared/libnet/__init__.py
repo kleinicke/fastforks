@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import threading
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -298,6 +299,10 @@ class PoolKernels(CNNKernels):
     fuse_convs = False
 
 
+# Families whose MLX network is written out in `mlx_vit_cls` (timm ViT / EVA; the WD tagger's ConvNeXt: `mlx_cnn`)
+VIT_FAMILIES = frozenset({"vit", "deit", "eva02", "siglip", "nsfw_vit", "wd_tagger"})
+
+
 class Mlx(Runner):
     """Apple MLX runner for the supported timm and torchvision classifiers."""
 
@@ -311,13 +316,28 @@ class Mlx(Runner):
 
         from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
 
-        if ctx.card.family in mlx_cnn.FAMILIES and not os.environ.get("FASTFORKS_MLX_GRAPH"):
+        written = not os.environ.get("FASTFORKS_MLX_GRAPH")
+        if ctx.card.family in mlx_cnn.FAMILIES and written:
             self.net = mlx_cnn.Network(ctx)
-        else:  # every other timm / torchvision network: the generic exported-graph translation
-            from fastforks.shared.mlx_graph import GraphNet  # noqa: PLC0415 - optional MLX dependency
+            return
+        if ctx.card.family in VIT_FAMILIES and written:
+            from . import mlx_vit_cls  # noqa: PLC0415 - optional MLX dependency
 
-            # the twin's weights stay the memory-mapped checkpoint (`lazy_build`); the graph keeps the twin
-            self.net = GraphNet(lazy_build(lambda: self.network(ctx)), ctx.dtype, kernels=ctx.mode == "kernels")
+            with warnings.catch_warnings(), torch.device("meta"):  # the configuration only, no weights
+                warnings.simplefilter("ignore")  # load_state_dict: "copying from a non-meta parameter" per tensor
+                meta = self.network(ctx)
+            if mlx_vit_cls.supports(meta):  # the twin (memory-mapped checkpoint) on a conversion cache miss only
+                twin = lambda: lazy_build(lambda: self.network(ctx))  # noqa: E731 - deferred
+                self.net = mlx_vit_cls.Network(meta, ctx.dtype, ctx=ctx, twin=twin)
+            else:  # the WD tagger's ConvNeXt
+                del meta
+                self.net = mlx_cnn.Network(ctx, lazy_build(lambda: self.network(ctx)), "convnext")
+            return
+        # every other timm / torchvision network: the generic exported-graph translation (it keeps the twin, whose
+        # weights stay the memory-mapped checkpoint: `lazy_build`)
+        from fastforks.shared.mlx_graph import GraphNet  # noqa: PLC0415 - optional MLX dependency
+
+        self.net = GraphNet(lazy_build(lambda: self.network(ctx)), ctx.dtype, kernels=ctx.mode == "kernels")
 
     def network(self, ctx: Context) -> torch.nn.Module:
         """The upstream network with its weights (CPU, eval); families override this to wrap or adapt it."""

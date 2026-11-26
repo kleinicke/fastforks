@@ -8,5 +8,4 @@ RUNNERS = {
     "portable": libnet.Portable,
     "kernels": libnet.Kernels,
     "portable_mlx": libnet.Mlx,
-    "kernels_mlx": libnet.Mlx,
 }

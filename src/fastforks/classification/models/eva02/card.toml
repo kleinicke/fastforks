@@ -43,8 +43,6 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-mlx_kernels = ["graph_mlx"]
-mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 # Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows (batch x
 # tokens) and at least 2^29 multiply-adds runs cuBLAS + add instead of the fused CUTLASS GEMM, which is faster there;

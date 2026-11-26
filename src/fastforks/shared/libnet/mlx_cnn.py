@@ -150,7 +150,12 @@ def _gelu(x: mx.array) -> mx.array:
 
 
 def _convnext_block(block: Any, dtype: mx.Dtype) -> Callable:
-    ops = [_conv(block.conv_dw, None, dtype), _norm(block.norm, dtype), _linear(block.mlp.fc1, dtype), _gelu]
+    act = block.mlp.act
+    tanh = type(act).__name__ == "GELUTanh" or getattr(act, "approximate", "none") == "tanh"  # the WD tagger's
+    from .mlx_features import gelu_tanh  # noqa: PLC0415 - the WD tagger's (mlx_features imports timm's helpers)
+
+    ops = [_conv(block.conv_dw, None, dtype), _norm(block.norm, dtype), _linear(block.mlp.fc1, dtype)]
+    ops.append(gelu_tanh if tanh else _gelu)
     if hasattr(block.mlp, "grn"):
         ops.append(_grn(block.mlp.grn, dtype))
     path = _chain(*ops, _linear(block.mlp.fc2, dtype, block.gamma))
@@ -499,30 +504,35 @@ def _module_network(family: str, net: Any, dtype: mx.Dtype) -> tuple[Callable, C
 class Network:
     """Fold and upload the weights once, then run the full classifier in MLX."""
 
-    def __init__(self, ctx: Context) -> None:
-        """Convert the selected network from timm or torchvision."""
+    def __init__(self, ctx: Context, net: torch.nn.Module | None = None, family: str | None = None) -> None:
+        """Convert the selected network from timm or torchvision.
+
+        `net`: the family's network (default: `build(ctx)`'s lazy twin); `family`: the architecture to write it out
+        as (default: the card's family; the WD tagger's ConvNeXt is `"convnext"`).
+        """
         # timm and torchvision register architecture-specific layers; the weights stay the memory-mapped checkpoint
-        net = cast("Any", lazy_build(lambda: build(ctx)))
+        net = cast("Any", net if net is not None else lazy_build(lambda: build(ctx)))
+        family = family or ctx.card.family
         self.dtype = getattr(mx, ctx.dtype)
-        if ctx.card.family in {"alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2"}:
-            self.forward = mx.compile(_classic(net, ctx.card.family, self.dtype))
+        if family in {"alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2"}:
+            self.forward = mx.compile(_classic(net, family, self.dtype))
             return
         pool = _pool_for(ctx.mode)
-        if ctx.card.family in {"convnext", "convnextv2"}:
+        if family in {"convnext", "convnextv2"}:
             features = _convnext_trunk(net, self.dtype)
             head = _chain(_norm(net.head.norm, self.dtype), _linear(net.head.fc, self.dtype))
-        elif ctx.card.family == "resnet":
+        elif family == "resnet":
             features, head = _resnet(net, self.dtype), _linear(net.fc, self.dtype)
-        elif ctx.card.family == "mobilenetv2":
+        elif family == "mobilenetv2":
             features, head = _mobilenet(net, self.dtype), _linear(net.classifier[-1], self.dtype)
-        elif ctx.card.family in {"efficientnet", "efficientnetv2", "mobilenetv3", "regnet"}:
-            features, head = _gated_cnn(net, self.dtype, regnet=ctx.card.family == "regnet")
-        elif ctx.card.family in _BUILDERS:
-            features, head = _BUILDERS[ctx.card.family](net, self.dtype)
-        elif ctx.card.family in _MODULES:
-            features, head = _module_network(ctx.card.family, net, self.dtype)
+        elif family in {"efficientnet", "efficientnetv2", "mobilenetv3", "regnet"}:
+            features, head = _gated_cnn(net, self.dtype, regnet=family == "regnet")
+        elif family in _BUILDERS:
+            features, head = _BUILDERS[family](net, self.dtype)
+        elif family in _MODULES:
+            features, head = _module_network(family, net, self.dtype)
         else:
-            msg = f"No MLX classifier implementation for {ctx.card.family}"
+            msg = f"No MLX classifier implementation for {family}"
             raise ValueError(msg)
 
         def forward(x: mx.array) -> mx.array:
