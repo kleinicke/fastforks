@@ -14,11 +14,11 @@ port had before the hand port) or it is a libnet classifier written out in `libn
 
 Per (ref, mode, dtype) each arm (hand, graph) runs in a fresh process, both under the same MLX buffer cache limit
 (`--cache-mb`, `FASTFORKS_MLX_CACHE_MB`), on the survey's input of the ref (`tools/speed_survey.py`: the floor's
-scene where it exists locally, else the synthetic bench input; the same arrays in both arms). The runner's own
-pre- and post-processing run as usual; every outermost call of an MLX network (an `MlxModule` / `GraphNet` of the
-graph port, a class of a family's `mlx*` module of the hand port; `*_post` modules excluded) is timed with its inputs
-evaluated before and its outputs evaluated after (synchronised), and its peak memory is `mx.get_peak_memory()` after
-an `mx.reset_peak_memory()`. Recorded per arm:
+scene where it exists locally, else the synthetic bench input; the same arrays in both arms). The runner's own pre-
+and post-processing run as usual; every outermost call of an MLX network (an `MlxModule` / `GraphNet` of the graph
+port; `__call__` or a public method of a class of a family's `mlx*` / `*_mlx` module of the hand port, `*_post`
+modules excluded) is timed with its inputs evaluated before and its outputs evaluated after (synchronised), and its
+peak memory is `mx.get_peak_memory()` after an `mx.reset_peak_memory()`. Recorded per arm:
 
 - `net_first_s`, `net_ms` (median of MPS_RUNS after MPS_WARMUP warm-up calls, the survey's protocol), `net_peak_mb`
   (the largest network peak over the timed calls), `net_calls` (network calls per model call), `net_inputs` (the
@@ -64,12 +64,14 @@ SLOWER = 1.02  # flag: hand / graph warm time above this
 HEAVIER = 1.02  # flag: hand / graph network peak above this
 TIMEOUT_S = 1800
 CACHE_MB = 2048  # both arms: the largest request a port gets on a 16 GB Mac (1/8 of its memory)
-# modules named mlx* that are the MLX runtime or the graph translation, not a family's hand-written network
+# modules named mlx* / *_mlx that are the MLX runtime or the graph translation, not a family's hand-written network
 _INFRA = frozenset(
     {
         "fastforks._core.mlx",
         "fastforks._core.mlx_cast",
         "fastforks._core.mlx_cache",
+        "fastforks.tracking._mlx",
+        "fastforks.volume._mlx",
         "fastforks.shared.mlx_port",
         "fastforks.shared.mlx_graph",
         "fastforks.shared.mlx_wrap",
@@ -194,7 +196,10 @@ class _Timers:
             mx = timers.mx
             timers.depth += 1
             try:
-                mx.eval(*timers.arrays((args, kwargs)))
+                try:
+                    mx.eval(*timers.arrays((args, kwargs)))
+                except ValueError:  # traced by `mx.compile` / `mx.vmap`: the compiled caller is the network call
+                    return fn(obj, *args, **kwargs)
                 mx.synchronize()
                 mx.reset_peak_memory()
                 t0 = time.perf_counter()
@@ -214,23 +219,29 @@ class _Timers:
         call.__wrapped__ = fn  # ty: ignore[unresolved-attribute]
         return call
 
-    def patch(self, cls: type) -> None:
-        if "__call__" in cls.__dict__ and not hasattr(cls.__dict__["__call__"], "__wrapped__"):
-            cls.__call__ = self.wrap(cls.__dict__["__call__"])  # ty: ignore[invalid-assignment]
+    def patch(self, cls: type, name: str = "__call__") -> bool:
+        fn = cls.__dict__.get(name)
+        if not callable(fn) or isinstance(fn, (staticmethod, classmethod, type)) or hasattr(fn, "__wrapped__"):
+            return False
+        setattr(cls, name, self.wrap(fn))
+        return True
 
     def patch_hand(self) -> int:
-        """Time every class with a `__call__` of the loaded hand-written MLX modules; the number patched."""
+        """Time `__call__` and the public methods of every class of the loaded hand-written MLX modules.
+
+        The entry points differ per family (`__call__`, `logits`, `dense`, `maps`, `embed`, ...); the depth counter
+        times only the outermost one. Returns the number of methods patched.
+        """
         n = 0
         for name, mod in list(sys.modules.items()):
             leaf = name.rpartition(".")[2]
-            if not name.startswith("fastforks.") or not leaf.startswith("mlx") or name in _INFRA:
-                continue
-            if leaf.endswith("_post"):
+            hand = leaf.startswith("mlx") or leaf.endswith("_mlx")
+            if not name.startswith("fastforks.") or not hand or name in _INFRA or leaf.endswith("_post"):
                 continue
             for obj in list(vars(mod).values()):
-                if isinstance(obj, type) and obj.__module__ == name and "__call__" in obj.__dict__:
-                    self.patch(obj)
-                    n += 1
+                if isinstance(obj, type) and obj.__module__ == name:
+                    names = ["__call__"] + [k for k in obj.__dict__ if not k.startswith("_")]
+                    n += sum(self.patch(obj, k) for k in names)
         return n
 
 

@@ -2728,7 +2728,8 @@ and pre- and post-processing, so a slower core can hide behind a faster load. Th
   - Per (ref, mode, dtype), each arm runs in its own process under the same buffer cache limit
     (`FASTFORKS_MLX_CACHE_MB`), on the survey's input of the ref.
   - A throwaway process loads and calls each arm once first, so both are measured with a warm conversion cache.
-  - It times every outermost network call (`MlxModule` / `GraphNet`, or a class of the family's `mlx*` modules),
+  - It times every outermost network call (`MlxModule` / `GraphNet`, or `__call__` / a public
+    method of a class of the family's `mlx*` / `*_mlx` modules),
     synchronised: first call, warm median (4 warm-ups, median of 5), peak (`mx.reset_peak_memory` /
     `mx.get_peak_memory`), resident memory, and end-to-end figures beside them.
   - It compares the two arms' outputs (a sanity check, not a golden) and flags a ref where the hand network is more
