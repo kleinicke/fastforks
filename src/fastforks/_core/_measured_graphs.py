@@ -1,5 +1,10 @@
 """Measured Linux CUDA graph eligibility for selected workloads."""
 
+from typing import TypeAlias
+
+TensorSignature: TypeAlias = tuple[str, tuple[int, ...]]
+MeasuredKey: TypeAlias = tuple[str, str, str, tuple[int, int] | tuple[TensorSignature, ...]]
+
 # MobileNetV2 1080p observed margins: -24.133, -7.468 ms.
 # Receipt SHA-256 9e8a62ea5eb3f8c831011dedbad5ee94a820768b8fbc9a5f0c61c24fec022f85.
 # yunet-n@1 f32-bchw-contiguous 720x1280. Request-15 deltas: -1.088, -2.276 ms.
@@ -17,7 +22,7 @@
 # yunet-s@1 u8-chw-rgb-interleaved 480x640. Request-15 deltas: -15.523, -7.813 ms.
 # Receipt SHA-256 1b6f7c47e38e70eabf19c64d4f42a73f42a2e5f7db2ef8af2b442f555719ec5a. NVIDIA driver 595.99.02.
 ENROLLED = frozenset([("classification", "mobilenetv2"), ("pose", "yunet")])
-APPROVED = {
+APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("mobilenet_v2.tv2_in1k@1", "float16", "f32-bchw-contiguous", (1080, 1920)): (
         (
             "2.14.1+cu130",

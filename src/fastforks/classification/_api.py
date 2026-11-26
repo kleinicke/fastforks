@@ -159,7 +159,7 @@ class ClassificationModel(core.Model):
         """
         x = to_rgb_batch(image, self._device)
         self._check_size(x)
-        out = self._batched(self._run, x, graph_image=image)
+        out = self._batched(self._run, x, graph_input=image)
         logits = self._check_outputs(out, {"logits": (x.shape[0], len(self.class_names))})["logits"]
         return ClassificationResult(
             logits if is_batch(image) else logits[0],

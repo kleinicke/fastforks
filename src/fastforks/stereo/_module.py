@@ -71,7 +71,8 @@ def _stereo_disparity(key: int, left: torch.Tensor, right: torch.Tensor) -> torc
     if model is None:
         msg = f"fastforks::stereo_disparity: no kernels model {key} here (exported programs run in-process only)"
         raise RuntimeError(msg)
-    disparity = model(left, right).disparity
+    with model._without_graph_admission():  # noqa: SLF001 - module execution has a separate public workload
+        disparity = model(left, right).disparity
     return cast("torch.Tensor", disparity).clone()  # a fresh tensor: custom ops must not return internal buffers
 
 

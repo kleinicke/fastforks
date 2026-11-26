@@ -14,6 +14,7 @@ from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch
+from fastforks._core.linux_graph_defaults import VideoQueries
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.upload import to_device
@@ -148,7 +149,8 @@ class TrackingModel(core.Model):
 
         q, single = _queries(queries, n)
         _check_in_image(q, size)
-        with self._session(), deferred_ranges():  # one range check for all frames, not one sync per frame
+        # One range check for all frames. Admission uses the original clip and query representation.
+        with self._session(graph_input=VideoQueries(video, queries)), deferred_ranges():
             out = self._runner(frame, n, size, q.to(self._device))
         maps = self._check_outputs(out, {"tracks": (n, q.shape[0], 2), "visibility": (n, q.shape[0])})
         if single:

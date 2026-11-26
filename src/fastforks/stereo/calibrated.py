@@ -193,7 +193,10 @@ def run_views(
     maps: dict[str, dict[str, Any]] = {}
     for i, view in enumerate(view_names(views)):
         # the mirrored pair of "both" has the pixel values just checked by the left run
-        with checked_ranges() if i else contextlib.nullcontext():
+        with (
+            checked_ranges() if i else contextlib.nullcontext(),
+            model._without_graph_admission(),  # noqa: SLF001 - this public path can rectify and/or run both views
+        ):
             res = model(left, right) if view == "left" else model(right.flip(-1), left.flip(-1))
         out: dict[str, Any] = {"disparity": res.disparity, "confidence": res.confidence, **res.extras}
         if view == "right":
