@@ -18,18 +18,20 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import sys
 from typing import Any
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
-from fastforks._core.upload import retain_for_cuda_graph
+from fastforks._core.upload import capture_uploads_active, retain_for_cuda_graph
 from fastforks.shared import sdpa
 
 __all__ = ["fast"]
 
 _INFERENCE_ONLY = "swin_v1.fast is inference only (run it under torch.inference_mode or torch.no_grad)"
+_GEOMETRY_GENERATION = object()
 
 
 def fast(backbone: Any, *, sdpa_auto: str | None = None) -> None:  # noqa: ANN401 - the vendored SwinTransformer
@@ -87,7 +89,20 @@ class _Geometry:
 
 @functools.lru_cache(maxsize=32)
 def _geometry(h: int, w: int, window: int, shift: int, device: torch.device, dtype: torch.dtype) -> _Geometry:  # noqa: PLR0913, PLR0917
-    return _Geometry(h, w, window, shift, device, dtype)
+    # Public CUDA calls share a lock, but another device or low-level caller can still miss this LRU.
+    # Stop a concurrent eviction from making recording build host tables and upload them inside the graph.
+    if sys.platform == "linux" and device.type == "cuda" and capture_uploads_active():
+        msg = "Swin geometry was evicted before CUDA graph recording"
+        raise RuntimeError(msg)
+    global _GEOMETRY_GENERATION  # noqa: PLW0603 - only misses advance the cache-generation stamp
+    geometry = _Geometry(h, w, window, shift, device, dtype)
+    _GEOMETRY_GENERATION = object()
+    return geometry
+
+
+def geometry_stamp() -> tuple[object, int]:
+    """A conservative change detector for a just-warmed window cache, including an explicit clear."""
+    return _GEOMETRY_GENERATION, _geometry.cache_info().currsize
 
 
 def _layer_forward(self: Any, x: torch.Tensor, H: int, W: int) -> tuple:  # noqa: ANN401, N803 - a BasicLayer; upstream's names

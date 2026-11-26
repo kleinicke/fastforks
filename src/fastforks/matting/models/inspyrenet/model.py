@@ -28,7 +28,8 @@ from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cnn_kernels import fold_bn
-from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.cuda_graphs import SmallShapeGraphs, graph_replay_allowed
+from fastforks.shared.swin_v1.fast import geometry_stamp
 
 from .net import InSPyReNet_SwinB
 from .net.modules.attention_module import SICA
@@ -232,18 +233,56 @@ class Kernels(Portable):
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
         policy = ctx.params.cuda_graph_policy
         enabled = policy == "on" or (policy == "auto" and (sys.platform != "linux" or ctx.params.cuda_graph_on_linux))
-        self.graphs = SmallShapeGraphs(super()._net, pixels=2**21, enabled=enabled)
+        self._track_geometry = (
+            enabled
+            and sys.platform == "linux"
+            and ctx.device.type == "cuda"
+            and ctx.variant.ref == "inspyrenet-fast@1"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+            and self.dtype == torch.float16
+        )
+        self._prepared_geometry: tuple[object, int] | None = None
+        self.graphs = SmallShapeGraphs(
+            super()._net, pixels=2**21, enabled=enabled, capture_warmup=self._needs_network_warmup
+        )
+
+    def _needs_network_warmup(self, image: torch.Tensor) -> bool:
+        """A successful eager Fast call prepares the window tables and biases for native capture."""
+        return (
+            not self._track_geometry
+            or self._prepared_geometry is None
+            or image.shape != (1, 3, 384, 384)
+            or image.dtype != torch.float16
+            or self._prepared_geometry != geometry_stamp()
+            or any(
+                (bias := getattr(block.attn, "_fast_bias", None)) is None or bias.dtype != image.dtype
+                for layer in self.net.backbone.layers
+                for block in layer.blocks
+            )
+        )
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         return image_normalize.normalize(x, self.mean, self.std)
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():  # also while a graph captures: its GEMMs keep the fp16-accumulate kernels
+            if (
+                self._track_geometry
+                and self._prepared_geometry is None
+                and x.shape == (1, 3, 384, 384)
+                and graph_replay_allowed()
+                and torch.cuda.get_allocator_backend() == "native"
+            ):
+                result = self.graphs(x)
+                self._prepared_geometry = geometry_stamp()
+                return result
             return self.graphs(x)
 
     def release_graphs(self) -> None:
         """Release captured activation buffers."""
         self.graphs.release()
+        self._prepared_geometry = None
 
 
 class _OneImage(Portable):

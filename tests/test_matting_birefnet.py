@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 import weakref
 
+import pytest
 import torch
 import torch.nn.functional as F
 
@@ -14,7 +16,7 @@ from fastforks.matting.models.birefnet import model
 from fastforks.matting.models.birefnet.net.birefnet import image2patches
 from fastforks.matting.models.birefnet.net.modules.aspp import _ASPPModuleDeformable
 from fastforks.shared.swin_v1 import SwinTransformer, fast
-from fastforks.shared.swin_v1.fast import _geometry
+from fastforks.shared.swin_v1.fast import _geometry, geometry_stamp
 
 
 def test_card() -> None:
@@ -92,3 +94,13 @@ def test_swin_capture_holds_evicted_geometry() -> None:
     assert all(ref() is not None and any(ref() is v for v in inputs) for ref in refs)
     inputs.clear()
     assert all(ref() is None for ref in refs)
+
+
+def test_swin_capture_cannot_build_a_missing_cuda_geometry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A late cache miss can retry with a checked eager forward before recording."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    _geometry.cache_clear()
+    before = geometry_stamp()
+    with capture_uploads(), pytest.raises(RuntimeError, match="Swin geometry was evicted"):
+        _geometry(9, 13, 7, 3, torch.device("cuda:0"), torch.float16)
+    assert geometry_stamp() == before
