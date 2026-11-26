@@ -5,7 +5,8 @@ last. Written out instead of replayed from an exported graph: the export, transl
 a 1-6 s first call whose network runs in 0.04-0.35 s.
 
 - each block is one `mx.compile`d function per stage (its weights arguments, so a stage's blocks share one trace):
-  pre-norm efficient attention (the spatial reduction a space-to-depth reshape and one GEMM, MLX's fused attention),
+  pre-norm efficient attention (the spatial reduction a space-to-depth reshape and one GEMM, MLX's fused attention
+  through `mlx.attention`: the 32-wide heads zero-padded to a fused head size, no materialised scores),
   pre-norm Mix-FFN (the depthwise 3 x 3 the shared depthwise kernel, the exact GELU in float32);
 - the head: per stage one GEMM at the stage's resolution (projection, fuse slice and batch norm folded by `_Net`),
   the torch-identical bilinear resize (`mlx_seg.resize`), the sum, ReLU and the classifier.
@@ -21,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from fastforks._core.mlx import mx
+from fastforks._core.mlx import attention, mx
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared.mlx_seg import resize
 
@@ -75,7 +76,7 @@ def _block_fn(heads: int, sr: int, eps: tuple[float, float, float], scale: float
             wr, br, nrw, nrb = red
             y = _layer_norm(mx.addmm(br, _space_to_depth(y, sr), wr), nrw, nrb, er)
         kv = mx.addmm(bkv, y.reshape(b, -1, c), wkv).reshape(b, -1, 2, heads, c // heads).transpose(2, 0, 3, 1, 4)
-        o = mx.fast.scaled_dot_product_attention(q, kv[0], kv[1], scale=scale)
+        o = attention(q, kv[0], kv[1], scale=scale)
         x = x + mx.addmm(bo, o.transpose(0, 2, 1, 3).reshape(b, h, wd_, c), wo)
         y = mx.addmm(b1, _layer_norm(x, n2w, n2b, e2), w1)
         y = _gelu(ops.depthwise(y, wd, bd, ONE, ONE, ONE))

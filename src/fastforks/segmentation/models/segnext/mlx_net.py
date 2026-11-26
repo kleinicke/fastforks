@@ -24,7 +24,7 @@ import numpy as np
 from fastforks._core.mlx import metal_kernel, mx
 from fastforks.kernels.graph_mlx.ops import _ERF4
 from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
-from fastforks.shared.mlx_seg import _resize
+from fastforks.shared.mlx_seg import resize
 
 from . import net as sn
 
@@ -246,6 +246,9 @@ class MlxSegNeXt:
         self.bases = mx.array(head.hamburger.bases.float().numpy())
         self.align = self._module(head.align)
         self.classifier = self._pointwise(head.conv_seg)
+        # the casts at once: a lazy `astype` keeps its float32 source resident and is redone inside every call
+        mx.eval(self.embeds, self.stages, self.norms, self.squeeze, self.ham_in, self.ham_out, self.bases)
+        mx.eval(self.align, self.classifier)
         self._compiled: Callable[[mx.array], mx.array] = mx.compile(self._forward)
 
     def _a(self, t: Any) -> mx.array:  # noqa: ANN401 - a torch tensor
@@ -336,7 +339,7 @@ class MlxSegNeXt:
             x = mx.fast.layer_norm(x.astype(mx.float32), w, b, eps).astype(self.dtype)
             feats.append(x)
         size = feats[1].shape[1:3]
-        x = mx.concatenate([feats[1]] + [_resize(f, size).astype(self.dtype) for f in feats[2:]], axis=-1)
+        x = mx.concatenate([feats[1]] + [resize(f, size).astype(self.dtype) for f in feats[2:]], axis=-1)
         x = _relu(self._conv_module(x, self.squeeze))
         n, h, wd, c = x.shape
         y = _relu(self._conv_module(x, self.ham_in)).astype(mx.float32).reshape(n, h * wd, c)
