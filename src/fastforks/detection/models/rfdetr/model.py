@@ -79,6 +79,7 @@ class Portable(Runner):
     batch = None  # `detect_batch`: a batch of images in one network call (box models; Seg pastes masks per image)
     compiled_methods = ("__call__", "detect_batch")
     Params = Params
+    _wide_seg_m_fc2 = False
 
     def __init__(self, ctx: Context) -> None:
         """Build lazily with optional libraries, load checked weights and prepare normalization."""
