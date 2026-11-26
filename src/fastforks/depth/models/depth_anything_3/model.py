@@ -161,7 +161,9 @@ def _net(ctx: Context, device: torch.device | str | None = None) -> _Net:
         net = _Net(arch)
     nested = arch == "nested"
     if _split_weights(ctx):
-        sd = load_mapped_safetensors(ctx.weights()[0], rename=lambda key: _rename(key.removeprefix("model."), nested))
+        sd = load_mapped_safetensors(
+            ctx.weights()[0], rename=lambda key: _rename(key.removeprefix("model."), nested), require_cached=True
+        )
     else:
         sd = {}
         for k, v in ctx.state_dict(strip="model.").items():

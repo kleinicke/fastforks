@@ -252,7 +252,8 @@ def test_safetensors_reader_reads_every_dtype_into_buffers(tmp_path):
             f.read_into("f32", torch.empty(14)[::2])  # not contiguous
 
 
-def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path):
+@pytest.mark.parametrize("resident", [None, True, False])
+def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path, monkeypatch, resident):
     from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
 
     path = tmp_path / "model.safetensors"
@@ -260,7 +261,17 @@ def test_mapped_safetensors_filters_keys_and_keeps_the_file_unchanged(tmp_path):
     scale = torch.tensor([1, 2], dtype=torch.bfloat16)
     save_file({"encoder.weight": weight, "scale": scale, "unused": torch.zeros(1)}, path)
     names = {"encoder.weight": "weight", "scale": "scale"}
-    state = checkpoint.load_mapped_safetensors(path, rename=names.get)
+    original = checkpoint.np.memmap
+    mappings = []
+
+    def record_mapping(source, **kwargs):
+        mappings.append(source.name)
+        return original(source, **kwargs)
+
+    monkeypatch.setattr(checkpoint.np, "memmap", record_mapping)
+    monkeypatch.setattr(checkpoint, "_checkpoint_is_cached", lambda _source: resident is True)
+    state = checkpoint.load_mapped_safetensors(path, rename=names.get, require_cached=resident is not None)
+    assert mappings == ([] if resident is False else [str(path)])
     assert state.keys() == set(names.values())
     assert torch.equal(state["weight"], weight)
     assert state["scale"].dtype == scale.dtype
