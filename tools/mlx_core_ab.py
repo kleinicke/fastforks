@@ -18,8 +18,9 @@ Per (ref, mode, dtype) each arm (hand, graph) runs in a fresh process, both unde
 scene where it exists locally, else the synthetic bench input; the same arrays in both arms). The runner's own pre-
 and post-processing run as usual; every outermost call of an MLX network (an `MlxModule` / `GraphNet` of the graph
 port; `__call__` or a public method of a class of a family's `mlx*` / `*_mlx` module of the hand port, `*_post`
-modules excluded) is timed with its inputs evaluated before and its outputs evaluated after (synchronised), and its
-peak memory is `mx.get_peak_memory()` after an `mx.reset_peak_memory()`. Recorded per arm:
+modules excluded; `SCOPE`'s methods only where the hand port runs more in MLX than the graph port) is timed with its
+inputs evaluated before and its outputs evaluated after (synchronised), and its peak memory is `mx.get_peak_memory()`
+after an `mx.reset_peak_memory()`. Recorded per arm:
 
 - `net_first_s`, `net_ms` (median of MPS_RUNS after MPS_WARMUP warm-up calls, the survey's protocol), `net_peak_mb`
   (the largest network peak over the timed calls), `net_calls` (network calls per model call), `net_inputs` (the
@@ -101,6 +102,14 @@ _INFRA = frozenset(
         "fastforks.shared.mlx_band",
     }
 )
+# families whose hand port runs more of the model in MLX than the graph port translated: only these hand methods are
+# timed, the part the graph port covers (R-CNN: backbone, FPN and RPN head, not the box and mask heads; XFeat: the
+# extractor, not LightGlue; LoFTR: backbone, coarse transformer and its matching, not the fine refinement)
+SCOPE = {
+    "rcnn": (("Net", "dense"),),
+    "xfeat": (("MlxDense", "__call__"),),
+    "loftr": (("MlxLoFTR", "_dense"),),
+}
 
 
 # Jobs (no MLX in this process: every measurement is a worker).
@@ -248,13 +257,23 @@ class _Timers:
         setattr(cls, name, self.wrap(fn))
         return True
 
-    def patch_hand(self) -> int:
+    def patch_hand(self, family: str) -> int:
         """Time `__call__` and the public methods of every class of the loaded hand-written MLX modules.
 
         The entry points differ per family (`__call__`, `logits`, `dense`, `maps`, `embed`, ...); the depth counter
-        times only the outermost one. Returns the number of methods patched.
+        times only the outermost one. A family in `SCOPE` times only the methods listed there. Returns the number of
+        methods patched.
         """
         n = 0
+        if family in SCOPE:
+            for name, mod in list(sys.modules.items()):
+                leaf = name.rpartition(".")[2]
+                if name.startswith("fastforks.") and name not in _INFRA and leaf.startswith("mlx"):
+                    for cls, meth in SCOPE[family]:
+                        obj = vars(mod).get(cls)
+                        if isinstance(obj, type) and obj.__module__ == name:
+                            n += self.patch(obj, meth)
+            return n
         for name, mod in list(sys.modules.items()):
             leaf = name.rpartition(".")[2]
             hand = leaf.startswith("mlx") or leaf.endswith("_mlx")
@@ -312,7 +331,7 @@ def worker(spec: dict[str, Any]) -> int:  # noqa: C901, PLR0915 - one linear mea
         model = task.load(spec["ref"], mode=spec["mode"], device="mlx", dtype=spec["dtype"])
         row["load_s"] = round(time.perf_counter() - t0, 3)
         row["runner"] = type(model._runner).__name__  # noqa: SLF001 - which runner the switch built
-        row["hand_classes"] = timers.patch_hand()
+        row["hand_classes"] = timers.patch_hand(spec["family"])
         args, kw, scene = _inputs(model, {**spec, "device": "mlx"})
         row["scene"] = scene
 
