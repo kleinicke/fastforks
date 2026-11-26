@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from fastforks._core.mlx import metal_kernel, mx, to_mx
+from fastforks.kernels.graph_mlx.ops import bilinear_nhwc
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -44,12 +45,26 @@ def _resize(x: mx.array, size: Sequence[int]) -> mx.array:
         shape = [1, 1, 1, 1]
         shape[axis] = n
         a = mx.take(x, i0, axis=axis)
-        x = a + (mx.take(x, i1, axis=axis) - a) * t.reshape(shape)
+        # weights in the map's own float dtype: float32 taps would promote a float16 map (and every map built on
+        # it) to float32, twice the memory of the graph translation's resize
+        x = a + (mx.take(x, i1, axis=axis) - a) * t.reshape(shape).astype(x.dtype)
     return x
 
 
-resize = _resize
-"""`[B, h, w, C]` to `[B, *size, C]`: bilinear, half-pixel centres, the values of torch's resize (lazy)."""
+def resize(x: mx.array, size: Sequence[int]) -> mx.array:
+    """`[B, h, w, C]` to `[B, *size, C]`: bilinear, half-pixel centres, the values of torch's resize (lazy).
+
+    One pass of the graph translation's NHWC kernel (`ops.bilinear_nhwc`: the four taps read straight from `x`,
+    float32 accumulation, one rounding to `x`'s dtype); `_resize`'s axis-by-axis gathers materialise two maps per
+    axis and round the float16 map twice.
+    """
+    h, w = x.shape[1:3]
+    oh, ow = int(size[0]), int(size[1])
+    if (h, w) == (oh, ow):
+        return x
+    if x.ndim != 4 or x.dtype not in (mx.float16, mx.bfloat16, mx.float32):  # noqa: PLR2004 - NHWC
+        return _resize(x, size)
+    return bilinear_nhwc(x, (oh, ow), (h / oh, w / ow), align=False)
 
 
 def _steps(x: mx.array, sizes: Sequence[Sequence[int]]) -> mx.array:

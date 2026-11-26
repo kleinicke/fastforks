@@ -900,6 +900,26 @@ def test_shared_attention_pads_and_blocks_exactly(monkeypatch, d, blocks):
     assert half.dtype == mx.float16
 
 
+@pytest.mark.parametrize("dtype", ["float16", "float32"])
+def test_seg_resize_matches_torch_in_its_dtype(dtype):
+    """`mlx_seg.resize` (the fused NHWC kernel) keeps the map's dtype and gives torch's half-pixel bilinear values."""
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415 - optional (the mlx extra)
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415
+    from fastforks.shared import mlx_seg  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    x = torch.randn(1, 5, 7, 3)
+    want = torch.nn.functional.interpolate(x.permute(0, 3, 1, 2), (12, 9), mode="bilinear").permute(0, 2, 3, 1)
+    a = to_mx(x).astype(getattr(mx, dtype))
+    for fn in (mlx_seg.resize, mlx_seg._resize):
+        got = fn(a, (12, 9))
+        assert got.dtype == a.dtype
+        tol = 2e-3 if dtype == "float16" else 1e-5
+        torch.testing.assert_close(to_torch(got.astype(mx.float32)), want, atol=tol, rtol=tol)
+
+
 def test_signature_caches_keep_the_most_recent_shapes(caplog):
     """`MlxModule` holds one exported graph per input signature, at most `SIGNATURES`; an evicted one exports again."""
     pytest.importorskip("mlx.core")
