@@ -112,7 +112,11 @@ def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
         q, k = y[0], y[1]
     if rope is not None:  # float32 tables (Perception Encoder): rotated in float32, as timm
         q, k = rotate(q, *rope).astype(qkv.dtype), rotate(k, *rope).astype(qkv.dtype)
-    out = mlx_core.attention(q, k, qkv[2], scale=d**-0.5)
+    # Float32: the shared attention (an unfused head size, LW-DETR's 32, materialises float32 scores: medium 420 ->
+    # 225 MB). Float16 keeps MLX's own unfused kernel (float16 scores, half the bytes): the padded fused one is closer
+    # to float32 per call (max error 0.002 against 0.004-0.02), yet LW-DETR-M float16 then loses its golden's 0.91 box.
+    sdpa = mlx_core.attention if q.dtype == mx.float32 else mx.fast.scaled_dot_product_attention
+    out = sdpa(q, k, qkv[2], scale=d**-0.5)
     return out.transpose(0, 2, 1, 3).reshape(b, n, heads * d)
 
 
