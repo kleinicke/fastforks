@@ -41,14 +41,17 @@ def group_silu(norm: torch.nn.GroupNorm, x: torch.Tensor, *, inplace: bool) -> t
     return out
 
 
-def affine_silu(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> torch.Tensor | None:
-    """Fuse the affine and SiLU with the intermediate half rounding on aligned NHWC rows."""
+def affine_silu(
+    x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, *, inplace: bool = False
+) -> torch.Tensor | None:
+    """Fuse the half-rounded affine and SiLU, optionally reusing an owned contiguous NHWC map."""
     b, c, h, w = x.shape
     if (
         not x.is_cuda
         or x.dtype != torch.float16
         or c % 8
         or x.stride()[1:] != (1, c * w, c)
+        or (inplace and not x.is_contiguous(memory_format=torch.channels_last))
         or any(t.data_ptr() % 16 for t in (x, scale, shift))
         or x.stride(0) % 8
         or any(
@@ -57,7 +60,7 @@ def affine_silu(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> to
         )
     ):
         return None
-    out = torch.empty_like(x, memory_format=torch.channels_last)
+    out = x if inplace else torch.empty_like(x, memory_format=torch.channels_last)
     count = x.numel() // 8
     load(x.device).launch("affine_silu_h", *linear(count), x, scale, shift, out, c, h * w, x.stride(0), count)
     return out

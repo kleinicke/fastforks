@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -230,8 +231,12 @@ class Kernels(Runner):
         net, self.alpha_bar = build(ctx)
         self.net = net.half().to(memory_format=torch.channels_last)
         self.grid = times(ctx.params.steps)
+        # The native allocator can reuse this workspace at full image resolution. The async allocator's peak grew.
+        reuse_activation = sys.platform == "linux" and torch.cuda.get_allocator_backend() == "native"
         with torch.inference_mode():
-            self.fast = _DepthFMFast(self.net.unet, self.net.empty_text.half(), self.grid[:-1])
+            self.fast = _DepthFMFast(
+                self.net.unet, self.net.empty_text.half(), self.grid[:-1], reuse_resnet_activation=reuse_activation
+            )
         self.noise = Noise(ctx.params.seed)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
