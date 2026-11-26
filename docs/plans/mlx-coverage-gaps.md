@@ -2160,6 +2160,53 @@ written in `mlx.core`; the exported graph is gone, and with it 1.5-3.2 s of firs
   built and the float32 residual stream the float16 mode keeps; which of the two it is was not measured. The
   rows are 300-900 MB under MPS, so it was not followed further.
 
+**SAM 2.1, second pass (2026-11-26).** The blocks use the fused kernels throughout, the mask decoder, the video
+memory attention, the memory encoder and the hole filling run on MLX (`mlx_heads.py`), and attention and MLP of
+the large maps run in bands. `auto` now takes MLX float16 for all four sizes. "Graph" below is the exported-graph
+runner of before the first pass, rebuilt from `mlx_wrap.port` for the comparison.
+
+Network only, warm ms, float16 / float32:
+
+| ref | encoder graph | encoder written | prompt decode graph (torch CPU) | written (MLX) |
+|---|---|---|---|---|
+| tiny | 141.6 / 170.1 | 106.7 / 139.5 | 17 | 9.8 / 9.0 |
+| small | 160.0 / 197.8 | 124.1 / 159.0 | 17 | 9.5 / 9.7 |
+| base-plus | 284.9 / 363.7 | 222.9 / 271.4 | 18 | 9.4 / 9.7 |
+| large | 599.5 / 706.4 | 501.4 / 585.5 | 18 | 9.5 / 9.6 |
+
+Encoder call peak (MLX allocator, weights included; weights alone in brackets), MB: tiny float16 graph 206 (73),
+written 348 (125); tiny float32 241 (136) against 504 (188); large float16 516 (434) against 822 (486). The
+written encoder is 17-25 % faster than the graph but not as lean in one call: the graph path evaluates in
+compiled segments of a fixed memory budget, the written one holds a whole stage-1 block. Bands of 8192 tokens
+took it from 455 to 348 MB (tiny), 616 to 476 (base-plus) and 981 to 822 (large) for 1-5 % of encoder time.
+
+Around the network and end to end (survey rows, two runs, the second listed; before = first pass):
+
+| ref | warm fp16 | warm fp32 | first call s fp16 / fp32 | run peak MB fp16 / fp32 | load peak MB fp16 / fp32 | best MPS ms |
+|---|---|---|---|---|---|---|
+| tiny | 137.4 -> 116.7 | 156.3 -> 146.2 | 0.16 -> 0.15 / 0.27 -> 0.18 | 1023 -> 919 / 1180 -> 1043 | 461 -> 486 / 464 -> 501 | 129 |
+| small | 159.0 -> 136.6 | 182.3 -> 169.0 | 0.17 -> 0.17 / 0.30 -> 0.20 | 998 -> 931 / 1206 -> 1075 | 474 -> 498 / 491 -> 528 | 148 |
+| base-plus | 263.3 -> 233.8 | 297.7 -> 273.2 | 0.28 -> 0.26 / 0.40 -> 0.31 | 1112 -> 1072 / 1398 -> 1311 | 598 -> 624 / 676 -> 713 | 394 |
+| large | 583.9 -> 522.8 | 643.3 -> 600.1 | 0.59 -> 0.55 / 0.74 -> 0.78 | 1512 -> 1474 / 2084 -> 1986 | 960 -> 985 / 1287 -> 1325 | 544 |
+
+The load peak is 25-40 MB higher: the float32 weights of the MLX decoder are built at load. Large float32 first
+call is 0.04 s slower, within what the row moves between runs of the first pass.
+
+Video, float16, 12 frames of 400x600, ms per frame: tiny graph 703, written 238, MPS 380; small 732 / 256 / 403;
+base-plus 846 / 357 / 643; large 1174 / 645 / 797. Split of a tiny frame, graph -> written: embed 138 -> 107,
+memory attention 311 -> 101, memory encoder 208 -> 1.4, heads 21 -> 9, hole filling 14 -> 6.6.
+
+- Did not pay in the blocks: `mx.compile` of a block (3 %), a thread per row in the layer-norm kernel, qkv
+  transposed first, 1x1 convolutions for the projections, a float16 residual stream (6 %, fails the golden),
+  padding the global-attention heads (96 -> 128, 72 -> 80, 72 -> 128).
+- Did not pay for the peak: an eval before the MLP, an eval after every op (359-437 MB for 7-25 % more time),
+  `mx.synchronize` after block evals, a lower `SYNC_TOKENS`, bands not pipelined (same peak, 10 % slower), bands
+  of 4096 or 2048 tokens (18-41 MB for 3 ms).
+- Did not pay in the memory path: batched scaled-dot-product attention for the cross attention, 128 queries.
+- Left: the encoder's call peak against the graph path; the memory attention at a full bank is GEMM-bound at
+  100 ms a frame; the prompt encoder is still PyTorch on the CPU; the load does not use `mlx_port.recorded` yet
+  (it still needs the PyTorch prompt encoder and video modules, and is 0.3-0.8 s in float16).
+
 **SAM 3 (`promptable_segmentation/models/sam3/net/mlx_net.py`).** Already hand-written. Stage profile float16,
 one call 1693 ms: trunk 1328 (32 layers at 5184 tokens, GEMM-bound), neck 41, text 11, geometry 3, DETR encoder
 115, decoder 35, masks 54.

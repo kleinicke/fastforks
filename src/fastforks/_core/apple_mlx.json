@@ -10988,7 +10988,12 @@
    }
   },
   "sam2.1-hiera-large@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -11008,7 +11013,12 @@
    }
   },
   "sam2.1-hiera-small@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -11028,7 +11038,12 @@
    }
   },
   "sam2.1-hiera-tiny@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [

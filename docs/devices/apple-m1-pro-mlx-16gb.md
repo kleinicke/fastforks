@@ -381,10 +381,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 409 | 352 | – | 1069 |
 | [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 1968 | 1589 | unsupported | 2350 |
 | [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1051 | 864 | – | 1639 |
-| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 298 | 263 | unsupported | 1112 |
-| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 643 | 584 | unsupported | 1512 |
-| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 182 | 159 | unsupported | 998 |
-| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 156 | 137 | unsupported | 1023 |
+| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 273 | 234 | unsupported | 1072 |
+| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 600 | 523 | unsupported | 1474 |
+| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 169 | 137 | unsupported | 931 |
+| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 146 | 117 | unsupported | 919 |
 | [`sam3`](../models/promptable_segmentation.md#sam3) | 1961 | 1573 | unsupported | 2775 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
