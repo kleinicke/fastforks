@@ -8,6 +8,7 @@ violation fails too, so the list shrinks with each fix. Re-measuring against the
 import json
 from argparse import Namespace
 from subprocess import CompletedProcess
+from types import SimpleNamespace
 
 import pytest
 
@@ -214,6 +215,50 @@ def test_restoration_core_capture_preserves_runner_postprocessing():
     assert capture.run_with_post(5, lambda image: image + 1) == 11
     runner, args, kwargs = capture.__dict__["_args"]
     assert runner(*args, **kwargs) == {"image": 6}
+
+
+def test_core_timing_uses_its_own_input_size(monkeypatch):
+    """Recording the first size's runner must neither measure nor warm the last size."""
+    import torch  # noqa: PLC0415
+
+    built, ran = [], []
+
+    class Model:
+        backend = SimpleNamespace(mode="kernels", dtype="float16", kernels=())
+
+        def __init__(self):
+            self._runner = lambda label: ran.append(label) or label
+
+        def __call__(self, label):
+            return self._runner(label)
+
+    def inputs(_model, _task, _ref, value):
+        built.append(value["label"])
+        return (value["label"],), {}
+
+    task = SimpleNamespace(load=lambda *_args, **_kwargs: Model())
+    monkeypatch.setattr(speed_check, "importlib", SimpleNamespace(import_module=lambda _name: task))
+    monkeypatch.setattr(speed_check, "lib_inputs", inputs)
+    monkeypatch.setattr(speed_check, "_sync", lambda: None)
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    spec = {
+        "task": "interpolation",
+        "mode": "kernels",
+        "ref": "example",
+        "inputs": [
+            {"label": "480x854"},
+            {"label": "1080x1920"},
+        ],
+    }
+    _, [(_, _, small_core), (_, _, large_core)] = speed_check._lib_job(spec)
+
+    assert small_core() == "480x854"
+    assert built == ["480x854"]
+    assert ran == ["480x854", "480x854"]  # public recording, then direct runner timing
+    small_core(release=True)
+    assert large_core() == "1080x1920"
+    assert built == ["480x854", "1080x1920"]
+    assert ran[-2:] == ["1080x1920", "1080x1920"]
 
 
 def test_resume_distinguishes_full_timing_and_runner_timing(monkeypatch):

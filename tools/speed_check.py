@@ -441,7 +441,9 @@ def _lib_job(
             with torch.inference_mode():
                 return m(*a, **k)
 
-        def core(*, release: bool = False, c: _Capture = cap, b: dict[str, Any] = box) -> Any:  # noqa: ANN401
+        def core(
+            *, release: bool = False, c: _Capture = cap, b: dict[str, Any] = box, run: Callable[..., Any] = full
+        ) -> Any:  # noqa: ANN401
             # The runner's tensors are recorded here, after the peaks were measured, and dropped again after the
             # core timing: holding them during the full-call rows added two padded fp32 images to every peak.
             if release:
@@ -451,7 +453,7 @@ def _lib_job(
             if c.__dict__["_args"] is None:
                 m._runner = c  # noqa: SLF001 - records the runner's tensors of this input
                 try:
-                    full()
+                    run()
                 finally:
                     m._runner = runner  # noqa: SLF001
             fn, ca, ck = c.__dict__["_args"]
