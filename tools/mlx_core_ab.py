@@ -23,6 +23,8 @@ peak memory is `mx.get_peak_memory()` after an `mx.reset_peak_memory()`. Recorde
 - `net_first_s`, `net_ms` (median of MPS_RUNS after MPS_WARMUP warm-up calls, the survey's protocol), `net_peak_mb`
   (the largest network peak over the timed calls), `net_calls` (network calls per model call), `net_inputs` (the
   shapes the network got on the first call);
+- `net_call_ms`, `net_call_peak_mb`: each network call's share, where a model call makes several (an arm that
+  runs more of the model in MLX makes more of them: compare the calls both arms make);
 - `resident_mb`: MLX active memory after the warm calls with the outputs dropped (the weights and what the network
   keeps), less the active memory before `load()`;
 - end to end: `load_s`, `first_s`, `ms` (the same protocol, without the network timers), `peak_footprint_mb`.
@@ -150,6 +152,7 @@ class _Timers:
         self.seconds = 0.0
         self.peak = 0
         self.calls = 0
+        self.each: list[tuple[float, int]] = []  # seconds and peak bytes of every timed call, in order
         self.inputs: list[str] = []
         self.outputs: list[Any] = []
         self.keep = False  # keep the first network call's input shapes and outputs
@@ -206,8 +209,10 @@ class _Timers:
                 out = fn(obj, *args, **kwargs)
                 mx.eval(*timers.arrays(out))
                 mx.synchronize()
-                timers.seconds += time.perf_counter() - t0
-                timers.peak = max(timers.peak, mx.get_peak_memory())
+                dt, peak = time.perf_counter() - t0, mx.get_peak_memory()
+                timers.seconds += dt
+                timers.peak = max(timers.peak, peak)
+                timers.each.append((dt, peak))
                 timers.calls += 1
                 if timers.calls == 1 and timers.keep:
                     timers.inputs = timers.shapes((args, kwargs))
@@ -319,15 +324,19 @@ def worker(spec: dict[str, Any]) -> int:  # noqa: PLR0915 - one linear measureme
         timers.outputs = []
         for _ in range(MPS_WARMUP):
             call()
-        ts, peaks = [], []
+        ts, peaks, each = [], [], []
         for _ in range(MPS_RUNS):
             timers.reset()
             call()
             ts.append(1e3 * timers.seconds)
             peaks.append(timers.peak)
+            each.append(timers.each)
         row["net_ms"] = round(statistics.median(ts), 3)
         row["net_ms_min"] = round(min(ts), 3)
         row["net_peak_mb"] = round(max(peaks) / 2**20, 1)
+        if len(each[0]) > 1 and len({len(e) for e in each}) == 1:  # several network calls: each one's share
+            row["net_call_ms"] = [round(1e3 * statistics.median(t for t, _ in c), 3) for c in zip(*each, strict=True)]
+            row["net_call_peak_mb"] = [round(max(p for _, p in c) / 2**20, 1) for c in zip(*each, strict=True)]
         timers.on = False
         e2e = []
         for _ in range(MPS_RUNS):

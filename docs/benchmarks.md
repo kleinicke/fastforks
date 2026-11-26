@@ -345,7 +345,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`sam2.1-hiera-large`](models/promptable_segmentation.md#sam2) | – | 544 ms · portable fp16 | 523 ms · portable fp16 | 65.8 ms · kernels fp16 | 21.4 ms · kernels fp16 | 59.3 ms · kernels fp16 | 27.1 ms · portable fp16 | 13.8 ms · portable fp16 |
 | [`sam2.1-hiera-small`](models/promptable_segmentation.md#sam2) | 15.6 ms · kernels fp16 | 148 ms · portable fp16 | 137 ms · portable fp16 | – | – | – | – | 5.43 ms · portable fp16 |
 | [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#sam2) | 13.9 ms · kernels fp16 | 129 ms · portable fp16 | 117 ms · portable fp16 | 17.6 ms · kernels fp16 | 8.14 ms · kernels fp16 | 15.6 ms · kernels fp16 | 12.0 ms · portable fp16 | 5.11 ms · kernels fp16 |
-| [`sam3`](models/promptable_segmentation.md#sam3) | – | 3620 ms · portable fp32 | 1573 ms · portable fp16 | 161 ms · kernels fp16 | 48.6 ms · kernels fp16 | 136 ms · kernels fp16 | 50.8 ms · kernels fp16 | 29.5 ms · kernels fp16 |
+| [`sam3`](models/promptable_segmentation.md#sam3) | – | 3620 ms · portable fp32 | 1544 ms · portable fp16 | 161 ms · kernels fp16 | 48.6 ms · kernels fp16 | 136 ms · kernels fp16 | 50.8 ms · kernels fp16 | 29.5 ms · kernels fp16 |
 
 #### Detection, 800x1344
 

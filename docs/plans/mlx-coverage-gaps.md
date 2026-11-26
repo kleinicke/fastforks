@@ -2220,10 +2220,23 @@ one call 1693 ms: trunk 1328 (32 layers at 5184 tokens, GEMM-bound), neck 41, te
   evaluated alone and everything else pipelined, which keeps the peak and most of the time.
 - DETR attention (head width 32, zero-padded to 64 for the fused kernel) against a manual unpadded attention:
   encoder 125 ms padded, 241 ms manual with the native softmax, 634 ms with a float32 softmax. Padding stays.
+- Parity pass against the graph translation (2026-11-26, [mlx-core-ab.md](mlx-core-ab.md#sam-3-after-its-parity-pass-2026-11-26)):
+  the graph arm is only `embed`; on that call the hand net is 5 % faster and leaner over its weights. Adopted:
+  linear weights stored `[in, out]` (the translator's layout: 2 to 5 % on the GEMMs), the cached load path
+  (`convert_cached`: load 4.0 -> 2.2 s fp16, load peak 2133 -> 1858 MB), an evaluation before the 3 x 3 convolution
+  of the neck's 288 x 288 level and between convolution and group norm of the mask decoder's (neck 396 -> 315 MB over
+  the start, masks 542 -> 310 MB, same time, same bits), and the prompt reads the neck levels `embed` returned
+  without the PyTorch round trip. Survey: 1573.2 -> 1543.8 ms and 2775 -> 2590 MB (fp16), 1961.3 -> 1901.6 ms and
+  4699 -> 4501 MB (fp32).
+- Did not pay there: banding the trunk's MLP (2 / 4 / 8 bands: +3.5 / +5.5 / +10 % time for 30 to 60 MB); row bands
+  for the 3 x 3 convolution at 288 x 288 (slower, and no leaner below 8 bands); banded group-norm statistics (same
+  peak as the plain evaluation boundary, results move by 6e-2 in the mask logits); the conv bias folded into the
+  compiled norm (no gain); a lazily built weight dict under `convert_cached` (the miss peaks at 4.8 GB: `read`
+  evaluates group by group, 1.8 GB).
 
-**Left.** SAM 2's mask decoder and the video memory attention still run in PyTorch on the CPU. SAM 3's FPN makes
-a PyTorch round trip of about 10 ms per prompt, and its tracker heads are on the CPU. The bounded evaluation was
-not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2; done in the next section). No DINOv3 ViT-7B weights on this machine.
+**Left.** SAM 2's mask decoder and the video memory attention still run in PyTorch on the CPU. SAM 3's tracker heads
+are on the CPU. The bounded evaluation was not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2; done in the next
+section). No DINOv3 ViT-7B weights on this machine.
 
 ### Done: Perception Encoder, timm ViT classifiers, Swin, DaViT; bounded CLIP / SigLIP 2 (2026-11-26)
 

@@ -385,7 +385,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 600 | 523 | unsupported | 1474 |
 | [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 169 | 137 | unsupported | 931 |
 | [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 146 | 117 | unsupported | 919 |
-| [`sam3`](../models/promptable_segmentation.md#sam3) | 1961 | 1573 | unsupported | 2775 |
+| [`sam3`](../models/promptable_segmentation.md#sam3) | 1902 | 1544 | unsupported | 2590 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

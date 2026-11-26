@@ -239,7 +239,7 @@ the full table below.
 | rtmpose | 25 / 56 | 0 | 25 | 0.98 | 1.50 |
 | sam | 3 / 6 | 0 | 3 | 0.90 | 1.15 |
 | sam2 | 8 / 8 | 1 | 8 | 1.02 | 1.31 |
-| sam3 | 2 / 2 | 2 | 2 | 1.40 | 1.65 |
+| sam3 | 2 / 2 | 2 | 2 | 1.09 | 1.56 |
 | sam_hq | 3 / 6 | 0 | 3 | 0.90 | 1.15 |
 | sapiens | 2 / 4 | 0 | 2 | 0.92 | 1.10 |
 | segformer | 8 / 8 | 8 | 8 | 1.91 | 3.27 |
@@ -260,6 +260,27 @@ the full table below.
 | wd_tagger | 7 / 8 | 2 | 6 | 1.04 | 1.29 |
 | xfeat | 2 / 2 | 1 | 2 | 4.07 | 2.77 |
 | yolox | 3 / 10 | 0 | 3 | 0.89 | 1.15 |
+
+## SAM 3 after its parity pass (2026-11-26)
+
+The two sam3 rows were measured again after the pass (linear weights stored `[in, out]`, the cached load path,
+evaluation boundaries at the 288 x 288 level, the neck levels handed to the prompt without a copy); the counts at the
+top are those of the first run. Both rows stay flagged, and by construction: the graph arm translates only `embed`
+(trunk and neck, one network call) and runs the text encoder and the detector heads in PyTorch on the CPU, outside the
+network timers; the hand arm runs them in MLX as a second network call (`detect`) and keeps their weights resident.
+`net_call_ms` / `net_call_peak_mb` (new in the rows) split the hand arm's calls:
+
+| dtype | embed warm ms hand / graph | x | embed peak MB hand / graph | resident MB | embed peak over resident MB | detect (hand only) ms / peak MB | e2e warm ms | e2e footprint MB |
+|---|---|---|---|---|---|---|---|---|
+| fp16 | 1371.9 / 1439.5 | 0.95 | 1970 / 1385 | 1633 / 892 | 336 / 493 | 202.1 / 2006 | 1590.7 / 2235.5 | 3496 / 4180 |
+| fp32 | 1637.2 / 1741.0 | 0.94 | 3785 / 2551 | 3205 / 1776 | 580 / 775 | 260.2 / 3972 | 1909.2 / 2695.2 | 5625 / 5843 |
+
+- On the call both arms make, the hand network is 5 to 6 % faster and its activations are a quarter to a third
+  leaner; before the pass the same split was about 1320 / 1375 ms (fp16).
+- The network peak is higher only by the text encoder's and the detector's weights (741 MB fp16, 1429 MB fp32), which
+  the graph arm holds in PyTorch instead: its process footprint is the larger one. They buy the detector in MLX:
+  29 % faster end to end in both dtypes.
+- Hand peak before / after the pass: 2263 -> 2006 MB (fp16), 4202 -> 3972 MB (fp32).
 
 ## Families whose graph path could not be rebuilt
 
@@ -754,8 +775,8 @@ intermediate tensors), `result rel` the same over the model's results (a sanity 
 | sam2.1-hiera-small | fp32 | 155.0 / 152.5 | 1.02 | 0.18 / 1.78 | 599 / 463 | 1.29 | 155 / 163 | 174.3 / 171.4 | 0.15 / 0.07 | 0.21 / 1.81 | 4.7e-06 | 1 (3e-05 % off) | heavier |
 | sam2.1-hiera-tiny | fp16 | 112.1 / 116.0 | 0.97 | 0.12 / 1.58 | 377 / 349 | 1.08 | 65 / 73 | 130.9 / 134.3 | 0.18 / 0.07 | 0.15 / 1.61 | 0.0077 | 1 (0.027 % off) | heavier |
 | sam2.1-hiera-tiny | fp32 | 130.7 / 127.7 | 1.02 | 0.15 / 1.58 | 572 / 436 | 1.31 | 128 / 136 | 149.2 / 146.9 | 0.13 / 0.07 | 0.18 / 1.60 | 6.4e-06 | 1.1e-05 | slower heavier |
-| sam3 | fp16 | 1526.6 / 1374.8 | 1.11 | 1.82 / 4.28 | 2263 / 1385 | 1.63 | 1633 / 892 | 1539.2 / 2089.2 | 2.35 / 0.78 | 1.92 / 5.43 | 0.21 (0.84 % off) | empty | slower heavier |
-| sam3 | fp32 | 2252.7 / 1604.6 | 1.40 | 2.12 / 4.82 | 4202 / 2551 | 1.65 | 3205 / 1776 | 1888.9 / 2334.5 | 3.10 / 1.00 | 2.18 / 6.44 | 0.19 (0.7 % off) | empty | slower heavier |
+| sam3 | fp16 | 1574.1 / 1439.5 | 1.09 | 1.60 / 5.10 | 2006 / 1385 | 1.45 | 1633 / 892 | 1590.7 / 2235.5 | 0.18 / 1.01 | 1.65 / 7.30 | 0.21 (0.84 % off) | empty | slower heavier |
+| sam3 | fp32 | 1896.0 / 1741.0 | 1.09 | 2.48 / 5.54 | 3972 / 2551 | 1.56 | 3205 / 1776 | 1909.2 / 2695.2 | 4.13 / 1.00 | 2.58 / 11.98 | 0.19 (0.7 % off) | empty | slower heavier |
 | sapiens-seg-0.3b-goliath | fp16 | 1140.6 / 1508.4 | 0.76 | 1.20 / 3.15 | 1822 / 1808 | 1.01 | 648 / 648 | 1145.6 / 1833.1 | 0.31 / 0.07 | 1.22 / 3.48 | 0.003 | 0 |  |
 | sapiens-seg-0.3b-goliath | fp32 | 1415.1 / 1781.7 | 0.79 | 1.78 / 3.57 | 3631 / 3288 | 1.10 | 1295 / 1295 | 1435.5 / 2108.3 | 5.03 / 0.07 | 1.81 / 3.91 | 2.6e-06 | 0 | heavier |
 | sapiens-seg-1b-goliath | fp16 | 2648.0 / 3081.9 | 0.86 | 2.77 / 7.32 | 3426 / 3730 | 0.92 | 2248 / 2248 | 2652.4 / 3322.1 | 17.03 / 0.17 | 2.79 / 7.68 | 0.002 | 0 |  |
