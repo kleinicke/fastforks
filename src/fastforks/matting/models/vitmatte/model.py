@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from fastforks.matting._runner import Context
 
 _PAD = 32  # fixed: the processor's `size_divisibility`
-_DIRECT_PACK_ROWS = 4096  # keep a single packed allocation in the large global attention blocks
+_DIRECT_PACK_ROWS = 4096  # fixed: use one packed allocation in large global attention blocks
 Rel = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
 
