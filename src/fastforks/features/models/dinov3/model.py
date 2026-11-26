@@ -251,10 +251,13 @@ class Kernels(Runner):
         p = self.k.gemm(cols.view(b, gh * gw, -1), w, conv.bias, acc32=True)  # fp32 sums: the stream starts exact
         return torch.cat([e.cls_token.expand(b, -1, -1), e.register_tokens.expand(b, -1, -1), p], 1)
 
-    def _forward(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
+    def _forward(
+        self, image: torch.Tensor, layers: tuple[int, ...], cs: torch.Tensor | None = None
+    ) -> list[torch.Tensor]:
         """fp16 `[last_hidden_state, *hidden states at layers]` (hidden states still divided by the stream scale)."""
         net = self.net
-        cs = self._rope_table(image.shape[-2] // PATCH, image.shape[-1] // PATCH, image.device)
+        if cs is None:
+            cs = self._rope_table(image.shape[-2] // PATCH, image.shape[-1] // PATCH, image.device)
         t = self._tokens(image)
         total = t.shape[0] * t.shape[1] * 2 * self.cfg.num_heads * (HEAD_DIM // 4)  # q / k half2 pairs per half head
         grid = kernels.linear(total)
@@ -272,8 +275,13 @@ class Kernels(Runner):
         """Drop every CUDA graph and free its memory pool on the device (`torch.cuda.empty_cache`)."""
         self._cache.release()
 
-    def _graph_forward(self, image: torch.Tensor) -> list[torch.Tensor]:
-        return self._forward(image, self._layers)
+    def _graph_forward(self, image: torch.Tensor) -> tuple[list[torch.Tensor], torch.Tensor]:
+        cs = self._rope_table(image.shape[-2] // PATCH, image.shape[-1] // PATCH, image.device)
+        # The raw RoPE kernel captures this address. Keep the actual table alive even when the FIFO evicts it.
+        return self._forward(image, self._layers, cs), cs
+
+    def _graph_float(self, captured: tuple[list[torch.Tensor], torch.Tensor]) -> dict[str, torch.Tensor]:
+        return self._float(captured[0])
 
     def _float(self, outs: list[torch.Tensor]) -> dict[str, torch.Tensor]:
         """Copy the graph or eager outputs directly into their final FP32 tensors."""
@@ -309,7 +317,7 @@ class Kernels(Runner):
             ):
                 with self._lock:  # `_layers` is the argument of the graph forward
                     self._layers = layers
-                    outs = self._cache.run((tuple(image.shape), layers), image, post=self._float)
+                    outs = self._cache.run((tuple(image.shape), layers), image, post=self._graph_float)
                 if outs is None:  # first call of the shape / cache busy / capture failed
                     outs = self._float(self._eager(image, layers))
             else:
