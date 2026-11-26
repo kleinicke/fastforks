@@ -114,7 +114,8 @@ class Params:
 
 
 def _net(ctx: Context) -> Net:
-    if ctx.device.type == "cuda" and ctx.dtype == "float16" and not ctx.params.stream:
+    official = ctx.user_weights is None and ctx.user_state is None
+    if ctx.device.type == "cuda" and ctx.dtype == "float16" and (not ctx.params.stream or official):
         with torch.device("meta"):
             net = Net()
         # Q/K weights are permuted on the host before the final CUDA upload.
