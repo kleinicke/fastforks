@@ -6,6 +6,7 @@
     fastforks download [MODEL ...] [--kernels | --kernels-only] [--arch sm_XX[,sm_YY] | --all-archs] [--commercial-only]
                        [--dry-run | --check]
     fastforks cache link
+    fastforks cache mlx [--prune [--dry-run]]
     fastforks bench MODEL [--mode auto|portable|kernels] [--dtype float32|float16|bfloat16] [--device DEV] [--size HxW]
                     [--views N] [--runs N]
     fastforks export MODEL --format onnx|trt [--size HxW [--size-range MINxMIN:MAXxMAX]] [--fp16] [--output PATH]
@@ -32,6 +33,10 @@ that is not local raises an error that names the file and the command.
 `cache link` (re)builds the browsable view `<cache>/<family>/<file name>` (kernels: `<cache>/<lib>/<name>`),
 as relative symlinks to the blobs, for every file of every card and kernel manifest that is in the cache; the view is
 also made whenever a file is resolved or downloaded. Nothing outside the cache is touched.
+`cache mlx` lists the MLX conversion cache (`<cache>/mlx/<task>/<family>/`, one file per variant, revision, layout and
+run dtype, with its provenance) and marks the stale files: no provenance (an older format), a variant no longer
+installed, another revision or weight file, or a file superseded by one of newer port code. `--prune` deletes the
+stale ones (`--dry-run`: only says which); nothing outside `<cache>/mlx/` is deleted.
 
 `bench` times one model of any task on synthetic input (the task's `bench_inputs`: an image, a pair for stereo,
 `--views` views for multi-view; median wall time and peak CUDA memory; on Apple MPS the Metal driver's memory after the
@@ -69,7 +74,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
 
-from fastforks._core import registry
+from fastforks._core import mlx_cache, registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
 from fastforks._core.errors import (
     BackendUnavailableError,
@@ -486,6 +491,23 @@ def _cache_link(_args: argparse.Namespace) -> int:
     for (g, name), found in sorted(shas.items()):
         if len(found) > 1:
             print(f"note: {g}/{name} is used by files with different contents; the view shows one", file=sys.stderr)
+    return 0
+
+
+def _cache_mlx(args: argparse.Namespace) -> int:
+    """List the MLX conversion cache with each file's state; `--prune` deletes the stale files."""
+    if args.dry_run and not args.prune:
+        print("error: --dry-run goes with --prune", file=sys.stderr)
+        return 2
+    models = _all_cards()
+    if args.prune:
+        removed = mlx_cache.prune(models, dry_run=args.dry_run, log=print)
+        freed = sum(e.size for e, _ in removed)
+        verb = "would free" if args.dry_run else "freed"
+        print(f"{len(removed)} stale file{'' if len(removed) == 1 else 's'}, {verb} {_human_size(freed)}")
+        return 0
+    for line in mlx_cache.table(mlx_cache.entries(), models):
+        print(line)
     return 0
 
 
@@ -970,6 +992,17 @@ def _env(_args: argparse.Namespace) -> None:
         print(f"{k:22} {val}")
 
 
+def _add_cache(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("cache", help="the cache folder").add_subparsers(required=True)
+    p.add_parser("link", help="(re)build the browsable <family>/<file name> view of the cache").set_defaults(
+        run=_cache_link
+    )
+    q = p.add_parser("mlx", help="the MLX conversion cache: list its files, prune the stale ones")
+    q.add_argument("--prune", action="store_true", help="delete the stale files (only under <cache>/mlx/)")
+    q.add_argument("--dry-run", action="store_true", help="with --prune: list what would be deleted, delete nothing")
+    q.set_defaults(run=_cache_mlx)
+
+
 def _add_stereo(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("stereo", help="stereo commands").add_subparsers(required=True)
     p = p.add_parser("run", help="a stereo model over many pairs: two folders (or globs) in, maps out")
@@ -1167,10 +1200,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="fetch nothing; exit 1 if a file cannot be resolved without network (prints where from)",
     )
     p.set_defaults(run=_download)
-    p = sub.add_parser("cache", help="the cache folder").add_subparsers(required=True)
-    p.add_parser("link", help="(re)build the browsable <family>/<file name> view of the cache").set_defaults(
-        run=_cache_link
-    )
+    _add_cache(sub)
     p = sub.add_parser("bench", help="time one model on synthetic input (an image; a pair for stereo)")
     p.add_argument("model", help="model id (see `fastforks list`)")
     p.add_argument(

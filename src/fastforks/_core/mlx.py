@@ -9,8 +9,11 @@ What lives here:
 - `TUNING` / `tuning()`: every per-GPU-generation tunable of the MLX ports in one table (the M1 values are the
   default); `FASTFORKS_MLX_TUNING` and `tuned()` override single fields for `tools/mlx_tune.py`.
 - `setup()`: caps MLX's buffer cache (unbounded by default: 10.7 GB and swap on a 16 GB Mac).
-- `converted()`: the weights of a variant in the port's layout, converted once and cached as safetensors.
-- `to_mx()` / `to_torch()`: the host <-> MLX hand-over (one copy each way; the memory is unified).
+- `convert_cached()` / `converted()`: the arrays of a variant in the port's layout and run dtype, converted once and
+  cached as safetensors with their provenance (`fastforks._core.mlx_cache`); a hit needs neither torch nor the
+  checkpoint.
+- `to_mx()` / `to_torch()`: the host <-> MLX hand-over (one copy each way; the memory is unified). torch is imported
+  by `to_torch` only: this module itself does not import it.
 - `metal_kernel()` / `source_tag()`: for the MLX kernel libraries (`fastforks.kernels.*_mlx`).
 
 The task APIs stay as they are: images are converted, scaled, padded and cropped by the same PyTorch code as for every
@@ -24,19 +27,20 @@ import dataclasses
 import functools
 import hashlib
 import itertools
+import json
 import os
 import platform
 import re
 import threading
 import weakref
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-import torch
 
+from fastforks._core import mlx_cache
 from fastforks._core.errors import MissingDependencyError, OptionsError, install_hint
-from fastforks._core.files import cache_root
 
 # MLX frees a command buffer's intermediates only when the buffer completes: with its default size (40-50 MB of
 # inputs per buffer on an M1) a deep convolutional trunk holds every activation at once. Smaller buffers cost no speed
@@ -50,16 +54,21 @@ except ImportError as e:  # not installed, or not Apple silicon (the wheel exist
     raise MissingDependencyError(msg) from e
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Mapping
     from pathlib import Path
+
+    import torch
 
     from fastforks._core.runner import Context
 
 __all__ = [
+    "DTYPES",
     "TUNING",
+    "Converted",
     "Gpu",
     "Tuning",
     "cache_request_limit",
+    "convert_cached",
     "converted",
     "gpu",
     "has_neural_accelerators",
@@ -330,42 +339,162 @@ def to_mx(t: torch.Tensor) -> mx.array:
 
 def to_torch(a: mx.array) -> torch.Tensor:
     """An `mx.array` (evaluated here) as a float32 CPU tensor (one copy out of MLX's buffer)."""
+    import torch  # noqa: PLC0415 - this module stays torch-free until a tensor is asked for
+
     a = a.astype(mx.float32)
     mx.eval(a)
     return torch.from_numpy(np.array(a))
 
 
-def converted(
-    ctx: Context, layout: str, build: Callable[[], dict[str, mx.array]], *, weights: int = 0
-) -> dict[str, mx.array]:
-    """The float32 parameters of `ctx.variant` in a port's layout: converted by `build` once, then read from the cache.
+DTYPES = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}
+"""Run dtype names (the `ctx.dtype` strings) -> MLX dtypes."""
 
-    The cache file is `<FASTFORKS_CACHE>/mlx/<task>/<family>/<variant>-r<revision>-<sha256[:12]>-<layout>.safetensors`
-    (the hash is that of the variant's recorded weight file): a new checkpoint, revision or layout is a new file,
-    and a cache hit needs neither the original checkpoint nor PyTorch's unpickler. The user's files of
-    `load(weights=...)` are converted on every load and never cached.
+_FP16_MAX = 65504.0
+
+
+@dataclass(frozen=True)
+class Converted:
+    """What `convert_cached` returns.
+
+    Attributes:
+        arrays: The arrays by name, as stored (lazy reads of the cache file on a hit).
+        config: The port's JSON configuration stored with them ({} if it gave none).
+        hit: Read from the cache (False: converted by this call).
+    """
+
+    arrays: dict[str, mx.array]
+    config: dict[str, Any]
+    hit: bool
+
+
+def _keeper(fp32: tuple[str, ...] | Callable[[str], bool]) -> Callable[[str], bool]:
+    if isinstance(fp32, tuple):
+        return lambda k: k.startswith(fp32)
+    return fp32
+
+
+def _store(
+    arrays: dict[str, mx.array], dtype: str, keep: Callable[[str], bool], what: str
+) -> tuple[dict[str, mx.array], list[str]]:
+    """The floating arrays in `dtype` (the `keep` ones float32), evaluated one by one; and the float32 islands.
+
+    Raises:
+        ValueError: A finite value does not fit float16 (store bfloat16, or keep that array float32).
+    """
+    target = DTYPES[dtype]
+    out: dict[str, mx.array] = {}
+    for k in list(arrays):
+        a = arrays.pop(k)  # one by one: the source of a cast is released when it is evaluated
+        if mx.issubdtype(a.dtype, mx.floating):
+            want = mx.float32 if keep(k) else target
+            if a.dtype != want:
+                if want == mx.float16 and a.dtype != mx.bfloat16 and a.size:
+                    big = mx.max(mx.where(mx.isfinite(a), mx.abs(a), 0)).item()
+                    if big > _FP16_MAX:
+                        msg = (
+                            f"{what}: {k} holds {big:.4g}, beyond float16's range: store it in bfloat16 or keep it "
+                            "float32 (`fp32`)"
+                        )
+                        raise ValueError(msg)
+                a = a.astype(want)
+        mx.eval(a)
+        out[k] = a
+    islands = sorted(k for k, a in out.items() if a.dtype == mx.float32 and target != mx.float32)
+    return out, islands
+
+
+def convert_cached(  # noqa: PLR0913 - the builder, its cache key and its storage options
+    ctx: Context,
+    layout: str,
+    build: Callable[[], tuple[dict[str, mx.array], Mapping[str, Any]]],
+    *,
+    dtype: str = "float32",
+    fp32: tuple[str, ...] | Callable[[str], bool] = (),
+    weights: int = 0,
+    sources: tuple[Path, ...] = (),
+) -> Converted:
+    """The arrays of `ctx.variant` as a port runs them: converted by `build` once, then read from the cache.
+
+    The file (`fastforks._core.mlx_cache`) is named by the variant, revision, weight file hash, layout and `dtype`;
+    its metadata holds the provenance and `build`'s configuration. A hit reads neither the checkpoint nor imports
+    torch: the arrays are lazy reads of the file (memory-mapped, each read when evaluated). The user's files of
+    `load(weights=...)` are converted on every load and never cached. Written atomically (a per-process temporary
+    file, then a rename).
 
     Args:
         ctx: The runner's context.
-        layout: Name and version of the port's parameter layout, plus every tunable that changes it (e.g.
-            `"v1-w128"`); change it whenever `build` changes.
-        build: Reads the checkpoint (`ctx.state_dict(...)`) and returns the float32 arrays by name.
-        weights: Index of the weight file `build` reads (for the hash in the file name).
+        layout: Name and version of the port's layout, plus every tunable that changes it (`"vit-cls-v2"`); change it
+            whenever `build` changes (or give `sources`).
+        build: Reads the checkpoint (`ctx.state_dict(...)`, the twin) and returns the arrays by name, every load-time
+            transform applied, and a JSON-able configuration the port needs besides them ({} for none).
+        dtype: The run dtype the floating arrays are stored in (integer arrays keep theirs).
+        fp32: Array names (prefixes, or a predicate) stored float32 whatever `dtype` is: tables the port computes
+            with in float32 (RoPE angles, an attention's logit scale).
+        weights: Index of the weight file `build` reads (its hash is in the file name and metadata).
+        sources: Files whose contents define the layout (the port's conversion code): their hash joins the layout
+            tag, so a changed converter never reads an old file; `prune` removes the superseded one.
+
+    Raises:
+        ValueError: An array does not fit float16 (see `fp32`).
     """
+    keep = _keeper(fp32)
     if ctx.user_weights is not None:
-        return build()
-    sha = ctx.variant.weights[weights].sha256[:12]
-    name = f"{ctx.variant.id}-r{ctx.variant.revision}-{sha}-{layout}.safetensors"
-    path = cache_root() / "mlx" / ctx.card.task / ctx.card.family / name
+        arrays, config = build()
+        return Converted(_store(dict(arrays), dtype, keep, ctx.variant.ref)[0], dict(config), hit=False)
+    tag = layout
+    if sources:
+        digest = hashlib.sha256()
+        for f in sources:
+            digest.update(f.read_bytes())
+        tag = f"{layout}-{digest.hexdigest()[:8]}"
+    spec = ctx.variant.weights[weights]
+    name = mlx_cache.file_name(ctx.variant.id, ctx.variant.revision, spec.sha256, tag, dtype)
+    path = mlx_cache.cache_dir() / ctx.card.task / ctx.card.family / name
     if path.is_file():
-        return dict(cast("dict[str, mx.array]", mx.load(str(path))))  # a safetensors file loads as a dict
-    arrays = build()
+        loaded, meta = cast("tuple[dict[str, mx.array], dict[str, str]]", mx.load(str(path), return_metadata=True))
+        if meta.get("format") == mlx_cache.FORMAT and meta.get("dtype") == dtype:
+            return Converted(dict(loaded), json.loads(meta.get("config", "{}")), hit=True)
+        del loaded  # not ours (another format): converted again below and replaced
+    arrays, config = build()
+    stored, islands = _store(dict(arrays), dtype, keep, ctx.variant.id)
+    from fastforks import __version__  # noqa: PLC0415 - torch-free; only on a miss
+
+    meta = {
+        "format": mlx_cache.FORMAT,
+        "variant": ctx.variant.id,
+        "task": ctx.card.task,
+        "family": ctx.card.family,
+        "revision": str(ctx.variant.revision),
+        "weights": spec.name,
+        "weights_sha256": spec.sha256,
+        "layout": tag,
+        "layout_name": layout,
+        "dtype": dtype,
+        "fp32": json.dumps(islands),
+        "fastforks": __version__,
+        "mlx": version(),
+        "created": datetime.now(UTC).isoformat(timespec="seconds"),
+        "config": json.dumps(dict(config), sort_keys=True),
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
     # per process and thread; ends in the suffix `mx.save_safetensors` wants
     tmp = path.with_name(f".{os.getpid()}.{threading.get_ident()}.{path.name}")
     try:
-        mx.save_safetensors(str(tmp), arrays)
+        mx.save_safetensors(str(tmp), stored, metadata=meta)
         tmp.replace(path)
     finally:
         tmp.unlink(missing_ok=True)
-    return arrays
+    return Converted(stored, dict(config), hit=False)
+
+
+def converted(  # noqa: PLR0913 - `convert_cached`'s, kept for the existing ports
+    ctx: Context,
+    layout: str,
+    build: Callable[[], dict[str, mx.array]],
+    *,
+    weights: int = 0,
+    dtype: str = "float32",
+    fp32: tuple[str, ...] | Callable[[str], bool] = (),
+) -> dict[str, mx.array]:
+    """`convert_cached` for a `build` without configuration: the arrays only (float32 unless `dtype` says)."""
+    return convert_cached(ctx, layout, lambda: (build(), {}), dtype=dtype, fp32=fp32, weights=weights).arrays
