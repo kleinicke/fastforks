@@ -33,7 +33,7 @@ MeasuredKey: TypeAlias = tuple[str, str, str, tuple[int, int] | tuple[TensorSign
 # Receipt SHA-256 d979397d5056b431158fadd0bfc6efaa39ff82e6e8574484de64e5b1ea14d374. NVIDIA driver 595.99.02.
 # yunet-s@1 u8-chw-rgb-interleaved 480x640, cudaMallocAsync, 4 CPU threads. Request-15 deltas: -7.934, -3.811 ms.
 # Receipt SHA-256 cdd6af5d1fe8cff45e850a83ae2b4850152031965e8a113cce71cd58b1447490. NVIDIA driver 595.99.02.
-ENROLLED = frozenset([("classification", "mobilenetv2"), ("pose", "yunet")])
+ENROLLED = frozenset([("classification", "mobilenetv2"), ("pose", "yunet"), ("tracking", "tapnext")])
 APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("mobilenet_v2.tv2_in1k@1", "float16", "f32-bchw-contiguous", (1080, 1920)): (
         (
@@ -314,6 +314,48 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
                 "fvm_r3@f54eb890e23c:sm_120",
             ),
             ("f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6",),
+        ),
+    ),
+    # tapnext@1 48-frame 1080p, 256 queries. Request-15 deltas: -576.038, -544.690 ms.
+    # Receipt SHA-256 6b90e52baeb980ec1cae8753b3bb28f050c4b2b28b2a4a37e99b8a534c33c1ae.
+    (
+        "tapnext@1",
+        "float16",
+        "tracking-video-queries",
+        (("f32-tchw-cuda-contiguous", (48, 3, 1080, 1920)), ("f32-q3-cuda-contiguous", (256, 3))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "cudaMallocAsync",
+            None,
+            None,
+            "1",
+            "4",
+            1,
+            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
+            ("19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28",),
+        ),
+    ),
+    # tapnext-pp@1 48-frame 1080p, 256 queries. Request-15 deltas: -387.323, -658.914 ms.
+    # Receipt SHA-256 fa7461ab8702aab6dd9b48c060540e56460434d15c06132927505f456a3fa93e.
+    (
+        "tapnext-pp@1",
+        "float16",
+        "tracking-video-queries",
+        (("f32-tchw-cuda-contiguous", (48, 3, 1080, 1920)), ("f32-q3-cuda-contiguous", (256, 3))),
+    ): (
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "cudaMallocAsync",
+            None,
+            None,
+            "1",
+            "4",
+            1,
+            ("fvm_conv@f1d064e539e1:sm_120", "tapnext_state@be3777b468c9:sm_120"),
+            ("cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da",),
         ),
     ),
 }
