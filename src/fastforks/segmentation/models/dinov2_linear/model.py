@@ -24,12 +24,15 @@ from fastforks._core.checkpoint import mismatch_details
 from fastforks._core.errors import CheckpointMismatchError
 from fastforks.kernels import dpt_fused
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_attention
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
     from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
+
+_GRAPH_CROP = (1, 3, 518, 518)  # fixed: one official 512² crop padded to 37 patches per side
 
 
 @dataclass(frozen=True)
@@ -41,12 +44,14 @@ class Params:
         resize: Test-time resize rule (`fastforks.shared.seginfer.target_size`), `["mmseg", 99999999, 512]`.
         crop: Sliding-window crop side.
         stride: Sliding-window stride.
+        cuda_graphs: Replay the ViT-S kernels patch logits for a repeated single full crop.
     """
 
     arch: str
     resize: tuple[str, int, int]
     crop: int
     stride: int
+    cuda_graphs: bool = False
 
 
 _HEAD_KEYS = frozenset(
@@ -116,7 +121,7 @@ class _Net(torch.nn.Module):
         self.kernels = kernels
         self.to(ctx.device)
         if kernels:
-            use_fast_vit(vit, attn="fh", fused=dpt_fused.load(ctx.device))  # fp16 in place; tokens out in fp16
+            self.fast = use_fast_vit(vit, attn="fh", fused=dpt_fused.load(ctx.device))
         else:
             use_sdpa_attention(vit)
             vit.to(self.dtype)
@@ -136,6 +141,40 @@ class _Net(torch.nn.Module):
         # NCHW before the resize: a channels-last result makes `slide`'s accumulation into NCHW scores ~6x slower
         s = s.unflatten(1, ((h + ph) // p, (w + pw) // p)).permute(0, 3, 1, 2).contiguous()
         return F.interpolate(s, (h, w), mode="bilinear", align_corners=False)
+
+
+class _SmallGraphNet(_Net):
+    """Only the fixed ViT-S patch logits are replayed; crop upsampling stays eager."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Set up a one-entry graph and hold the exact position buffer it reads."""
+        super().__init__(ctx, kernels=True)
+        self.graphs = GraphCache(super()._patch_logits, graphs=1)
+        self._graph_position: torch.Tensor | None = None
+
+    def _patch_logits(self, y: torch.Tensor) -> torch.Tensor:
+        if (
+            not y.is_cuda
+            or y.dtype != torch.float16
+            or y.shape != _GRAPH_CROP
+            or not y.is_contiguous()
+            or not torch.is_inference_mode_enabled()
+            or torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+        ):
+            return super()._patch_logits(y)
+        side = _GRAPH_CROP[2] // self.patch_size
+        position = self.fast.pos_embed(side, side)
+        if self._graph_position is not None and self._graph_position is not position:
+            self.release_graphs()  # a different eager grid can evict this table
+        self._graph_position = position
+        out = self.graphs.run(y.device, y)
+        return super()._patch_logits(y) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Drop the graph before dropping its position buffer."""
+        self.graphs.release()
+        self._graph_position = None
 
 
 class Portable(Runner):
@@ -182,7 +221,15 @@ class Kernels(Portable):
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107 - see Portable
         Runner.__init__(self, ctx)
-        self.net = _Net(ctx, kernels=True)
+        if ctx.params.cuda_graphs and ctx.params.arch == "vits" and ctx.device.type == "cuda":
+            self.net = _SmallGraphNet(ctx)
+        else:
+            self.net = _Net(ctx, kernels=True)
+
+    def release_graphs(self) -> None:
+        """Release the optional ViT-S patch graph and its retained buffers."""
+        if isinstance(self.net, _SmallGraphNet):
+            self.net.release_graphs()
 
     module = Runner.module
 
