@@ -182,6 +182,9 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
     ("mobilenet_v2.tv2_in1k@1", "kernels", "float16", "f32-bchw-contiguous", (1080, 1920)): _profiles(
         _MOBILENET_V2,
         _TORCH_214_NATIVE,
+        # cudaMallocAsync. Request-15 deltas: -7.501, -24.823 ms.
+        # Receipt SHA-256 1d7d4f18f5b6041d1f19b7e373fc409290b7521243f54b81f0ea2168c7cbeb71.
+        _TORCH_214_ASYNC,
     ),
     # CoAtNet-0 with cudaMallocAsync. Request-15 deltas: -57.078, -51.639 ms.
     # Receipt SHA-256 bb27f6ffe6a45231fab544e908d883a8df5494136baad5200b9acc3ee72f0a56.
