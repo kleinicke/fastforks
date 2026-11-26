@@ -1,9 +1,10 @@
-"""The SAM 3 image detector on Apple MLX: `sam3.Sam3` in `mx` operations, weights read straight from the checkpoint.
+"""The SAM 3 image detector on Apple MLX: `sam3.Sam3` in `mx` operations, weights converted from the checkpoint once.
 
 The PyTorch modules are never built: `model.safetensors` (float32) is opened lazily (`fastforks.shared.mlx_weights`)
-and each layer's `detector_model.*` tensors are read, converted to the dtype they run in and kept resident one group
-at a time, so memory holds the detector once (fp16: 1.7 GB) plus the activations. The tracker's keys are read only by
-`tracker_neck` (its neck, on the first `video` call); the tracker heads stay PyTorch.
+and the `detector_model.*` tensors are laid out (`read`) and stored in the dtype they run in, layer by layer, in the
+conversion cache (`cached`, `fastforks._core.mlx.convert_cached`); every later load reads that file and not the
+checkpoint. Memory holds the detector once (fp16: 1.6 GB) plus the activations. The tracker's keys are read only by
+`tracker_neck` (its neck, converted and cached alike on the first `video` call); the tracker heads stay PyTorch.
 
 Precision follows the PyTorch portable path (`model.half_parts`): the trunk, neck, text encoder, DETR encoder, mask
 decoder and every 256-wide attention block run in the run dtype `dt`; the geometry encoder's and DETR decoder's
@@ -12,10 +13,15 @@ statistics compute in float32 and round to the dtype of their input, as PyTorch'
 
 Layouts: images are NHWC (`mx.conv2d`); the 14 x 14 patch embedding is a GEMM over the patches; each 2 x 2 stride-2
 transposed convolution of the neck is a GEMM to `4 x C_out` followed by a pixel shuffle; 1 x 1 convolutions and the 7
-x 7 ROI projection (on a 7 x 7 input) are linear layers. q / k / v of the trunk and the CLIP layers are one packed
-projection. The 256-wide attention has head dim 32, which MLX's fused attention does not take (it would fall back to
-materialising the scores: 0.8 GB for the DETR encoder's 5184 tokens), so q / k / v are zero-padded to 64 (the dot
-products and the output are unchanged).
+x 7 ROI projection (on a 7 x 7 input) are linear layers. Every linear weight is stored `[in, out]`: MLX's GEMM reads a
+transposed view of `[out, in]` 2 to 5 % slower (the exported-graph translation stores them so too), and the GEMMs are
+nine tenths of the trunk. q / k / v of the trunk and the CLIP layers are one packed projection. The 256-wide attention
+has head dim 32, which MLX's fused attention does not take (it would fall back to materialising the scores: 0.8 GB for
+the DETR encoder's 5184 tokens), so q / k / v are zero-padded to 64 (the dot products and the output are unchanged).
+
+Peak: a layer loop's graph is bounded per layer (`_step`), and at the 288 x 288 level the neck and the mask decoder
+evaluate between the upsampling, the 3 x 3 convolution and the group norm, so one step's whole-map temporaries are
+gone before the next step's come (as one graph the masks peaked 230 MB higher; the time is the same).
 
 Only the unpadded prompt path is implemented (one prompt, its real tokens and exemplar boxes): the padding masks of
 the PyTorch net exist for the CUDA graphs of kernels mode.
@@ -26,19 +32,21 @@ from __future__ import annotations
 import math
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
-from fastforks._core.mlx import mx
-from fastforks.shared.mlx_weights import Weights
+from fastforks._core.mlx import convert_cached, mx
+from fastforks.shared.mlx_weights import DTYPES, Weights
 
 from .sam3 import DETR_HEADS, DIM, GRID, HEAD, UNUSED, grid_position_encoding, rope_tables
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-    from pathlib import Path
+
+    from fastforks._core.runner import Context
 
 F32 = mx.float32
 PREFIX = "detector_model."  # the image detector's keys
@@ -49,6 +57,10 @@ CLIP_LAYERS, CLIP_HEADS = 24, 16
 GEOMETRY_LAYERS, DETR_LAYERS, QUERIES = 3, 6, 200
 _HALF = ("vision_encoder.", "text_encoder.", "detr_encoder.", "mask_decoder.")  # run in `dt` (`model.half_parts`)
 _ATTN = re.compile(r"(geometry_encoder|detr_decoder)\.layers\.\d+\.(self_attn|cross_attn|text_cross_attn|vision_cross_attn)\.")
+_TABLES = re.compile(  # 2-D weights that are rows to look up or tokens, not linear layers
+    r"(token_embedding|position_embedding|label_embed|cls_embed|query_embed|reference_points|presence_token)\.weight$"
+)
+LAYOUT = "sam3-mlx-v2"  # the cached layout of `read` (this file's hash joins it)
 _PACKED = re.compile(r"(vision_encoder\.backbone\.layers\.\d+\.attention|text_encoder\.text_model\.encoder\.layers\.\d+\.self_attn)\.")
 
 
@@ -57,20 +69,30 @@ _PACKED = re.compile(r"(vision_encoder\.backbone\.layers\.\d+\.attention|text_en
 
 def _layout(key: str, a: mx.array) -> mx.array:
     """A checkpoint tensor in the layout the `mx` code reads (see the module docstring)."""
-    if not key.endswith("weight") or a.ndim != 4:  # noqa: PLR2004 - convolution weights
+    if not key.endswith("weight"):
         return a
-    if "scale_layers" in key:  # ConvTranspose2d [C_in, C_out, 2, 2] -> linear [(a, b, C_out), C_in]
-        return a.transpose(2, 3, 1, 0).reshape(-1, a.shape[0])
-    if a.shape[-1] == 1 or "patch_embeddings" in key:  # 1 x 1 conv / patches (c, i, j) -> linear [O, I]
-        return a.reshape(a.shape[0], -1)
-    if "boxes_pool_project" in key:  # 7 x 7 conv on a 7 x 7 input -> linear over (p, q, c)
-        return a.transpose(0, 2, 3, 1).reshape(a.shape[0], -1)
-    return a.transpose(0, 2, 3, 1)  # 3 x 3 conv: OIHW -> OHWI (`mx.conv2d`)
+    if a.ndim == 4:  # noqa: PLR2004 - convolution weights
+        if "scale_layers" in key:  # ConvTranspose2d [C_in, C_out, 2, 2] -> linear [C_in, (a, b, C_out)]
+            return mx.contiguous(a.transpose(0, 2, 3, 1).reshape(a.shape[0], -1))
+        if a.shape[-1] == 1 or "patch_embeddings" in key:  # 1 x 1 conv / patches (c, i, j) -> linear [O, I]
+            a = a.reshape(a.shape[0], -1)
+        elif "boxes_pool_project" in key:  # 7 x 7 conv on a 7 x 7 input -> linear over (p, q, c)
+            a = a.transpose(0, 2, 3, 1).reshape(a.shape[0], -1)
+        else:
+            return a.transpose(0, 2, 3, 1)  # 3 x 3 conv: OIHW -> OHWI (`mx.conv2d`)
+    if a.ndim == 2 and not _TABLES.search(key):  # noqa: PLR2004 - a linear layer: [out, in] -> [in, out] (`linear`)
+        return mx.contiguous(a.T)
+    return a
 
 
 def _bias(key: str, a: mx.array) -> mx.array:
     """Transposed-convolution biases repeat per output pixel of the 2 x 2 block (`_layout`)."""
     return mx.tile(a, 4) if "scale_layers" in key and key.endswith("bias") else a
+
+
+def _run_dtype(prefix: str, name: str) -> bool:
+    """`name` runs in the run dtype (else float32): the `_HALF` parts and 256-wide attention; all of the tracker neck."""
+    return prefix != PREFIX or name.startswith(_HALF) or bool(_ATTN.match(name))
 
 
 def _group(key: str) -> str:
@@ -82,33 +104,50 @@ def _group(key: str) -> str:
 def read(path: str | Path, prefix: str, dt: mx.Dtype, skip: Sequence[str] = ()) -> dict[str, mx.array]:
     """The tensors under `prefix` (minus `skip`), prefix removed, laid out and cast group by group.
 
-    `detector_model.*` parts run in `dt` (`_HALF`, `_ATTN`) or float32; `tracker_neck.*` in `dt`. q / k / v of the
-    trunk and the CLIP layers are packed into one `qkv` projection.
+    `detector_model.*` parts run in `dt` or float32 (`_run_dtype`); `tracker_neck.*` in `dt`. q / k / v of the trunk
+    and the CLIP layers are packed into one `qkv` projection. Only one group's float32 source is alive at a time.
     """
     src = Weights(path)
     groups: dict[str, list[str]] = defaultdict(list)
     for k in src.prefixed(prefix):
         if not k.removeprefix(prefix).startswith(tuple(skip)):
             groups[_group(k.removeprefix(prefix))].append(k)
-
-    def dtype(name: str) -> mx.Dtype:
-        return dt if prefix != PREFIX or name.startswith(_HALF) or _ATTN.match(name) else F32
-
     out: dict[str, mx.array] = {}
     for keys in groups.values():
 
         def convert(k: str, a: mx.array) -> mx.array:
             name = k.removeprefix(prefix)
-            return _bias(name, _layout(name, a)).astype(dtype(name))
+            return _bias(name, _layout(name, a)).astype(dt if _run_dtype(prefix, name) else F32)
 
         part = {k.removeprefix(prefix): v for k, v in src.take(keys, None, convert).items()}
         for name in [n for n in part if _PACKED.match(n) and ".q_proj." in n]:
             stem, _, leaf = name.partition(".q_proj.")
             names = [f"{stem}.{p}_proj.{leaf}" for p in "qkv"]
-            part[f"{stem}.qkv.{leaf}"] = mx.concatenate([part.pop(n) for n in names])
+            part[f"{stem}.qkv.{leaf}"] = mx.concatenate([part.pop(n) for n in names], axis=-1)
         mx.eval(part)
         out |= part
     return out
+
+
+def cached(ctx: Context, prefix: str = PREFIX, skip: Sequence[str] = UNUSED) -> dict[str, mx.array]:
+    """`read` of the variant's checkpoint in the run dtype `ctx.dtype`, from the conversion cache.
+
+    A miss converts group by group (`read`: the arrays arrive in the dtypes they run in, and are stored so) and writes
+    the file; a hit reads only that file. The files of `load(weights=...)` are converted on every load.
+    """
+
+    def build() -> tuple[dict[str, mx.array], dict[str, object]]:
+        return read(ctx.weights()[0], prefix, DTYPES[ctx.dtype], skip), {}
+
+    found = convert_cached(
+        ctx,
+        f"{LAYOUT}-{prefix.rstrip('.')}",
+        build,
+        dtype=ctx.dtype,
+        fp32=lambda name: not _run_dtype(prefix, name),
+        sources=(Path(__file__),),
+    )
+    return found.arrays
 
 
 # --- ops ------------------------------------------------------------------------------------------------------------
@@ -135,10 +174,10 @@ def _step(prev: tuple[mx.array, ...], *arrays: mx.array, wait: bool = False) -> 
 
 
 def linear(x: mx.array, w: mx.array, b: mx.array | None = None) -> mx.array:
-    """`F.linear` (bias added in the GEMM's epilogue)."""
+    """`F.linear` with the weight stored `[in, out]` (`_layout`; the bias added in the GEMM's epilogue)."""
     if b is None:
-        return mx.matmul(x, w.T)
-    return mx.addmm(b, x.reshape(-1, x.shape[-1]), w.T).reshape(*x.shape[:-1], w.shape[0])
+        return mx.matmul(x, w)
+    return mx.addmm(b, x.reshape(-1, x.shape[-1]), w).reshape(*x.shape[:-1], w.shape[1])
 
 
 @mx.compile
@@ -231,14 +270,13 @@ class Net:
     """The detector's weights and its forward passes (`sam3.Sam3` without the padding masks).
 
     Args:
-        path: `model.safetensors`.
-        dt: Run dtype (`mx.float32` or `mx.float16`).
+        ctx: The runner's context: its checkpoint, run dtype (float32 or float16) and conversion cache.
     """
 
-    def __init__(self, path: str | Path, dt: mx.Dtype) -> None:
-        """Read the detector's weights (`read`), the RoPE tables and the position encoding."""
-        self.path, self.dt = path, dt
-        self.w = read(path, PREFIX, dt, UNUSED)
+    def __init__(self, ctx: Context) -> None:
+        """Read the detector's weights (`cached`), the RoPE tables and the position encoding."""
+        self.ctx, self.dt = ctx, DTYPES[ctx.dtype]
+        self.w = cached(ctx)
         self.ropes = {WINDOW: self._rope(WINDOW, 1.0), 0: self._rope(GRID, WINDOW / GRID)}
         pos = grid_position_encoding(GRID, GRID).flatten(2).transpose(1, 2)
         self.pos = mx.array(pos.contiguous().numpy())  # [1, 72 * 72, 256] float32
@@ -321,6 +359,8 @@ class Net:
                     x = _gelu(x)
                 x = _shuffle(linear(x, w[f"{q}scale_layers.{idx}.weight"], w[f"{q}scale_layers.{idx}.bias"]))
             x = linear(x, w[f"{q}proj1.weight"], w[f"{q}proj1.bias"])
+            if not level:  # the 288 x 288 level: the upsampling's temporaries go before the convolution's come
+                mx.eval(x)
             out.append(mx.conv2d(x, w[f"{q}proj2.weight"], padding=1) + w[f"{q}proj2.bias"])
             prev = _step(prev, out[-1], wait=True)
         return out
@@ -332,7 +372,7 @@ class Net:
     def tracker_neck(self, t: mx.array) -> list[mx.array]:
         """The video tracker's neck (`tracker_neck.*`, read on the first call) on the trunk output."""
         if self.neck_w is None:
-            self.neck_w = read(self.path, NECK, self.dt, ("fpn_layers.3.",))
+            self.neck_w = cached(self.ctx, NECK, ("fpn_layers.3.",))
         return self.neck(t, self.neck_w, "")
 
     # --- text -------------------------------------------------------------------------------------------------------
@@ -479,6 +519,8 @@ class Net:
             q = f"{m}pixel_decoder."
             x = _up2(x) + f.astype(dt)
             x = mx.conv2d(x, self.w[f"{q}conv_layers.{i}.weight"], padding=1) + self.w[f"{q}conv_layers.{i}.bias"]
+            if i:  # 288 x 288: the convolution's temporaries go before the norm's float32 statistics come
+                mx.eval(x)
             x = _gn_relu(x, self.w[f"{q}norms.{i}.weight"], self.w[f"{q}norms.{i}.bias"])
             prev = _step(prev, x, wait=True)
         inst = self.lin(x, f"{m}instance_projection")  # [1, 288, 288, C]
