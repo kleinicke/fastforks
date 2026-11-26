@@ -112,6 +112,22 @@ def test_kernels_chunked_encoder_matches_upstream(monkeypatch: pytest.MonkeyPatc
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("rows", [1, 7])
+def test_cuda_cost_maps_pad_the_final_rows(rows: int) -> None:
+    """The strided GEMM writes the same half products and zeros the entire padded fringe."""
+    from fastforks.flow.models.flowformer.model import _padded_cost_maps  # noqa: PLC0415
+
+    torch.manual_seed(12)
+    h, w = 25, 40
+    left = torch.randn((256, 37), device="cuda", dtype=torch.float16).t()  # last chunk can be ragged
+    right = torch.randn((256, h * w), device="cuda", dtype=torch.float16)
+    with torch.inference_mode(), torch.autocast("cuda", torch.float16):
+        expected = torch.nn.functional.pad((left @ right).view(37, 1, h, w), (0, 0, 0, rows))
+        actual = _padded_cost_maps(left, right, h, w, rows)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
 def test_kernels_gma_matrix_rows_and_fused_attention(monkeypatch: pytest.MonkeyPatch) -> None:
     """Cached and fused CUDA attention rows agree with caching the complete matrix."""
     from fastforks.flow.models.flowformer import model  # noqa: PLC0415
