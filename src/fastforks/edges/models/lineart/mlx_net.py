@@ -11,15 +11,21 @@ Written out instead of replayed from an export (`shared/mlx_graph`): the export 
 - the 7x7 head (64 -> 1 channel, 8.2 ms as one `mx.conv2d` at 1024 px) is a 1x7 convolution to seven channels, one
   per kernel row, and the sum of the seven rows each shifted by its offset (1.6 ms).
 
-Channels-last throughout; the result is `1 - sigmoid` (the runner's line map) in float32.
+Channels-last throughout; the result is `1 - sigmoid` (the runner's line map) in float32. Each step is one compiled
+function, evaluated one in flight: MLX frees a command buffer's transients only when it completes, so one compiled
+forward held every step's maps to the end.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from fastforks._core.mlx import mx, to_mx
+import numpy as np
+
+from fastforks._core.mlx import mx
 from fastforks.kernels.graph_mlx import ops
+from fastforks.shared import mlx_port
 from fastforks.shared.mlx_graph import _edge_pad
 
 if TYPE_CHECKING:
@@ -27,12 +33,29 @@ if TYPE_CHECKING:
 
     from .net.generator import Generator
 
+LAYOUT = "lineart-v2"
+"""The conversion cache layout of `MlxGenerator`'s arrays (`fastforks.shared.mlx_port.recorded`)."""
+
+SOURCES = (Path(__file__), Path(__file__).with_name("net") / "generator.py")
+"""The code the cached arrays come from: this builder and the network."""
+
 EPS = 1e-5  # nn.InstanceNorm2d's default
 _UP_TAPS = ((1,), (2, 0))  # output phase -> the kernel taps read at input offsets 0 (and 1) (stride 2, padding 1)
 
 
+def _tensor(t: Any, dtype: mx.Dtype) -> mx.array:  # noqa: ANN401 - a torch tensor
+    """`t` in `dtype` as it is laid out in torch, or its cached array (`mlx_port.tensor`)."""
+
+    def convert() -> mx.array:
+        a = mx.array(np.ascontiguousarray(t.detach().float().numpy())).astype(dtype)
+        mx.eval(a)
+        return a
+
+    return mlx_port.tensor(t, dtype, convert)
+
+
 def _ohwi(conv: Any, dtype: mx.Dtype) -> mx.array:  # noqa: ANN401 - a torch module
-    return to_mx(conv.weight.detach().float().permute(0, 2, 3, 1).contiguous()).astype(dtype)
+    return mx.contiguous(_tensor(conv.weight, dtype).transpose(0, 2, 3, 1))
 
 
 def _up_kernels(conv: Any, dtype: mx.Dtype) -> list[mx.array]:  # noqa: ANN401 - a torch module
@@ -41,12 +64,12 @@ def _up_kernels(conv: Any, dtype: mx.Dtype) -> list[mx.array]:  # noqa: ANN401 -
     Output `2m + r` reads kernel tap 1 of input `m` for `r = 0`, taps 2 and 0 of inputs `m` and `m + 1` for `r = 1`:
     the phases `(0, 0), (0, 1), (1, 0), (1, 1)` are a 1 x 1, a 1 x 2, a 2 x 1 and a 2 x 2 convolution.
     """
-    w = conv.weight.detach().float()  # [Cin, Cout, 3, 3]
+    w = _tensor(conv.weight, dtype)  # [Cin, Cout, 3, 3]
     out = []
     for taps_h in _UP_TAPS:
         for taps_w in _UP_TAPS:
-            k = w[:, :, list(taps_h)][:, :, :, list(taps_w)]  # [Cin, Cout, kh, kw]
-            out.append(to_mx(k.permute(1, 2, 3, 0).contiguous()).astype(dtype))
+            k = mx.take(mx.take(w, mx.array(taps_h), axis=2), mx.array(taps_w), axis=3)  # [Cin, Cout, kh, kw]
+            out.append(mx.contiguous(k.transpose(1, 2, 3, 0)))
     return out
 
 
@@ -74,7 +97,7 @@ class MlxGenerator:
     """`Generator.forward` on MLX: `[B, H, W, 3]` float32 in `[0, 1]` -> the line map `[B, H, W]` float32."""
 
     def __init__(self, net: Generator, dtype: str) -> None:
-        """Convert the weights of the float32 `net` to `dtype` (the name)."""
+        """Convert the weights of the float32 `net` to `dtype` (the name), each read through `_tensor`."""
         self.dtype = run = getattr(mx, dtype)
         g: Any = net
         self.stem = _ohwi(g.model0[1], run)
@@ -83,9 +106,9 @@ class MlxGenerator:
         self.up = [_up_kernels(g.model3[i], run) for i in (0, 3)]
         head = _ohwi(g.model4[1], run)  # [1, 7, 7, 64]
         self.head = mx.concatenate([head[:, i : i + 1] for i in range(7)], axis=0)  # [7, 1, 7, 64]: a row each
-        self.head_bias = to_mx(g.model4[1].bias.detach().float())
+        self.head_bias = _tensor(g.model4[1].bias, mx.float32)
         mx.eval(self.stem, self.down, self.blocks, self.up, self.head, self.head_bias)
-        self._compiled = mx.compile(self._forward)
+        self._steps = [mx.compile(step) for _, step in self.stages()]
 
     def stages(self) -> list[tuple[str, Callable[[mx.array], mx.array]]]:
         """The forward pass as named steps (also what a profile times)."""
@@ -121,11 +144,13 @@ class MlxGenerator:
             ("head", head),
         ]
 
-    def _forward(self, x: mx.array) -> mx.array:
-        for _, step in self.stages():
-            x = step(x)
-        return x
-
     def __call__(self, x: mx.array) -> mx.array:
         """Line map `[B, H, W]` (1 = line) of the NHWC image `x`."""
-        return self._compiled(x)
+        prev = None
+        for step in self._steps:
+            x = step(x)
+            mx.async_eval(x)
+            if prev is not None:
+                mx.eval(prev)
+            prev = x
+        return x

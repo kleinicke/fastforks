@@ -10,6 +10,7 @@ written out in `mlx.core` operations.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -81,12 +82,26 @@ class _MlxPortable(Portable):
     net: Any  # mlx_net.MlxGenerator
 
     def __init__(self, ctx: Context) -> None:
+        """The MLX generator from the conversion cache (the first load converts the checkpoint's weights)."""
         Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
         from . import mlx_net  # noqa: PLC0415 - imports mlx
 
-        net = Generator(3, 1, 3)
-        net.load_state_dict(ctx.state_dict())
-        self.net = mlx_net.MlxGenerator(net, mlx_wrap.run_dtype(ctx))  # the PyTorch network is not kept
+        def real() -> Generator:
+            net = Generator(3, 1, 3)
+            net.load_state_dict(ctx.state_dict())
+            return net.eval()
+
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `ctx` is the float32 twin's (`mlx_wrap`)
+        self.net = mlx_port.recorded(  # the PyTorch network is not kept
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxGenerator(net, run.dtype),
+            real=real,
+            skeleton=lambda: Generator(3, 1, 3),
+            sources=mlx_net.SOURCES,
+        )
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
