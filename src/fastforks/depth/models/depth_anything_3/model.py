@@ -23,6 +23,7 @@ estimates the quantiles from a random sample of 100k pixels on larger maps, so i
 from __future__ import annotations
 
 import math
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -30,7 +31,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.checkpoint import load_strict
+from fastforks._core.checkpoint import load_mapped_safetensors, load_strict
 from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
@@ -140,16 +141,33 @@ def _rename(key: str, nested: bool) -> str | None:  # noqa: FBT001 - internal
     return key
 
 
+def _split_weights(ctx: Context) -> bool:
+    """Use independent file mappings for the verified resident CUDA kernels."""
+    return (
+        sys.platform == "linux"
+        and getattr(ctx, "mode", None) == "kernels"
+        and ctx.device.type == "cuda"
+        and ctx.variant.ref in {"da3-giant-1.1@1", "da3nested-giant-large-1.1@1"}
+        and not ctx.params.stream
+        and ctx.user_weights is None
+        and ctx.user_state is None
+    )
+
+
 def _net(ctx: Context, device: torch.device | str | None = None) -> _Net:
     """The network on `device` (default: the context's)."""
     arch: Arch = ctx.params.arch
     with torch.device("meta"):
         net = _Net(arch)
-    sd = {}
-    for k, v in ctx.state_dict(strip="model.").items():
-        name = _rename(k, arch == "nested")
-        if name is not None:
-            sd[name] = v
+    nested = arch == "nested"
+    if _split_weights(ctx):
+        sd = load_mapped_safetensors(ctx.weights()[0], rename=lambda key: _rename(key.removeprefix("model."), nested))
+    else:
+        sd = {}
+        for k, v in ctx.state_dict(strip="model.").items():
+            name = _rename(k, nested)
+            if name is not None:
+                sd[name] = v
     load_strict(net, sd, f"{ctx.variant.ref} checkpoint", assign=True)
     return net.eval().to(ctx.device if device is None else device)
 
