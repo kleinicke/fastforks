@@ -9,6 +9,7 @@ As upstream's wild-image path (`engine.py`, `--eval_wild_images`): keep the aspe
 
 from __future__ import annotations
 
+import sys
 import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal
@@ -183,9 +184,12 @@ class Kernels(Portable):
         self.k = DptFused(ctx.device)
         self.attn = Flash64("fh")
         self._cs: dict[tuple[int, int], torch.Tensor] = {}
-        self._hw = (0, 0)  # the patch grid of the call in flight (set under `_lock`)
-        self._cache = GraphCache(self._graph_sample, graphs=_GRAPHS)
+        self._cache = GraphCache(self._sample_k, graphs=_GRAPHS, capture_warmup=self._sample_warmup)
         self._lock = threading.Lock()
+
+    def _sample_warmup(self, *_inputs: torch.Tensor) -> bool:
+        """Keep the checked warm-up until the sampler attention has finished its overflow probes."""
+        return sys.platform != "linux" or self.attn.probe > 0
 
     def _table(self, h: int, w: int, device: torch.device) -> torch.Tensor:
         """fp32 `[h * w, 2, 32]`: cos | sin of the first half (the second half repeats it), as `rope_qk_h` reads it."""
@@ -212,10 +216,9 @@ class Kernels(Portable):
             return x.addcmul_(F.linear(hid, blk.w3, blk.b3), blk.g2h[s])
         return k.gemm(hid, blk.w3, blk.b3, scale=blk.g2[s], res=x, out=x)
 
-    def _sample_k(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    def _sample_k(self, cond: torch.Tensor, cs: torch.Tensor) -> torch.Tensor:
         """`sample` on the kernels: `cond` `[B, N, C]` float32 -> point tokens float32."""
         net, k = self.net, self.k
-        cs = self._table(h, w, cond.device)
         c16 = cond.half()
         z = None
         for s, (step, one_minus_t) in enumerate(net.schedule):
@@ -229,25 +232,28 @@ class Kernels(Portable):
             raise ValueError(msg)
         return z
 
-    def _graph_sample(self, cond: torch.Tensor) -> torch.Tensor:
-        return self._sample_k(cond, *self._hw)
-
     def release_graphs(self) -> None:
         """Drop every CUDA graph and free its memory pool on the device (`torch.cuda.empty_cache`)."""
-        self._cache.release()
+        with self._lock:
+            self._cache.release()
         self.encoder.release_graphs()
 
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
-        self._table(h, w, cond.device)  # outside the capture
-        with torch.autocast("cuda", enabled=False), _fp16_accumulate():
-            z = None
+        with torch.autocast("cuda", enabled=False), _fp16_accumulate(), self._lock:
             if (
                 not self.ctx.params.stream and cond.numel() <= _GRAPH_WORK
             ):  # larger calls: launches are cheap next to the GEMMs, no graph memory
-                with self._lock:  # `_hw` is the argument of the graph forward
-                    self._hw = (h, w)
-                    z = self._cache.run((tuple(cond.shape), h, w), cond)
-            return self._sample_k(cond, h, w) if z is None else z
+                key = (tuple(cond.shape), h, w)
+                static = self._cache.static_inputs(key)
+                # Capture owns an immutable RoPE input. Replays pass it back without a copy and do not depend on
+                # the eager table cache, which also sees geometries that will never be captured.
+                cs = self._table(h, w, cond.device) if static is None else static[1]
+                z = self._cache.run(key, cond, cs)
+                if z is not None:
+                    return z
+            else:
+                cs = self._table(h, w, cond.device)
+            return self._sample_k(cond, cs)
 
     def module(self) -> torch.nn.Module:
         """Kernels export nothing."""
