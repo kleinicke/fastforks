@@ -19,6 +19,7 @@ from fastforks.detection._convs import FusedConvs
 from fastforks.detection._rtdetr import ConvBn, RepVgg
 from fastforks.detection._runner import Forward, Runner, split_kept
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import graph_replay_allowed
 from fastforks.shared.pil_resize import pil_bilinear
 
 if TYPE_CHECKING:
@@ -152,7 +153,7 @@ class Kernels(Portable):
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         out = None
-        if self._graphs is not None:
+        if self._graphs is not None and graph_replay_allowed():
             key = (x.device, x.dtype, tuple(x.shape))
             fresh = key not in self._graphs.graphs
             if fresh:
