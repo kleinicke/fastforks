@@ -103,9 +103,19 @@ _NEUFLOW_V2_SINTEL: _Resources = (
     ("raft_flow@639b3b16ea48:sm_120",),
     ("9bc12c9ef8298e3cca08a33a04bf99b63dc989e16808daca0c10ac5be4291eb1",),
 )
+_NEUFLOW_V2_THINGS: _Resources = (
+    _NEUFLOW_V2_SINTEL[0],
+    ("733d13b1b2202adefcc99bd1f0fceb89fc90da5479f9826fa3f17ff42c4bdbe0",),
+)
 _LAS2_S: _Resources = (
     (*_IGEV_KERNELS, "stereo_ops@899b54f4a755:sm_120"),
     ("dda5ad5495710466f7e5c5a2dff395223893ef68a17d57d88e7ea7dfbb9d08e1",),
+)
+_LAS2_M: _Resources = (_LAS2_S[0], ("c41b61efce9b36e6b8b38b580421cd20cc9e84a47f0f45361767281938f69696",))
+_GWCNET_GC: _Resources = (_IGEV_KERNELS, ("95c9647f4896af1c9a3f2bb2e9989a569dde57c31b5a1b7830379b1d3434d13a",))
+_BISENET_FACE_PARSING: _Resources = (
+    _IGEV_KERNELS,
+    ("468e13ca13a9b43cc0881a9f99083a430e9c0a38abd935431d1c28ee94b26567",),
 )
 _PSMNET: _Resources = (_IGEV_KERNELS, ("eb3029f7ed5e62eae26dff42e3e5a44d47f014292ff680c7d76adca4749a9113",))
 _S2M2_S: _Resources = (
@@ -424,4 +434,36 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "pose-boxes",
         (("f32-chw-contiguous", (3, 480, 640)), ("f32-p4-cuda-contiguous", (5, 4))),
     ): _profiles(_RTMPOSE_T, _TORCH_214_NATIVE),
+    # NeuFlow v2 Things. Request-15 deltas: -95.982, -79.328 ms.
+    # Receipt SHA-256 a4895ec1f3b4361f427dcef3a1f73103870c0b4ad44691690aa8026c03d7b3dc.
+    (
+        "neuflow-v2-things@1",
+        "kernels",
+        "float16",
+        "flow-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_NEUFLOW_V2_THINGS, _TORCH_214_NATIVE),
+    # GwcNet-gc Scene Flow. Request-15 deltas: -51.541, -45.335 ms.
+    # Receipt SHA-256 b5587a77286a23c3272088b6d6e4053df82657b737609d671ef664b36c311078.
+    (
+        "gwcnet-gc-sceneflow@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 256, 384)), ("f32-bchw-contiguous", (1, 3, 256, 384))),
+    ): _profiles(_GWCNET_GC, _TORCH_214_NATIVE),
+    # LAS2 Medium. Request-15 deltas: -112.657, -147.702 ms.
+    # Receipt SHA-256 ce2b928f8d4fefc9c58b832f67627f082d768c3df9e2ca9e220fcbd899d97465.
+    (
+        "las2-m@1",
+        "kernels",
+        "float16",
+        "stereo-pair",
+        (("f32-bchw-contiguous", (1, 3, 384, 640)), ("f32-bchw-contiguous", (1, 3, 384, 640))),
+    ): _profiles(_LAS2_M, _TORCH_214_NATIVE),
+    # BiSeNet face parsing. Request-15 deltas: -12.000, -8.378 ms.
+    # Receipt SHA-256 2e86865e0be77f1950e0354ae42b2834d83a658de7d3846637db94c0ec993819.
+    ("bisenet-face-parsing@1", "kernels", "float16", "f32-bchw-contiguous", (512, 768)): _profiles(
+        _BISENET_FACE_PARSING, _TORCH_214_NATIVE
+    ),
 }
