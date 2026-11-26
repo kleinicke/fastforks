@@ -96,12 +96,14 @@ class Net(nn.Module):
 
 def _net(ctx: Context) -> Net:
     sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith("track_head.")}
-    if ctx.device.type == "cuda" and not ctx.params.stream:
+    official = ctx.user_weights is None and ctx.user_state is None
+    if ctx.device.type == "cuda" and (not ctx.params.stream or official):
         with torch.device("meta"):
             net = Net()
         half = ("aggregator.", "depth_head.", "point_head.") if ctx.dtype != "float32" else ()
-        assign_inference_weights(net, sd, ctx.device, half)
-        return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+        device = torch.device("cpu") if ctx.params.stream else ctx.device
+        assign_inference_weights(net, sd, device, half)
+        return net.eval().requires_grad_(requires_grad=False).to(device)
     net = Net()
     # MPS: the mmapped checkpoint moves to the GPU as it is (no 4.8 GB float32 CPU copy first: about -4 s of load)
     net.load_state_dict(sd, strict=True, assign=ctx.device.type == "mps")
