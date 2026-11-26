@@ -259,7 +259,7 @@ class _KernelCG(CGState):
         """Apply the same three-scale FP32 operator in eager execution and graph replay."""
         return omni_cg.apply(p, d)
 
-    CHUNK = 32  # fixed: steps per graph replay (one host sync each)
+    CHUNK = 32  # eager steps between convergence checks
 
     def _advance(self) -> None:
         for _ in range(self.CHUNK):
@@ -276,6 +276,8 @@ class _KernelCG(CGState):
 
 class GraphCG(_KernelCG):
     """Replay CG chunks from a CUDA graph of the repeated solve shape."""
+
+    CHUNK = 16  # shorter capture with the same convergence conditions
 
     def __init__(self, d: torch.Tensor, b: torch.Tensor) -> None:
         """Allocate the state for `b`'s shape and capture the graph."""
@@ -304,7 +306,7 @@ class Kernels(Runner):
     """dpt_fused kernels for Depth Anything V2 Large (fused-epilogue GEMMs, flash attention, NHWC fp16 DPT head).
 
     The GRU step is the portable fp16 module, the RGB-D backbone float32 (its PVT features exceed the fp16 range); the
-    conjugate-gradient solve is float32 replayed as CUDA graphs of 32 steps. The input resize for Depth Anything V2 is
+    conjugate-gradient solve is float32 replayed as CUDA graphs of 16 steps. The input resize for Depth Anything V2 is
     PyTorch's (bicubic, align_corners, as upstream), so the kernels' patch resize is the identity.
     """
 
