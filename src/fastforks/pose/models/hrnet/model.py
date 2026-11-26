@@ -19,6 +19,7 @@ score says they were not found.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -26,7 +27,7 @@ import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._optimize import optimize
-from fastforks.kernels import pose_warp
+from fastforks.kernels import cudnn_hacc, pose_warp
 from fastforks.pose._runner import BUCKETS, Forward, TopDown, in_buckets
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -142,8 +143,20 @@ class Kernels(Portable):
         super().__init__(ctx)
         self.net = self.fast = optimize(self.net.float(), mode="kernels", device=ctx.device, family="cnn")
         a: Params = ctx.params
+        # The first eager crop bucket prepares its cuDNN plans when plan builds are immediate.
+        direct = (
+            sys.platform == "linux"
+            and ctx.variant.ref == "hrnet-w48-384@1"
+            and ctx.user_weights is None
+            and ctx.user_state is None
+            and not a.flip_test
+            and cudnn_hacc.BUILD_AFTER == 0
+        )
         self.graphs = SmallShapeGraphs(
-            self._decoded, pixels=BUCKETS[-1] * a.height * a.width, enabled=ctx.params.cuda_graphs
+            self._decoded,
+            pixels=BUCKETS[-1] * a.height * a.width,
+            enabled=a.cuda_graphs,
+            capture_warmup=not direct,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
