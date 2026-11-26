@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.shared import sdpa
 
 __all__ = ["fast"]
@@ -77,6 +78,11 @@ class _Geometry:
             self.mask = torch.zeros(label.shape + label.shape[-1:], device=device, dtype=dtype).masked_fill_(
                 label[:, None, :] != label[:, :, None], float("-inf")
             )[:, None]  # [nW, 1, N, N]
+        self.capture_inputs: tuple[torch.Tensor, ...] = (self.to_windows, self.to_image)
+        if self.padding.numel():
+            self.capture_inputs += (self.padding,)
+        if self.mask is not None:
+            self.capture_inputs += (self.mask,)
 
 
 @functools.lru_cache(maxsize=32)
@@ -116,9 +122,11 @@ def _block_forward(self: Any, x: torch.Tensor, mask_matrix: object = None) -> to
         t.index_fill_(1, g.padding, 0)
     q, k, v = attn.qkv(t).view(b, g.windows, n, 3, heads, c // heads).permute(3, 0, 1, 4, 2, 5).unbind(0)
     del t
-    bias = _bias(attn, q.dtype)[None]  # [1, nH, N, N]
+    bias = _bias(attn, q.dtype)
+    # A replay still reads these addresses if other image sizes evict this geometry.
+    retain_for_cuda_graph(*g.capture_inputs, bias)
     with contextlib.nullcontext() if self._fast_sdpa is None else sdpa.policy(x.device, self._fast_sdpa):
-        o = _attention(q, k, v, bias, g.mask)
+        o = _attention(q, k, v, bias[None], g.mask)
     del q, k, v
     o = attn.proj(o.reshape(b, g.windows * n, c))  # o: [.., N, nH, Dh], the fused kernels' output layout
     x = x + o.index_select(1, g.to_image)
