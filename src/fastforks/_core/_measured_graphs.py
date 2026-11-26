@@ -166,7 +166,13 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "float16",
         "interpolation-midpoint-pair",
         (("f32-bchw-contiguous", (1, 3, 384, 512)), ("f32-bchw-contiguous", (1, 3, 384, 512))),
-    ): _profiles(_RIFE_425_LITE, _TORCH_214_NATIVE),
+    ): _profiles(
+        _RIFE_425_LITE,
+        _TORCH_214_NATIVE,
+        # cudaMallocAsync. Request-15 deltas: -71.544, -63.465 ms.
+        # Receipt SHA-256 f354455ac995545dc0366179689012afac20e058ac6ffce66df00f3c6fff81b2.
+        _TORCH_214_ASYNC,
+    ),
     # rife-4.25@1 native 384x512 midpoint. Request-15 deltas: -72.846, -65.045 ms.
     # Receipt SHA-256 fdedd72f8e4247764a8056cfe3a9571e2beb61d68a7c1db671371c254b322083.
     (
@@ -197,6 +203,18 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         # Receipt SHA-256 cf934ce54c639c2dfa5936ee6d1972b2587fd62fc207ccc15111415f62ca6386.
         _TORCH_214_ASYNC,
     ),
+    # RIFE 4.26, ComfyUI 0.46 two-frame RGB input. Public payoff by request 6-9, node by request 4.
+    # Public receipt SHA-256 1de4dbc0abc6f428302b298694a5a6b0fe98262a6a09ea954ad770586322ed6a.
+    # Public receipt SHA-256 add18d54d40f60fcba029ffadc42ffe1639d0f8f99cee22bf00408a43286eef1.
+    # Node receipt SHA-256 accd3c63dfa0d10f1b83066bbd4629190dd30d48ff7345fa9f5cc12d392f071b.
+    # Node receipt SHA-256 4beb281295e7d60323ac28fd6969c345979db2dfc30bf97fd06a80c0d142c4d6.
+    (
+        "rife-4.26@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-adjacent-rgb-pair", (1, 3, 384, 512)), ("f32-bchw-adjacent-rgb-pair", (1, 3, 384, 512))),
+    ): _profiles(_RIFE_426, _TORCH_214_ASYNC_FOUR_THREADS),
     # raft-small@1 default policy. Verified comparison receipts follow.
     # SHA-256 7313aa80840ac7fc447c3e031271d68f446e1ba3ec3df116e4861f4b7d80b474.
     # SHA-256 2c490f272a41aae54a01ef8e907f6ba4baeb93a25da3a41d4a6a64faeff62d23.

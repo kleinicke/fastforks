@@ -68,6 +68,38 @@ def _image_tensor(value: object, device: torch.device) -> TensorSignature | None
     return None if layout is None else (layout, tuple(value.shape))
 
 
+def _adjacent_rgb_pair(call: ImagePair, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
+    """Two ordered B1 BCHW views of one exact, two-frame RGB-interleaved allocation."""
+    first, second = call
+    if (
+        not isinstance(first, torch.Tensor)
+        or not isinstance(second, torch.Tensor)
+        or first.device != device
+        or second.device != device
+        or first.layout != torch.strided
+        or second.layout != torch.strided
+        or first.dtype != torch.float32
+        or second.dtype != torch.float32
+        or first.ndim != _BCHW
+        or first.shape[:2] != (1, _RGB)
+        or second.shape != first.shape
+    ):
+        return None
+    frame = first.numel()
+    stride = (frame, 1, _RGB * first.shape[-1], _RGB)
+    if first.stride() != stride or second.stride() != stride or first.storage_offset() != 0:
+        return None
+    if second.storage_offset() != frame:
+        return None
+    storage = first.untyped_storage()
+    if storage.nbytes() != 2 * frame * first.element_size():
+        return None
+    if storage.data_ptr() != second.untyped_storage().data_ptr():
+        return None
+    sig = ("f32-bchw-adjacent-rgb-pair", tuple(first.shape))
+    return sig, sig
+
+
 def _tracking_inputs(call: VideoQueries, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
     video, queries = call
     if (
@@ -101,9 +133,11 @@ def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredK
     if isinstance(call, ImagePair) and task in _PAIR_TASKS:
         first, second = (_image_tensor(x, device) for x in call)
         if first is not None and second is not None and first[1][-2:] == second[1][-2:]:
-            route = "interpolation-midpoint-pair" if task == "interpolation" else f"{task}-pair"
-            return ref, mode, dtype, route, (first, second)
-        return None
+            operands = first, second
+        else:
+            operands = _adjacent_rgb_pair(call, device) if task == "interpolation" else None
+        route = "interpolation-midpoint-pair" if task == "interpolation" else f"{task}-pair"
+        return None if operands is None else (ref, mode, dtype, route, operands)
     if isinstance(call, VideoQueries) and task == "tracking":
         args = _tracking_inputs(call, device)
         return None if args is None else (ref, mode, dtype, "tracking-video-queries", args)
