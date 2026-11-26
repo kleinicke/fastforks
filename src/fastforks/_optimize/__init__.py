@@ -386,6 +386,7 @@ def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the 
     family: str | None = None,
     fuse_convs: bool = True,
     cast_cpu_weights: bool = False,
+    probe_batchnorm: bool = True,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
@@ -394,6 +395,7 @@ def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the 
     raising (`patch(mode="auto")`). `family` (a `COVERED` key): the architecture family of a registry network that its
     class names do not reveal (e.g. `"cnn"`: a plain conv / SiLU / concat / pool net of our own).
     `cast_cpu_weights`: upload trusted registry transformer weights directly in fp16 on CUDA.
+    `probe_batchnorm`: try hook-based folding before FX; the checked CoAtNet-0 path only needs FX folding.
     """
     if mode not in MODES:
         msg = f"optimize: mode must be one of {MODES}, got {mode!r}"
@@ -453,6 +455,7 @@ def optimize(  # noqa: PLR0913 - the one entry point: argument checks, then the 
             half=fp16 and dev.type in {"cuda", "mps"},
             auto=auto,
             fuse_convs=fuse_convs,
+            probe_batchnorm=probe_batchnorm,
         )
 
 
@@ -467,6 +470,7 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     half: bool,
     fuse_convs: bool = True,
     auto: bool = False,
+    probe_batchnorm: bool = True,
 ) -> FastModel:
     from . import blocks, fold, transformer  # noqa: PLC0415
 
@@ -477,7 +481,7 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
         report["densenet_blocks"] = blocks.patch_densenet(model)
     net: nn.Module = model
     if conv_like:
-        net, rep = fold.fold_bn(model)
+        net, rep = fold.fold_bn(model, probe=probe_batchnorm)
         net.to(dev)  # timm's re-parameterization (TinyViT `ConvNorm.fuse`) builds its fused convs on the CPU
         report.update(rep)
         if isinstance(net, fx.GraphModule):  # before `.half()`: the LayerScale gammas fold into float32 weights
