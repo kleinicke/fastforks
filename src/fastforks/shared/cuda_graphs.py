@@ -56,22 +56,29 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
 _REQUEST: contextvars.ContextVar[object | None] = contextvars.ContextVar("cuda_graph_request", default=None)
+_GRAPH_BLOCKED = contextvars.ContextVar("cuda_graph_blocked", default=False)
 _NATIVE_CAPTURE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}  # PID, device, driver context ID
 _NATIVE_SIDE: dict[tuple[int, int, int], torch.cuda.Stream | None] = {}
 _NON_BLOCKING = 1  # CU_STREAM_NON_BLOCKING
 
 
 @contextlib.contextmanager
-def graph_request() -> Generator[None]:
-    """Group the graph-cache calls made by a single inference request."""
-    if _REQUEST.get() is not None:
-        yield
-        return
-    token = _REQUEST.set(object())
+def graph_request(*, allow_replay: bool = True) -> Generator[None]:
+    """Group one inference request. A nested call may narrow, but cannot widen, graph admission."""
+    request = _REQUEST.set(object()) if _REQUEST.get() is None else None
+    blocked = _GRAPH_BLOCKED.set(True) if not allow_replay else None
     try:
         yield
     finally:
-        _REQUEST.reset(token)
+        if blocked is not None:
+            _GRAPH_BLOCKED.reset(blocked)
+        if request is not None:
+            _REQUEST.reset(request)
+
+
+def graph_replay_allowed() -> bool:
+    """Whether the public request allows graph work on this thread."""
+    return not _GRAPH_BLOCKED.get()
 
 
 class _Graph(torch.cuda.CUDAGraph):
@@ -263,7 +270,7 @@ class GraphCache:
         self._stream: torch.cuda.Stream | None = None
         self._lock = threading.Lock()
 
-    def run(
+    def run(  # noqa: C901 - admission and the replay/cache lifecycle are ordered together
         self,
         key: Hashable,
         *inputs: torch.Tensor,
@@ -275,6 +282,8 @@ class GraphCache:
         `post(static output)` replaces the copy when it returns new tensors anyway (e.g. a dtype conversion).
         `before_replay(static inputs)` can reset persistent state after the preceding replay is ordered.
         """
+        if not graph_replay_allowed():
+            return None
         failed = captured = False
         released: torch.device | None = None
         result = None
@@ -320,11 +329,13 @@ class GraphCache:
         A forward that writes a recurrent state into its own static inputs (in place, at the end) lets the caller pass
         these back on the next call: copying a tensor onto itself launches nothing, so the state never moves.
         """
-        entry = self.graphs.get(key)
+        entry = self.graphs.get(key) if graph_replay_allowed() else None
         return None if entry is None else entry[1]
 
     def defer_first_request(self, key: Hashable) -> bool:
         """Record a first-request eager call before the caller prepares graph-only inputs."""
+        if not graph_replay_allowed():
+            return True
         request = _REQUEST.get()
         if request is None:
             return False

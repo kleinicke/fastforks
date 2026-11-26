@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_arg
 
 import torch
 
-from fastforks._core import mps, registry, warmup
+from fastforks._core import linux_graph_defaults, mps, registry, warmup
 from fastforks._core.arguments import bind_error, warn_renamed
 from fastforks._core.cards import Dtype, planned_reason, require_available
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
@@ -464,7 +464,13 @@ def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -
                 split[k] = v
         rest = {k: v for k, v in bound.items() if k != "self" and k not in names and k not in split}
         seqs = cast("list[Sequence[Any]]", lists)
-        return [fn(self, *(x[i] for x in seqs), **rest, **{k: v[i] for k, v in split.items()}) for i in range(n)]
+        scope = (
+            graph_request(allow_replay=False)
+            if isinstance(self, Model) and linux_graph_defaults.enrolled(self)
+            else contextlib.nullcontext()
+        )
+        with scope:
+            return [fn(self, *(x[i] for x in seqs), **rest, **{k: v[i] for k, v in split.items()}) for i in range(n)]
 
     return call
 
@@ -786,7 +792,7 @@ class Model:
         return export_tensorrt(self, path, height, width, batch=batch, size_range=size_range)
 
     @contextlib.contextmanager
-    def _session(self) -> Generator[None]:
+    def _session(self, *, graph_image: object = None) -> Generator[None]:
         """Locks, CUDA device guard, SDPA policy, inference mode, no inherited autocast, deterministic cuDNN if asked.
 
         `Runner.deterministic_cudnn` asks for deterministic cuDNN.
@@ -807,7 +813,9 @@ class Model:
             sdpa.policy(self._device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
             torch.inference_mode(),
             _no_autocast(self._device),
-            graph_request() if cuda else contextlib.nullcontext(),
+            graph_request(allow_replay=linux_graph_defaults.allows(self, graph_image))
+            if cuda
+            else contextlib.nullcontext(),
         ):
             begin_call()
             yield
@@ -847,13 +855,13 @@ class Model:
             raise InputError(msg)
 
     def _batched(
-        self, fn: Callable[..., dict[str, torch.Tensor]], *inputs: torch.Tensor | None
+        self, fn: Callable[..., dict[str, torch.Tensor]], *inputs: torch.Tensor | None, graph_image: object = None
     ) -> dict[str, torch.Tensor]:
         """`fn` on chunks of `runner.batch` (or `batch_pixels`) inputs (dim 0; `None` stays `None`), concatenated."""
         first = next(x for x in inputs if x is not None)
         n, pixels = first.shape[0], self._runner.batch_pixels
         step = self._runner.batch or (max(1, pixels // (first.shape[-2] * first.shape[-1])) if pixels else n)
-        with self._session():
+        with self._session(graph_image=graph_image):
             outs = [fn(*(None if x is None else x[i : i + step] for x in inputs)) for i in range(0, n, step)]
         return {k: torch.cat([o[k] for o in outs]) if len(outs) > 1 else outs[0][k] for k in outs[0]}
 
