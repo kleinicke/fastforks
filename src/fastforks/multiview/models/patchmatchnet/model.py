@@ -16,6 +16,7 @@ the 1x1x1 Conv3d nets as 1x1 Conv2d, the sources warped and correlated one at a 
 from __future__ import annotations
 
 import contextlib
+import sys
 import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -24,6 +25,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import retain_for_cuda_graph
 from fastforks.multiview._runner import Forward, Runner, f64, invert, take
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
@@ -633,12 +635,20 @@ class Kernels(_Base):
                 raise ValueError(msg)
         # about 700 launches per call: WDDM's per-launch cost made Windows host-bound; the depth range's inverse is a
         # scalar kernel argument, so it is part of the key
-        self.graphs = GraphCache(self._graphed, graphs=2) if ctx.params.cuda_graphs else None
+        self.graphs = (
+            GraphCache(self._graphed, graphs=2, capture_warmup=self._capture_warmup) if ctx.params.cuda_graphs else None
+        )
         self._inv: tuple[float, float] | None = None  # `host_range` of the call being captured
         self._lock = threading.Lock()
 
     def _dtype(self) -> torch.dtype:
         return torch.float16
+
+    def _capture_warmup(self, images: torch.Tensor, *_cameras: torch.Tensor) -> bool:
+        # The seed table is generated on the CPU. An interleaved shape may
+        # evict it after the first eager call, and it must be uploaded before capture.
+        h, w = (round(side / MULTIPLE) for side in images.shape[-2:])
+        return sys.platform != "linux" or (h, w) not in self._init_cache
 
     def _graphed(
         self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
@@ -717,6 +727,8 @@ class Kernels(_Base):
             n_prop = st.propagate if pgrid is not None and not final else 0
             if depth is None:
                 base = self.random_init(dmin, dmax, h, w)[0].reshape(-1, hw).contiguous()
+                # The seeded first stage reads this table. Checked warm-up creates it before capture.
+                retain_for_cuda_graph(self._init_cache[h, w])
                 ds = base
                 if n_prop:
                     ds = torch.empty((base.shape[0] + n_prop, hw), device=f.device)
