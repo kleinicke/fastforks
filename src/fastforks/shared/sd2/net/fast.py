@@ -44,9 +44,13 @@ def _group_affine(x: torch.Tensor, m: torch.nn.GroupNorm) -> tuple[torch.Tensor,
     return scale.view(n, c, 1, 1), shift.view(n, c, 1, 1)
 
 
-def _affine_silu(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, *, fused: bool) -> torch.Tensor:
-    if fused and (out := group_silu.affine_silu(x, scale, shift)) is not None:
+def _affine_silu(
+    x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, *, fused: bool, inplace: bool = False
+) -> torch.Tensor:
+    if fused and (out := group_silu.affine_silu(x, scale, shift, inplace=inplace)) is not None:
         return out
+    if inplace:
+        return F.silu(torch.addcmul(shift, x, scale, out=x), inplace=True)
     return F.silu(torch.addcmul(shift, x, scale), inplace=True)
 
 
@@ -74,12 +78,15 @@ class Fast:
         text: torch.Tensor,
         timesteps: Sequence[float],
         labels: torch.Tensor | None = None,
+        *,
+        reuse_resnet_activation: bool = False,
     ) -> None:
         """`timesteps`: the UNet's timesteps (diffusion steps, or flow-matching times in [0, 1]).
 
         `labels`: the `[1, class_embed]` class labels of a UNet with a class embedding (constant).
         """
         self.unet = unet
+        self.reuse_resnet_activation = reuse_resnet_activation
         self.up_weights: dict[torch.nn.Conv2d, torch.Tensor] = {}
         self.kv: dict[BasicTransformerBlock, tuple[torch.Tensor, torch.Tensor]] = {}
         for m in unet.modules():
@@ -170,7 +177,12 @@ class Fast:
         h = self.conv(group_norm(x, r.norm1, silu=True, fused=self.fuse_affine_silu), r.conv1)
         if proj is not None:
             h = h.add_(proj)
-        h = self.conv(group_norm(h, r.norm2, silu=True, fused=self.fuse_affine_silu), r.conv2)
+        if self.reuse_resnet_activation:
+            scale, shift = _group_affine(h, r.norm2)
+            h = _affine_silu(h, scale, shift, fused=self.fuse_affine_silu, inplace=True)
+        else:
+            h = group_norm(h, r.norm2, silu=True, fused=self.fuse_affine_silu)
+        h = self.conv(h, r.conv2)
         if r.conv_shortcut is not None:
             x = self.conv(x, r.conv_shortcut)
         return h.add_(x)
