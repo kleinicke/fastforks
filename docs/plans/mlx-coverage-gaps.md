@@ -2268,6 +2268,147 @@ blocks against one compiled forward; earlier rounds: a compiled single block, ma
 `addmm`, raw GELU, a float32 residual stream. Below the previous MLX
 row: DaViT float16 (above). TinyViT is left to the stereo / flow round's port.
 
+### Done: stereo, flow, matching, detection, restoration, SegFormer, EfficientViT-SAM and CNN classifiers (2026-11-26)
+
+M1 Pro, second of two surveys recorded; every MLX golden of these families passes in float16 and float32 and each has
+a `test_mlx` match test. Each network is now written in `mlx.core` (per-block `mx.compile`, one block in flight: the
+current one `async_eval`ed, the previous one `eval`ed), replacing the exported graph and its translation, which were
+most of the old first call. Columns as above; `auto` is before -> now.
+
+Classifiers (EfficientFormer, EfficientViT (MIT), FastViT, Inception-v3, MobileNetV4, SHViT, TinyViT, in
+`mlx_cnn.Network`): first calls 0.6-1.8 s -> 0.02-0.05 s, peaks 3-13 % lower, `auto` takes MLX for all but
+tiny_vit_21m_384. tiny_vit_21m_384 / 512 and fastvit_t12 are slightly slower warm than the export (TinyViT's attention
+uses the ViT-owned shared code, left alone).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| efficientformer_l1.snap_dist_in1k | 6 / 5 | 4 / 4 | 0.94 -> 0.03 | 444 -> 403 | 9 fp16 / 0.12 | MPS -> MLX float16 |
+| efficientformer_l3.snap_dist_in1k | 8 / 9 | 7 / 8 | 1.33 -> 0.04 | 541 -> 484 | 15 fp16 / 0.09 | MPS -> MLX float16 |
+| efficientformer_l7.snap_dist_in1k | 15 / 18 | 13 / 16 | 1.81 -> 0.05 | 748 -> 664 | 27 fp16 / 0.10 | MPS -> MLX float16 |
+| efficientvit_b2.r288_in1k | 10 / 16 | 7 / 8 | 1.56 -> 0.03 | 555 -> 539 | 20 fp16 / 0.17 | MPS -> MLX float16 |
+| fastvit_sa24.apple_dist_in1k | 7 / 9 | 7 / 8 | 0.96 -> 0.03 | 556 -> 528 | 16 fp16 / 0.32 | MPS -> MLX float16 |
+| fastvit_t12.apple_dist_in1k | 4 / 4 | 4 / 5 | 0.58 -> 0.03 | 434 -> 412 | 9 fp16 / 0.21 | MPS -> MLX float16 |
+| fastvit_t8.apple_dist_in1k | 3 / 4 | 3 / 4 | 0.57 -> 0.03 | 403 -> 370 | 8 fp16 / 0.13 | MPS -> MLX float16 |
+| inception_v3.tv_in1k | 11 / 13 | 8 / 9 | 1.38 -> 0.03 | 548 -> 489 | 16 fp16 / 0.69 | MPS -> MLX float16 |
+| mobilenetv4_conv_medium.e500_r256_in1k | 4 / 4 | 3 / 4 | 1.13 -> 0.02 | 433 -> 388 | 10 fp16 / 0.14 | MPS -> MLX float16 |
+| shvit_s1.in1k | 4 / 4 | 3 / 4 | 1.35 -> 0.03 | 389 -> 352 | 11 fp16 / 0.48 | MPS -> MLX float16 |
+| shvit_s2.in1k | 4 / 4 | 4 / 4 | 1.41 -> 0.03 | 413 -> 366 | 12 fp32 / 0.23 | MPS -> MLX float16 |
+| shvit_s3.in1k | 5 / 5 | 4 / 5 | 1.47 -> 0.02 | 432 -> 377 | 13 fp32 / 0.16 | MPS -> MLX float16 |
+| shvit_s4.in1k | 5 / 6 | 5 / 6 | 1.67 -> 0.03 | 451 -> 387 | 15 fp16 / 0.24 | MPS -> MLX float16 |
+| tiny_vit_11m_224.dist_in22k_ft_in1k | 7 / 8 | 5 / 5 | 1.09 -> 0.03 | 431 -> 410 | 10 fp32 / 0.11 | MPS -> MLX float16 |
+| tiny_vit_21m_224.dist_in22k_ft_in1k | 8 / 10 | 7 / 8 | 1.12 -> 0.03 | 475 -> 456 | 11 fp16 / 0.29 | MPS -> MLX float16 |
+| tiny_vit_21m_384.dist_in22k_ft_in1k | 15 / 20 | 16 / 19 | 1.16 -> 0.03 | 641 -> 699 | 19 fp16 / 0.12 | MPS -> MPS |
+| tiny_vit_21m_512.dist_in22k_ft_in1k | 26 / 39 | 29 / 41 | 1.28 -> 0.05 | 840 -> 919 | 29 fp16 / 0.17 | MPS -> MLX float16 |
+| tiny_vit_5m_224.dist_in22k_ft_in1k | 5 / 6 | 5 / 5 | 1.09 -> 0.03 | 411 -> 374 | 8 fp16 / 0.10 | MPS -> MLX float16 |
+
+Detection (D-FINE, RT-DETRv2, LW-DETR): first calls 1.5-2.7 s -> 0.06-0.13 s, warm 3-30 % faster in float16, `auto`
+now takes MLX float16 for all 15. Peaks rise on the largest refs (dfine-x, rtdetrv2-l/x, lw-detr-large/xlarge: the
+float32 decoder kept in float32 holds more); lw-detr-small/medium float32 is slower warm than before (its ViT backbone
+is the Fable-owned `mlx_vit`).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| dfine-l-coco | 60 / 74 | 52 / 64 | 2.16 -> 0.10 | 881 -> 785 | 71 fp16 / 0.32 | MPS -> MLX float16 |
+| dfine-m-coco | 47 / 58 | 37 / 42 | 1.97 -> 0.12 | 821 -> 663 | 57 fp16 / 0.33 | MPS -> MLX float16 |
+| dfine-n-coco | 22 / 24 | 17 / 18 | 2.00 -> 0.09 | 578 -> 406 | 25 fp16 / 0.38 | MPS -> MLX float16 |
+| dfine-s-coco | 30 / 35 | 29 / 31 | 2.07 -> 0.10 | 652 -> 512 | 41 fp16 / 0.32 | MPS -> MLX float16 |
+| dfine-x-coco | 95 / 120 | 78 / 99 | 2.42 -> 0.12 | 1133 -> 1220 | 101 fp16 / 0.34 | MPS -> MLX float16 |
+| lw-detr-large-coco | 65 / 71 | 57 / 68 | 2.71 -> 0.09 | 891 -> 985 | 73 fp16 / 0.34 | MPS -> MLX float16 |
+| lw-detr-medium-coco | 48 / 47 | 40 / 51 | 1.97 -> 0.08 | 809 -> 704 | 47 fp16 / 0.12 | MPS -> MLX float16 |
+| lw-detr-small-coco | 34 / 33 | 27 / 42 | 1.77 -> 0.08 | 837 -> 662 | 55 fp16 / 0.15 | MPS -> MLX float16 |
+| lw-detr-tiny-coco | 35 / 38 | 20 / 24 | 2.16 -> 0.06 | 935 -> 600 | 41 fp16 / 0.15 | MPS -> MLX float16 |
+| lw-detr-xlarge-coco | 117 / 123 | 102 / 109 | 2.21 -> 0.13 | 1077 -> 1430 | 130 fp16 / 0.23 | MPS -> MLX float16 |
+| rtdetrv2-l-coco | 68 / 89 | 55 / 65 | 2.02 -> 0.09 | 815 -> 831 | 77 fp16 / 0.29 | MPS -> MLX float16 |
+| rtdetrv2-m-coco | 50 / 65 | 44 / 53 | 1.54 -> 0.07 | 811 -> 713 | 55 fp16 / 0.21 | MPS -> MLX float16 |
+| rtdetrv2-ms-coco | 57 / 72 | 46 / 54 | 1.55 -> 0.07 | 791 -> 788 | 63 fp16 / 0.25 | MPS -> MLX float16 |
+| rtdetrv2-s-coco | 37 / 46 | 33 / 39 | 1.84 -> 0.07 | 768 -> 631 | 44 fp32 / 0.20 | MPS -> MLX float16 |
+| rtdetrv2-x-coco | 118 / 139 | 89 / 104 | 2.12 -> 0.11 | 953 -> 1115 | 109 fp16 / 0.27 | MPS -> MLX float16 |
+
+Stereo (Fast-ACVNet, IGEV-Stereo, Selective-IGEV, IGEV++): first calls 2.8-24.7 s -> 0.35-5.8 s. The IGEV family
+runs with a 512 MB buffer cache (2048 before): the active peak is 1873 MB at any cache limit, the cache only added
+resident memory. Selective-IGEV and IGEV++ peaks stay 2-5 % above the export (the GRU loop's live set); IGEV-Stereo
+float32 and IGEV++ float16 are slightly slower warm than the export but faster than MPS.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| fast-acvnet-generalization | 475 / 505 | 335 / 385 | 2.79 -> 0.35 | 1918 -> 1201 | 410 fp16 / 1.01 | MPS -> MLX float16 |
+| fast-acvnet-kitti12 | 457 / 521 | 336 / 386 | 2.77 -> 0.35 | 1808 -> 1199 | 397 fp16 / 0.88 | MPS -> MLX float16 |
+| fast-acvnet-kitti15 | 455 / 506 | 337 / 386 | 2.77 -> 0.35 | 1831 -> 1200 | 397 fp16 / 0.80 | MPS -> MLX float16 |
+| fast-acvnet-plus-generalization | 541 / 587 | 411 / 463 | 3.32 -> 0.43 | 1812 -> 1396 | 401 fp16 / 0.75 | MPS -> MLX float16 |
+| fast-acvnet-plus-kitti12 | 564 / 582 | 411 / 461 | 2.82 -> 0.42 | 1814 -> 1390 | 401 fp16 / 0.69 | MPS -> MLX float16 |
+| fast-acvnet-plus-kitti15 | 562 / 580 | 411 / 461 | 2.80 -> 0.43 | 1810 -> 1394 | 402 fp16 / 0.70 | MPS -> MLX float16 |
+| fast-acvnet-plus-sceneflow | 540 / 584 | 412 / 461 | 2.83 -> 0.43 | 1813 -> 1394 | 402 fp16 / 0.70 | MPS -> MLX float16 |
+| fast-acvnet-sceneflow | 459 / 523 | 339 / 389 | 2.78 -> 0.35 | 1934 -> 1145 | 396 fp16 / 0.76 | MPS -> MLX float16 |
+| igev-plusplus-eth3d | 5478 / 10129 | 5726 / 7868 | 17.31 -> 5.76 | 2863 -> 2959 | 6139 fp16 / 6.40 | MLX float16 -> MLX float16 |
+| igev-plusplus-kitti12 | 5297 / 10166 | 5685 / 7821 | 12.96 -> 5.75 | 2873 -> 3016 | 6124 fp16 / 6.45 | MLX float16 -> MLX float16 |
+| igev-plusplus-kitti15 | 5268 / 10077 | 5701 / 7788 | 12.82 -> 5.77 | 2894 -> 2962 | 6125 fp16 / 6.41 | MLX float16 -> MLX float16 |
+| igev-plusplus-middlebury | 5290 / 10176 | 5700 / 8011 | 12.92 -> 5.76 | 2872 -> 2920 | 6130 fp16 / 6.42 | MLX float16 -> MLX float16 |
+| igev-plusplus-sceneflow | 6039 / 10647 | 5724 / 7876 | 17.38 -> 5.79 | 2957 -> 2963 | 6135 fp16 / 6.39 | MLX float16 -> MLX float16 |
+| igev-stereo-eth3d | 3628 / 4658 | 3311 / 4910 | 9.29 -> 3.37 | 3428 -> 2546 | 3998 fp16 / 4.22 | MLX float16 -> MLX float16 |
+| igev-stereo-kitti12 | 3654 / 4594 | 3298 / 5159 | 9.30 -> 3.31 | 3414 -> 2542 | 4006 fp16 / 4.21 | MLX float16 -> MLX float16 |
+| igev-stereo-kitti15 | 3674 / 4609 | 3304 / 5031 | 9.29 -> 3.31 | 3419 -> 2575 | 4008 fp16 / 4.21 | MLX float16 -> MLX float16 |
+| igev-stereo-middlebury | 3649 / 4622 | 3297 / 4986 | 9.32 -> 3.31 | 3439 -> 2548 | 4007 fp16 / 4.21 | MLX float16 -> MLX float16 |
+| igev-stereo-sceneflow | 3598 / 4607 | 3290 / 4888 | 9.07 -> 3.32 | 3421 -> 2568 | 4001 fp16 / 4.19 | MLX float16 -> MLX float16 |
+| selective-igev-eth3d-finetune | 5218 / 9963 | 3751 / 5448 | 12.33 -> 3.76 | 2522 -> 2767 | 5708 fp16 / 5.92 | MLX float16 -> MLX float16 |
+| selective-igev-eth3d-train | 5353 / 9762 | 3746 / 5386 | 12.02 -> 3.78 | 2710 -> 2763 | 5710 fp16 / 5.91 | MLX float16 -> MLX float16 |
+| selective-igev-kitti12 | 5422 / 10046 | 3751 / 5363 | 11.89 -> 3.76 | 2711 -> 2778 | 5709 fp16 / 5.91 | MLX float16 -> MLX float16 |
+| selective-igev-kitti15 | 5238 / 9783 | 3746 / 5369 | 11.91 -> 3.77 | 2531 -> 2777 | 5710 fp16 / 5.91 | MLX float16 -> MLX float16 |
+| selective-igev-middlebury-finetune | 5222 / 10115 | 3755 / 5378 | 11.88 -> 3.77 | 2717 -> 2779 | 5778 fp16 / 5.93 | MLX float16 -> MLX float16 |
+| selective-igev-middlebury-train | 5266 / 10062 | 3753 / 5377 | 12.09 -> 3.75 | 2523 -> 2762 | 5738 fp16 / 5.95 | MLX float16 -> MLX float16 |
+| selective-igev-sceneflow | 6296 / 10715 | 3741 / 5363 | 24.69 -> 3.77 | 2735 -> 2772 | 5710 fp16 / 5.90 | MPS -> MLX float16 |
+
+Flow and matching (GMFlow, LoMa): first calls 3.2-12.4 s -> 0.85-4.7 s, LoMa peaks 4.5-5.2 GB -> 2.8-3.0 GB. GMFlow
+scale2 peaks rise 1-14 % (the refinement's correlation volume). LoMa float32 is slower than MPS float32 on b, g, l and r
+(Fable candidate); `auto` uses float16, which beats every MPS row.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| gmflow-scale1-mixdata | 1820 / 2482 | 1827 / 2494 | 3.19 -> 1.89 | 1699 -> 1191 | 2904 fp16 / 2.89 | MLX float16 -> MLX float16 |
+| gmflow-scale1-things | 1934 / 2627 | 1690 / 2387 | 3.51 -> 1.71 | 1698 -> 1150 | 2756 fp16 / 2.90 | MLX float16 -> MLX float16 |
+| gmflow-scale2-mixdata | 4132 / 5997 | 3600 / 5350 | 6.79 -> 3.76 | 2559 -> 2843 | 6039 fp16 / 5.90 | MLX float16 -> MLX float16 |
+| gmflow-scale2-regrefine6-kitti | 6520 / 9845 | 4596 / 6554 | 11.55 -> 4.66 | 2791 -> 2846 | 10998 fp16 / 10.95 | MLX float16 -> MLX float16 |
+| gmflow-scale2-regrefine6-mixdata | 6693 / 9804 | 4563 / 6569 | 11.44 -> 4.62 | 2789 -> 2841 | 11156 fp16 / 11.01 | MLX float16 -> MLX float16 |
+| gmflow-scale2-regrefine6-sintelft | 6491 / 9787 | 4569 / 6541 | 12.44 -> 4.62 | 2788 -> 2846 | 10867 fp16 / 10.99 | MLX float16 -> MLX float16 |
+| gmflow-scale2-regrefine6-things | 6487 / 9869 | 4616 / 6656 | 11.48 -> 4.60 | 2834 -> 2842 | 11300 fp16 / 11.28 | MLX float16 -> MLX float16 |
+| gmflow-scale2-sintel | 4129 / 5979 | 3509 / 5201 | 6.90 -> 3.58 | 2494 -> 2839 | 5725 fp16 / 5.89 | MLX float16 -> MLX float16 |
+| gmflow-scale2-things | 4167 / 5990 | 3540 / 5250 | 6.83 -> 3.63 | 2554 -> 2841 | 5982 fp16 / 6.28 | MLX float16 -> MLX float16 |
+| loma-b | 2760 / 3617 | 2375 / 3246 | 8.52 -> 2.38 | 4561 -> 2819 | 3041 fp32 / 3.65 | MLX float16 -> MLX float16 |
+| loma-b128 | 1085 / 1546 | 990 / 1446 | 5.86 -> 1.03 | 1902 -> 1409 | 1065 fp32 / 1.30 | MPS -> MLX float16 |
+| loma-b64 | 828 / 1228 | 830 / 1204 | 4.82 -> 0.85 | 1630 -> 1330 | 917 fp32 / 1.16 | MPS -> MLX float16 |
+| loma-g | 3230 / 4152 | 3201 / 4322 | 8.75 -> 3.20 | 5159 -> 2984 | 3628 fp32 / 4.68 | MLX float16 -> MLX float16 |
+| loma-l | 2810 / 3706 | 2793 / 3944 | 8.64 -> 2.81 | 4929 -> 2820 | 3178 fp32 / 4.22 | MLX float16 -> MLX float16 |
+| loma-r | 2708 / 3622 | 2401 / 3327 | 7.98 -> 2.42 | 4549 -> 2818 | 3076 fp32 / 3.77 | MLX float16 -> MLX float16 |
+
+Restoration (NAFNet, RealPLKSR) and SegFormer: NAFNet writes the channel LayerNorm out below 256 channels
+(`mx.fast.layer_norm` is 4-6x slower at small C on large maps) and caps its cache at 512 MB; its peaks stay 4-6 %
+above the export. RealPLKSR: Winograd 3x3, the 17x17 partial large kernel as a row GEMM; float16 beats MPS but float32 does not
+(GEMM-bound 17x17, Fable candidate) and `auto` keeps MPS. SegFormer writes its
+LayerNorm out the same way and keeps the logits on MLX, but its blocks are dispatch-bound sub-millisecond ops and b0,
+b2-clothes and b5-ade20k stay slower warm than the export (Fable candidate); peaks are higher (the float32 logits at
+H/4).
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| nafnet-gopro | 293 / 458 | 221 / 322 | 3.10 -> 0.24 | 1359 -> 1414 | 368 fp16 / 0.73 | MPS -> MLX float16 |
+| nafnet-sidd | 228 / 380 | 225 / 271 | 2.38 -> 0.24 | 1395 -> 1473 | 423 fp32 / 0.70 | MPS -> MLX float16 |
+| realplksr-nomoswebphoto-x4 | 1020 / 2122 | 904 / 2150 | 2.69 -> 1.17 | 1923 -> 1850 | 1092 fp16 / 1.30 | MPS -> MPS |
+| segformer-b0-ade20k | 57 / 68 | 70 / 77 | 1.05 -> 0.10 | 725 -> 917 | 106 fp32 / 0.51 | MPS -> MLX float16 |
+| segformer-b2-clothes | 41 / 63 | 54 / 59 | 2.21 -> 0.09 | 760 -> 982 | 50 fp16 / 0.20 | MPS -> MPS |
+| segformer-b5-ade20k | 270 / 351 | 348 / 393 | 3.44 -> 0.38 | 1283 -> 2048 | 375 fp16 / 0.47 | MPS -> MLX float16 |
+| segformer-b5-face-parsing | 101 / 137 | 94 / 108 | 5.57 -> 0.13 | 963 -> 1197 | 111 fp16 / 0.25 | MPS -> MLX float16 |
+
+EfficientViT-SAM (float32 only on MLX): each stage one `mx.compile`d chain, stride-2 3x3 convs as im2col plus one GEMM
+(20-25 % faster than `mx.conv2d`). l1 and l2 now beat MPS and route to MLX; l0, xl0 and xl1 stay slower than MPS
+(Fable candidates), xl0 / xl1 peaks 5-15 % higher.
+
+| ref | warm before | warm now | first call s | peak MB | best MPS | auto |
+|---|---|---|---|---|---|---|
+| efficientvit-sam-l0 | - / 113 | - / 60 | 1.85 -> 0.16 | 1102 -> 893 | 51 fp32 / 0.25 | MPS -> MPS |
+| efficientvit-sam-l1 | - / 101 | - / 69 | 1.49 -> 0.18 | 1127 -> 1090 | 75 fp32 / 0.30 | MPS -> MLX float32 |
+| efficientvit-sam-l2 | - / 120 | - / 83 | 1.68 -> 0.19 | 1253 -> 1247 | 91 fp32 / 0.31 | MPS -> MLX float32 |
+| efficientvit-sam-xl0 | - / 268 | - / 219 | 1.70 -> 0.33 | 1968 -> 2075 | 157 fp32 / 0.42 | MPS -> MPS |
+| efficientvit-sam-xl1 | - / 435 | - / 380 | 2.11 -> 0.48 | 2595 -> 2983 | 245 fp32 / 0.50 | MPS -> MPS |
+
 ## 1x1 convs as a GEMM (2026-11-24)
 
 The Restormer lead as a translator rule: a dense 1x1 stride-1 unpadded conv on the channels-last data is
