@@ -426,6 +426,20 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
             ("cudnn_hacc@cudnn92400",),
             ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",),
         ),
+        # cudaMallocAsync. Request-15 deltas: -38.921, -62.616 ms.
+        # Receipt SHA-256 701da9ddd9164476ec9da9562801d33e2b8001431b645c9e7882bad3b371b82b.
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "cudaMallocAsync",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400",),
+            ("6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2",),
+        ),
     ),
     # rife-4.26@1 native 384x512 midpoint. Request-15 deltas: -68.623, -64.815 ms.
     # Receipt SHA-256 40d2536f1757b35c83f3e4a6dc522f60635025b014c5dd8d07975362557d668a.
@@ -440,6 +454,20 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
             "2.14.1+cu130",
             "NVIDIA GeForce RTX 5060 Ti",
             "native",
+            None,
+            None,
+            None,
+            "4",
+            1,
+            ("cudnn_hacc@cudnn92400",),
+            ("45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f",),
+        ),
+        # cudaMallocAsync. Request-15 deltas: -43.639, -59.427 ms.
+        # Receipt SHA-256 cf934ce54c639c2dfa5936ee6d1972b2587fd62fc207ccc15111415f62ca6386.
+        (
+            "2.14.1+cu130",
+            "NVIDIA GeForce RTX 5060 Ti",
+            "cudaMallocAsync",
             None,
             None,
             None,
