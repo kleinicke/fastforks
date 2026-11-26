@@ -606,6 +606,7 @@ class _MoGeViT(FusedViT):
         t = torch.empty((b, gh * gw + 1, c), device=image.device, dtype=torch.float16)
         for i in range(b):
             k.gemm(cols[i], self.w_patch, self.b_patch, res=pos, out=t[i, 1:], acc32=True)
+        del cols
         c32 = cls.float().expand(b, c)
         outs = []
         for i in range(max(layers) + 1):
@@ -618,8 +619,10 @@ class _MoGeViT(FusedViT):
             att = _flash(qkv, (c // h) ** -0.5, self.attn)
             c32 = self._cls_block(i, c32, att.view(b, -1, c)[:, 0])
             k.gemm(att, a.proj.weight, a.proj.bias, scale=g1, res=t, out=t)
+            del qkv, att
             hid = k.gemm(blk.norm2(t), m.fc1.weight, m.fc1.bias, act=k.gelu)
             k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2, res=t, out=t)
+            del hid
             if i in layers:
                 outs.append(vit.norm(t[:, 1:]))
         return outs, F.layer_norm(c32, c32.shape[-1:], *self.ln32[-1], vit.norm.eps)
@@ -717,15 +720,18 @@ class Kernels(Runner):
         x = F.interpolate(image, size, mode="bilinear", align_corners=False, antialias=True)
         with torch.autocast("cuda", enabled=False):
             feats, cls = self.vit.features_cls(x, size, self.layers)
+            del x
             f0 = k.gemm(feats[0], self.proj[0], self.proj_b)
             for t, wp in zip(feats[1:], self.proj[1:], strict=True):
                 k.gemm(t, wp, res=f0, out=f0)
+                del t
+            del feats
             uv = self._uv_tables(rows, cols, a, b)
-            n0 = k.gemm(f0, self.neck_wf, res=uv[0]).view(b, rows, cols, -1)
-            levels = self.neck.levels(n0, uv)
+            levels = self.neck.levels(k.gemm(f0, self.neck_wf, res=uv[0]).view(b, rows, cols, -1), uv)
             coords = self.heads["points_head"].head(levels).permute(0, 3, 1, 2)
             mask = self.heads["mask_head"].head(levels).permute(0, 3, 1, 2)
             normal = self.heads["normal_head"].head(levels).permute(0, 3, 1, 2) if p.normals else None
+            del levels
             scale = self.scale_head(cls.float())[:, 0].exp()
             if self.refiner is not None:
                 uv0 = view_plane_uv(cols, rows, a, image.device).permute(2, 0, 1)[None].expand(b, -1, -1, -1)

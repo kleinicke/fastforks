@@ -287,16 +287,23 @@ class SparseKernels:
         self.lib.launch("sparse_nbr", *linear(n), coords, key, nbr, mask, n, *extent)
         return self._level(coords, extent, nbr, mask)
 
-    def conv(
-        self, x: torch.Tensor, lv: Level, m: SubmConv3d, *, act: bool = False, res: torch.Tensor | None = None
+    def conv(  # noqa: PLR0913 - convolution and epilogue operands
+        self,
+        x: torch.Tensor,
+        lv: Level,
+        m: SubmConv3d,
+        *,
+        act: bool = False,
+        res: torch.Tensor | None = None,
+        reuse_res: bool = False,
     ) -> torch.Tensor:
-        """`act(subm_conv(x) (+ res))`, act = SiLU."""
+        """`act(subm_conv(x) (+ res))`, act = SiLU. Reuse only an owned, distinct residual."""
         n, c_in = x.shape
         wt = self.wt[m]
         c_out = wt.shape[2]
         name = self.VARIANT.get(c_out) or ("subm_conv_n64" if c_out % 64 == 0 else "subm_conv_n32")
         bn, threads = _CONV_TILES[name]
-        out = x.new_empty(n, c_out)
+        out = res if reuse_res and res is not None else x.new_empty(n, c_out)
         grid = ((n + 63) // 64, c_out // bn, 1)
         h, w = lv.extent[:2]
         args = (x, lv.nbr, lv.perm, wt, m.bias, res, out, lv.zbins, n, c_in, c_out, int(act), h, w)
@@ -310,7 +317,10 @@ class SparseKernels:
         h = torch.empty_like(x)
         ln = blk.norm1
         self.lib.launch("ln_silu", ((n + 3) // 4, 1, 1), (128, 1, 1), x, ln.weight, ln.bias, h, n, c, ln.eps)
-        return self.conv(self.conv(h, lv, blk.conv1, act=True), lv, blk.conv2, res=x)
+        y = self.conv(h, lv, blk.conv1, act=True)
+        del h
+        # The second conv reads y; its epilogue reads and replaces each vector of the owned x once.
+        return self.conv(y, lv, blk.conv2, res=x, reuse_res=True)
 
 
 class SubmConv3d(nn.Module):
