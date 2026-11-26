@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import builtins
 import contextlib
+import ctypes
 import io
 import json
+import mmap
+import os
 import pickle
 import re
+import sys
 import threading
 import types
 import zipfile
@@ -259,17 +263,55 @@ def _safetensors_header(f: io.RawIOBase, path: Path) -> tuple[int, dict[str, tup
     return 8 + n, entries
 
 
+def _checkpoint_is_cached(source: io.RawIOBase) -> bool:
+    """Whether samples across a Linux file are resident without faulting any pages in."""
+    if sys.platform != "linux":
+        return False
+    try:
+        stat = os.fstat(source.fileno())
+        # mincore can report fake residency for another owner's file.
+        if not stat.st_size or stat.st_uid != os.geteuid():
+            return False
+        page = mmap.PAGESIZE
+        pages = (stat.st_size + page - 1) // page
+        width = min(64, pages)
+        windows = min(32, (pages + width - 1) // width)
+        marks = (ctypes.c_ubyte * width)()
+        mincore = ctypes.CDLL(None).mincore
+        mincore.argtypes = (ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p)
+        mincore.restype = ctypes.c_int
+        with mmap.mmap(source.fileno(), stat.st_size, access=mmap.ACCESS_COPY) as sample:
+            address = ctypes.addressof(ctypes.c_ubyte.from_buffer(sample))
+            for window in range(windows):
+                offset = (pages - width) * window // max(1, windows - 1)
+                if mincore(address + offset * page, width * page, marks) or not all(bit & 1 for bit in marks):
+                    return False
+    except (AttributeError, OSError, OverflowError, ValueError):
+        return False
+    return True
+
+
 def load_mapped_safetensors(
-    path: Path, *, rename: Callable[[str], str | None] | None = None
+    path: Path, *, rename: Callable[[str], str | None] | None = None, require_cached: bool = False
 ) -> dict[str, torch.Tensor]:
     """Read large tensors through independent file mappings so each can release its source pages.
 
     Small tensors share the regular safetensors mapping. `rename` can return None for a known unused key.
+    `require_cached` uses the regular reader if sampled file pages are cold or the check is unavailable.
     """
     from safetensors import safe_open  # noqa: PLC0415 - optional checkpoint reader
 
     state = {}
-    with path.open("rb", buffering=0) as source, safe_open(path, framework="pt", device="cpu") as mapped:
+    with contextlib.ExitStack() as stack:
+        source = stack.enter_context(path.open("rb", buffering=0))
+        if require_cached and not _checkpoint_is_cached(source):
+            state = load_state_dict(path, strip="")
+            return (
+                state
+                if rename is None
+                else {name: value for key, value in state.items() if (name := rename(key)) is not None}
+            )
+        mapped = stack.enter_context(safe_open(path, framework="pt", device="cpu"))
         # safe_open validates the complete file layout before the large tensor views are constructed.
         base, entries = _safetensors_header(source, path)
         for key, (dtype, shape, start, end) in entries.items():
