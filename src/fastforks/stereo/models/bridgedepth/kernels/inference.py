@@ -11,6 +11,7 @@ The portable path (`net/inference.py`: float16 autocast, float16 LayerNorms) on 
     adds fused (`fastforks.shared.instance_norm.fuse_nmrf_encoder`; Scene Flow 994 x 1482 352 -> 335 ms)
 """
 
+import sys
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING
@@ -19,6 +20,7 @@ import torch
 from torch import nn
 
 from fastforks._core.errors import BackendUnavailableError
+from fastforks._core.patch import override
 from fastforks.kernels import fastbb
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 from fastforks.shared.instance_norm import fuse_nmrf_encoder
@@ -71,6 +73,46 @@ def _swap(mod: nn.Module, make: Callable[[WindowAttention], nn.Module]) -> int:
     return count
 
 
+_NCHW_DIMS = 4
+_NCHW_DIMS = 4
+_OUT_CONV_MIN_PIXELS = 307_200
+_OUT_CONV_BAND_ROWS = 64
+
+
+def _can_band_out_conv(conv: nn.Conv2d, x: torch.Tensor) -> bool:
+    return (
+        not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled() or conv.training)
+        and x.is_cuda
+        and x.dtype == torch.float32
+        and x.ndim == _NCHW_DIMS
+        and x.shape[0] == 1
+        and x.is_contiguous()
+        and x.shape[2] > _OUT_CONV_BAND_ROWS
+        and x.shape[2] * x.shape[3] >= _OUT_CONV_MIN_PIXELS
+        and conv.weight.dtype == torch.float16
+        and torch.is_autocast_enabled("cuda")
+        and torch.get_autocast_dtype("cuda") == torch.float16
+    )
+
+
+def _bands_out_conv(conv: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    b, _, h, w = x.shape
+    out = x.new_empty((b, conv.out_channels, h, w), dtype=torch.float16)
+    for start in range(0, h, _OUT_CONV_BAND_ROWS):
+        stop = min(start + _OUT_CONV_BAND_ROWS, h)
+        band = x[:, :, start:stop].to(dtype=torch.float16, memory_format=torch.contiguous_format)
+        out[:, :, start:stop].copy_(nn.Conv2d.forward(conv, band))
+        del band
+    return out
+
+
+def _out_conv_forward(conv: nn.Conv2d, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - Conv2d keyword  # noqa: A002 - Conv2d keyword
+    """Bound the FP16 autocast copy and cuDNN workspace of the final mono 1x1 projection."""
+    if _can_band_out_conv(conv, input):
+        return _bands_out_conv(conv, input)
+    return nn.Conv2d.forward(conv, input)
+
+
 @torch.no_grad()
 def prepare_kernels(model: BridgeDepth, device: torch.device, *, stage_on_cpu: bool = False) -> BridgeDepth:
     """The portable float16 preparation plus the fused window attention and the fp16 DINOv2.
@@ -111,6 +153,9 @@ def prepare_kernels(model: BridgeDepth, device: torch.device, *, stage_on_cpu: b
         model.to(device)
         # The helper is not a registered submodule. Move its preserved float32 table explicitly.
         fast.pos_fp32 = fast.pos_fp32.to(device)
+    if sys.platform == "linux" and device.type == "cuda":
+        out_conv = model.mono.depth_head.scratch.refinenet1.out_conv
+        override(out_conv, _out_conv_forward)
     return model
 
 
