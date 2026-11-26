@@ -43,6 +43,7 @@ from __future__ import annotations
 import functools
 import logging
 import math
+import sys
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -56,7 +57,7 @@ from fastforks._core.kernels import call_index, cuda_device, current_stream, not
 from fastforks.kernels.cudnn_hacc import _backend
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
 _NAME = "cudnn_hacc"
 log = logging.getLogger(__name__)
@@ -78,6 +79,24 @@ class _Defer:
 
 
 _DEFER = _Defer()
+
+
+def _bias_configs(graph: _backend.Desc) -> Iterator[_backend.Desc]:
+    """Yield fused-bias configurations in mode-A order."""
+    tried = 0
+    if sys.platform == "linux":
+        for limit in _FIRST_CONFIGS:
+            try:
+                cfgs = _backend.heuristics(graph, _backend.HEUR_A, limit)
+            except _backend.CudnnError:
+                # Retry the original unrestricted query if a bounded query fails.
+                tried = 0
+                break
+            yield from cfgs[tried:]
+            if len(cfgs) < limit:
+                return
+            tried = len(cfgs)
+    yield from _backend.heuristics(graph, _backend.HEUR_A)[tried:]
 
 
 class _Plan:
@@ -244,7 +263,7 @@ class CudnnHalfConv:
                 cache=self._descs,
                 bias=(_B, _V),
             )
-            for cfg in _backend.heuristics(g, _backend.HEUR_A):
+            for cfg in _bias_configs(g):
                 engine, notes = _backend.engine_info(cfg)
                 if engine in _SKIP_ENGINES or _backend.RUNTIME_COMPILATION in notes:
                     continue
