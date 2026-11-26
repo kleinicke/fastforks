@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import math
+import sys
 from typing import Literal
 
 import torch
@@ -85,7 +86,17 @@ def _on_device(kind: Kind, n_in: int, n_out: int, device: torch.device, dtype: t
 
 def _gather(x: torch.Tensor, idx: torch.Tensor, wts: torch.Tensor) -> torch.Tensor:
     """Resample the last axis of `x`: `out[..., o] = sum_k x[..., idx[o, k]] * wts[o, k]`."""
-    return (x[..., idx.to(x.device)] * wts.to(x.device, x.dtype)).sum(-1)
+    samples = x[..., idx.to(x.device)]
+    weights = wts.to(x.device, x.dtype)
+    if (
+        sys.platform == "linux"
+        and x.is_cuda
+        and not torch.compiler.is_compiling()
+        and torch.cuda.get_allocator_backend() == "native"
+    ):
+        # Advanced indexing owns its output. The async allocator can reserve more memory end to end with this reuse.
+        return samples.mul_(weights).sum(-1)
+    return (samples * weights).sum(-1)
 
 
 def _separable(
