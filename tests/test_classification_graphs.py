@@ -37,6 +37,7 @@ def _eager(r: Any, x: torch.Tensor) -> torch.Tensor:
 
 
 @pytest.mark.parametrize("ref", REFS)
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_replay_matches_eager(ref: str) -> None:
     model = _load(ref)
     r = model._runner

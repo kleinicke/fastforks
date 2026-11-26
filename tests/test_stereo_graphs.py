@@ -52,6 +52,7 @@ def _eager(r: rt.Kernels, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return r._forward(r.net, a, b)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_replay_matches_eager_and_is_not_aliased(model: stereo.StereoModel) -> None:
     r = _runner(model)
     a, b = _pair(0)
@@ -69,6 +70,7 @@ def test_replay_matches_eager_and_is_not_aliased(model: stereo.StereoModel) -> N
     assert not torch.equal(first, second)
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_third_and_alternating_shapes(model: stereo.StereoModel, monkeypatch: pytest.MonkeyPatch) -> None:
     r = _runner(model)
     assert r._cache is not None
@@ -86,6 +88,7 @@ def test_third_and_alternating_shapes(model: stereo.StereoModel, monkeypatch: py
     assert len(r._cache.graphs) == 2
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_big_shapes_stay_eager(model: stereo.StereoModel, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(rt, "_GRAPH_PIXELS", 0)
     r = _runner(model)
@@ -96,6 +99,7 @@ def test_big_shapes_stay_eager(model: stereo.StereoModel, monkeypatch: pytest.Mo
     assert not r._cache.graphs
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_capture_failure_falls_back(model: stereo.StereoModel, monkeypatch: pytest.MonkeyPatch) -> None:
     r = _runner(model)
     assert r._cache is not None
@@ -116,6 +120,7 @@ def test_capture_failure_falls_back(model: stereo.StereoModel, monkeypatch: pyte
     assert not calls  # no retry for the failed shape
 
 
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_release_frees_memory(model: stereo.StereoModel) -> None:
     r = _runner(model)
     assert r._cache is not None

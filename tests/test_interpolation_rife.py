@@ -75,6 +75,7 @@ def test_reordered_forward_matches_upstream(scales: list[int], timestep: float) 
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_captures_its_graph(weights: Path) -> None:
     """The kernels runner replays a CUDA graph (its warp once copied a CPU scalar: every capture failed, ran eager)."""
     if not torch.cuda.is_available():

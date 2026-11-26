@@ -57,7 +57,7 @@ from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
 from fastforks.shared import sdpa
 from fastforks.shared.arena import compact_runner
-from fastforks.shared.cuda_graphs import graph_replay_allowed, graph_request
+from fastforks.shared.cuda_graphs import graph_request
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
@@ -788,8 +788,10 @@ class Model:
         return export_tensorrt(self, path, height, width, batch=batch, size_range=size_range)
 
     def _without_graph_admission(self) -> contextlib.AbstractContextManager[None]:
-        """Keep unmeasured compound routes eager on enrolled Linux CUDA models."""
-        return graph_request(allow_replay=False) if linux_graph_defaults.enrolled(self) else contextlib.nullcontext()
+        """Keep unmeasured compound routes eager on Linux CUDA models."""
+        if sys.platform == "linux" and self._device.type == "cuda":
+            return graph_request(allow_replay=False)
+        return contextlib.nullcontext()
 
     @contextlib.contextmanager
     def _session(self, *, graph_input: object = None) -> Generator[None]:
@@ -813,7 +815,7 @@ class Model:
             sdpa.policy(self._device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
             torch.inference_mode(),
             _no_autocast(self._device),
-            graph_request(allow_replay=graph_replay_allowed() and linux_graph_defaults.allows(self, graph_input))
+            graph_request(allow_replay=linux_graph_defaults.allows(self, graph_input))
             if cuda
             else contextlib.nullcontext(),
         ):

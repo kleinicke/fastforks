@@ -94,6 +94,7 @@ def test_decoding_all_cells_then_selecting_matches_the_selected_cells():
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replays_network_and_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Kernels replays the decoded cells of a repeated shape from a CUDA graph: the eager values, fresh outputs."""
     if not torch.cuda.is_available():

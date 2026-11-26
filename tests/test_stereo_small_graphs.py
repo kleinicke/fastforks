@@ -71,6 +71,7 @@ def _eager(r: Any, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 
 
 @pytest.mark.parametrize("ref", REFS)
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_replay_matches_eager(ref: str) -> None:
     model = _load(ref, cuda_graphs=True)  # GREAT-IGEV: off by default
     r = model._runner
@@ -95,6 +96,7 @@ def test_replay_matches_eager(ref: str) -> None:
 @pytest.mark.parametrize(
     "ref", ["fast-acvnet-sceneflow@1", "igev-plusplus-sceneflow@1", "rt-monster-plusplus-mix-all@1"]
 )
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_eth3d_size_stream(ref: str) -> None:
     """ETH3D's two sizes alternating (delivery_area_1s, 1l, ...): the larger shape's capture must not break the
     smaller shape's graph (its cuDNN workspace was freed: illegal address in the accuracy campaign)."""
@@ -109,6 +111,7 @@ def test_eth3d_size_stream(ref: str) -> None:
 
 
 @pytest.mark.parametrize("ref", REFS[:1])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_big_shapes_stay_eager(ref: str) -> None:
     r = _load(ref)._runner
     g = r._graphs

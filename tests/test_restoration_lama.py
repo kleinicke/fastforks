@@ -52,6 +52,7 @@ def test_fourier_export_runs_with_onnxruntime(tmp_path) -> None:
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_graph_outputs_are_cropped_and_owned() -> None:
     """A single padded graph can serve different crops without changing earlier results."""
     model = restoration.load("big-lama", device="cuda", mode="kernels")

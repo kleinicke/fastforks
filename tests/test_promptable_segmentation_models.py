@@ -70,6 +70,7 @@ def test_box_padding_is_exact_on_cpu():
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_cache_per_bucket():
     """One graph per (token bucket, box bucket), reused across bucket switches; > `BOX_BUCKET` boxes run eagerly."""
     if not torch.cuda.is_available():
@@ -170,6 +171,7 @@ def test_sam3_can_disable_graph_capture(monkeypatch):
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graphs_from_two_streams():
     """Two threads, each on its own stream, replaying the shared graph buffers = the sequential results.
 

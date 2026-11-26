@@ -143,6 +143,7 @@ def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
 
 @pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric models guess a camera; the stream checks graphs
 @pytest.mark.parametrize(("task", "ref"), REFS, ids=[r for _, r in REFS])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_size_stream(task: str, ref: str, monkeypatch: pytest.MonkeyPatch) -> None:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")

@@ -39,6 +39,7 @@ def test_trunk_matches_upstream_forward() -> None:
 @pytest.mark.model
 @pytest.mark.gpu
 @pytest.mark.parametrize("ref", ["mobile-sam@1", "efficientvit-sam-l0@1"])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_encoder_graph_matches_eager(ref: str) -> None:
     """The graphed image encoder: bit-equal to eager, a kept embedding survives the next image, release frees it."""
     if not torch.cuda.is_available():

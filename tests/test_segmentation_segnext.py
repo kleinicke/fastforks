@@ -28,6 +28,7 @@ def test_fold_leaves_no_buffer_that_requires_grad() -> None:
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_at_the_test_size() -> None:
     """A 1024 x 2048 image (network input 512 x 1024, launch-bound) replays a graph: 1/8 logits == eager."""
     if not torch.cuda.is_available():

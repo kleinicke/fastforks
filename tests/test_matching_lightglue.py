@@ -109,6 +109,7 @@ def test_float16_extractor_keeps_float32_outputs(extractor) -> None:
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_aliked_kernels_graphs_match_eager() -> None:
     """ALIKED's graphed dense maps: matches and `describe` bit-equal to eager at two sizes; release frees them."""
     if not torch.cuda.is_available():

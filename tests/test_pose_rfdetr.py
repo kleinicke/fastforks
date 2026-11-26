@@ -57,6 +57,7 @@ def test_uncertainty_fusion_promotes_half_and_handles_sharp_precision():
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_graph_replay_reuses_fixed_network_shape_and_preserves_outputs():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")

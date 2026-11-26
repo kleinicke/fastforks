@@ -290,6 +290,7 @@ def _calls_with_captures(model: Any, ref: str, size: tuple[int, int], n: int, mo
 @pytest.mark.gpu
 @pytest.mark.model
 @pytest.mark.parametrize("ref", FIRST_REFS)
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_first_call_equals_warm_call(ref, monkeypatch):
     """Calls 1-6 at a new size are bitwise equal (cuDNN plans are built on a geometry's first call).
 
@@ -311,6 +312,7 @@ def test_kernels_first_call_equals_warm_call(ref, monkeypatch):
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_build_after_opt_in_on_a_graph_model(monkeypatch):
     """`BUILD_AFTER = 3` (set before loading): calls 1-3 run torch convs, call 4 builds the plans and captures.
 

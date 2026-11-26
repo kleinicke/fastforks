@@ -79,6 +79,7 @@ def test_bench_inputs_move_and_grid() -> None:
 @pytest.mark.model
 @pytest.mark.gpu
 @pytest.mark.parametrize("ref", ["tapnext@1", "tapnext-pp@1"])
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_tapnext_kernels_frame_graphs_match_eager(ref: str) -> None:
     """The graphed frame steps: bit-equal to eager across videos and query counts; release frees them."""
     if not torch.cuda.is_available():

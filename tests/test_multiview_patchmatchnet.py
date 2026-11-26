@@ -11,6 +11,7 @@ from fastforks._core.errors import WeightsError
 
 
 @pytest.mark.gpu
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graphs_match_eager() -> None:
     """The graphed kernels forward: bit-equal to eager per input size and depth range; release frees the graphs."""
     if not torch.cuda.is_available():

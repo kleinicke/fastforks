@@ -96,6 +96,7 @@ def test_export_fit_preserves_degenerate_rays() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.model
+@pytest.mark.usefixtures("graph_lifecycle")
 def test_kernels_graph_replays_network_and_fit(monkeypatch: pytest.MonkeyPatch) -> None:
     """The kernels graph holds the network and the camera fit: replay equals eager bit for bit, with fresh outputs."""
     if not torch.cuda.is_available():
