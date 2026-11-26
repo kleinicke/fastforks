@@ -22,8 +22,8 @@ SAMURAI (option `samurai`; Yang et al. 2024, Apache-2.0, `sam2_base.py` with `sa
 Kalman filter per object on the box of its mask (`fastforks.shared.box_kalman`, in encoder-input pixels) picks the
 multimask output once the track is stable (15 frames with a predicted IoU above 0.3: score `w * box IoU + (1 - w) *
 predicted IoU`, `w` the variant's `kf_score_weight`), and the memory bank keeps the last 6 frames whose predicted IoU
-is above 0.5 with the object present (plus always the previous frame) instead of the last 6 frames; the heads keep
-a mask down to an object score of -1 (SAM 2: 0). Upstream tracks
+is above 0.5, whose object is present and whose Kalman IoU is positive if scored (plus always the previous frame).
+The heads keep a mask down to an object score of -1 (SAM 2: 0). Upstream tracks
 one object; here every object has its own filter and memory, objects with the same memory frames share one batch.
 """
 
@@ -463,6 +463,7 @@ class Motion:
         self.cov = torch.zeros(objects, 8, 8, dtype=torch.float64, device=device)
         self.stable = torch.zeros(objects, dtype=torch.int64, device=device)
         self.best_iou = torch.zeros(objects, device=device)  # predicted IoU of the chosen mask (this frame)
+        self._memory_motion_ok = torch.ones(objects, dtype=torch.bool, device=device)
         self.valid: list[list[int]] = [[] for _ in range(objects)]  # the last memory frames that passed, per object
         self._flags: tuple[int, torch.Tensor, torch.cuda.Event | None] | None = None  # frame t's flags, in flight
 
@@ -514,6 +515,8 @@ class Motion:
         score = self.weight * kf + (1 - self.weight) * ious.double()  # float64, as upstream
         best = torch.where(scored, score.argmax(1), ious.argmax(1))
         chosen = ious.gather(1, best[:, None])[:, 0]
+        # Upstream's memory filter accepts an absent Kalman score before stable tracking, or a positive score.
+        self._memory_motion_ok = ~scored | (kf.gather(1, best[:, None])[:, 0] > 0)
         ok = torch.where(scored, chosen >= STABLE_IOU, chosen > STABLE_IOU)
         meas = self.xyah(boxes.gather(1, best[:, None, None].expand(-1, 1, 4))[:, 0])
         um, uc = box_kalman.update(mean, cov, meas)
@@ -559,7 +562,7 @@ class Motion:
         """
         self._read_flags()
         if t >= 2:  # noqa: PLR2004 - upstream skips frame 1
-            ok = (self.best_iou.to(obj.device) > MEMORY_IOU) & (obj[:, 0] > 0)
+            ok = (self.best_iou.to(obj.device) > MEMORY_IOU) & (obj[:, 0] > 0) & self._memory_motion_ok.to(obj.device)
             if ok.is_cuda:
                 host = torch.empty(ok.shape, dtype=torch.bool, pin_memory=True)
                 host.copy_(ok, non_blocking=True)

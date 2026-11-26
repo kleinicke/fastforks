@@ -120,6 +120,28 @@ def test_samurai_memory_keeps_confident_frames() -> None:
     assert motion.memory(1) == {(): [0, 1]}
 
 
+@pytest.mark.parametrize(
+    ("scored", "box", "history"),
+    [
+        (False, (40, 40, 50, 50), (2, 3)),
+        (True, (11, 11, 21, 21), (2, 3)),
+        (True, (40, 40, 50, 50), (3,)),
+    ],
+)
+def test_samurai_memory_requires_overlap_when_scored(
+    *, scored: bool, box: tuple[int, int, int, int], history: tuple[int, ...]
+) -> None:
+    motion = Motion(1, 0.25)
+    iou = torch.tensor([[0.9]])
+    motion.select(_masks((10, 10, 20, 20)), iou, 64)
+    if scored:
+        motion.stable.fill_(STABLE_FRAMES)
+    motion.select(_masks(box), iou, 64)
+    motion.kept(2, torch.tensor([[1.0]]))
+    assert motion.memory(3) == {(2,): [0]}
+    assert motion.memory(4) == {history: [0]}
+
+
 @pytest.mark.slow
 @pytest.mark.model
 def test_track_input_errors() -> None:
