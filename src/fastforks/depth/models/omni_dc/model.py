@@ -27,7 +27,13 @@ from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, empty_graph_cache, free_captured
+from fastforks.shared.cuda_graphs import (
+    CAPTURE_LOCK,
+    capture_stream,
+    empty_graph_cache,
+    free_captured,
+    graph_replay_allowed,
+)
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
@@ -339,7 +345,7 @@ class Kernels(Runner):
 
     def _solve(self, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Keep one shape's graph and order its static buffers across CUDA streams."""
-        if not self.ctx.params.cuda_graphs:
+        if not self.ctx.params.cuda_graphs or not graph_replay_allowed():
             return _KernelCG(d, b).run()
         with self._cg_lock:
             if self.cg is not None:

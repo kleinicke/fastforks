@@ -15,6 +15,7 @@ order: right eye, left eye, nose tip, right and left mouth corner (of the person
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -188,12 +189,17 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network as portable does, with a CUDA graph cache for it."""
         super().__init__(ctx)
+        # The first request builds the cuDNN plans when construction is immediate.
+        capture_directly = (
+            sys.platform == "linux" and cudnn_hacc.BUILD_AFTER == 0 and torch.cuda.get_allocator_backend() == "native"
+        )
         self.graphs = SmallShapeGraphs(
             super().decoded,
             pixels=_GRAPH_PIXELS,
             graphs=_GRAPHS,
             enabled=ctx.params.cuda_graphs,
-            capture_after=cudnn_hacc.capture_after(),
+            capture_after=1 if capture_directly else cudnn_hacc.capture_after(),
+            capture_warmup=not capture_directly,
         )
 
     def decoded(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
