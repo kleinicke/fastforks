@@ -86,12 +86,13 @@ class _CudaInput(torch.Tensor):
         return True
 
 
-def test_interpolation_admits_only_the_measured_two_frame_storage_layout() -> None:
+@pytest.mark.parametrize("frame_count", [2, 8])
+def test_interpolation_graph_key_requires_adjacent_views_of_one_frame_batch(frame_count: int) -> None:
     device = torch.device("cuda:0")
     pair = linux_graph_defaults.ImagePair
-    frames = torch.empty((2, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
-    first, second = frames[:1], frames[1:]
-    signature = ("f32-bchw-adjacent-rgb-pair", (1, 3, 16, 32))
+    frames = torch.empty((frame_count, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
+    first, second = frames[:-1], frames[1:]
+    signature = ("f32-bchw-adjacent-rgb-pair", (frame_count - 1, 3, 16, 32))
     model = cast(
         "Model",
         SimpleNamespace(
@@ -107,8 +108,8 @@ def test_interpolation_admits_only_the_measured_two_frame_storage_layout() -> No
         "interpolation-midpoint-pair",
         (signature, signature),
     )
-    extra = torch.empty((3, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
-    for operands in (pair(second, first), pair(first, frames.clone()[1:]), pair(extra[:1], extra[1:2])):
+    extra = torch.empty((frame_count + 1, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
+    for operands in (pair(second, first), pair(first, frames.clone()[1:]), pair(extra[:-2], extra[1:-1])):
         assert linux_graph_defaults._workload_key(model, operands, device) is None
 
 

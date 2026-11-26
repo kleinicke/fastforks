@@ -264,6 +264,16 @@ APPROVED: dict[MeasuredKey, tuple[tuple[object, ...], ...]] = {
         "interpolation-midpoint-pair",
         (("f32-bchw-adjacent-rgb-pair", (1, 3, 384, 512)), ("f32-bchw-adjacent-rgb-pair", (1, 3, 384, 512))),
     ): _profiles(_RIFE_426, _TORCH_214_ASYNC_FOUR_THREADS),
+    # RIFE 4.26, eight-frame ComfyUI window. All four pairs paid back on request 2.
+    # Receipt SHA-256 7d65fc5bf1c1b1bf78616ae6bed0f4eaa2fca961344accf77061b88ddd780500.
+    # Receipt SHA-256 66e897fe2fb5a70b4804ada18c99b222d91061f67e7c9d0d5b6353e6a600c783.
+    (
+        "rife-4.26@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (("f32-bchw-adjacent-rgb-pair", (7, 3, 384, 512)), ("f32-bchw-adjacent-rgb-pair", (7, 3, 384, 512))),
+    ): _profiles(_RIFE_426, _TORCH_214_ASYNC_FOUR_THREADS),
     # raft-small@1 default policy. Verified comparison receipts follow.
     # SHA-256 7313aa80840ac7fc447c3e031271d68f446e1ba3ec3df116e4861f4b7d80b474.
     # SHA-256 2c490f272a41aae54a01ef8e907f6ba4baeb93a25da3a41d4a6a64faeff62d23.
