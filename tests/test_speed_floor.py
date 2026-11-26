@@ -255,7 +255,6 @@ def test_core_timing_uses_its_own_input_size(monkeypatch):
     assert small_core() == "480x854"
     assert built == ["480x854"]
     assert ran == ["480x854", "480x854"]  # public recording, then direct runner timing
-    small_core(release=True)
     assert large_core() == "1080x1920"
     assert built == ["480x854", "1080x1920"]
     assert ran[-2:] == ["1080x1920", "1080x1920"]
