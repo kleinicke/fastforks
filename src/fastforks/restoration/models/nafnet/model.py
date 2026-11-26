@@ -410,7 +410,7 @@ class _MlxPortable(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=512),
 }
 
 _BLOCK = re.compile(r"(encoders|decoders)\.(\d+)\.(\d+)\.beta|middle_blks\.(\d+)\.beta")
