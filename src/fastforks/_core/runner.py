@@ -177,6 +177,7 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     sdpa_auto: ClassVar[str | None] = None
     uint8_input: ClassVar[bool] = False
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
+    extra_kernel_tags: tuple[str, ...] = ()  # optional libraries loaded by a runner
 
     def __init__(self, ctx: Context) -> None:
         """Build the network for `ctx`; subclasses call this first."""

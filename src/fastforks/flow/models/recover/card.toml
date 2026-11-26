@@ -38,6 +38,7 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["recover_motion", "flow_upsample", "cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
+# Recover-MN optionally uses seg_conv for its full-HD stride-two depthwise convolution on Linux sm_120.
 # CUDA graphs (kernels): a call (pairs x padded H x W) up to 1.1M pixels replays a CUDA graph, captured on a shape's
 # 4th call, at most 2 shapes per model (Windows RTX 5060 Ti, ms per pair: recover-mn 544x960 11.8 -> 7.5, 720x1280
 # 16.2 -> 13.7; recover-rn 9.9 -> 9.3, recover-cx 19.8 -> 19.1 at 544x960). The graph pool stays reserved (recover-cx
