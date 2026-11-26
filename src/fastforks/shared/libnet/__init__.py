@@ -294,6 +294,7 @@ class CNNKernels(Kernels):
     """Apply convolution rewrites to a registry network with a validated CNN kernels mode."""
 
     family = "cnn"
+    _graph_capture_warmup = sys.platform != "linux"  # the first eager crop prepares this capture on Linux
 
 
 class PoolKernels(CNNKernels):
