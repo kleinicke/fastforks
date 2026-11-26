@@ -86,6 +86,32 @@ class _CudaInput(torch.Tensor):
         return True
 
 
+def test_interpolation_admits_only_the_measured_two_frame_storage_layout() -> None:
+    device = torch.device("cuda:0")
+    pair = linux_graph_defaults.ImagePair
+    frames = torch.empty((2, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
+    first, second = frames[:1], frames[1:]
+    signature = ("f32-bchw-adjacent-rgb-pair", (1, 3, 16, 32))
+    model = cast(
+        "Model",
+        SimpleNamespace(
+            variant=SimpleNamespace(ref="rife-4.26@1"),
+            backend=SimpleNamespace(mode="kernels", dtype="float16"),
+            card=SimpleNamespace(task="interpolation"),
+        ),
+    )
+    assert linux_graph_defaults._workload_key(model, pair(first, second), device) == (
+        "rife-4.26@1",
+        "kernels",
+        "float16",
+        "interpolation-midpoint-pair",
+        (signature, signature),
+    )
+    extra = torch.empty((3, 16, 32, 3)).permute(0, 3, 1, 2).as_subclass(_CudaInput)
+    for operands in (pair(second, first), pair(first, frames.clone()[1:]), pair(extra[:1], extra[1:2])):
+        assert linux_graph_defaults._workload_key(model, operands, device) is None
+
+
 def _profile_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[Model, torch.Tensor]:
