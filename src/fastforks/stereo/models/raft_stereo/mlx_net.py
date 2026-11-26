@@ -15,6 +15,7 @@ instead of replayed from an exported graph: the export was most of a 7-10 s firs
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -130,7 +131,9 @@ class MlxRAFTStereo:
         self.mask1 = self._conv(ub.mask[0])
         self.mask2 = (self._a(_np(ub.mask[2].weight)[:, :, 0, 0].T), self._a(_np(ub.mask[2].bias)))
         self.taps = mx.arange(-RADIUS, RADIUS + 1, dtype=mx.float32)[None]
-        self._step = mx.compile(self._iteration)
+        self._parts = [mx.compile(f) for f in (self._coarse, self._motion, self._gates0, self._hidden0, self._head)]
+        self._step = self._iteration
+        self._compiled: dict[tuple[int, str, int], Any] = {}  # `_trunk`'s blocks, two parts each
 
     def _a(self, a: np.ndarray) -> mx.array:
         return mx.array(np.ascontiguousarray(a)).astype(self.dtype)
@@ -150,17 +153,44 @@ class MlxRAFTStereo:
     @staticmethod
     def _residual(block: tuple[_Conv, _Conv, _Conv | None], x: mx.array, *, norm: bool) -> mx.array:
         """`ResidualBlock.forward`; `norm`: instance norms (their convolutions' biases vanish), else folded."""
-        conv1, conv2, down = block
+        return MlxRAFTStereo._residual_out(block, x, MlxRAFTStereo._residual_in(block, x, norm=norm), norm=norm)
+
+    @staticmethod
+    def _residual_in(block: tuple[_Conv, _Conv, _Conv | None], x: mx.array, *, norm: bool) -> mx.array:
+        """`ResidualBlock.forward`'s first convolution (with its norm and ReLU)."""
+        return _instance_norm(block[0](x, bias=False)) if norm else block[0](x, relu=True)
+
+    @staticmethod
+    def _residual_out(block: tuple[_Conv, _Conv, _Conv | None], x: mx.array, y: mx.array, *, norm: bool) -> mx.array:
+        """`ResidualBlock.forward` after its first convolution `y`."""
+        _, conv2, down = block
         if norm:
-            y = _instance_norm(conv2(_instance_norm(conv1(x, bias=False)), bias=False))
+            y = _instance_norm(conv2(y, bias=False))
             return _relu(x + y) if down is None else _instance_norm(down(x, bias=False), y)
-        y = conv2(conv1(x, relu=True), relu=True)
+        y = conv2(y, relu=True)
         return _relu((x if down is None else down(x)) + y)
 
     def _trunk(self, layers: dict[str, Any], names: Sequence[str], x: mx.array, *, norm: bool) -> mx.array:
+        """The residual blocks of `layers[names]`, each convolution compiled with its elementwise steps and evaluated.
+
+        Uncompiled, a block's every elementwise step (the norms' scale, shift and ReLU, the residual add) was its own
+        full-size buffer, all alive until the block's evaluation: at H / 2 the transients outweighed the graph
+        translation's fused steps. A convolution's transients are several times its output, so each is its own
+        evaluation (994 x 1482 float16: a whole block per evaluation peaked at 1.43 GB, two blocks in flight 1.8 GB).
+        """
         for name in names:
-            for block in layers[name]:
-                x = self._residual(block, x, norm=norm)
+            for i, block in enumerate(layers[name]):
+                key = (id(layers), name, i)
+                fns = self._compiled.get(key)
+                if fns is None:
+                    fns = self._compiled[key] = (
+                        mx.compile(functools.partial(self._residual_in, block, norm=norm)),
+                        mx.compile(functools.partial(self._residual_out, block, norm=norm)),
+                    )
+                y = fns[0](x)
+                mx.eval(y)
+                x = fns[1](x, y)
+                del y
                 mx.eval(x)
         return x
 
@@ -201,20 +231,59 @@ class MlxRAFTStereo:
         q = mx.tanh(convq(mx.concatenate([r * h, *x], axis=-1), bias=False) + ctx[..., 2 * c :])
         return (1 - z) * h + z * q
 
-    def _iteration(self, net: list[mx.array], flow: mx.array, ctx: list[mx.array], pyramid: list[mx.array]) -> Any:  # noqa: ANN401
+    def _coarse(self, net: list[mx.array], ctx: list[mx.array]) -> tuple[mx.array, mx.array]:
+        """The 1/16 and 1/8 GRUs of an update step: their new hidden states."""
+        n2 = self._gru(2, net[2], ctx[2], _pool(net[1]))
+        return n2, self._gru(1, net[1], ctx[1], _pool(net[0]), _interp(n2, net[1].shape[1:3]))
+
+    def _motion(self, flow: mx.array, pyramid: list[mx.array]) -> mx.array:
+        """The correlation lookup at `flow` and the motion encoder."""
         _, h, w, _ = flow.shape
         x = (mx.arange(w, dtype=mx.float32)[None, :, None] + flow[0]).reshape(h * w, 1)
         corr = [ops.linear_sample(vol, x / 2**i + self.taps) for i, vol in enumerate(pyramid)]
         corr = mx.concatenate(corr, axis=-1).reshape(1, h, w, -1).astype(self.dtype)
-        n2 = self._gru(2, net[2], ctx[2], _pool(net[1]))
-        n1 = self._gru(1, net[1], ctx[1], _pool(net[0]), _interp(n2, net[1].shape[1:3]))
         cor = self.convc2(_relu(corr @ self.convc1[0] + self.convc1[1]), relu=True)
         half = flow.astype(self.dtype)
         flo = self.convf2(_relu(mx.conv2d(half, self.convf1[0], padding=3) + self.convf1[1]), relu=True)
-        motion = self.motion(mx.concatenate([cor, flo], axis=-1), relu=True) + half * self.flow_slot
-        n0 = self._gru(0, net[0], ctx[0], motion, _interp(n1, net[0].shape[1:3]))
+        return self.motion(mx.concatenate([cor, flo], axis=-1), relu=True) + half * self.flow_slot
+
+    def _gates0(self, h0: mx.array, ctx0: mx.array, motion: mx.array, n1: mx.array) -> tuple[mx.array, mx.array]:
+        """The 1/4 GRU's z and r gates (`_gru`'s first convolution) and the upsampled 1/8 hidden state."""
+        c = h0.shape[-1]
+        up = _interp(n1, h0.shape[1:3])
+        convzr = self.grus[0][0]
+        return mx.sigmoid(convzr(mx.concatenate([h0, motion, up], axis=-1)) + ctx0[..., : 2 * c]), up
+
+    def _hidden0(self, h0: mx.array, ctx0: mx.array, motion: mx.array, up: mx.array, zr: mx.array) -> mx.array:
+        """The 1/4 GRU's new hidden state from its gates (`_gru`'s second convolution)."""
+        c = h0.shape[-1]
+        z, r = zr[..., :c], zr[..., c:]
+        q = mx.tanh(self.grus[0][1](mx.concatenate([r * h0, motion, up], axis=-1), bias=False) + ctx0[..., 2 * c :])
+        return (1 - z) * h0 + z * q
+
+    def _head(self, n0: mx.array, flow: mx.array) -> mx.array:
+        """The flow head: the updated flow."""
         delta = mx.conv2d(self.flow1(n0, relu=True), self.flow2[0], padding=1) + self.flow2[1]
-        return [n0, n1, n2], flow + delta.astype(mx.float32)
+        return flow + delta.astype(mx.float32)
+
+    def _iteration(self, net: list[mx.array], flow: mx.array, ctx: list[mx.array], pyramid: list[mx.array]) -> Any:  # noqa: ANN401
+        """One update step as five compiled parts, each evaluated before the next is queued.
+
+        A command buffer's transients are freed when it completes, and the full-resolution (1/4) convolutions'
+        transients are several times their outputs: one compiled step held all of them (994 x 1482 float16: 1.1 GB
+        above the live set, the graph translation's whole network peak 1.04 GB), so each 1/4 convolution is its own
+        evaluation.
+        """
+        n2, n1 = self._parts[0](net, ctx)
+        mx.eval(n2, n1)
+        motion = self._parts[1](flow, pyramid)
+        mx.eval(motion)
+        zr, up = self._parts[2](net[0], ctx[0], motion, n1)
+        mx.eval(zr, up)
+        n0 = self._parts[3](net[0], ctx[0], motion, up, zr)
+        mx.eval(n0)
+        del zr, up, motion
+        return [n0, n1, n2], self._parts[4](n0, flow)
 
     def _upsample(self, flow: mx.array, hidden: mx.array) -> mx.array:
         """The mask head and upstream's convex upsampling (factor 4) of the x flow: `[1, 4 H, 4 W]` float32."""
