@@ -21,7 +21,7 @@ evidence = "https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c066
 input = "0-255"  # the runner resizes to 32 x 128 (antialiased bicubic, 8-bit levels as PIL) and normalises to [-1, 1]
 
 [options]
-cuda_graphs = { default = true, effect = "speed" }  # CUDA: replay the 26-step decoding loop from a CUDA graph (second call of a batch size; false: eager, no graph pool)
+cuda_graphs = { default = true, effect = "speed" }  # CUDA: replay the encoder and AR loop, then refine at the eager context length (false: no graph pool)
 
 [modes.portable]
 cuda_dtype = "float16"

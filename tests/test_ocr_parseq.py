@@ -63,20 +63,18 @@ def test_no_graph_on_cpu() -> None:
 
 
 @pytest.mark.gpu
+@torch.inference_mode()
 def test_graph_replay_matches_eager() -> None:
-    """The second call of a batch size captures the 26-step decoding; replays give the eager early-exit result."""
+    """The CUDA graph replays the AR loop, then the eager-length refinement matches the early-exit result."""
     graphed, img = _runner("cuda", cuda_graphs=True)
     eager, _ = _runner("cuda", cuda_graphs=False)
     ref = eager(img)
     for _ in range(4):  # call 1 eager, call 2 captures, the rest replay
         out = graphed(img)
         assert out["texts"] == ref["texts"]
-        torch.testing.assert_close(out["scores"], ref["scores"], rtol=0, atol=1e-5)
+        torch.testing.assert_close(out["scores"], ref["scores"], rtol=0, atol=0)
     assert len(graphed._graphs.graphs) == 1
     x = to_input(img)
-    with torch.no_grad():
-        torch.testing.assert_close(
-            graphed._graphs.run((x.device, x.dtype, tuple(x.shape)), x), eager.net(x), rtol=0, atol=1e-4
-        )
+    torch.testing.assert_close(graphed._logits(img), eager.net(x), rtol=0, atol=0)
     graphed.release_graphs()
     assert not graphed._graphs.graphs

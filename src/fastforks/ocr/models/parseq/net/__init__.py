@@ -171,13 +171,10 @@ class PARSeq(nn.Module):
         content = torch.cat((null, self.pos_queries[:, : tgt.shape[1] - 1] + self.text_embed(tgt[:, 1:])), 1)
         return self.decoder(query, content, memory, query_mask, padding)
 
-    def forward(self, images: torch.Tensor, refine_iters: int = 1, *, stop: bool = True) -> torch.Tensor:
-        """Greedy autoregressive decoding (stops once every sequence has an end token), then cloze refinement.
-
-        The refinement queries all 26 positions over the decoded context, so the output has 26 steps whenever
-        `refine_iters > 0` (upstream's shapes). `stop=False` always runs all 26 steps (no data-dependent exit, for
-        export); the refined output is the same, as the context after the first end token is masked either way.
-        """
+    def _autoregressive(
+        self, images: torch.Tensor, *, stop: bool
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, list[torch.Tensor]]:
+        """Encode images and generate the AR context, optionally stopping when every sequence has an EOS."""
         b, steps = images.shape[0], MAX_LENGTH + 1
         memory = self.encoder(images)
         queries = self.pos_queries[:, :steps].expand(b, -1, -1)
@@ -193,11 +190,30 @@ class PARSeq(nn.Module):
                 tgt[:, j] = p[:, 0].argmax(-1)
                 if stop and bool((tgt == self.eos).any(-1).all()):
                     break
+        return memory, queries, mask, tgt, logits
+
+    @staticmethod
+    def _cloze_mask(mask: torch.Tensor) -> torch.Tensor:
+        """Keep the forward mask's next token masked, with the rest of the right context unmasked."""
+        return mask & ~torch.triu(torch.ones_like(mask), 2)
+
+    def _refine(
+        self, context: torch.Tensor, memory: torch.Tensor, queries: torch.Tensor, cloze: torch.Tensor
+    ) -> torch.Tensor:
+        padding = (context == self.eos).int().cumsum(-1) > 0
+        return self.head(self._decode(context, memory, queries, cloze[:, : context.shape[1]], padding))
+
+    def forward(self, images: torch.Tensor, refine_iters: int = 1, *, stop: bool = True) -> torch.Tensor:
+        """Greedy autoregressive decoding, then cloze refinement over the decoded context.
+
+        Refinement queries all 26 positions. Export runs all 26 AR steps with `stop=False`; the longer masked
+        context is mathematically equivalent but can round differently from the eager early-stop context.
+        """
+        memory, queries, mask, tgt, logits = self._autoregressive(images, stop=stop)
         out = torch.cat(logits, 1)
-        cloze = mask & ~torch.triu(torch.ones_like(mask), 2)  # the forward mask with the right context unmasked
+        cloze = self._cloze_mask(mask)
         bos = tgt[:, :1]
         for _ in range(refine_iters):
             tgt_in = torch.cat((bos, out[:, :-1].argmax(-1)), 1)
-            padding = (tgt_in == self.eos).int().cumsum(-1) > 0  # tokens from the first end token on
-            out = self.head(self._decode(tgt_in, memory, queries, cloze[:, : tgt_in.shape[1]], padding))
+            out = self._refine(tgt_in, memory, queries, cloze)
         return out
