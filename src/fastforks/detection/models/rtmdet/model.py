@@ -40,7 +40,7 @@ from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
-from fastforks.detection._ops import ops
+from fastforks.detection._ops import cuda_nms
 from fastforks.detection._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention
@@ -79,14 +79,14 @@ def classwise_nms(boxes: torch.Tensor, labels: torch.Tensor, scores: torch.Tenso
     """
     shifted = boxes + (labels.to(boxes) * (boxes.max() + 1))[:, None]
     if boxes.shape[0] < SPLIT:
-        return ops().nms(shifted, scores, iou)
+        return cuda_nms(shifted, scores, iou)
     counts = torch.bincount(labels).tolist()
     keep, lo, n = [], 0, 0
     for c in range(len(counts) + 1):
         k = counts[c] if c < len(counts) else SPLIT + 1  # past the last class: flush
         if n and n + k > SPLIT:
             m = ((labels >= lo) & (labels < c)).nonzero()[:, 0]
-            keep.append(m[ops().nms(shifted[m], scores[m], iou)])
+            keep.append(m[cuda_nms(shifted[m], scores[m], iou)])
             lo, n = c, 0
         n += k
     kept = torch.cat(keep).sort().values

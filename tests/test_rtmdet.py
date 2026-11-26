@@ -8,6 +8,9 @@ kernels runner's CUDA graph is replayed with new images.
 from __future__ import annotations
 
 import hashlib
+import subprocess
+import sys
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -18,6 +21,7 @@ from torch import nn
 from fastforks import WeightsError, detection
 from fastforks._core import registry
 from fastforks.detection._cv2_resize import cv2_linear
+from fastforks.detection._ops import _NMS_WHEELS
 from fastforks.detection.models.rtmdet.model import SPLIT, classwise_nms, fit
 from fastforks.detection.models.rtmdet.net import STRIDES, Arch, RTMDet, convert, decode, points
 from fastforks.shared.cspnext import BN_EPS
@@ -116,6 +120,37 @@ def test_classwise_nms_in_several_calls_keeps_what_one_call_per_class_keeps() ->
         [m[nms(boxes[m], scores[m], 0.65)] for c in range(7) for m in [(labels[:500] == c).nonzero()[:, 0]]]
     )
     assert sorted(few.tolist()) == sorted(one.tolist())
+
+
+@pytest.mark.gpu
+def test_cuda_nms_before_importing_torchvision() -> None:
+    """In a fresh process the direct operator and subsequent public import can both run."""
+    _cuda("cuda")
+    if sys.platform != "linux" or torch.version.cuda is None:
+        pytest.skip("direct NMS uses a Linux CUDA wheel")
+    try:
+        wheel = version("torchvision")
+    except PackageNotFoundError:
+        pytest.skip("torchvision is unavailable")
+    if wheel not in _NMS_WHEELS:
+        pytest.skip(f"direct NMS is not enabled on torchvision {wheel}")
+
+    code = """
+import sys
+import torch
+from fastforks.detection._ops import cuda_nms
+
+boxes = torch.tensor([[0, 0, 4, 4], [0, 0, 4, 4], [2, 2, 6, 6]], device="cuda", dtype=torch.float32)
+scores = torch.tensor([0.8, 0.8, 0.6], device="cuda")
+got = cuda_nms(boxes, scores, 0.5)
+assert "torchvision" not in sys.modules
+from torchvision.ops import nms, roi_align
+
+assert torch.equal(got, nms(boxes, scores, 0.5))
+image = torch.ones((1, 1, 6, 6), device="cuda")
+assert torch.equal(roi_align(image, [boxes[2:]], 2), torch.ones((1, 1, 2, 2), device="cuda"))
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, timeout=60)
 
 
 def test_points_are_the_cell_corners_level_by_level() -> None:
