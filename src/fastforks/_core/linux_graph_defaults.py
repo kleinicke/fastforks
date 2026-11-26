@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 _CHW = 3
 _BCHW = 4
 _RGB = 3
+_BOX_COORDINATES = 4
 _PAIR_TASKS = {"flow", "interpolation", "stereo"}
 _MEASURED_VRAM_CLASS = 15 << 30  # visible capacity of the measured 16 GiB board is slightly lower than 16 GiB
 
@@ -35,6 +36,13 @@ class VideoQueries(NamedTuple):
 
     video: object
     queries: object
+
+
+class PoseBoxes(NamedTuple):
+    """Original arguments to a top-down pose request for one image."""
+
+    image: object
+    boxes: object
 
 
 @functools.cache
@@ -135,6 +143,31 @@ def _tracking_inputs(call: VideoQueries, device: torch.device) -> tuple[TensorSi
     )
 
 
+def _pose_inputs(call: PoseBoxes, device: torch.device) -> tuple[TensorSignature, TensorSignature] | None:
+    image, boxes = call
+    if (
+        not isinstance(image, torch.Tensor)
+        or image.device != device
+        or image.dtype != torch.float32
+        or image.ndim != _CHW
+        or image.shape[0] != _RGB
+        or not image.is_contiguous()
+        or image.storage_offset() != 0
+    ):
+        return None
+    if (
+        not isinstance(boxes, torch.Tensor)
+        or boxes.device != device
+        or boxes.dtype != torch.float32
+        or boxes.ndim != 2  # noqa: PLR2004 - one row per person
+        or boxes.shape[1] != _BOX_COORDINATES
+        or not boxes.is_contiguous()
+        or boxes.storage_offset() != 0
+    ):
+        return None
+    return ("f32-chw-contiguous", tuple(image.shape)), ("f32-p4-cuda-contiguous", tuple(boxes.shape))
+
+
 def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredKey | None:
     ref, mode, dtype, task = model.variant.ref, model.backend.mode, model.backend.dtype, model.card.task
     if isinstance(call, ImagePair) and task in _PAIR_TASKS:
@@ -148,6 +181,9 @@ def _workload_key(model: Model, call: object, device: torch.device) -> MeasuredK
     if isinstance(call, VideoQueries) and task == "tracking":
         args = _tracking_inputs(call, device)
         return None if args is None else (ref, mode, dtype, "tracking-video-queries", args)
+    if isinstance(call, PoseBoxes) and task == "pose":
+        args = _pose_inputs(call, device)
+        return None if args is None else (ref, mode, dtype, "pose-boxes", args)
     if task in _PAIR_TASKS or task == "tracking":
         return None
     image = _image_tensor(call, device)
