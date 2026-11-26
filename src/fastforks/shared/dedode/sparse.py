@@ -10,16 +10,6 @@ from fastforks._core.upload import device_tensor
 from .net.dedode import ConvRefiner, Descriptor
 
 
-def _project(
-    layer: ConvRefiner, features: torch.Tensor, context: torch.Tensor, y: torch.Tensor, x: torch.Tensor
-) -> torch.Tensor:
-    feats = torch.cat((features, context), dim=1).half().contiguous(memory_format=torch.channels_last)
-    x0 = layer.block1(feats)
-    hidden = (layer.hidden_blocks(x0) + x0) / 1.4
-    points = hidden[0, :, y, x].unsqueeze(0).contiguous(memory_format=torch.channels_last)
-    return layer.out_conv(points)[0]
-
-
 def _blend(  # noqa: PLR0913, PLR0917 - the last two scales and the interpolation stencil
     prior: torch.Tensor,
     delta: torch.Tensor,
@@ -53,6 +43,7 @@ def sample(
     for i, scale in enumerate(scales[:-1]):
         delta, context = network.decoder(features.pop(), context=context, scale=scale)
         prior = delta if prior is None else delta.add_(prior)
+        del delta
         size = sizes[-(i + 2)]
         context = F.interpolate(context, size=size, mode="bilinear", align_corners=False)
         if i < len(scales) - 2:
@@ -72,5 +63,15 @@ def sample(
     weights = torch.stack(((1 - wx) * (1 - wy), wx * (1 - wy), (1 - wx) * wy, wx * wy))
     weights = weights.masked_fill((ix < 0) | (ix >= w) | (iy < 0) | (iy >= h), 0)
     ix, iy = ix.clamp(0, w - 1), iy.clamp(0, h - 1)
-    delta = _project(layer, features[0], context, iy, ix)
+    pack = torch.cat((features.pop(0), context), dim=1).half().contiguous(memory_format=torch.channels_last)
+    del context
+    x0 = layer.block1(pack)
+    del pack
+    hidden = layer.hidden_blocks(x0)
+    # Reuse the private conv output, with the original separate half rounding for add and divide.
+    hidden.add_(x0).div_(1.4)
+    del x0
+    points = hidden[0, :, iy, ix].unsqueeze(0).contiguous(memory_format=torch.channels_last)
+    del hidden
+    delta = layer.out_conv(points)[0]
     return blend(prior, delta[: network.decoder.num_prototypes], ix, iy, weights, (h, w))
