@@ -1,8 +1,9 @@
 """SegNeXt on Apple MLX, written in `mlx.core` operations (`MlxSegNeXt(net, dtype)`): a normalised image -> logits.
 
-`EncoderDecoder.forward` of the folded network (`net.fold`) as one compiled function, channels last. Written out
-instead of replayed from an exported graph: the export of MSCAN-B's 21 blocks (MSCAN-L: 38) was 1.5-2.3 s of a first
-call whose network runs in 0.1-0.2 s, and the shared depthwise kernel is one Metal shader per layer shape (32 here).
+`EncoderDecoder.forward` of the folded network (`net.fold`), channels last: one compiled function per encoder block
+and three for the decode head, evaluated one in flight. Written out instead of replayed from an exported graph: the
+export of MSCAN-B's 21 blocks (MSCAN-L: 38) was 1.5-2.3 s of a first call whose network runs in 0.1-0.2 s, and the
+shared depthwise kernel is one Metal shader per layer shape (32 here).
 
 - a block's seven strip convolutions are two kernels: the 7, 11 and 21 tap rows in one pass over the 5 x 5 conv's
   output, then their three columns, the sum and the skip in one pass (`a + conv0_2(..) + conv1_2(..) + conv2_2(..)`);
@@ -16,8 +17,9 @@ Depthwise sums accumulate in float32 and are rounded once to the activation dtyp
 
 from __future__ import annotations
 
+import functools
 import math
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
@@ -27,9 +29,6 @@ from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
 from fastforks.shared.mlx_seg import resize
 
 from . import net as sn
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 __all__ = ["MlxSegNeXt"]
 
@@ -227,6 +226,10 @@ def _nmf(x: mx.array, bases: mx.array) -> mx.array:
 _Pointwise = tuple[bool, mx.array, mx.array | None]  # GEMM or conv, weight ([in, out] or [out, 1, 1, in]), bias
 
 
+SYNC_BYTES = 8 << 20
+"""An encoder step whose output is at least this large also waits for itself (`_forward`)."""
+
+
 class MlxSegNeXt:
     """The folded network `net` (eval, float32 weights) in `dtype` (the name): one compiled function per input shape."""
 
@@ -249,7 +252,15 @@ class MlxSegNeXt:
         # the casts at once: a lazy `astype` keeps its float32 source resident and is redone inside every call
         mx.eval(self.embeds, self.stages, self.norms, self.squeeze, self.ham_in, self.ham_out, self.bases)
         mx.eval(self.align, self.classifier)
-        self._compiled: Callable[[mx.array], mx.array] = mx.compile(self._forward)
+        # one compiled function per block (its weights as constants) and three for the head, evaluated one in flight
+        self._blocks = [[mx.compile(functools.partial(self._run_block, p=p)) for p in st] for st in self.stages]
+        self._squeeze_c, self._ham_c, self._out_c = (
+            mx.compile(f) for f in (self._squeeze_step, self._ham_step, self._out_step)
+        )
+        # the patch embeddings and stage norms compiled too: uncompiled, the float32 GELU between the stem's two
+        # convolutions was a chain of full-resolution float32 buffers
+        self._embeds = [mx.compile(functools.partial(self._embed, convs=e)) for e in self.embeds]
+        self._norms = [mx.compile(functools.partial(self._stage_norm, wbe=n)) for n in self.norms]
 
     def _a(self, t: Any) -> mx.array:  # noqa: ANN401 - a torch tensor
         return mx.array(np.ascontiguousarray(t.detach().float().numpy())).astype(self.dtype)
@@ -329,25 +340,73 @@ class MlxSegNeXt:
         return x if m[1] is None else self._group_norm(x, m[1])
 
     def _forward(self, image: mx.array) -> mx.array:
+        """The encoder block by block, one evaluation in flight (`step`), then the head (`_decode`).
+
+        One compiled function over the whole network holds every block's transients until its command buffer
+        completes (MSCAN-T float16 at 1024 x 2048: 249 MB against the graph translation's 176). A step whose output is
+        at least `SYNC_BYTES` also waits for itself: two full-size blocks in flight held both's transients (MSCAN-S
+        float32 at 1024 x 2048: 467 MB, one at a time 267, the graph translation 313).
+        """
         x = image.transpose(0, 2, 3, 1).astype(self.dtype)
-        feats = []
-        for embed, blocks, (w, b, eps) in zip(self.embeds, self.stages, self.norms, strict=True):
-            for i, (cw, cb) in enumerate(embed):
-                x = mx.conv2d(_gelu(x) if i else x, cw, stride=2, padding=1) + cb
-            for p in blocks:
-                x = self._run_block(x, p)
-            x = mx.fast.layer_norm(x.astype(mx.float32), w, b, eps).astype(self.dtype)
+        feats, pending = [], []
+
+        def step(y: mx.array) -> mx.array:
+            mx.async_eval(y)
+            if pending:
+                mx.eval(pending.pop())
+            if y.nbytes >= SYNC_BYTES:
+                mx.eval(y)
+            else:
+                pending.append(y)
+            return y
+
+        for embed, blocks, norm in zip(self._embeds, self._blocks, self._norms, strict=True):
+            x = step(embed(x))
+            for block in blocks:
+                x = step(block(x))
+            x = step(norm(x))
             feats.append(x)
+        return self._decode(feats)
+
+    @staticmethod
+    def _embed(x: mx.array, convs: list[tuple[mx.array, mx.array]]) -> mx.array:
+        """A stage's patch embedding: its stride-2 3 x 3 convolutions (a GELU between two)."""
+        for i, (cw, cb) in enumerate(convs):
+            x = mx.conv2d(_gelu(x) if i else x, cw, stride=2, padding=1) + cb
+        return x
+
+    def _stage_norm(self, x: mx.array, wbe: tuple[mx.array, mx.array, float]) -> mx.array:
+        """A stage's closing layer norm (float32)."""
+        w, b, eps = wbe
+        return mx.fast.layer_norm(x.astype(mx.float32), w, b, eps).astype(self.dtype)
+
+    def _decode(self, feats: list[mx.array]) -> mx.array:
+        """The decode head on the four stages' maps, in three compiled parts, each evaluated before the next.
+
+        As one compiled head its transients were alive at once until it completed: MSCAN-T float16 at
+        1024 x 2048, 188 MB against the encoder blocks' 66 at most.
+        """
+        x = self._squeeze_c(feats)
+        mx.eval(x)
+        y = self._ham_c(x)
+        mx.eval(y)
+        return self._out_c(x, y)
+
+    def _squeeze_step(self, feats: list[mx.array]) -> mx.array:
         size = feats[1].shape[1:3]
         x = mx.concatenate([feats[1]] + [resize(f, size).astype(self.dtype) for f in feats[2:]], axis=-1)
-        x = _relu(self._conv_module(x, self.squeeze))
+        return _relu(self._conv_module(x, self.squeeze))
+
+    def _ham_step(self, x: mx.array) -> mx.array:
         n, h, wd, c = x.shape
         y = _relu(self._conv_module(x, self.ham_in)).astype(mx.float32).reshape(n, h * wd, c)
-        y = _nmf(y, self.bases).reshape(x.shape).astype(self.dtype)
+        return _nmf(y, self.bases).reshape(x.shape).astype(self.dtype)
+
+    def _out_step(self, x: mx.array, y: mx.array) -> mx.array:
         x = _relu(x + self._conv_module(y, self.ham_out))
         x = _relu(self._conv_module(x, self.align))
         return self._pw(x, self.classifier).astype(mx.float32).transpose(0, 3, 1, 2)
 
     def __call__(self, image: mx.array) -> mx.array:
         """Normalised image `[B, 3, H, W]` (sides divisible by 32) -> float32 logits `[B, classes, H / 8, W / 8]`."""
-        return self._compiled(image)
+        return self._forward(image)
