@@ -153,9 +153,19 @@ def _linear(layer: Any, dtype: mx.Dtype, gamma: torch.Tensor | None = None) -> C
     return lambda x: mx.addmm(b, x, w)
 
 
-def _norm(layer: Any, dtype: mx.Dtype) -> Callable:
+def _norm(layer: Any, dtype: mx.Dtype, *, rows: bool = False) -> Callable:
+    """Layer norm over the last axis.
+
+    `rows`: rows up to `ROW_LN_MAX` wide through `graph_mlx`'s row kernel (one simdgroup per row), as the graph
+    translation. Faster on ConvNeXt's many-row maps, slower on EfficientFormer's 49-token stage (L1 float16 3.5 ->
+    4.0 ms), so opt-in.
+    """
     w, b = to_mx(layer.weight).astype(dtype), to_mx(layer.bias).astype(dtype)
     eps = layer.eps
+    from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - Metal only
+
+    if rows and w.shape[-1] <= ops.ROW_LN_MAX:
+        return lambda x: ops.row_layer_norm(x, w, b, eps) if x.dtype == dtype else mx.fast.layer_norm(x, w, b, eps)
     return lambda x: mx.fast.layer_norm(x, w, b, eps)
 
 
@@ -182,7 +192,18 @@ SEGMENT_MIN_OPS = 3
 (efficientformerv2_s0 float16: 3.3 ms at 16 segments, 3.0 at 8, the graph translation 3.0)."""
 
 
-def _segmented(features: Callable, tail: Callable) -> Callable:
+SYNC_TOTAL = 32 << 20
+"""Ops' output bytes per call from which a `sync` network's segments each wait for themselves: two segments in
+flight held both's transients, which in TinyViT's attention stages are several times the segment's outputs
+(tiny_vit_21m_512 float32, 63 MB of outputs: network peak 1.30 -> 1.00x the graph translation's). Only TinyViT: on
+ConvNeXt the overlap is worth more than the transients (convnext_base 384 float32 warm 0.73 -> 1.02x the graph's for
+the same peak, convnext_large 224 float32 0.89 -> 1.03x)."""
+
+SYNC_FAMILIES = frozenset({"tinyvit"})
+"""The families whose `_segmented` segments run synchronously from `SYNC_TOTAL` on."""
+
+
+def _segmented(features: Callable, tail: Callable, *, sync: bool = False) -> Callable:
     """`tail(features(x))` as compiled segments of `features`' ops, evaluated one after the other (one in flight).
 
     MLX returns a command buffer's transients only when it completes: one compiled function over a whole network
@@ -194,9 +215,9 @@ def _segmented(features: Callable, tail: Callable) -> Callable:
     if found is None:
         return mx.compile(lambda x: tail(features(x)))
     ops: tuple[Callable, ...] = tuple(found)
-    plans: dict[tuple[tuple[int, ...], mx.Dtype], list[Callable]] = {}
+    plans: dict[tuple[tuple[int, ...], mx.Dtype], tuple[list[Callable], bool]] = {}
 
-    def plan(x: mx.array) -> list[Callable]:
+    def plan(x: mx.array) -> tuple[list[Callable], bool]:
         sizes = []
         for op in ops:
             x = op(x)
@@ -212,17 +233,18 @@ def _segmented(features: Callable, tail: Callable) -> Callable:
         segs = [_chain(*ops[a:b]) for a, b in itertools.pairwise(cuts)]
         last = segs[-1]
         segs[-1] = lambda x: tail(last(x))
-        return [mx.compile(s) for s in segs]
+        return [mx.compile(s) for s in segs], sync and sum(sizes) >= SYNC_TOTAL
 
     def run(x: mx.array) -> mx.array:
         key = (tuple(x.shape), x.dtype)
-        segs = plans.get(key)
-        if segs is None:
-            segs = plans[key] = plan(x)
+        found = plans.get(key)
+        if found is None:
+            found = plans[key] = plan(x)
+        segs, sync = found
         prev = None
         for seg in segs[:-1]:
             x = seg(x)
-            mx.async_eval(x)
+            (mx.eval if sync else mx.async_eval)(x)
             if prev is not None:
                 mx.eval(prev)
             prev = x
@@ -261,8 +283,8 @@ def _convnext_block(block: Any, dtype: mx.Dtype) -> Callable:
     tanh = type(act).__name__ == "GELUTanh" or getattr(act, "approximate", "none") == "tanh"  # the WD tagger's
     from .mlx_features import gelu_tanh  # noqa: PLC0415 - the WD tagger's (mlx_features imports timm's helpers)
 
-    ops = [_conv(block.conv_dw, None, dtype), _norm(block.norm, dtype), _linear(block.mlp.fc1, dtype)]
-    ops.append(gelu_tanh if tanh else _gelu)
+    ops = [_conv_k(block.conv_dw, None, dtype), _norm(block.norm, dtype, rows=True), _linear(block.mlp.fc1, dtype)]
+    ops.append(gelu_tanh if tanh else _gelu_f32)
     if hasattr(block.mlp, "grn"):
         ops.append(_grn(block.mlp.grn, dtype))
     path = _chain(*ops, _linear(block.mlp.fc2, dtype, block.gamma))
@@ -444,7 +466,7 @@ def _pool2d(layer: Any) -> Callable:
 def _classic_op(layer: Any, dtype: mx.Dtype) -> Callable:
     """Convert a torchvision classifier's eval layers to channels-last operations."""
     if isinstance(layer, nn.Conv2d):
-        return _conv(layer, None, dtype)
+        return _conv_k(layer, None, dtype)
     if isinstance(layer, nn.BatchNorm2d):
         scale = layer.weight.detach().float() / (layer.running_var.float() + layer.eps).sqrt()
         gain, bias = to_mx(scale).astype(dtype), to_mx(layer.bias - layer.running_mean * scale).astype(dtype)
@@ -515,6 +537,7 @@ def _mobile_v1(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
 
 
 def _conv_norm_act(conv: nn.Conv2d, bn: nn.BatchNorm2d, dtype: mx.Dtype) -> Callable:
+    # `_conv`'s depthwise path: with `_conv_k` MobileNetV1 ran 1.15-1.22x the graph translation (0.95-1.02 before)
     return _chain(_conv(conv, bn, dtype), _activation(cast("nn.Module", bn.act)))
 
 
@@ -711,7 +734,7 @@ class Network:
             msg = f"No MLX classifier implementation for {family}"
             raise ValueError(msg)
 
-        return _segmented(features, lambda x: head(pool(x)))
+        return _segmented(features, lambda x: head(pool(x)), sync=family in SYNC_FAMILIES)
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """NCHW normalised images to float32 logits."""
