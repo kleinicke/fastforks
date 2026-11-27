@@ -2,7 +2,8 @@
 
 `U2NET` / `U2NETP` `forward` up to the fused map `d0`: the residual U-blocks (`shared.mlx_rsu`, BatchNorms folded),
 the 2 x 2 ceil-mode pools, the bilinear `_upsample_like`s, the six side convs and the 1 x 1 fusion; the sigmoid in
-float32. The six auxiliary side sigmoids are not computed (the runner reads `d0` only).
+float32. The six auxiliary side sigmoids are not computed (the runner reads `d0` only). Each encoder and decoder
+stage is a step (`cspnext.mlx_net.stepped`), the side convs and the fusion another.
 """
 
 # ruff: noqa: ANN401 - the network's torch modules
@@ -14,6 +15,7 @@ from typing import Any
 
 from fastforks._core.mlx import mx
 from fastforks.shared import mlx_rsu
+from fastforks.shared.cspnext import mlx_net as csp
 
 from .net import u2net as tnet
 
@@ -33,30 +35,37 @@ class Network:
         side = [mlx_rsu.conv(getattr(net, f"side{i}"), None, dt) for i in range(1, STAGES + 1)]
         out = mlx_rsu.conv(net.outconv, None, dt)
 
-        def forward(x: mx.array) -> mx.array:
-            h = x.transpose(0, 2, 3, 1).astype(dt)
-            feats = []
-            for i, stage in enumerate(enc):
-                h = stage(h)
-                feats.append(h)
-                if i < STAGES - 1:
-                    h = mlx_rsu.pool2(h)
-            d = feats[-1]
-            ds = [d]  # hx6, hx5d, ..., hx1d
-            for i in range(STAGES - 2, -1, -1):
-                d = dec[i](mx.concatenate([mlx_rsu.up_like(d, feats[i].shape[1:3]), feats[i]], axis=-1))
-                ds.append(d)
+        self.stem = csp.stepped(lambda x: enc[0](x.transpose(0, 2, 3, 1).astype(dt)))
+        self.enc = [csp.stepped(lambda h, s=s: s(mlx_rsu.pool2(h))) for s in enc[1:]]
+
+        def level(d: mx.array, f: mx.array, i: int) -> mx.array:
+            return dec[i](mx.concatenate([mlx_rsu.up_like(d, f.shape[1:3]), f], axis=-1))
+
+        self.dec = [csp.stepped(lambda d, f, i=i: level(d, f, i)) for i in range(STAGES - 1)]
+
+        def head(*ds: mx.array) -> mx.array:  # hx6, hx5d, ..., hx1d
             hw = ds[-1].shape[1:3]
             maps = [mlx_rsu.up_like(side[i](ds[STAGES - 1 - i]), hw) for i in range(STAGES)]
-            d0 = out(mx.concatenate(maps, axis=-1))
-            return mx.sigmoid(d0.astype(mx.float32))
+            return mx.sigmoid(out(mx.concatenate(maps, axis=-1)).astype(mx.float32))
 
-        self.forward = mx.compile(forward)
+        self.head = csp.stepped(head)
+
+    def forward(self, x: mx.array) -> mx.array:
+        """The network on `[B, 3, S, S]` float32 (the steps)."""
+        feats = [self.stem(x)]
+        for stage in self.enc:
+            feats.append(stage(feats[-1]))
+        d = feats[-1]
+        ds = [d]
+        for i in range(STAGES - 2, -1, -1):
+            d = self.dec[i](d, feats[i])
+            ds.append(d)
+        return self.head(*ds)
 
     def __call__(self, x: mx.array) -> mx.array:
         """The fused map of `[B, 3, S, S]` float32 (NCHW), evaluated."""
         mlx_rsu.options()
-        y = self.forward(x)
+        y = csp.steps(self.forward, x)
         mx.eval(y)
         return y
 

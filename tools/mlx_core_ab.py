@@ -145,6 +145,8 @@ def jobs(
     seen: dict[str, bool] = {}
     out = []
     for ref in sorted(inputs):
+        if ref.split("@")[0] not in cards:  # a floor row of a model this checkout has no card for
+            continue
         card = cards[ref.split("@")[0]][0]
         if (only and ref not in only) or (families and card.family not in families) or not card.portable_mlx_dtypes:
             continue

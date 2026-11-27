@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     Layer = Callable[[mx.array], mx.array]
 
-__all__ = ["conv", "options", "pool2", "rebn", "rsu", "up_like"]
+__all__ = ["conv", "conv_of", "options", "pool2", "rebn", "rsu", "up_like"]
 
 
 def _shape(*dims: int) -> Any:
@@ -51,9 +51,7 @@ def conv(layer: Any, bn: Any | None, dtype: mx.Dtype, *, kernels: bool = False) 
 
     The weights are converted in numpy (float64 fold, OHWI); on a cache hit only the shapes of `layer` are read.
     """
-    o, i, kh, kw = (int(d) for d in layer.weight.shape)
-    stride, padding = (int(layer.stride[0]), int(layer.stride[1])), (int(layer.padding[0]), int(layer.padding[1]))
-    dilation, groups = (int(layer.dilation[0]), int(layer.dilation[1])), int(layer.groups)
+    o = int(layer.weight.shape[0])
 
     def folded() -> tuple[np.ndarray, np.ndarray]:
         w = _np(layer.weight)
@@ -62,6 +60,33 @@ def conv(layer: Any, bn: Any | None, dtype: mx.Dtype, *, kernels: bool = False) 
             s = _np(bn.weight) / np.sqrt(_np(bn.running_var) + bn.eps)
             w, b = w * s[:, None, None, None], _np(bn.bias) + (b - _np(bn.running_mean)) * s
         return w, b
+
+    return conv_of(
+        tuple(int(d) for d in layer.weight.shape), folded, dtype, stride=_pair(layer.stride),
+        padding=_pair(layer.padding), dilation=_pair(layer.dilation), groups=int(layer.groups), kernels=kernels,
+    )  # fmt: skip
+
+
+def _pair(v: Any) -> tuple[int, int]:
+    return (int(v), int(v)) if isinstance(v, int) else (int(v[0]), int(v[1]))
+
+
+def conv_of(  # noqa: PLR0913 - a Conv2d's geometry
+    oihw: tuple[int, ...],
+    folded: Callable[[], tuple[np.ndarray, np.ndarray]],
+    dtype: mx.Dtype,
+    *,
+    stride: tuple[int, int] = (1, 1),
+    padding: tuple[int, int] = (0, 0),
+    dilation: tuple[int, int] = (1, 1),
+    groups: int = 1,
+    kernels: bool = False,
+) -> Layer:
+    """A conv of `[O, I, kh, kw]` weights on NHWC maps; `folded()` makes the OIHW weight and the bias (numpy).
+
+    `folded` runs only when the conversion cache misses (`mlx_port.tensor`).
+    """
+    o, i, kh, kw = oihw
 
     def mlx(a: np.ndarray) -> mx.array:
         out = mx.array(np.ascontiguousarray(a, dtype=np.float32)).astype(dtype)
@@ -72,17 +97,17 @@ def conv(layer: Any, bn: Any | None, dtype: mx.Dtype, *, kernels: bool = False) 
     b = mlx_port.tensor(_shape(o), dtype, lambda: mlx(folded()[1]))
     if (kh, kw) == (1, 1) and stride == (1, 1) and groups == 1:
         return lambda x: mg.conv1x1(x, w.reshape(o, i).T, b)
-    oihw: Any = SimpleNamespace(shape=(o, i, kh, kw))  # the translator's checks and its Winograd weight cache key
+    spec: Any = SimpleNamespace(shape=(o, i, kh, kw))  # the translator's checks and its Winograd weight cache key
 
     def apply(x: mx.array) -> mx.array:
         if kernels and groups == 1 and dilation == (1, 1):
             from fastforks.kernels.conv_mlx import ops as conv_ops  # noqa: PLC0415 - kernels mode only
 
-            if mg._direct_ok(x.shape[3], x.shape[1] * x.shape[2], oihw.shape, stride):  # noqa: SLF001
+            if mg._direct_ok(x.shape[3], x.shape[1] * x.shape[2], spec.shape, stride):  # noqa: SLF001
                 return conv_ops.direct(x, w, b, stride, padding, dilation)
-            if mg._wino_ok(x, oihw, stride, padding, dilation, groups):  # noqa: SLF001
+            if mg._wino_ok(x, spec, stride, padding, dilation, groups):  # noqa: SLF001
                 t = mg._wino_tile(x)  # noqa: SLF001
-                return conv_ops.conv3x3(x, mg._wino_weights(oihw, w, x.dtype, t), b, m=t)  # noqa: SLF001
+                return conv_ops.conv3x3(x, mg._wino_weights(spec, w, x.dtype, t), b, m=t)  # noqa: SLF001
         return mg._conv2d(x, w, stride, padding, dilation, groups) + b  # noqa: SLF001
 
     return apply
@@ -113,9 +138,12 @@ TINY_MAP = 8  # MLX passes kernel inputs of fewer elements as `constant` buffers
 
 
 @functools.lru_cache(maxsize=64)
-def _lerp(n: int, out: int) -> mx.array:
-    """`[out, n]` weights of torch's bilinear resize along one axis (`align_corners=False`)."""
-    src = np.maximum((np.arange(out) + 0.5) * (n / out) - 0.5, 0.0)
+def _lerp(n: int, out: int, align: bool) -> mx.array:  # noqa: FBT001 - cache key
+    """`[out, n]` weights of torch's bilinear resize along one axis."""
+    if align:
+        src = np.arange(out) * ((n - 1) / (out - 1) if out > 1 else 0.0)
+    else:
+        src = np.maximum((np.arange(out) + 0.5) * (n / out) - 0.5, 0.0)
     i0 = np.minimum(np.floor(src).astype(int), n - 1)
     i1, lam, rows = np.minimum(i0 + 1, n - 1), src - i0, np.arange(out)
     m = np.zeros((out, n))
@@ -124,14 +152,17 @@ def _lerp(n: int, out: int) -> mx.array:
     return mx.array(m.astype(np.float32))
 
 
-def up_like(x: mx.array, hw: tuple[int, int]) -> mx.array:
-    """`F.interpolate(x, size=hw, mode="bilinear")` on NHWC (`align_corners=False`)."""
+def up_like(x: mx.array, hw: tuple[int, int], *, align: bool = False) -> mx.array:
+    """`F.interpolate(x, size=hw, mode="bilinear", align_corners=align)` on NHWC."""
     h, w = x.shape[1:3]
     if (h, w) == tuple(hw):
         return x
     if x.size < TINY_MAP:  # a few pixels (small test inputs): the separable weights, float32
-        y = mx.einsum("oh,nhwc,pw->nopc", _lerp(h, hw[0]), x.astype(mx.float32), _lerp(w, hw[1]))
+        y = mx.einsum("oh,nhwc,pw->nopc", _lerp(h, hw[0], align), x.astype(mx.float32), _lerp(w, hw[1], align))
         return y.astype(x.dtype)
+    if align:
+        ratios = ((h - 1) / (hw[0] - 1) if hw[0] > 1 else 0.0, (w - 1) / (hw[1] - 1) if hw[1] > 1 else 0.0)
+        return ops.bilinear_nhwc(x, hw, ratios, align=True)
     return ops.bilinear_nhwc(x, hw, (h / hw[0], w / hw[1]), align=False)
 
 
