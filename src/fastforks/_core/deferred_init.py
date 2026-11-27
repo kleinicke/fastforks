@@ -133,7 +133,8 @@ def deferred_init() -> Generator[None]:
     with torch.no_grad():
         for ref, version, storage, fn, args, kwargs in pending:
             tensor = ref()
-            if tensor is None or tensor._version != version:  # noqa: SLF001 - torch's counter
+            # a meta tensor (`mlx_port.recorded`'s skeleton, still referenced) has no values to initialise
+            if tensor is None or tensor.is_meta or tensor._version != version:  # noqa: SLF001 - torch's counter
                 continue
             # still zero: not written through `.data` either (`w.data.copy_(fused)` bumps no version counter; an
             # all-zero write that way cannot be told apart and is initialised)
