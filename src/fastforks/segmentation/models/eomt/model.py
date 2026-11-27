@@ -26,8 +26,10 @@ reading q / k / v as strided views of the packed GEMM output) and fp16-accumulat
 from __future__ import annotations
 
 import contextlib
+import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -266,9 +268,89 @@ class Kernels(Portable):
     module = Runner.module
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the folded network written in MLX operations (`mlx_net`), the windows and their merge in MLX.
+
+    Built from the checkpoint's tensors (a dict of meta tensors of the safetensors header on a conversion-cache hit), no
+    transformers module. The input's resize stays `seginfer.resize` (PIL's antialiased downscale) on the CPU.
+    """
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - imports mlx
+        from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD  # noqa: PLC0415
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        paths = ctx.weights()
+        config = json.loads(Path(paths[0]).read_text())
+        s = float(ctx.params.res_scale)
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda sd: mlx_net.network(sd, config, s, ctx.dtype),
+            real=lambda: ctx.state_dict(1, strip=""),
+            skeleton=lambda: mlx_port.header_skeleton(paths[1]),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self._mean, self._std = mx.array(IMAGENET_MEAN, mx.float32), mx.array(IMAGENET_STD, mx.float32)
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def _scores(self, image: torch.Tensor) -> Any:  # noqa: ANN401 - an mx.array
+        """float32 MLX scores `[1, rh, rw, 150]` of one image `[1, 3, H, W]` at the network input size."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        h, w = image.shape[-2:]
+        rh, rw = target_size(h, w, self.ctx.params.resize)
+        x = to_mx(image.float()).transpose(0, 2, 3, 1)
+        if rh < h or rw < w:  # PIL's antialiased downscale (torch's `antialias`), on the CPU
+            x = to_mx(resize(image.float(), (rh, rw), pil=True)).transpose(0, 2, 3, 1)
+        else:
+            x = mlx_seg.resize(x, (rh, rw))
+        x = (x - self._mean) / self._std
+        s = self.ctx.params.window
+        wins = [(y, z) for y in eomt_windows(rh, s) for z in eomt_windows(rw, s)]
+        out = mlx_net.scores(self.mlx, x, wins, s)
+        mx.eval(out)
+        return out
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Semantic logits `[B, 150, H, W]` float32 of a batch (the windows of one image per forward pass)."""
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        h, w = image.shape[-2:]
+        out = []
+        for im in image:
+            y = mlx_seg.resize(self._scores(im[None]), (h, w)).transpose(0, 3, 1, 2)
+            out.append(to_torch(y))
+        return {"logits": torch.cat(out)}
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the argmax of the scores resized to the image, in one kernel."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        size = tuple(image.shape[-2:])
+        return torch.cat([mlx_seg.resize_argmax(self._scores(im[None]), size) for im in image])
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable), "kernels_mlx": mlx_wrap.port(Portable)}

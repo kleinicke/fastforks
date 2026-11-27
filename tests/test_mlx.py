@@ -2686,3 +2686,64 @@ def test_mlx_owlv2_matches_torch():
     for g, w in zip(m.image(pix), want, strict=True):
         torch.testing.assert_close(to_torch(g), w, atol=1e-3, rtol=1e-3)
     torch.testing.assert_close(to_torch(m.text(ids.numpy())), q, atol=1e-4, rtol=1e-3)
+
+
+@pytest.mark.parametrize(("arch", "res_scale"), [("dinov2", 1.0), ("dinov3", 4.0)])
+def test_mlx_eomt_matches_torch(arch, res_scale):
+    """The hand-written EoMT (`eomt/mlx_net.py`) against the portable runner's folded network, float32: the blocks
+    (the queries joining for the last ones, DINOv3's RoPE), the upscale blocks and heads, and the semantic scores."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    transformers = pytest.importorskip("transformers")
+    from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.segmentation.models.eomt import mlx_net  # noqa: PLC0415
+    from fastforks.segmentation.models.eomt import model as eomt  # noqa: PLC0415
+    from fastforks.shared.seginfer import mask_semantic  # noqa: PLC0415
+
+    config = {
+        "hidden_size": 64,
+        "num_hidden_layers": 4,
+        "num_attention_heads": 2,
+        "num_blocks": 2,
+        "num_queries": 6,
+        "num_register_tokens": 4,
+        "num_upscale_blocks": 2,
+        "image_size": 64,
+        "patch_size": 16,
+        "num_labels": 5,
+    }
+    if arch == "dinov2":
+        hf = transformers.EomtForUniversalSegmentation(
+            transformers.EomtConfig(**config, mlp_ratio=2, layer_norm_eps=1e-6)
+        )
+    else:
+        hf = transformers.EomtDinov3ForUniversalSegmentation(
+            transformers.EomtDinov3Config(**config, intermediate_size=128, layer_norm_eps=1e-5, rope_theta=100.0)
+        )
+    hf = _randomise(hf)
+    hf.attn_mask_probs.zero_()
+    full = {**hf.config.to_dict(), **config}
+    sd = {k: v.clone() for k, v in hf.state_dict().items()}
+    net = eomt._Net(hf, torch.float32, res_scale=res_scale, kernels=False).eval()  # folds `hf`
+    x = torch.randn(2, 3, 64, 64)
+    with torch.no_grad():
+        masks, classes = net(x)
+        want = mask_semantic(eomt.resize(masks, (64, 64)), classes)
+    m = mlx_net.network(sd, full, res_scale, "float32")
+    got_masks, got_classes = m.forward(to_mx(x).transpose(0, 2, 3, 1))
+    torch.testing.assert_close(to_torch(got_masks).permute(0, 3, 1, 2), masks, atol=2e-3, rtol=2e-3)
+    torch.testing.assert_close(to_torch(got_classes), classes, atol=2e-3, rtol=2e-3)
+    scores = mlx_net.scores(m, to_mx(x[:1]).transpose(0, 2, 3, 1), [(0, 0)], 64)
+    torch.testing.assert_close(to_torch(scores).permute(0, 3, 1, 2), want[:1], atol=1e-4, rtol=1e-3)
+    # two windows of a 64 x 96 image: their scores averaged where they overlap
+    wide = torch.randn(1, 3, 64, 96)
+    with torch.no_grad():
+        mk, cl = net(torch.cat([wide[..., :64], wide[..., 32:]]))
+        lg = mask_semantic(eomt.resize(mk, (64, 64)), cl)
+    ref = torch.zeros(1, lg.shape[1], 64, 96)
+    ref[..., :64] += lg[0]
+    ref[..., 32:] += lg[1]
+    ref[..., 32:64] /= 2
+    got = mlx_net.scores(m, to_mx(wide).transpose(0, 2, 3, 1), [(0, 0), (0, 32)], 64)
+    mx.eval(got)
+    torch.testing.assert_close(to_torch(got).permute(0, 3, 1, 2), ref, atol=1e-4, rtol=1e-3)
