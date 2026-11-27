@@ -451,7 +451,7 @@ class MlxPortable(_Select):
     def __init__(self, ctx: Context) -> None:
         """Convert or read the cached weights and build the MLX network."""
         super().__init__(ctx)
-        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+        from fastforks._core.mlx import converted, request_cache  # noqa: PLC0415 - needs the mlx extra
 
         from . import mlx_net  # noqa: PLC0415
 
@@ -461,6 +461,10 @@ class MlxPortable(_Select):
             return mlx_net.prepare(fold_frozen_bn(ctx.state_dict(key="model", strip="", extra=NUMPY_ARRAYS)), p)
 
         self.net = mlx_net.Net(converted(ctx, mlx_net.LAYOUT, build), p, ctx.dtype)
+        # The stepped dense pass returns each step's transients to the buffer cache: at the 128 MB base limit they go
+        # back to the system and are allocated again (800 x 1344 float16 136 ms, float32 193). 512 MB keeps float16 at
+        # 124 ms in a 1148 MB footprint; float32 needs 1024 MB (145 ms, 1823 MB; 175 ms at 512).
+        request_cache(self, 512 if ctx.dtype == "float16" else 1024)
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """detectron2 `DefaultPredictor` on one image."""
