@@ -282,14 +282,23 @@ def worker_local(spec: dict[str, Any]) -> int:
     os.environ["FASTFORKS_MLX"] = "0"  # mps rows measure PyTorch MPS, not the MLX port that load() may route to
     import torch  # noqa: PLC0415
 
-    import merge_check  # noqa: PLC0415 - its golden step (tools/ is this script's directory)
+    import gpu_lock  # noqa: PLC0415 - tools/ is this script's directory
+    import merge_check  # noqa: PLC0415 - its golden step
 
+    with gpu_lock.session(f"speed_survey {spec['ref']} {spec['device']}"):
+        return _worker_local(spec, torch, merge_check, gpu_lock)
+
+
+def _worker_local(spec: dict[str, Any], torch: Any, merge_check: Any, gpu_lock: Any) -> int:  # noqa: ANN401
+    """`worker_local` in the GPU lock's session: exclusive (`--timed`) from the load to the last timed call."""
     torch.manual_seed(0)
     out = Path(spec["out"])
     common: dict[str, Any] = {"ref": spec["ref"], "task": spec["task"], "mode": spec["mode"], "input": spec["input"]}
     m = None
+    timed = contextlib.ExitStack()  # the exclusive lock until the speed row is done, not over the golden step
     try:
         task = __import__(f"fastforks.{spec['task']}", fromlist=["load"])
+        timed.enter_context(gpu_lock.timed())
         t0 = time.perf_counter()
         m = model = task.load(spec["ref"], mode=spec["mode"], device=spec["device"], dtype=spec["dtype"])
         if spec["device"] == "mps":
@@ -311,6 +320,8 @@ def worker_local(spec: dict[str, Any]) -> int:
             row["threads"] = torch.get_num_threads()
     except Exception as e:  # noqa: BLE001 - recorded as a failed / oom row
         row = {**common, "error": " ".join(f"{type(e).__name__}: {e}".split())[:600]}
+    finally:
+        timed.close()
     merge_check.speed_check()._append(out, row)  # noqa: SLF001 - the row writer of the floor's worker
     if m is not None and "ms" in row:
         # Only the golden step may hold the model: a golden with load options reloads it, and the timed copy must be
