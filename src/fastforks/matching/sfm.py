@@ -399,7 +399,7 @@ def _verify(
     for b, (_, a1, a2, _) in enumerate(batch):
         p1[b, : len(a1)], p2[b, : len(a2)], mask[b, : len(a1)] = a1, a2, True
     fm = estimate_fundamental(p1, p2, threshold=threshold, mask=mask, mode=mode)  # ty: ignore[invalid-argument-type]
-    inliers, ok, f = (fm.inliers & mask).cpu(), fm.ok.cpu(), fm.F.double().cpu().numpy()
+    inliers, ok, f = (fm.inliers & mask).cpu(), fm.ok.cpu(), fm.F.cpu().double().numpy()
     out = {}
     for b, (pair, _, _, index) in enumerate(batch):
         keep = inliers[b, : len(index)]
