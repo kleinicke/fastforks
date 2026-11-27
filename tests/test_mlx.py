@@ -2574,3 +2574,22 @@ def test_mlx_hrnet_matches_torch():
         want = net(x)
     got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
     torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)
+
+
+def test_mlx_detr_matches_torch():
+    """The hand-written DETR (`detr/mlx_net.py`) against the network, float32: the ResNet with its max pool, the
+    sine positions, the encoder and decoder layers, both heads."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection.models.detr import mlx_net  # noqa: PLC0415
+    from fastforks.detection.models.detr.net import Arch, Detr  # noqa: PLC0415
+
+    a = Arch(blocks=[1, 1, 2, 1], d_model=32, heads=4, enc_layers=2, dec_layers=2, ffn=64, num_queries=7, num_classes=9)
+    net = _randomise(Detr(a))
+    x = torch.randn(1, 3, 97, 130)
+    with torch.no_grad():
+        want = net(x)
+    got = mlx_net.network(net, "float32")(to_mx(x))
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g), w, atol=1e-3, rtol=1e-3)

@@ -18,7 +18,7 @@ stay float32. Kernels runs the ResNet convs as cuDNN fused conv + bias + ReLU (+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -192,8 +192,52 @@ class Kernels(Portable):
         self.graphs.release()
 
 
+def _network(ctx: Context) -> Detr:
+    """The network with the checkpoint (FrozenBatchNorm folded): float32, CPU."""
+    net = Detr(ctx.params)
+    net.load_state_dict(fold_frozen_bn(ctx.state_dict(key="model", strip="")))
+    return net.eval()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), resizing and post-processing as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 1024}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: Detr(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self.ids = class_map(ctx.params.num_classes).to(ctx.device)
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def _logits(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        logits, boxes = self.mlx(to_mx(x.float()))
+        return to_torch(logits), to_torch(boxes)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, cache_mb=1024)}
