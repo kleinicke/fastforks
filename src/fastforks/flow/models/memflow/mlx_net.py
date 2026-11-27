@@ -67,7 +67,9 @@ class _Encoder:
                 stride = 2 if i == 0 and layer > 1 else 1
                 c1 = conv(f"{b}.conv1", f"{b}.norm1", stride=stride)
                 c2 = conv(f"{b}.conv2", f"{b}.norm2")
-                ds = conv(f"{b}.downsample.0", f"{b}.norm3", stride=stride, padding=0) if stride > 1 else None
+                # `norm3` is `downsample.1`: the checkpoint's two copies disagree in their running statistics, and
+                # `load_state_dict` keeps the later key's, `downsample.1`
+                ds = conv(f"{b}.downsample.0", f"{b}.downsample.1", stride=stride, padding=0) if stride > 1 else None
                 self._steps.append(stepped(self._block(c1, c2, ds)))
         self.out = mf.conv(sd, f"{p}.conv2", dtype)
 
