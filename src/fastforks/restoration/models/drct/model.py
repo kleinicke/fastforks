@@ -220,14 +220,7 @@ class Portable(Runner):
         kind = torch.device(ctx.device).type
         # MPS, any dtype: a 512x512 input's shifted masks, score blocks and 4x reconstruction pass its 11.8 GiB limit
         bound_workspace = p.scale == 4 and (kind == "mps" or (ctx.dtype == "float16" and kind == "cuda"))  # noqa: PLR2004
-        with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
-            warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
-            self.net = DRCT(
-                upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, img_range=1.0,
-                depths=[6] * len(p.heads), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
-                upsampler="pixelshuffle", resi_connection="1conv",
-            )  # fmt: skip  # depths: only the stochastic depth rates (training); every group has 5 layers
-        load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+        self.net = _network(ctx)
         for m in self.net.modules():
             if isinstance(m, WindowAttention):
                 table, index = m.relative_position_bias_table, m.relative_position_index
@@ -419,11 +412,60 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
+def _skeleton(p: Params) -> DRCT:
+    """The network of `p` without weights."""
+    with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
+        warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
+        return DRCT(
+            upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, img_range=1.0,
+            depths=[6] * len(p.heads), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
+            upsampler="pixelshuffle", resi_connection="1conv",
+        )  # fmt: skip  # depths: only the stochastic depth rates (training); every group has 5 layers
+
+
+def _network(ctx: Context) -> DRCT:
+    """The upstream network with the checkpoint (float32, CPU)."""
+    net = _skeleton(ctx.params)
+    load_strict(net, ctx.state_dict(key=ctx.params.key), f"{ctx.variant.ref} checkpoint")
+    return net.eval()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the padding and crop as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The upscaled batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.mlx(to_mx(image.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
 
 _GROUP = re.compile(r"layers\.(\d+)\.swin1\.attn\.relative_position_bias_table")
 

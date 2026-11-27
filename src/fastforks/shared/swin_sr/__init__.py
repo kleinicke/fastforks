@@ -11,6 +11,10 @@ rows of q and k), the extra output channels meet zero columns of `proj`. `attent
 the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
 `PatchEmbed.forward` with contiguous tokens. `checkpoint_upsampler` reads a checkpoint's reconstruction layers
 (`load(path)`). `roll` is `torch.roll` over two dims in one pass.
+
+The hand-written MLX ports (imported on their own, they need mlx): `mlx_net` holds the Swin layers (window attention,
+the blocks, the groups, the row-banded tails) of SwinIR, Swin2SR, HAT, DRCT and DAT, `mlx_cnn` the 3 x 3 convolution
+of the super-resolution CNNs (RRDBNet, SPAN, Compact; the `conv_mlx` Winograd kernel in kernels mode).
 """
 
 from __future__ import annotations

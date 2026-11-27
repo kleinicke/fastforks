@@ -260,16 +260,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network, gather the relative position biases, cache the shifted-window masks per size."""
         super().__init__(ctx)
-        p = ctx.params
-        with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
-            warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
-            self.net = HAT(
-                upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, compress_ratio=p.compress_ratio,
-                squeeze_factor=p.squeeze_factor, conv_scale=0.01, overlap_ratio=0.5, img_range=1.0,
-                depths=list(p.depths), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
-                upsampler="pixelshuffle", resi_connection="1conv",
-            )  # fmt: skip
-        load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+        self.net = _network(ctx)
         _prepare(self.net)
         override(self.net, _mask, "calculate_mask")
         mean = self.net.mean
@@ -500,11 +491,61 @@ class Kernels(Portable):
             return {"image": self.net(x)}
 
 
+def _skeleton(p: Params) -> HAT:
+    """The network of `p` without weights."""
+    with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
+        warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
+        return HAT(
+            upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, compress_ratio=p.compress_ratio,
+            squeeze_factor=p.squeeze_factor, conv_scale=0.01, overlap_ratio=0.5, img_range=1.0,
+            depths=list(p.depths), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
+            upsampler="pixelshuffle", resi_connection="1conv",
+        )  # fmt: skip
+
+
+def _network(ctx: Context) -> HAT:
+    """The upstream network with the checkpoint (float32, CPU)."""
+    net = _skeleton(ctx.params)
+    load_strict(net, ctx.state_dict(key=ctx.params.key), f"{ctx.variant.ref} checkpoint")
+    return net.eval()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the padding and crop as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The upscaled batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.mlx(to_mx(image.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
