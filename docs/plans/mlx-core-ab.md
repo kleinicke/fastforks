@@ -425,6 +425,78 @@ wrapper), so they are not in the A/B:
 Hand-written from the start (never had a graph path): crestereo, seedvr2, dinov2, dinov3, c_radio, tipsv2, romav2,
 depth_anything_v2, marigold_v2, dinov2_linear, dinov2_linear_cls.
 
+## Optical-flow ports (2026-11-27)
+
+MEMFOF, MemFlow, FlowSeek, NeuFlow v2 and ReCoVEr (cx / rn / mn) are hand-written (no graph replay). Each family's
+`mlx_net` holds its own encoders, correlation and update blocks on top of `mlx_flow`; FlowSeek's DINOv2 runs through
+`mlx_vit`'s block maths. They load through `mlx_port.recorded` (the conversion cache, no checkpoint on a hit), do the
+padding and upsampling in MLX, and ask `request_cache` for a cache sized per variant (memfof 512 MB, memfof-kitti and
+-sintel 256, recover-cx and recover-rn float16 256, the rest the base limit). `GRAPH_RUNNERS` rebuilds the graph arm
+of every family. 32 A/B rows (portable, both dtypes, 1080 x 1920). The goldens pass in float16 and float32, and
+float16 is auto's pick.
+
+| family | net warm x fp16 | net peak x fp16 | net warm x fp32 | net peak x fp32 |
+|---|---|---|---|---|
+| flowseek | 0.70-0.71 | 0.64 | 0.53-0.55 | 0.37-0.38 |
+| memflow | 0.81-0.83 | 0.35 | 0.82-0.83 | 0.30 |
+| memfof | 0.89-0.92 | 0.68-0.96 | 0.89-0.94 | 0.82-0.85 |
+| neuflow_v2 | 0.43-0.48 | 0.19-0.37 | 0.32-0.58 | 0.19 |
+| recover | 0.84-1.06 | 0.56-0.70 | 0.70-0.97 | 0.75-1.03 |
+
+- *Transient and resident.* On the transient (call peak minus resident) the ratios are about the peak ratios above:
+  flowseek 0.64 / 0.36-0.37, memflow 0.35 / 0.30, memfof 0.66-0.96, neuflow 0.19-0.36, recover 0.54-0.67 float16 and
+  0.73-1.03 float32. The resident weights are lower or equal: flowseek 82 / 146 MB float16 and 164 / 228 float32,
+  memflow 12 / 97 and 24 / 112, memfof 140 / 154 and 280 / 307, neuflow 26 / 36 and 35 / 45, recover about equal.
+  float16 resident is about half of float32 everywhere.
+- *The cache is part of the e2e peak.* The process footprint carries MLX's buffer cache, and the graph runners ran at
+  the base limit (128 MB). At 1024 MB the hand ports were 15-59 % heavier end to end than the old rows. The sizes
+  above are the largest that keep every e2e row below the graph port's (sweeps 128-1024 MB at 1080 x 1920).
+- *ReCoVEr float16 keeps half-precision Winograd.* The graph translation runs float16 Winograd convs with float32
+  transforms (`mlx_flow.options(half_wino_f32=True)`), which made rn's full-resolution convs allocation-bound at a
+  small cache (e2e 495 ms at 256 MB). Without them: 415 ms, golden mean 0.0024 against the graph's 0.0021 (budget
+  0.008). cx and mn give the same outputs either way.
+- *MemFlow's checkpoint.* Its downsample batch norm lives at `downsample.1`, as torch's `load_state_dict` keeps it;
+  the hand port reads it from there.
+- *Odd size and batch 2.* 437 x 645, batch of two pairs: float32 hand against graph mean difference 0.0000 in every
+  family, float16 0.0003-0.0013 (flowseek 0.023; its goldens show the hand arm closer). Row 0 of the batch equals the
+  single call (max difference 0) everywhere.
+- *Load.* No torch import on a cache hit, except FlowSeek: building its skeleton under `torch.device("meta")` runs the
+  vendored DINOv2 LayerScale's `init_values * torch.ones(dim)`, which imports `torch._dynamo` (0.6-0.77 s). Its
+  checkpoints are `.pth`, so `header_skeleton` does not apply. A/B `load_s` 0.04-0.05 s (memfof up to 0.41, flowseek
+  0.50-0.62) against the graph's 0.03-0.16 s. The first network call takes 0.28-17.2 s against the graph's 1.6-22.5 s
+  (flowseek 1.3-1.5 / 4.7-6.9, neuflow 0.4-0.5 / 2.6-4.2, recover 0.3-0.9 / 1.6-2.4).
+
+Accepted peak trades (in the table above): recover-mn float32 (warm 0.70, peak 1.03; e2e 1091 MB against MPS 2562;
+1024² -> 4x: 1294 MB / 646 ms against the graph's 1059 / 1087, no blow-up).
+
+Still flagged, with the reason:
+
+- recover-cx float16, warm 1.06 at the A/B's forced 2048 MB cache: the graph arm gains more from a large cache. Piece
+  by piece the hand port matches it, and end to end at its own 256 MB it is faster than the old row (720.6 / 757.7
+  ms).
+- FlowSeek's load (survey 0.84-0.97 s against the old 0.17-0.25): the `torch._dynamo` import above. Avoiding it needs
+  a vendored-code or a shared `mlx_port` change, left for another round.
+- WAFT, FlowFormer and MegaFlow were not ported: WAFT's warping transformer, FlowFormer's Twins encoder and cost
+  memory, and MegaFlow's ViT-L with the VGGT aggregator are too large for this round. They keep their graph runners.
+
+End to end (`tools/speed_survey.py`, two runs, the second run's rows kept; every row ok with the golden passing),
+against the graph port's MLX row (the old row) and the best MPS row:
+
+| family | e2e warm new / old | e2e peak new / old | below the best MPS peak |
+|---|---|---|---|
+| flowseek | 0.46-0.73 | 0.41-0.65 | all |
+| memflow | 0.80-0.82 | 0.36-0.52 | all |
+| memfof | 0.90-0.96 | 0.88-1.00 | all with an MPS row (kitti and sintel have none) |
+| neuflow_v2 | 0.43-0.57 | 0.21 | all |
+| recover | 0.71-0.99 | 0.73-0.95 | all |
+
+- No e2e warm or peak row is above the old one (the closest: memfof-spring float32 peak 2241 / 2244 MB, warm 0.96).
+- MPS is faster warm only on recover-rn float16 (405 / 411 ms).
+- Load (`load_s`, survey): memflow, neuflow and recover 0.18-0.32 s (old 0.13-0.32), memfof 0.33-0.57 (old
+  0.14-0.19), flowseek 0.84-0.97 (old 0.17-0.25). The hand ports read their full cache file at load. The first call
+  is much lower: flowseek 1.6-2.2 s (old 4.7-17), recover 0.6-1.0 (old 1.7-4.3), memflow 8.8-10.8 (old 11.7-14.5),
+  memfof 3.0-19.0 (old 5.4-22.1).
+
 <!-- generated by `tools/mlx_core_ab.py md`: everything below this line -->
 
 ## Counts
