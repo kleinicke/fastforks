@@ -3,7 +3,7 @@ name = "FlowSeek"
 summary = "FlowSeek (Poggi & Tosi 2025), size T: SEA-RAFT (ResNet18 encoders, initial flow regression, ConvNeXt update block, 4 iterations) helped by a frozen Depth Anything V2 Small. Its features join the matching features, and its relative depth gives 8 motion bases (the flow fields that camera translations and rotations would cause), which a third encoder turns into extra context. Each image is resized to 518 x 518 for Depth Anything, whatever the input size. The authors' released weights; the network is ported from mattpoggi/flowseek. `iters=12` is the paper's FlowSeek (S). The larger M and L sizes use Depth Anything V2 Base, whose weights are non-commercial, and are not included."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the DINOv2 ViT-S and the DPT head)
+uses = ["cspnext", "depth_anything_v2", "mlx_flow", "mlx_port", "mlx_vit", "mlx_wrap"]  # fastforks.shared modules this family imports (the DINOv2 ViT-S and the DPT head)
 
 [upstream]
 repo = "https://github.com/mattpoggi/flowseek"

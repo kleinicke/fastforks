@@ -2727,6 +2727,112 @@ def test_mlx_hrnet_matches_torch():
     torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)
 
 
+@pytest.mark.parametrize("blocked", [False, True])
+def test_mlx_memfof_matches_torch(blocked, monkeypatch):
+    """The hand-written MEMFOF (`memfof/mlx_net.py`) against `forward_pair`, float32: both encoders (whole, or the
+    stem, layer1 and layer2 in 3 row bands of the 64-row 1/4-resolution map: `BAND_BYTES` shrunk), the merged duplicated
+    frame, the attention (its matrix, or fused attention in 4 query blocks of up to 100 of the 384 tokens:
+    `MATRIX_BYTES` and `SDPA_BLOCK_BYTES` shrunk), the correlation windows of both pyramids, the update steps, the
+    upsampling."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.memfof import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.memfof.net.model import MEMFOF  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    if blocked:
+        monkeypatch.setattr(mlx_net, "MATRIX_BYTES", 0)
+        monkeypatch.setattr(mlx_net, "SDPA_BLOCK_BYTES", 4 * 384 * 100)
+        monkeypatch.setattr(mlx_net, "BAND_BYTES", 64 * 96 * 128 * 4 // 3 + 1)
+    net = _randomise(MEMFOF(dim=64))
+    x1, x2 = torch.rand(1, 3, 256, 384) * 2 - 1, torch.rand(1, 3, 256, 384) * 2 - 1
+    with torch.no_grad():
+        want = net.forward_pair(x1, x2, 3)
+    got = to_torch(mlx_net.MlxMEMFOF(net.state_dict(), "float32", 3)(to_mx(x1), to_mx(x2)))
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
+@pytest.mark.parametrize("arch", ["rn", "mn", "cx"])
+def test_mlx_recover_matches_torch(arch):
+    """The hand-written ReCoVEr (`recover/mlx_net.py`) against the network, float32: each context encoder (ResNet34
+    stages, MobileNetV3-Large, ConvNeXt-T), the zero-correlation term, the update steps, the upsampling."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.recover import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.recover.net import ReCoVEr  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = _randomise(ReCoVEr(arch))
+    x1, x2 = torch.rand(1, 3, 96, 128) * 2 - 1, torch.rand(1, 3, 96, 128) * 2 - 1
+    with torch.no_grad():
+        want = net(x1, x2, 3)
+    got = to_torch(mlx_net.MlxReCoVEr(net.state_dict(), arch, "float32", 3)(to_mx(x1), to_mx(x2)))
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
+def test_mlx_neuflow_v2_matches_torch():
+    """The hand-written NeuFlow v2 (`neuflow_v2/mlx_net.py`) against the network, float32: the backbone, the
+    cross-attention, the global matching, both refinement levels (the split first conv), the convex upsampling."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.neuflow_v2 import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.neuflow_v2.net import NeuFlow  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = _randomise(NeuFlow())
+    x1, x2 = torch.rand(1, 3, 128, 192), torch.rand(1, 3, 128, 192)
+    with torch.no_grad():
+        want = net(x1, x2, 3)
+    got = to_torch(mlx_net.MlxNeuFlow(net.state_dict(), "float32", 3)(to_mx(x1), to_mx(x2)))
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
+def test_mlx_flowseek_matches_torch():
+    """The hand-written FlowSeek-T (`flowseek/mlx_net.py`) against the network, float32, at a size the network pads:
+    Depth Anything V2 (the ViT, the DPT head's fusion feature and depth), the merge head, the motion bases, the
+    three encoders, the update steps, the upsampling and the crop."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.flowseek import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.flowseek.net import FlowSeek  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = _randomise(FlowSeek())
+    x1, x2 = torch.rand(1, 3, 132, 190), torch.rand(1, 3, 132, 190)
+    with torch.no_grad():
+        want = net(x1, x2, 3)
+    got = to_torch(mlx_net.MlxFlowSeek(net.state_dict(), "float32", 3)(to_mx(x1), to_mx(x2)))
+    torch.testing.assert_close(got, want, atol=2e-3 * float(want.abs().max()), rtol=2e-3)
+
+
+@pytest.mark.parametrize("size", [(128, 192), (512, 576)])
+def test_mlx_memflow_matches_torch(size):
+    """The hand-written MemFlowNet (`memflow/mlx_net.py`) against the network, float32: the batch- and instance-norm
+    encoders, the PCBlocks, the readout (its matrix, and fused attention at 512 x 576: 4608 tokens over
+    `MATRIX_BYTES` shrunk to 64 MB), the update steps, the upsampling."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.flow.models.memflow import mlx_net  # noqa: PLC0415
+    from fastforks.flow.models.memflow.net import MemFlowNet  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = _randomise(MemFlowNet(6750.0))
+    x1, x2 = torch.rand(1, 3, *size) * 2 - 1, torch.rand(1, 3, *size) * 2 - 1
+    with torch.no_grad():
+        want = net.forward_pair(x1, x2, 3)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(mlx_net, "MATRIX_BYTES", 64 << 20)
+        got = to_torch(mlx_net.MlxMemFlow(net.state_dict(), "float32", 3, 6750.0)(to_mx(x1), to_mx(x2)))
+    # the random net's flow grows to ~1700 px in 3 updates, and float32 rounding with it (128 x 192: 0.0015 / 0.0068 /
+    # 0.021 after 1 / 2 / 3 updates, about 1e-5 of the largest flow): the absolute tolerance scales with it
+    torch.testing.assert_close(got, want, atol=1e-4 * float(want.abs().max()), rtol=2e-3)
+
+
 def test_mlx_detr_matches_torch():
     """The hand-written DETR (`detr/mlx_net.py`) against the network, float32: the ResNet with its max pool, the
     sine positions, the encoder and decoder layers, both heads."""

@@ -3,7 +3,7 @@ name = "ReCoVEr"
 summary = "ReCoVEr (Kiefhaber, Roth & Schaub-Meyer, ICCV 2025): optical flow without a cost volume. SEA-RAFT's update block refines a flow regressed from a context encoder on both frames (6 channels, stride 8); the authors' training removes the correlation input, so no feature encoder and no correlation pyramid run at inference. 4 iterations, convex upsampling. The authors' released weights; the network is ported from visinf/ReCoVEr. Three context encoders: `recover-cx` (ConvNeXt-T stages, most accurate), `recover-rn` (ResNet34 stages), `recover-mn` (MobileNetV3-Large, fastest). Paper: CX reaches state-of-the-art accuracy at 1.2x the speed and 1/6 the memory of comparable models; MN runs Full HD at 20 FPS in 500 MB."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cspnext", "cuda_graphs", "mlx_flow", "mlx_port", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/visinf/ReCoVEr"
