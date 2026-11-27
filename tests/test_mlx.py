@@ -2536,3 +2536,24 @@ def test_graph_runners_are_mlx_runners_of_the_family():
         assert all(isinstance(r, type) and r is not runners[k] for k, r in graph.items()), path
         found += 1
     assert found > 40
+
+
+@pytest.mark.parametrize("decoder", ["classic", "simple"])
+def test_mlx_vitpose_matches_torch(decoder):
+    """The hand-written ViTPose (`vitpose/mlx_net.py`) against the network with the runner's normalisation, float32:
+    the padded patch embedding, the shared blocks, both decoders."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD  # noqa: PLC0415
+    from fastforks.pose.models.vitpose import mlx_net  # noqa: PLC0415
+    from fastforks.pose.models.vitpose.net import Arch, ViTPose  # noqa: PLC0415
+
+    a = Arch(dim=64, depth=2, heads=2, part=0, experts=0, decoder=decoder, keypoints=5, height=64, width=48)
+    net = _randomise(ViTPose(a))
+    x = torch.rand(2, 3, 64, 48)
+    mean, std = torch.tensor(IMAGENET_MEAN).view(1, 3, 1, 1), torch.tensor(IMAGENET_STD).view(1, 3, 1, 1)
+    with torch.no_grad():
+        want = net((x - mean) / std)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)

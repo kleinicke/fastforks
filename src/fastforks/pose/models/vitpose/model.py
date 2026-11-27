@@ -18,7 +18,7 @@ another keypoint's heatmap); here they keep their argmax: the score says they we
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import torch
 import torch.nn.functional as F
@@ -330,9 +330,57 @@ class MetalKernels(Portable):
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
 
+def _skeleton(a: Arch) -> ViTPose:
+    """The network of `a` without weights."""
+    return ViTPose(a)
+
+
+def _network(ctx: Context) -> ViTPose:
+    """The network with the checkpoint (HF keys converted, BatchNorm folded): float32, CPU."""
+    net = ViTPose(ctx.params)
+    net.load_state_dict(convert(ctx.state_dict(strip=""), ctx.params))
+    return net.eval()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), crops and DARK decoding as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def heatmaps(self, crops: torch.Tensor) -> torch.Tensor:
+        """float32 heatmaps `[P, K, h / 4, w / 4]` of crops `[P, 3, h, w]` in [0, 1]."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.mlx(to_mx(crops.float())))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
