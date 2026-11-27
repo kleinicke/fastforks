@@ -2557,3 +2557,20 @@ def test_mlx_vitpose_matches_torch(decoder):
         want = net((x - mean) / std)
     got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+def test_mlx_hrnet_matches_torch():
+    """The hand-written HRNet (`hrnet/mlx_net.py`) against the network, float32: the bottleneck stem, the
+    transitions, every module's branches and exchange (nearest upsampling, stride-2 chains), the head."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.pose.models.hrnet import mlx_net  # noqa: PLC0415
+    from fastforks.pose.models.hrnet.net import Arch, HRNet  # noqa: PLC0415
+
+    net = _randomise(HRNet(Arch(channels=8, keypoints=5, height=128, width=96)))
+    x = torch.randn(2, 3, 128, 96)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)

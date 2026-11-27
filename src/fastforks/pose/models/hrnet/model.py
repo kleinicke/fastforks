@@ -20,14 +20,14 @@ score says they were not found.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._optimize import optimize
 from fastforks.kernels import pose_warp
-from fastforks.pose._runner import BUCKETS, Forward, TopDown, in_buckets
+from fastforks.pose._runner import BUCKETS, Forward, Runner, TopDown, in_buckets
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes
@@ -177,8 +177,56 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, **logs, **scalars}
 
 
+def _network(ctx: Context) -> HRNet:
+    """The network with the checkpoint (BatchNorm folded): float32, CPU."""
+    net = HRNet(ctx.params)
+    net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
+    return net.eval()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), crops and decoding as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        TopDown.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        a: Params = ctx.params
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: HRNet(a),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
+        self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
+        self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)
+        self.net_size = torch.tensor([a.width, a.height], device=ctx.device, dtype=torch.float32)
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """float32 heatmaps of normalised float32 crops."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.mlx(to_mx(x.float())))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
