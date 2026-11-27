@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-27 |
-| rows | 1732 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1736 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -662,9 +662,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`flowformer-small-chairs`](../models/flow.md#flowformer) | 20537 | 13243 | unsupported | 1889 |
 | [`flowformer-small-sintel`](../models/flow.md#flowformer) | 20007 | 12987 | unsupported | 2056 |
 | [`flowformer-small-things`](../models/flow.md#flowformer) | 20971 | 13811 | unsupported | 1888 |
-| [`flowseek-t`](../models/flow.md#flowseek) | 3246 | 2160 | unsupported | 5781 |
-| [`flowseek-t-things`](../models/flow.md#flowseek) | 2523 | 1760 | unsupported | 5769 |
-| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 2544 | 1760 | unsupported | 5766 |
+| [`flowseek-t`](../models/flow.md#flowseek) | 1494 | 1281 | unsupported | 3729 |
+| [`flowseek-t-things`](../models/flow.md#flowseek) | 1481 | 1282 | unsupported | 3731 |
+| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 1471 | 1278 | unsupported | 3729 |
 | [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 2494 | 1827 | unsupported | 1191 |
 | [`gmflow-scale1-things`](../models/flow.md#gmflow) | 2387 | 1690 | unsupported | 1150 |
 | [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | 5350 | 3600 | unsupported | 2843 |
@@ -675,23 +675,23 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | 5201 | 3509 | unsupported | 2839 |
 | [`gmflow-scale2-things`](../models/flow.md#gmflow) | 5250 | 3540 | unsupported | 2841 |
 | [`megaflow`](../models/flow.md#megaflow) | 13158 | 8480 | – | 6561 |
-| [`memflow`](../models/flow.md#memflow) | 9908 | 6997 | unsupported | 8345 |
-| [`memflow-kitti`](../models/flow.md#memflow) | 9851 | 6988 | – | 7586 |
-| [`memflow-sintel`](../models/flow.md#memflow) | 9860 | 6990 | – | 8075 |
-| [`memfof`](../models/flow.md#memfof) | 3807 | 3317 | unsupported | 1986 |
-| [`memfof-kitti`](../models/flow.md#memfof) | 19707 | 16074 | – | 3652 |
-| [`memfof-sintel`](../models/flow.md#memfof) | 19915 | 16049 | – | 3643 |
-| [`memfof-spring`](../models/flow.md#memfof) | 3774 | 3319 | unsupported | 1986 |
-| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 781 | 790 | unsupported | 9253 |
-| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 979 | 960 | unsupported | 9271 |
-| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 941 | 951 | unsupported | 9267 |
+| [`memflow`](../models/flow.md#memflow) | 8103 | 5579 | unsupported | 3649 |
+| [`memflow-kitti`](../models/flow.md#memflow) | 8082 | 5576 | unsupported | 3647 |
+| [`memflow-sintel`](../models/flow.md#memflow) | 8024 | 5606 | unsupported | 3634 |
+| [`memfof`](../models/flow.md#memfof) | 3554 | 2983 | unsupported | 1944 |
+| [`memfof-kitti`](../models/flow.md#memfof) | 18468 | 14923 | unsupported | 3430 |
+| [`memfof-sintel`](../models/flow.md#memfof) | 18650 | 14816 | unsupported | 3430 |
+| [`memfof-spring`](../models/flow.md#memfof) | 3624 | 2983 | unsupported | 1957 |
+| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 441 | 413 | unsupported | 1900 |
+| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 448 | 411 | unsupported | 1923 |
+| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 441 | 411 | unsupported | 1938 |
 | [`raft-large`](../models/flow.md#raft) | 1348 | 916 | unsupported | 1829 |
 | [`raft-large-kitti`](../models/flow.md#raft) | 1358 | 913 | unsupported | 1832 |
 | [`raft-large-things`](../models/flow.md#raft) | 1344 | 916 | unsupported | 1828 |
 | [`raft-small`](../models/flow.md#raft) | 403 | 294 | unsupported | 1092 |
-| [`recover-cx`](../models/flow.md#recover) | 1064 | 758 | unsupported | 1297 |
-| [`recover-mn`](../models/flow.md#recover) | 471 | 316 | unsupported | 1181 |
-| [`recover-rn`](../models/flow.md#recover) | 624 | 429 | unsupported | 1224 |
+| [`recover-cx`](../models/flow.md#recover) | 957 | 721 | unsupported | 1229 |
+| [`recover-mn`](../models/flow.md#recover) | 335 | 259 | unsupported | 867 |
+| [`recover-rn`](../models/flow.md#recover) | 616 | 411 | unsupported | 1034 |
 | [`sea-raft-m`](../models/flow.md#sea_raft) | 1296 | 928 | unsupported | 2002 |
 | [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 1297 | 928 | unsupported | 2146 |
 | [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 319 | 265 | unsupported | 1023 |

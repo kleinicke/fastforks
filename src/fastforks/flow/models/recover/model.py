@@ -248,8 +248,10 @@ class _MlxPortable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     module = Runner.module  # the MLX network is not exportable
-    CACHE_MB: ClassVar[dict[str, int]] = {"*": 1024}  # the buffer cache this mode asks for, by variant ('*': all)
-    # 1024 rather than 512 MB: 1080 x 1920 float16 rn 456 -> 421 ms, mn 258 -> 237, cx 723 -> 708 (M1 Pro)
+    # the buffer cache this mode asks for, by `variant:dtype`, else by variant (none: the base limit). The e2e footprint
+    # carries the cache: these are the largest that keep it below the graph port's rows at 1080 x 1920 (M1 Pro);
+    # 1024 MB was up to 7 % faster but 26-59 % heavier
+    CACHE_MB: ClassVar[dict[str, int]] = {"recover-cx": 256, "recover-rn:float16": 256}
 
     def __init__(self, ctx: Context) -> None:
         """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
@@ -267,7 +269,8 @@ class _MlxPortable(Runner):
             skeleton=lambda: ReCoVEr(arch).state_dict(),
             sources=mlx_net.SOURCES,
         )
-        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+        v = ctx.variant.id
+        if mb := self.CACHE_MB.get(f"{v}:{ctx.dtype}", self.CACHE_MB.get(v, 0)):  # held while this runner lives
             from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
 
             request_cache(self, mb)

@@ -4789,7 +4789,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -4808,6 +4809,14 @@
    }
   },
   "flowseek-t@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -7251,6 +7260,10 @@
    }
   },
   "memfof@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -7816,6 +7829,14 @@
    }
   },
   "neuflow-v2-sintel@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -7832,9 +7853,17 @@
    }
   },
   "neuflow-v2-things@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -7848,9 +7877,17 @@
    }
   },
   "neuflow-v2@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -8926,6 +8963,14 @@
    }
   },
   "recover-mn@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -8943,6 +8988,13 @@
    }
   },
   "recover-rn@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

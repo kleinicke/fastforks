@@ -268,7 +268,10 @@ class _MlxPortable(_Scaled):
     dtypes = ("float32", "float16")
     Params = Params
     module = Runner.module  # the MLX network is not exportable
-    CACHE_MB: ClassVar[dict[str, int]] = {"*": 1024}  # the buffer cache this mode asks for, by variant ('*': all)
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 512, "memfof-kitti": 256, "memfof-sintel": 256}  # by variant
+    # the buffer cache this mode asks for. The e2e footprint carries it: 1024 MB was 11 % faster on memfof float32
+    # but 18 % heavier than the graph port's row; 512 (the 2x-upsampled kitti / sintel 256) is faster and leaner
+    # than it in both dtypes (1080 x 1920, M1 Pro)
 
     def __init__(self, ctx: Context) -> None:
         """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""

@@ -11,8 +11,10 @@ The maths of `net.ReCoVEr.forward`, channels last, built from the checkpoint's s
   correlation enters as `corr_term`, computed once per feature size on a 5 x 5 canvas and expanded (as
   `BasicMotionEncoder.corr_term`);
 - the upsampling head with its 0.25 folded in, the convex upsampling in float32 (`mlx_flow.convex_upsample`);
-- float32: the flow state and the upsampling; in float16 the convs MLX would run as half-precision Winograd run in
-  float32 (`mlx_flow.options`), as in the graph translation.
+- float32: the flow state and the upsampling. Unlike the graph translation, float16 keeps MLX's half-precision
+  Winograd convs (`mlx_flow.options`): their float32 transforms made the ResNet's full-resolution convs
+  allocation-bound at a small buffer cache (rn 1080 x 1920 at 256 MB 495 -> 415 ms, golden mean 0.0019 -> 0.0024
+  against the graph port's 0.0021; cx and mn unchanged in their outputs).
 """
 
 from __future__ import annotations
@@ -296,5 +298,5 @@ class MlxReCoVEr:
 
     def __call__(self, image1: mx.array, image2: mx.array) -> mx.array:
         """Flow `[1, 2, H, W]` (float32) of a padded float32 pair `[1, 3, H, W]` in [-1, 1]."""
-        mf.options(half_wino_f32=self.dtype == mx.float16)
+        mf.options(half_wino_f32=False)
         return steps(self._run, image1, image2)
