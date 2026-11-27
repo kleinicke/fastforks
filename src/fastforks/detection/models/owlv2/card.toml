@@ -3,7 +3,7 @@ name = "OWLv2 (open-vocabulary, CLIP B/16 and L/14)"
 summary = "OWLv2 (Minderer et al. 2023, Google): open-vocabulary detection by self-training OWL-ViT on web image-text data; a CLIP ViT image tower predicts one box per patch and scores it against CLIP text embeddings of free-text class names. Pass `text=[...]` at call time (default: the 80 COCO class names); the image is padded to a square and resized to 960 (B/16) or 1008 (L/14) px. The portable `module()` is the image tower and heads with the COCO names as constant queries."
 tier = "experimental"
 outputs = ["boxes", "scores", "labels"]
-uses = ["seginfer", "cuda_graphs", "clip_tokenizer", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["clip_tokenizer", "cuda_graphs", "mlx_port", "mlx_seg", "mlx_vit", "mlx_wrap", "seginfer", "swin_sr"]  # fastforks.shared modules this family imports
 limitations = [
   "Requires the optional transformers library (the network is its `Owlv2ForObjectDetection`).",
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (google/owlv2-*-ensemble); the official scenic (JAX) code was not run.",

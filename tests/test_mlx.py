@@ -2642,3 +2642,47 @@ def test_mlx_yunet_matches_torch(stage1, shared):
     got = mlx_net.network(net, "float32")(to_mx(x))
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g), w, atol=1e-2, rtol=1e-3)
+
+
+def test_mlx_owlv2_matches_torch():
+    """The hand-written OWLv2 (`owlv2/mlx_net.py`) against transformers' network as the portable runner calls it,
+    float32: the processor's blur and resize, the image tower and heads, the causal text tower and its pooling."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    transformers = pytest.importorskip("transformers")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.detection.models.owlv2 import mlx_net  # noqa: PLC0415
+    from fastforks.detection.models.owlv2 import model as owl  # noqa: PLC0415
+
+    layers = {"intermediate_size": 64, "num_hidden_layers": 2, "num_attention_heads": 4, "hidden_size": 32}
+    config = {
+        "text_config": {**layers, "max_position_embeddings": owl.CONTEXT, "vocab_size": 100},
+        "vision_config": {**layers, "image_size": 64, "patch_size": 16},
+        "projection_dim": 32,
+    }
+    net = _randomise(transformers.Owlv2ForObjectDetection(transformers.Owlv2Config(**config))).eval()
+    image = torch.rand(1, 3, 50, 70)
+    mean, std = torch.tensor(owl.MEAN).view(1, 3, 1, 1), torch.tensor(owl.STD).view(1, 3, 1, 1)
+    ids = torch.zeros(3, owl.CONTEXT, dtype=torch.int64)
+    for i, n in enumerate((3, 5, owl.CONTEXT)):
+        ids[i, :n] = torch.randint(1, 98, (n,))
+        ids[i, n - 1] = 99  # the end-of-text token: the highest id
+    with torch.no_grad():
+        x = (owl.gaussian_resize(torch.nn.functional.pad(image, (0, 0, 0, 20)), 64) - mean) / std
+        t = net.owlv2.vision_model.post_layernorm(net.owlv2.vision_model(pixel_values=x).last_hidden_state)
+        f = net.layer_norm(t[:, 1:] * t[:, :1])
+        emb = net.class_head.dense0(f)
+        want = (
+            emb / (torch.linalg.norm(emb, dim=-1, keepdim=True) + 1e-6),
+            net.class_head.logit_shift(f),
+            torch.nn.functional.elu(net.class_head.logit_scale(f)) + 1,
+            torch.sigmoid(net.box_head(f) + net.box_bias),
+        )
+        q = net.owlv2.text_projection(net.owlv2.text_model(input_ids=ids).pooler_output)
+        q = q / (torch.linalg.norm(q, dim=-1, keepdim=True) + 1e-6)
+    m = mlx_net.network(net.state_dict(), config, "float32")
+    pix = m.pixels(to_mx(image))
+    torch.testing.assert_close(to_torch(pix).permute(0, 3, 1, 2), x, atol=1e-4, rtol=1e-4)
+    for g, w in zip(m.image(pix), want, strict=True):
+        torch.testing.assert_close(to_torch(g), w, atol=1e-3, rtol=1e-3)
+    torch.testing.assert_close(to_torch(m.text(ids.numpy())), q, atol=1e-4, rtol=1e-3)

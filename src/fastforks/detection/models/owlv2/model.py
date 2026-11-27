@@ -16,12 +16,15 @@ SDPA; kernels: fused fp16 GEMMs, CUDA graph), the final norms and heads in float
 
 from __future__ import annotations
 
+import json
 import math
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -301,8 +304,95 @@ class Kernels(Portable):
             self.graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: both towers and the heads written in MLX operations (`mlx_net`), pre / post-processing in MLX / numpy.
+
+    The network is built from the checkpoint's tensors, not transformers' module (a dict of meta tensors of the
+    safetensors header on a conversion-cache hit). The text embeddings of the latest `_TEXT_CACHE` query lists are kept.
+    """
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        paths = ctx.weights()
+        config = json.loads(Path(paths[0]).read_text())
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda sd: mlx_net.network(sd, config, ctx.dtype),
+            real=lambda: ctx.state_dict(1, strip=""),
+            skeleton=lambda: mlx_port.header_skeleton(paths[1]),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        self.tokenizer = ClipTokenizer(paths[2], paths[3], context=CONTEXT)
+        self.default = tuple(label_set(ctx.variant.output_info["label_set"]))
+        self._text: OrderedDict[tuple[str, ...], Any] = OrderedDict()
+        self._lock = threading.Lock()
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def queries(self, names: tuple[str, ...]) -> Any:  # noqa: ANN401 - an mx.array
+        """Normalised text embeddings `[Q, D]` float32 (MLX) of `names` (cached for the `_TEXT_CACHE` latest lists)."""
+        with self._lock:
+            hit = self._text.get(names)
+            if hit is not None:
+                self._text.move_to_end(names)
+                return hit
+        ids = np.zeros((len(names), CONTEXT), np.int64)  # padding: "!" (id 0), after eot (causal mask)
+        for i, n in enumerate(names):
+            t = self.tokenizer(n)
+            ids[i, : len(t)] = t
+        q = self.mlx.text(ids)
+        with self._lock:
+            q = self._text.setdefault(names, q)
+            self._text.move_to_end(names)
+            while len(self._text) > _TEXT_CACHE:
+                self._text.popitem(last=False)
+        return q
+
+    def image(self, x: Any) -> tuple[Any, ...]:  # noqa: ANN401 - mx.arrays
+        """Normalised NHWC input (MLX) -> class embeddings, logit shift, logit scale and boxes (float32, MLX)."""
+        return self.mlx.image(x)
+
+    @host
+    def __call__(
+        self, image: torch.Tensor, score_threshold: float, text: tuple[str, ...] | None = None
+    ) -> dict[str, torch.Tensor]:
+        """Detections of `text` (default: the card's label set) in one image."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+
+        q = self.queries(self.default if text is None else text)
+        emb, shift, scale, boxes = self.image(self.mlx.pixels(to_mx(image.float())))
+        logits = (emb[0] @ q.T + shift[0]) * scale[0]
+        best, labels = mx.max(logits, -1), mx.argmax(logits, -1)
+        out = mx.concatenate([mx.sigmoid(best)[:, None], labels[:, None].astype(mx.float32), boxes[0]], -1)
+        a = np.array(out.astype(mx.float32))
+        keep = np.flatnonzero(a[:, 0] > score_threshold)
+        order = keep[np.argsort(-a[keep, 0], kind="stable")][: self.ctx.params.max_detections]
+        cx, cy, bw, bh = a[order, 2:].T
+        s = np.float32(max(image.shape[-2:]))
+        xyxy = np.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * s
+        return {
+            "boxes": torch.from_numpy(xyxy.astype(np.float32)),
+            "scores": torch.from_numpy(a[order, 0].copy()),
+            "labels": torch.from_numpy(a[order, 1].astype(np.int64)),
+        }
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",)),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",))}
