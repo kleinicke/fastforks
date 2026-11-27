@@ -168,3 +168,15 @@ def test_kernel_p3p_and_scores_match_portable():
     assert ob.all()
     assert (fa - fb).abs().max() < 1e-3
     assert (ia == ib).float().mean() > 0.99
+
+
+@pytest.mark.mps
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="no MPS")
+def test_portable_on_mps():
+    """MPS has no float64: P3P runs in float32 there and still recovers the poses."""
+    p2, x, k, r, t, _ = scene(8, 300, outliers=0.3)
+    pose = estimate_absolute_pose(p2.to("mps"), x.to("mps"), k.to("mps"), mode="portable")
+    assert pose.ok.all()
+    e_r, e_t = pose_error(pose, r.to("mps"), t.to("mps"))
+    assert e_r.max() < 1
+    assert e_t.max() < 0.1

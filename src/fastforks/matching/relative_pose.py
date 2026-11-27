@@ -407,8 +407,9 @@ class _TorchScorer:
         fundamental matrices.
         """
         A, _, size = idx.shape
-        x1 = self.x1[pairs[:, None, None], idx].reshape(-1, size, 3).double()  # [A * H, size, 3]
-        x2 = self.x2[pairs[:, None, None], idx].reshape(-1, size, 3).double()
+        dt = _solver_dtype(self.x1.device)
+        x1 = self.x1[pairs[:, None, None], idx].reshape(-1, size, 3).to(dt)  # [A * H, size, 3]
+        x2 = self.x2[pairs[:, None, None], idx].reshape(-1, size, 3).to(dt)
         e, ok = _five_point(x1, x2) if size == MIN_MATCHES else _seven_point(x1, x2)
         return e.float().reshape(A, -1, 9), ok.reshape(A, -1)
 
@@ -577,6 +578,11 @@ class _KernelScorer(_TorchScorer):
 # Nister's 5-point solver, batched (float64 recommended)
 
 
+def _solver_dtype(device: torch.device) -> torch.dtype:
+    """The dtype of the minimal solvers: float64, float32 on MPS (which has no float64)."""
+    return torch.float32 if device.type == "mps" else torch.float64
+
+
 def _monomials() -> tuple[list[tuple[int, int, int]], list[tuple[int, int, int]], list[tuple[int, int, int]]]:
     """Exponents (x, y, z) of the linear, quadratic and cubic monomial bases (cubic in Nister's order)."""
     lin = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (0, 0, 0)]
@@ -738,7 +744,8 @@ def _seven_point(x1: torch.Tensor, x2: torch.Tensor) -> tuple[torch.Tensor, torc
     comp = torch.zeros(B, 3, 3, device=dev, dtype=dt)
     comp[:, 1, 0] = comp[:, 2, 1] = 1.0
     comp[:, 0, 0], comp[:, 0, 1], comp[:, 0, 2] = -a2 / a3s, -a1 / a3s, -d0 / a3s
-    z = torch.linalg.eigvals(comp)  # [B, 3] complex
+    # [B, 3] complex; MPS has no eigvals, so its 3 x 3 companion matrices take the round trip through the CPU.
+    z = torch.linalg.eigvals(comp.cpu()).to(dev) if dev.type == "mps" else torch.linalg.eigvals(comp)
     real = cubic[:, None] & (z.imag.abs() < 1e-8 * (1 + z.real.abs()))
     lam = z.real
     for _ in range(2):  # Newton polish

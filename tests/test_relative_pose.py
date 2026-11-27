@@ -399,3 +399,15 @@ def test_matches_caps_huge_n_and_results_have_short_reprs():
     v = result.verify()
     assert len(repr(v)) < 600
     assert 0.0 <= float(v.inlier_ratio) <= 1.0
+
+
+@pytest.mark.mps
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="no MPS")
+def test_portable_on_mps():
+    """MPS has no float64 (nor eigvals): the minimal solvers run in float32 there and still recover the poses."""
+    p1, p2, k, r, t, _ = scene(8, 400, outliers=0.3)
+    pose = estimate_pose(p1.to("mps"), p2.to("mps"), k.to("mps"), k.to("mps"), mode="portable")
+    assert pose.ok.all()
+    assert pose_error(pose, r.to("mps"), t.to("mps")).max() < 2
+    fm = estimate_fundamental(p1.to("mps"), p2.to("mps"), mode="portable", threshold=1.0)
+    assert fm.ok.all()

@@ -143,10 +143,11 @@ class _TorchScorer:
     def hypotheses(self, pairs: torch.Tensor, idx: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Poses `[A, H * 4, 12]` of the samples `idx` `[A, H, 3]` of `pairs`, and which are real."""
         A = idx.shape[0]
-        x = self.x[pairs[:, None, None], idx].reshape(-1, SAMPLE, 2).double()
+        dt = rp._solver_dtype(self.x.device)  # noqa: SLF001 - float64, float32 on MPS
+        x = self.x[pairs[:, None, None], idx].reshape(-1, SAMPLE, 2).to(dt)
         y = torch.cat((x, torch.ones_like(x[..., :1])), -1)
         y = y / y.norm(dim=-1, keepdim=True)
-        X = self.X[pairs[:, None, None], idx].reshape(-1, SAMPLE, 3).double()
+        X = self.X[pairs[:, None, None], idx].reshape(-1, SAMPLE, 3).to(dt)
         m, ok = _p3p(y, X)
         return m.float().reshape(A, -1, 12), ok.reshape(A, -1)
 
