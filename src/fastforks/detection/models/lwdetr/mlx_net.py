@@ -43,6 +43,12 @@ _PROJ = "model.backbone.projector.scale_layers."
 _DEC = "model.decoder."
 _EPS_VIT = 1e-6  # the ViT LayerNorms and the projector's channel LayerNorm (`LwDetrLayerNorm`)
 _EPS = 1e-5  # torch's default: the decoder's and the two-stage LayerNorms
+SYNC_BYTES = 8 << 20
+"""A C2f bottleneck output from which the projector evaluates bottleneck by bottleneck and level by level: lazy, the
+float32 3 x 3 conv workspaces of every bottleneck and level were alive at once (lw-detr-large float16: network peak
+548 -> 324 MB, the graph translation 319). Large / xlarge's stride-8 level (80 x 80 x 384 float32, 9.8 MB) is above
+it; the single-level tiny / small / medium maps (40 x 40 x 256, 1.6 MB) stay below: there the evaluations only cost
+time (float32 0.96 -> 1.04x the graph's)."""
 _VALID = (0.01, 0.99)  # a proposal inside these bounds is valid (`gen_encoder_output_proposals`)
 
 
@@ -252,9 +258,14 @@ class MlxLWDETR(MlxRFDETR):
     def raw(self, x: mx.array) -> tuple[mx.array, mx.array]:  # ty: ignore[invalid-method-override]
         """`__call__` on MLX arrays (lazy)."""
         feats = [f.astype(mx.float32) for f in self._vit(x)]  # projector on: float32 (module docstring)
-        memory = mx.concatenate(
-            [self._level(feats, p).reshape(x.shape[0], -1, self.query_feat.shape[-1]) for p in self.proj], 1
-        )
+        levels = []
+        for p in self.proj:  # level by level from `SYNC_BYTES` on
+            levels.append(self._level(feats, p).reshape(x.shape[0], -1, self.query_feat.shape[-1]))
+            if levels[-1].nbytes >= SYNC_BYTES:
+                mx.eval(levels[-1])
+        memory = mx.concatenate(levels, 1)
+        if memory.nbytes >= SYNC_BYTES:
+            mx.eval(memory)
         ref = self._two_stage(memory)
         hs, _ = self._decoder(memory, ref, None)
         delta = _mlp_heads(hs, self.bbox)
@@ -305,6 +316,8 @@ class MlxLWDETR(MlxRFDETR):
         ys = [y[..., :half], y[..., half:]]
         for c1, c2 in p["m"]:
             ys.append(_silu(_conv(_silu(_conv(ys[-1], c1)), c2)))
+            if ys[-1].nbytes >= SYNC_BYTES // 2:  # bottleneck by bottleneck (`SYNC_BYTES`; a half-width map)
+                mx.eval(ys[-1])
         y = _silu(_conv(mx.concatenate(ys, axis=-1), p["cv2"]))
         return mx.fast.layer_norm(y, p["norm"][0], p["norm"][1], _EPS_VIT)
 
