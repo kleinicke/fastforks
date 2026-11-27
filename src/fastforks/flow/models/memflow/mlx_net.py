@@ -9,7 +9,7 @@ The maths of `net.MemFlowNet.forward_pair`, channels last, built from the checkp
 - the readout's softmax matrix computed once in the run dtype while its float32 size is at most `MATRIX_BYTES` (else
   fused attention in each update, `_core.mlx.attention`); the aggregator's `gamma` folded into `to_v`;
 - the `PCBlock`s: the 1 x 1 depthwise convs a per-channel affine (`x + conv(x)` = `x (1 + w) + b`), the 15 x 15 and
-  7 x 7 ones `graph_mlx.ops.depthwise`;
+  7 x 7 ones `graph_mlx.ops.depthwise`, the GELUs computed in float32;
 - each update one compiled step, one in flight; the flow state, the flow encoder's first conv, the correlation
   windows and the convex upsampling in float32; the mask head's 0.25 folded in.
 """
@@ -37,6 +37,12 @@ SOURCES = (Path(__file__), Path(mf.__file__))
 
 FACTOR, DIM, LEVELS, RADIUS = 8, 128, 4, 4
 MATRIX_BYTES = 1 << 30  # float32 readout matrix from which fused attention recomputes it in each update
+
+
+def _gelu(x: mx.array) -> mx.array:
+    """Exact GELU (erf) computed in float32: in float16 it doubled the float16 flow's mean distance to the golden."""
+    y = x.astype(mx.float32)
+    return (0.5 * y * (1 + mx.erf(y * (1 / math.sqrt(2))))).astype(x.dtype)
 
 
 def _instance(x: mx.array) -> mx.array:
@@ -113,10 +119,10 @@ class _PCBlock:
 
     def __call__(self, x: mx.array) -> mx.array:
         """`[1, h, w, cin]` -> `[1, h, w, cout]`."""
-        x = mf.gelu(x + self.f1b(mf.gelu(self.f1a(x))))
+        x = _gelu(x + self.f1b(_gelu(self.f1a(x))))
         for dw in self.dws:
-            x = mf.gelu(x * dw[0] + dw[1]) if isinstance(dw, tuple) else mf.gelu(x + dw(x))
-        return self.f2b(mf.gelu(self.f2a(mf.gelu(x + self.pw(x)))))
+            x = _gelu(x * dw[0] + dw[1]) if isinstance(dw, tuple) else _gelu(x + dw(x))
+        return self.f2b(_gelu(self.f2a(_gelu(x + self.pw(x)))))
 
 
 class MlxMemFlow:
@@ -169,7 +175,7 @@ class MlxMemFlow:
         coords = (mf.grid(h, w) + flow).transpose(0, 3, 1, 2)
         corr = ops.corr_windows(f1, list(levels), coords, RADIUS, 1 / math.sqrt(f1.shape[-1]))
         corr = corr.transpose(0, 2, 3, 1).astype(dt)
-        cor = self.convc2(mf.gelu(self.convc1(corr)))
+        cor = self.convc2(_gelu(self.convc1(corr)))
         flo = self.convf2(self.convf1(flow).astype(dt))
         motion = mx.concatenate([self.conv(mx.concatenate([cor, flo], axis=-1)), flow.astype(dt)], axis=-1)
         v = motion.reshape(h * w, DIM) @ self.to_v.T

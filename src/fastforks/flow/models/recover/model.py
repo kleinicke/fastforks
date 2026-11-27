@@ -248,7 +248,8 @@ class _MlxPortable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     module = Runner.module  # the MLX network is not exportable
-    CACHE_MB: ClassVar[dict[str, int]] = {"*": 512}  # the buffer cache this mode asks for, by variant ('*': all)
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 1024}  # the buffer cache this mode asks for, by variant ('*': all)
+    # 1024 rather than 512 MB: 1080 x 1920 float16 rn 456 -> 421 ms, mn 258 -> 237, cx 723 -> 708 (M1 Pro)
 
     def __init__(self, ctx: Context) -> None:
         """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
