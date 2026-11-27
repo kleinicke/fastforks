@@ -3004,3 +3004,83 @@ def test_mlx_eomt_matches_torch(arch, res_scale):
     got = mlx_net.scores(m, to_mx(wide).transpose(0, 2, 3, 1), [(0, 0), (0, 32)], 64)
     mx.eval(got)
     torch.testing.assert_close(to_torch(got).permute(0, 3, 1, 2), ref, atol=1e-4, rtol=1e-3)
+
+
+@pytest.mark.parametrize(("arch", "hw"), [("u2netp", (70, 90)), ("u2net", (64, 64))])
+def test_mlx_u2net_matches_torch(arch, hw):
+    """The hand-written U²-Net (`u2net/mlx_net.py`, `shared.mlx_rsu`) against the network, float32: the residual
+    U-blocks with their BatchNorms folded, odd sides through the ceil-mode pools, the side maps; then the MLX runner's
+    pre- and post-processing (`shared.mlx_matting`) against `_Matting.__call__`."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matting.models.u2net import mlx_net  # noqa: PLC0415
+    from fastforks.matting.models.u2net import model as u2  # noqa: PLC0415
+    from fastforks.matting.models.u2net.net import U2NET, U2NETP  # noqa: PLC0415
+
+    net = _randomise({"u2net": U2NET, "u2netp": U2NETP}[arch](3, 1))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.randn(1, 3, *hw)
+    with torch.no_grad():
+        want = net(x)[0]
+    mnet = mlx_net.network(net, "float32")
+    got = to_torch(mnet(to_mx(x))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(got, want, atol=2e-4, rtol=1e-3)
+
+    runner = SimpleNamespace(
+        net=net,
+        dtype=torch.float32,
+        ctx=SimpleNamespace(params=SimpleNamespace(size=hw[0]), io=SimpleNamespace(input="imagenet")),
+    )
+    runner._nets = lambda t: net(t)[0]
+    image = torch.rand(1, 3, 2 * hw[0] + 3, 3 * hw[1] - 5)
+    with torch.no_grad():
+        want = u2._Matting.__call__(runner, image, None)["alpha"]
+    hand = object.__new__(u2._MlxPortable)
+    hand.ctx, hand.mlx = runner.ctx, mnet
+    got = hand(image, None)["alpha"]
+    torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)
+
+
+def test_mlx_isnet_matches_torch():
+    """The hand-written IS-Net (`isnet/mlx_net.py`, `shared.mlx_rsu`) against the network: float32 portable, and
+    float16 kernels mode (Winograd / direct convs) loosely; then the runner's pre- and post-processing."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matting.models.isnet import mlx_net  # noqa: PLC0415
+    from fastforks.matting.models.isnet import model as isnet  # noqa: PLC0415
+    from fastforks.matting.models.isnet.net import ISNetDIS  # noqa: PLC0415
+
+    net = _randomise(ISNetDIS(3, 1))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.randn(1, 3, 96, 80)
+    with torch.no_grad():
+        want = net(x)[0][0]
+    mnet = mlx_net.network(net, "float32")
+    torch.testing.assert_close(to_torch(mnet(to_mx(x))), want, atol=2e-4, rtol=1e-3)
+    half = mlx_net.network(net, "float16", kernels=True)
+    torch.testing.assert_close(to_torch(half(to_mx(x))), want, atol=3e-2, rtol=0)
+
+    io = SimpleNamespace(input="mean_std", mean=(0.5, 0.5, 0.5), std=(1.0, 1.0, 1.0))
+    runner = SimpleNamespace(net=net, dtype=torch.float32, ctx=SimpleNamespace(params=SimpleNamespace(size=96), io=io))
+    runner._net = lambda t: net(t)[0][0]
+    image = torch.rand(1, 3, 203, 157)
+    with torch.no_grad():
+        want = isnet._Matting.__call__(runner, image, None)["alpha"]
+    hand = object.__new__(isnet._MlxPortable)
+    hand.ctx, hand.mlx = runner.ctx, mnet
+    got = hand(image, None)["alpha"]
+    torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)

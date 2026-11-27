@@ -13,7 +13,7 @@ with the bias and the ReLU in an fp32 epilogue (`shared.cnn_kernels`).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -119,9 +119,62 @@ class Kernels(_Matting):
         return self.net(x.contiguous(memory_format=CL))[0][0]
 
 
+class _MlxPortable(_Matting):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the pre- and post-processing on MLX too."""
+
+    module = Runner.module  # the MLX network is not exportable
+    dtypes = ("float32", "float16")
+    KERNELS = False
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        kernels = self.KERNELS and ctx.dtype == "float16"  # float32 runs as portable (as the graph port's kernels)
+        net = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda n: mlx_net.network(n, ctx.dtype, kernels=kernels),
+            real=lambda: _cpu_net(ctx, fold=False),
+            skeleton=lambda: ISNetDIS(3, 1),
+            sources=mlx_net.SOURCES,
+        )
+        self.mlx = net
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_matting as mm  # noqa: PLC0415 - imports mlx
+
+        # `_Matting.__call__` on the GPU: resize, normalise, network, resize back, min-max
+        x = to_mx(image.float())
+        s, (h, w) = self.ctx.params.size, x.shape[2:]
+        y = self.mlx(mm.normalise(mm.resize(x, (s, s)), self.ctx.io))
+        return {"alpha": to_torch(mm.min_max(mm.resize(y, (h, w))[:, 0], (1, 2)))}
+
+
+class _MlxKernels(_MlxPortable):
+    """Apple MLX, float16: the 3 x 3 convs through `conv_mlx`'s Winograd kernel, the stem its direct conv."""
+
+    KERNELS = True
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxKernels,
+}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph ports the hand-written network replaced
+GRAPH_RUNNERS = {
     "portable_mlx": mlx_wrap.port(Portable),
     "kernels_mlx": mlx_wrap.port(Portable, kernels_fp16_only=True),
 }
