@@ -1340,6 +1340,8 @@ def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
         # the runner's MLX modules get on-disk plan cache keys of this load (FASTFORKS_MLX_PLAN_CACHE; off by default)
         with mlx_plan_cache.scope(repr((variant.ref, mode, dtype, ctx.params, weights))):
             runner = _construct(rcls, ctx)
+    if dtype != "float32" and os.environ.get(runtime.AUDIT_ENV) == "1":
+        runtime.dtype_audit(runner, f"{variant.ref} {mode} {dtype}")
     backend = Backend(
         mode,
         MLX,

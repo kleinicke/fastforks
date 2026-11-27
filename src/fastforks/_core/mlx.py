@@ -14,6 +14,10 @@ What lives here:
 - `convert_cached()` / `converted()`: the arrays of a variant in the port's layout and run dtype, converted once and
   cached as safetensors with their provenance (`fastforks._core.mlx_cache`); a hit needs neither torch nor the
   checkpoint.
+  `FASTFORKS_MLX_CACHE_SRC=0` (development) leaves the port sources' hash out of the file name, so editing a
+  converter does not convert again (bump the layout tag, or delete the file, when the stored arrays change).
+- `dtype_audit()`: `FASTFORKS_MLX_DTYPE_AUDIT=1` lists, after each float16 / bfloat16 load, the float32 arrays over
+  1 MB the runner holds (the fp32 islands; on stderr).
 - `to_mx()` / `to_torch()`: the host <-> MLX hand-over (one copy each way; the memory is unified). torch is imported
   by `to_torch` only: this module itself does not import it.
 - `metal_kernel()` / `source_tag()`: for the MLX kernel libraries (`fastforks.kernels.*_mlx`).
@@ -507,7 +511,7 @@ def convert_cached(  # noqa: PLR0913 - the builder, its cache key and its storag
         arrays, config = build()
         return Converted(_store(dict(arrays), dtype, keep, ctx.variant.ref)[0], dict(config), hit=False)
     tag = layout
-    if sources:
+    if sources and os.environ.get(CACHE_SRC_ENV) != "0":
         digest = hashlib.sha256()
         for f in sources:
             digest.update(f.read_bytes())
@@ -553,6 +557,74 @@ def convert_cached(  # noqa: PLR0913 - the builder, its cache key and its storag
     finally:
         tmp.unlink(missing_ok=True)
     return Converted(stored, dict(config), hit=False)
+
+
+CACHE_SRC_ENV = "FASTFORKS_MLX_CACHE_SRC"  # "0": the sources' hash left out of the cache key (development)
+AUDIT_ENV = "FASTFORKS_MLX_DTYPE_AUDIT"  # "1": `dtype_audit` after every reduced-precision load
+AUDIT_MIN_BYTES = 1 << 20
+
+
+def _children(o: object) -> list[tuple[str, object]]:
+    """What `_arrays_of` walks into from `o`: (path suffix, object); nothing for torch objects, modules, classes."""
+    import types  # noqa: PLC0415 - audit only
+
+    if (type(o).__module__ or "").startswith("torch") or isinstance(
+        o, (str, bytes, int, float, bool, type(None), type, types.ModuleType, types.MethodType)
+    ):
+        return []
+    if isinstance(o, dict):
+        return [(f"[{k!r}]", v) for k, v in list(o.items())]
+    if isinstance(o, (list, tuple, set, frozenset)):
+        return [(f"[{i}]", v) for i, v in enumerate(o)]
+    if isinstance(o, functools.partial):
+        return [(".func", o.func), (".args", o.args), (".keywords", o.keywords)]
+    if isinstance(o, types.FunctionType):
+        items: list[tuple[str, object]] = [(".__defaults__", o.__defaults__ or ())]
+        for i, c in enumerate(o.__closure__ or ()):
+            with contextlib.suppress(ValueError):  # an empty cell
+                items.append((f".<cell {i}>", c.cell_contents))
+        return items
+    return [(f".{k}", v) for k, v in list(vars(o).items())] if hasattr(o, "__dict__") else []
+
+
+def _arrays_of(root: object, limit: int = 14) -> dict[int, tuple[str, mx.array]]:
+    """Every `mx.array` reachable from `root` (attributes, containers, partials, closures), by id, with a path."""
+    found: dict[int, tuple[str, mx.array]] = {}
+    seen: set[int] = set()
+    stack: list[tuple[object, str, int]] = [(root, "", 0)]
+    while stack:
+        o, path, depth = stack.pop()
+        if depth > limit or id(o) in seen:
+            continue
+        seen.add(id(o))
+        if isinstance(o, mx.array):
+            found.setdefault(id(o), (path, o))
+        else:
+            stack.extend((v, path + k, depth + 1) for k, v in _children(o))
+    return found
+
+
+def dtype_audit(runner: object, what: str = "", *, min_bytes: int = AUDIT_MIN_BYTES) -> list[tuple[str, int]]:
+    """The float32 arrays over `min_bytes` reachable from a loaded runner, largest first, as `(path, bytes)`.
+
+    Printed on stderr with the float32 share of all the arrays found. For a float16 port these are its fp32 islands
+    (weights kept float32, float32 copies, position or RoPE tables): each should be listed in the port's notes or
+    be small. Arrays built on the first call (per-size tables, lazily built networks) are not seen here.
+    """
+    import sys  # noqa: PLC0415 - audit only
+
+    found = _arrays_of(runner)
+    total = sum(a.nbytes for _, a in found.values())
+    f32 = sorted(((p, a.nbytes) for p, a in found.values() if a.dtype == mx.float32), key=lambda r: -r[1])
+    big = [(p, n) for p, n in f32 if n > min_bytes]
+    share = sum(n for _, n in f32)
+    head = f"{what}: {len(found)} arrays, {total / 2**20:.1f} MB; float32 {share / 2**20:.1f} MB"
+    lines = [
+        f"[dtype audit] {head} ({share / max(total, 1):.0%}); {len(big)} over {min_bytes / 2**20:g} MB",
+        *(f"[dtype audit]   {n / 2**20:8.1f} MB  {p or '<runner>'}" for p, n in big),
+    ]
+    sys.stderr.write("".join(line + "\n" for line in lines))
+    return big
 
 
 def converted(  # noqa: PLR0913 - `convert_cached`'s, kept for the existing ports

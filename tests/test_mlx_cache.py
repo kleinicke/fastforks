@@ -230,3 +230,76 @@ def test_cli_lists_and_prunes(cache: Path, monkeypatch: pytest.MonkeyPatch, caps
     assert cli.main(["cache", "mlx", "--prune"]) == 0
     assert not legacy.exists()
     assert (d / "current.safetensors").exists()
+
+
+def test_cache_src_off_drops_the_sources_hash(cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mx = pytest.importorskip("mlx.core")
+    from fastforks._core.mlx import convert_cached  # noqa: PLC0415 - needs MLX
+
+    src = cache.parent / "src.py"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text("x = 1\n")
+    calls: list[int] = []
+    monkeypatch.setenv("FASTFORKS_MLX_CACHE_SRC", "0")
+    convert_cached(_ctx(), "toy-v1", _build(mx, calls), sources=(src,))
+    src.write_text("x = 2\n")  # an edited converter: still the same file in development mode
+    assert convert_cached(_ctx(), "toy-v1", _build(mx, calls), sources=(src,)).hit
+    [path] = list(cache.rglob("*.safetensors"))
+    assert path.name.endswith("-toy-v1-f32.safetensors")
+    monkeypatch.delenv("FASTFORKS_MLX_CACHE_SRC")
+    assert not convert_cached(_ctx(), "toy-v1", _build(mx, calls), sources=(src,)).hit
+    assert len(calls) == 2
+
+
+def test_prune_keeps_the_newest_beside_a_development_file(cache: Path) -> None:
+    d = cache / "classification" / "toy"
+    dev = _write(d / "dev.safetensors", _meta(layout="toy-v2", layout_name="toy-v2"))  # FASTFORKS_MLX_CACHE_SRC=0
+    new = _write(d / "new.safetensors", _meta(layout="toy-v2-11111111", layout_name="toy-v2", created="2026-02-01"))
+    f32 = _write(d / "f32.safetensors", _meta(layout="toy-v2", layout_name="toy-v2", dtype="float32"))
+    assert {e.path for e, _ in mlx_cache.prune(_models(), dry_run=True)} == {dev}
+    assert all(p.exists() for p in (dev, new, f32))
+
+
+def test_prune_tool_is_a_dry_run_by_default(
+    cache: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import mlx_cache_prune  # noqa: PLC0415 - a tool script
+
+    d = cache / "classification" / "toy"
+    keep = _write(d / "current.safetensors", _meta())
+    legacy = _write(d / "legacy.safetensors", None)
+    monkeypatch.setattr(cli, "_all_cards", _models)
+    assert mlx_cache_prune.main([]) == 0
+    out = capsys.readouterr().out
+    assert "would remove  classification/toy/legacy.safetensors" in out
+    assert "1 stale files" in out
+    assert "reclaimable (dry run)" in out
+    assert legacy.exists()
+    assert mlx_cache_prune.main(["--family", "other"]) == 0
+    assert "0 stale files" in capsys.readouterr().out
+    assert mlx_cache_prune.main(["--apply"]) == 0
+    assert not legacy.exists()
+    assert keep.exists()
+
+
+class _Toy:
+    def __init__(self, mx: types.ModuleType) -> None:
+        self.p = {"w": mx.zeros((1024, 1024), mx.float16), "big": mx.zeros((512, 1024), mx.float32)}
+        small = mx.zeros((4,), mx.float32)
+        self.run = lambda x: x + small  # held in a closure
+        self.tables = [mx.zeros((600, 1024), mx.float32)]
+        self.cycle = self
+
+
+def test_dtype_audit_lists_float32_arrays(capsys: pytest.CaptureFixture) -> None:
+    mx = pytest.importorskip("mlx.core")
+    from fastforks._core.mlx import _arrays_of, dtype_audit  # noqa: PLC0415 - needs MLX
+
+    toy = _Toy(mx)
+    assert len(_arrays_of(toy)) == 4
+    big = dtype_audit(toy, "toy")
+    assert [p for p, _ in big] == [".tables[0]", ".p['big']"]  # largest first
+    err = capsys.readouterr().err
+    assert "[dtype audit] toy: 4 arrays" in err
+    assert "2 over 1 MB" in err

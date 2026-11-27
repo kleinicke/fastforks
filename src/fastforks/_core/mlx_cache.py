@@ -171,12 +171,16 @@ def _group(meta: Mapping[str, str]) -> tuple[str, ...]:
 
 
 def _newest(found: Iterable[Entry]) -> dict[tuple, str]:
-    """Per `_group`, the file name with the latest `created` (only groups with a source-hashed layout)."""
+    """Per `_group` (variant, revision, weight file, dtype, layout name), the file name with the latest `created`.
+
+    A layout without sources has one file per group (its tag is the layout name); with sources, the files of older
+    port code, and a development file written under `FASTFORKS_MLX_CACHE_SRC=0` (no hash), share the group.
+    """
     best: dict[tuple, tuple[str, str]] = {}
     for e in found:
         meta = e.meta or {}
-        if meta.get("format") != FORMAT or meta.get("layout") == meta.get("layout_name"):
-            continue  # the layout tag names its version itself: two of them are two current layouts
+        if meta.get("format") != FORMAT:
+            continue
         key = _group(meta)
         stamp = (meta.get("created", ""), e.path.name)
         if key not in best or stamp > best[key]:
