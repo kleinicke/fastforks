@@ -6347,13 +6347,21 @@
    }
   },
   "isnet-general-use@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   },
    "mlx_default": [
     "kernels",
     "float16"
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -6368,13 +6376,21 @@
    }
   },
   "isnet@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
     "kernels",
     "float16"
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -13123,6 +13139,14 @@
    }
   },
   "u2net-human-seg@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -13140,6 +13164,14 @@
    }
   },
   "u2net@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -13156,6 +13188,14 @@
    }
   },
   "u2netp@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

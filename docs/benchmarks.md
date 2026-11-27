@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1736 rows, measured 2026-11-19 to 2026-11-27.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1737 rows, measured 2026-11-19 to 2026-11-27.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -313,13 +313,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 382 ms · portable fp16 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 | 679 ms · portable fp16 |
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 | 95.6 ms · portable fp16 |
-| [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 | 121 ms · kernels fp16 |
-| [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 | 122 ms · kernels fp16 |
+| [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 | 106 ms · kernels fp16 |
+| [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 | 96.8 ms · kernels fp16 |
 | [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | 3513 ms · portable fp16 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | 1008 ms · portable fp16 | 1050 ms · portable fp16 |
-| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 62.3 ms · portable fp16 |
-| [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 62.7 ms · portable fp16 |
-| [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 | 28.3 ms · portable fp16 |
+| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 57.8 ms · portable fp16 |
+| [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 59.3 ms · portable fp16 |
+| [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 | 27.9 ms · portable fp16 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1652 ms · portable fp16 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | 1254 ms · portable fp16 | 816 ms · portable fp16 |
 

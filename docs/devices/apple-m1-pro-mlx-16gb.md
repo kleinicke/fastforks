@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-27 |
-| rows | 1736 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1737 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -332,13 +332,13 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`birefnet-lite`](../models/matting.md#birefnet) | 618 | 382 | unsupported | – | – | 1810 | – |
 | [`inspyrenet`](../models/matting.md#inspyrenet) | 1121 | 679 | unsupported | – | – | 1741 | – |
 | [`inspyrenet-fast`](../models/matting.md#inspyrenet) | 129 | 95.6 | – | – | – | 1060 | – |
-| [`isnet`](../models/matting.md#isnet) | 197 | 145 | 197 | 121 | 1.2x | 1200 | 1254 |
-| [`isnet-general-use`](../models/matting.md#isnet) | 211 | 145 | 209 | 122 | 1.2x | 1217 | 1328 |
+| [`isnet`](../models/matting.md#isnet) | 156 | 118 | 153 | 106 | 1.1x | 1005 | 1118 |
+| [`isnet-general-use`](../models/matting.md#isnet) | 153 | 129 | 167 | 96.8 | 1.3x | 1016 | 1168 |
 | [`matanyone`](../models/matting.md#matanyone) | 4891 | 3513 | unsupported | – | – | 3562 | – |
 | [`rmbg-2.0`](../models/matting.md#birefnet) | 1643 | 1050 | – | – | – | 2508 | – |
-| [`u2net`](../models/matting.md#u2net) | 78.3 | 62.3 | unsupported | – | – | 992 | – |
-| [`u2net-human-seg`](../models/matting.md#u2net) | 78.6 | 62.7 | unsupported | – | – | 972 | – |
-| [`u2netp`](../models/matting.md#u2net) | 35.0 | 28.3 | – | – | – | 574 | – |
+| [`u2net`](../models/matting.md#u2net) | 69.6 | 57.8 | unsupported | – | – | 723 | – |
+| [`u2net-human-seg`](../models/matting.md#u2net) | 68.8 | 59.3 | unsupported | – | – | 709 | – |
+| [`u2netp`](../models/matting.md#u2net) | 33.2 | 27.9 | unsupported | – | – | 504 | – |
 | [`vitmatte-b`](../models/matting.md#vitmatte) | 2370 | 1652 | – | – | – | 1741 | – |
 | [`vitmatte-s`](../models/matting.md#vitmatte) | 1181 | 816 | unsupported | – | – | 1622 | – |
 
