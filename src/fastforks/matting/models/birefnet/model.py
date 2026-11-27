@@ -175,7 +175,8 @@ class _MlxPortable(_Matting):
         # `_Matting.__call__` on the GPU: antialiased resize, normalise, network + sigmoid, bicubic back, clamp
         x = to_mx(image.float())
         s, (h, w) = self.ctx.params.size, x.shape[2:]
-        y = self.mlx(mm.normalise(mm.resize_aa(x, (s, s)), self.ctx.io))
+        x = mm.normalise(mm.resize_aa(x, (s, s)), self.ctx.io)
+        y = mx.concatenate([self.mlx(x[i : i + 1]) for i in range(x.shape[0])])  # the network takes one image
         return {"alpha": to_torch(mx.clip(mm.resize_cubic(y, (h, w)), 0, 1)[:, 0])}
 
 
