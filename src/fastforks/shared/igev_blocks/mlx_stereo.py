@@ -1,13 +1,14 @@
 """The IGEV-family stereo frame on Apple MLX (`MlxIgevBase`): features, volume, lookups, update loop, upsampling.
 
-The maths of the families' `forward_fast`, channels last. A family supplies its context (`_context`) and one update
-(`_iteration`); everything else is shared: the MobileNetV2 trunk with the 1/4 stems, the group-wise volume through its
-gate and hourglass, the fp32 initial disparity, the geometry / correlation lookups and the convex upsampling.
+The maths of the families' `forward_fast`, channels last. A family supplies its context (`_context`) and the update
+up to the 1/4 GRU's input (`_coarse`); everything else is shared: the MobileNetV2 trunk with the 1/4 stems, the
+group-wise volume through its gate and hourglass, the fp32 initial disparity, the geometry / correlation lookups and
+the convex upsampling.
 
 The run dtype covers what `forward_fast` runs in fp16: the convolutions, the volumes and the GRUs. Float32:
 instance-norm statistics, the softmax and regression of the initial disparity, the geometry volume and its lookups, the
 disparity state and the upsampling. Stages are evaluated one at a time, so only one stage's temporaries are alive; each
-iteration is one compiled function, the next one queued before the previous one is waited on.
+iteration runs as four compiled parts (`_iteration`), each evaluated before the next is queued.
 """
 
 from __future__ import annotations
@@ -28,6 +29,8 @@ class MlxIgevBase:
     """`forward_fast` of an IGEV-family `net` (float32 weights) in `dtype` (the name), `iters` updates."""
 
     mask_scale = 1.0  # `mask_feat_4` scale (Selective-IGEV: 0.25)
+    stepped = True
+    """The update in four parts (`_iteration`), else as one compiled function (`_fused`)."""
 
     def __init__(self, net: Any, dtype: str, iters: int) -> None:  # noqa: ANN401 - the family's `IGEVStereo`
         """Copy the shared weights of `net` to MLX; `_family(net, w)` copies the rest."""
@@ -51,7 +54,8 @@ class MlxIgevBase:
         self.spx2, self.spx = w.conv2x(net.spx_2_gru), w.deconv(net.spx_gru[0])
         self._family(net, w)
         mx.eval(bl.arrays(self.__dict__))
-        self._step = mx.compile(self._iteration)
+        self._parts = [mx.compile(f) for f in (self._coarse, self._gates0, self._gru0, self._advance)]
+        self._step = self._iteration if self.stepped else mx.compile(self._fused)
         self._volume = mx.compile(self._cost)
 
     def _family(self, net: Any, w: bl.Weights) -> None:  # noqa: ANN401
@@ -62,9 +66,50 @@ class MlxIgevBase:
         """The initial hidden states (1/4 first) and the constant inputs of `_iteration` of an NHWC image."""
         raise NotImplementedError
 
-    def _iteration(self, *state: mx.array) -> tuple[mx.array, ...]:
-        """`(*nets, disp, *constants, *lookups)` -> `(*nets, disp)`: one update and the disparity step."""
+    def _coarse(self, *state: mx.array) -> tuple[mx.array, mx.array, mx.array]:
+        """`(*nets, disp, *constants, *lookups)` -> `(net1, net2, x0)`: the 1/16, 1/8 GRUs and the 1/4 GRU's input."""
         raise NotImplementedError
+
+    def _iteration(self, *state: mx.array) -> tuple[mx.array, ...]:
+        """`(*nets, disp, *constants, *lookups)` -> `(*nets, disp)`: one update and the disparity step, in four parts.
+
+        Each part is compiled and evaluated before the next is queued, the last one too (so `__call__`'s loop, which
+        keeps one step in flight, does not overlap two): as one compiled update, the 1/4 GRU's 3 x 3 convolutions
+        were alive with the rest of the step's transients until it completed (IGEV-Stereo 994 x 1482 float16:
+        network peak 1.6x the graph translation's). `state[4:6]` are the 1/4 GRU's `[cz | cr]` and `cq`.
+        """
+        net0, disp, czr, cq = state[0], state[3], state[4], state[5]
+        net1, net2, x = self._parts[0](*state)
+        mx.eval(net1, net2, x)
+        zr = self._parts[1](net0, x, czr)
+        mx.eval(zr)
+        net0 = self._parts[2](net0, x, zr, cq)
+        del zr
+        mx.eval(net0)
+        disp = self._parts[3](net0, disp)
+        mx.eval(disp)
+        return net0, net1, net2, disp
+
+    def _fused(self, *state: mx.array) -> tuple[mx.array, ...]:
+        """`_iteration` as one function (compiled whole when not `stepped`)."""
+        net0, disp, czr, cq = state[0], state[3], state[4], state[5]
+        net1, net2, x = self._coarse(*state)
+        net0 = self._gru0(net0, x, self._gates0(net0, x, czr), cq)
+        return net0, net1, net2, self._advance(net0, disp)
+
+    def _gates0(self, h: mx.array, x: mx.array, czr: mx.array) -> mx.array:
+        """The 1/4 GRU's `[z | r]` (`bl.gru`'s first half)."""
+        return mx.sigmoid(bl.conv(mx.concatenate([h, x], axis=-1), self.grus[0][0]) + czr)
+
+    def _gru0(self, h: mx.array, x: mx.array, zr: mx.array, cq: mx.array) -> mx.array:
+        """The 1/4 GRU's new state from its `[z | r]` (`bl.gru`'s second half)."""
+        k = h.shape[-1]
+        z, r = zr[..., :k], zr[..., k:]
+        return h + z * (mx.tanh(bl.conv(mx.concatenate([r * h, x], axis=-1), self.grus[0][1]) + cq) - h)
+
+    def _advance(self, net0: mx.array, disp: mx.array) -> mx.array:
+        """The disparity step."""
+        return disp + self._delta(net0)
 
     # shared pieces ----------------------------------------------------------------------------------------------------
 

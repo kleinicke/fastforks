@@ -26,10 +26,9 @@ class MlxSelectiveIGEV(MlxIgevBase):
     mask_scale = 0.25  # upstream: "scale mask to balance gradients"
 
     def __init__(self, net: Any, dtype: str, iters: int) -> None:  # noqa: ANN401 - `IGEVStereo`
-        """The base's weights; the update runs as four compiled parts (`_iteration`)."""
+        """The base's weights; its own four parts (`_iteration`: the 1/4 level has two GRUs and a blend)."""
         super().__init__(net, dtype, iters)
         self._parts = [mx.compile(f) for f in (self._coarse, self._gates, self._large, self._fine)]
-        self._step = self._iteration
 
     def _family(self, net: Any, w: bl.Weights) -> None:  # noqa: ANN401 - `IGEVStereo`
         self.cnet = w.context(net.cnet, ())

@@ -31,6 +31,8 @@ def _flat(geo: mx.array) -> mx.array:
 class MlxIGEVPlusPlus(MlxIgevBase):
     """`forward_fast` of `net` (a loaded IGEV++ `IGEVStereo`, float32 weights) in `dtype` (the name)."""
 
+    stepped = False  # its peak is the three volumes, not the update: four parts only cost time (float32 0.93 -> 1.00x)
+
     def _family(self, net: Any, w: bl.Weights) -> None:  # noqa: ANN401 - `IGEVStereo`
         a = net.args
         self.ranges = (
@@ -113,8 +115,8 @@ class MlxIGEVPlusPlus(MlxIgevBase):
         ]
         return [o.reshape(1, h, w, -1).astype(self.dtype) for o in outs]
 
-    def _iteration(self, *state: mx.array) -> tuple[mx.array, ...]:
-        """One update (`BasicMultiUpdateBlock` with the blended range lookups) and the disparity step."""
+    def _coarse(self, *state: mx.array) -> tuple[mx.array, mx.array, mx.array]:
+        """`BasicMultiUpdateBlock` with the blended range lookups up to the 1/4 GRU (the base runs the rest)."""
         net0, net1, net2, disp = state[:4]
         ctx, sw, lookups = state[4 : 4 + CONTEXT], state[4 + CONTEXT], state[5 + CONTEXT :]
         net2 = bl.gru(net2, list(ctx[4:6]), bl.pool2x(net1), self.grus[2])
@@ -126,6 +128,4 @@ class MlxIGEVPlusPlus(MlxIgevBase):
             f = sw[..., k : k + 1] * bl.conv(bl.relu(bl.conv(g, c1)), c2)
             feat = f if feat is None else feat + f
         motion = self._encode(mx.concatenate([feat, corr], axis=-1), disp)
-        x = mx.concatenate([motion, bl.interp(net1, net0.shape[1:3])], axis=-1)
-        net0 = bl.gru(net0, list(ctx[0:2]), x, self.grus[0])
-        return net0, net1, net2, disp + self._delta(net0)
+        return net1, net2, mx.concatenate([motion, bl.interp(net1, net0.shape[1:3])], axis=-1)
