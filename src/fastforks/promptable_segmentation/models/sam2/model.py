@@ -11,12 +11,15 @@ it is unstable (upstream `dynamic_multimask_via_stability`).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.deferred_init import skipped_init
+from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks.promptable_segmentation._runner import Context
+
+    from .mlx_video import MlxTracker
 
 PROMPT_DIM = 256  # fixed: SAM 2's FPN / prompt / mask-decoder width (all released checkpoints)
 PATCH_STRIDE = 4  # fixed: Hiera's patch-embedding stride (all released checkpoints)
@@ -92,12 +97,15 @@ class Sam2Image(torch.nn.Module):
             scalp=1,
         )
         tokens = p.image_size // STRIDE
-        self.sam_prompt_encoder = PromptEncoder(
-            embed_dim=PROMPT_DIM,
-            image_embedding_size=(tokens, tokens),
-            input_image_size=(p.image_size, p.image_size),
-            mask_in_chans=16,
-        )
+        # On the CPU also in a meta-device skeleton (the MLX cache replay): its `torch.randn` has no meta kernel and
+        # goes through the decomposition that imports `torch._dynamo` (about 1 s of a load).
+        with torch.device("cpu"):
+            self.sam_prompt_encoder = PromptEncoder(
+                embed_dim=PROMPT_DIM,
+                image_embedding_size=(tokens, tokens),
+                input_image_size=(p.image_size, p.image_size),
+                mask_in_chans=16,
+            )
         self.sam_mask_decoder = MaskDecoder(
             num_multimask_outputs=3,
             transformer=TwoWayTransformer(depth=2, embedding_dim=PROMPT_DIM, mlp_dim=2048, num_heads=8),
@@ -379,60 +387,194 @@ class Kernels(_Sam2):
                 graphs.release()
 
 
-class _MlxPortable(Portable):
-    """Apple MLX: the image encoder (`mlx_net`), the mask decoder and the video memory (`mlx_heads`) in MLX operations.
+def _replay_shapes(net: Sam2Image, tokens: int) -> tuple[Neck, torch.Tensor]:
+    """The shapes of `fast.Neck.build` and `fast.pos_embed` for a cache replay's meta skeleton, without computing.
 
-    The prompt encoder and the choice among the masks stay the upstream PyTorch modules (float32, CPU).
+    A matmul, a sum or an interpolation of meta tensors runs PyTorch's Python decomposition, which imports
+    `torch._dynamo` (about 1 s of a load); `torch.empty` does not.
+    """
+
+    def empty(*shape: int) -> torch.Tensor:
+        return torch.empty(shape, device="meta")
+
+    def lin(conv: Any, last: Any = None) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - `Conv2d`
+        out = int((last or conv).out_channels)
+        return empty(out, int(conv.in_channels)), empty(out)
+
+    enc: Any = net.image_encoder
+    c, dec = enc.neck.convs, net.sam_mask_decoder
+    dim = int(enc.trunk.pos_embed.shape[1])
+    neck = Neck(
+        lin(c[0].conv),
+        lin(c[1].conv),
+        lin(c[2].conv, dec.conv_s1),
+        lin(c[3].conv, dec.conv_s0),
+        empty(net.no_mem_embed.numel()),
+    )
+    return neck, empty(1, tokens, tokens, dim)
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the image encoder (`mlx_net`), the prompt side (`mlx_heads`) and the video tracker (`mlx_video`).
+
+    Nothing computes in PyTorch: the weights come from the conversion cache (no PyTorch network is built on a cache
+    hit), the prompts are prepared in numpy. Only the task's tensors in and out are PyTorch's.
     """
 
     module = Runner.module  # the MLX encoder is not exportable
 
     def __init__(self, ctx: Context) -> None:
-        """The portable network; the trunk's and neck's weights copied to MLX (and dropped from the twin)."""
-        super().__init__(ctx)
-        from .mlx_heads import MlxDecoder, Twins  # noqa: PLC0415 - imports mlx
-        from .mlx_net import MlxEncoder  # noqa: PLC0415 - imports mlx
+        """The MLX networks from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
 
-        self.twins = Twins()
-        self.run_dtype = mlx_wrap.run_dtype(ctx)  # known only while the runner is built
-        self.mlx = MlxEncoder(self.trunk, self.neck, self.pos, self.run_dtype, twins=self.twins)
-        del self.trunk, self.pos
-        dec = self.net.sam_mask_decoder
-        dec.predict_masks = MlxDecoder(dec, self.twins)  # ty: ignore[invalid-assignment] - the method's MLX twin
-        del dec.transformer, dec.output_upscaling, dec.output_hypernetworks_mlps, dec.iou_prediction_head
+        from . import mlx_heads, mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.twins = mlx_net.Twins()
+
+        def make(net: Sam2Image) -> tuple[mlx_net.MlxEncoder, mlx_heads.MlxPrompts, mlx_heads.MlxDecoder]:
+            t, tokens = net.image_encoder.trunk, ctx.params.image_size // PATCH_STRIDE
+            if t.pos_embed.is_meta:  # a replay reads shapes only
+                n, pos = _replay_shapes(net, tokens)
+            else:
+                n = Neck.build(net.image_encoder, net.sam_mask_decoder, net.no_mem_embed)
+                pos = pos_embed(t, tokens)
+            encoder = mlx_net.MlxEncoder(t, n, pos, ctx.dtype, twins=self.twins)
+            prompts = mlx_heads.MlxPrompts(net.sam_prompt_encoder)
+            return encoder, prompts, mlx_heads.MlxDecoder(net.sam_mask_decoder, prompts.dense_pe)
+
+        self.mlx, self.mlx_prompts, self.mlx_decoder = mlx_port.recorded(
+            ctx,
+            mlx_heads.LAYOUT,
+            make,
+            real=lambda: _net(ctx),
+            skeleton=lambda: Sam2Image(ctx.params),
+            sources=mlx_heads.SOURCES,
+        )
+        self.net = None  # ty: ignore[invalid-assignment] - no PyTorch network on MLX
+        self._mlx_video: MlxTracker | None = None
 
     def _encode(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         return self.mlx(prepare(image, self.ctx.io, self.ctx.params.image_size))
 
-    def _tracker(self) -> Tracker:
-        """As `_Sam2._tracker`, the memory attention and encoder on MLX in the run dtype."""
-        if self._video is None:
-            from .mlx_heads import MlxTracker  # noqa: PLC0415 - imports mlx
+    def _prompts(
+        self,
+        size: tuple[int, int],
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+    ) -> tuple[np.ndarray, np.ndarray] | None:
+        """`_Sam2._points` in numpy: the box corners (labels 2 / 3) then the points, in encoder-input pixels."""
+        (h, w), s = size, self.ctx.params.image_size
+        wh = np.array([w, h], dtype=np.float32)
+        coords, labs = [], []
+        if boxes is not None:
+            b = boxes.float().cpu().numpy().reshape(-1, 2, 2)
+            coords.append(b / wh * s)
+            labs.append(np.broadcast_to(np.array([[2, 3]]), (len(b), 2)))
+        if points is not None and labels is not None:
+            coords.append(points.float().cpu().numpy() / wh * s)
+            labs.append(labels.cpu().numpy())
+        return (np.concatenate(coords, 1), np.concatenate(labs, 1).astype(np.int32)) if coords else None
+
+    def predict(  # noqa: PLR0913 - one argument per prompt kind
+        self,
+        features: dict[str, torch.Tensor],
+        size: tuple[int, int],
+        *,
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+        multimask: bool,
+    ) -> dict[str, torch.Tensor]:
+        """As `_Sam2.predict`: the prompt encoder and the mask decoder on MLX, one graph."""
+        from fastforks._core.mlx import mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        pts, a = self._prompts(size, points, labels, boxes), self.twins.array
+        p = pts[0].shape[0] if pts is not None else 1 if masks is None else masks.shape[0]  # upstream's batch
+        sparse = None if pts is None else self.mlx_prompts.sparse(*pts)
+        dense = self.mlx_prompts.no_mask
+        if masks is not None:
+            dense = self.mlx_prompts.dense(mx.array(masks.float().cpu().numpy()[:, 0]))
+        embed, s0, s1 = a(features["image_embed"]), a(features["feat_s0"]), a(features["feat_s1"])
+        low, iou = self.mlx_decoder.predict(embed, dense, sparse, s0, s1, p, multimask=multimask)
+        mx.eval(low, iou)
+        return {"pred_masks": to_torch(low), "iou_scores": to_torch(iou)}
+
+    def _mlx_tracker(self) -> MlxTracker:
+        """The video modules on MLX, built on the first `video` call (from the conversion cache, as the image side)."""
+        if self._mlx_video is None:
+            from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+            from . import mlx_heads, mlx_video  # noqa: PLC0415 - imports mlx
 
             ctx = self.ctx
-            mods = VideoModules.load(
-                ctx.state_dict(key="model"), ctx.params.image_size // STRIDE, f"{ctx.variant.ref} checkpoint"
+            tokens = ctx.params.image_size // STRIDE
+
+            def skeleton() -> VideoModules:
+                # Unfilled CPU tensors (6 M parameters), not the meta device: the vendored modules' `torch.arange`
+                # and products there, and the layer-scale fold, would import `torch._dynamo` (about 1 s).
+                with torch.device("cpu"), skipped_init():
+                    return VideoModules(tokens)
+
+            self._mlx_video = mlx_port.recorded(
+                ctx,
+                mlx_heads.VIDEO_LAYOUT,
+                lambda mods: mlx_video.MlxTracker(
+                    mods, self.mlx, self.mlx_prompts, self.mlx_decoder, ctx.dtype, ctx.params.image_size
+                ),
+                real=lambda: VideoModules.load(ctx.state_dict(key="model"), tokens, f"{ctx.variant.ref} checkpoint"),
+                skeleton=skeleton,
+                sources=mlx_heads.SOURCES,
             )
-            self._video = MlxTracker(
-                mods,
-                self.net.sam_prompt_encoder,
-                self.net.sam_mask_decoder,
-                self.no_mem,
-                self.run_dtype,
-                ctx.params.image_size,
-                self.twins,
-            )
-        return self._video
+        return self._mlx_video
+
+    @host
+    def track(  # noqa: PLR0913 - one argument per prompt kind
+        self,
+        frames: Callable[[int], torch.Tensor],
+        n_frames: int,
+        size: tuple[int, int],
+        *,
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> dict[str, torch.Tensor]:
+        """As `_Sam2.track`, the whole loop on MLX (`mlx_video.MlxTracker.track`); the frames are prepared in numpy."""
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - imports mlx
+
+        from .mlx_video import frame  # noqa: PLC0415 - imports mlx
+
+        tracker, ctx = self._mlx_tracker(), self.ctx
+        s, io = ctx.params.image_size, ctx.io
+        coords = labs = mask = None
+        if masks is not None:
+            mask = tracker.prompt_mask(mx.array(masks.float().cpu().numpy()))
+            p = mask.shape[0]
+        else:
+            pts = self._prompts(size, points, labels, boxes)
+            if pts is None:
+                msg = "SAM 2 video: no point / box prompt"
+                raise ValueError(msg)
+            coords, labs = pts
+            p = coords.shape[0]
+        mean, std = (IMAGENET_MEAN, IMAGENET_STD) if io.input == "imagenet" else (io.mean, io.std)
+        feed = prefetch(lambda t: frame(frames(t).float().cpu().numpy(), s, mean, std), n_frames)
+        kf = ctx.params.kf_score_weight if ctx.params.samurai else None
+        out = tracker.track(feed, n_frames, size, p, coords=coords, labels=labs, mask=mask, kf_weight=kf)
+        return {k: torch.from_numpy(v) for k, v in out.items()}
 
     def networks(self) -> tuple[torch.nn.Module, ...]:
-        """The prompt encoder and what is left of the decoder (the other weights live on MLX)."""
-        return (self.net,)
+        """No PyTorch network: every weight lives on MLX."""
+        return ()
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
+    "portable_mlx": _MlxPortable,
 }
 # FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
 GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="trunk")}

@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from fastforks._core.mlx import metal_kernel, mx, to_mx, to_torch
+from fastforks.shared import mlx_port
 from fastforks.shared.mlx_vit import gelu
 
 if TYPE_CHECKING:
@@ -138,11 +139,15 @@ def _dims(c: int, size: tuple[int, int], window: int) -> tuple[mx.array, tuple[i
 
 
 def arr(t: torch.Tensor | np.ndarray, dtype: mx.Dtype) -> mx.array:
-    """A weight as an evaluated MLX array of `dtype`."""
-    v = t if isinstance(t, np.ndarray) else t.detach().double().cpu().numpy()
-    a = mx.array(np.ascontiguousarray(v, dtype=np.float32)).astype(dtype)
-    mx.eval(a)
-    return a
+    """A weight as an evaluated MLX array of `dtype` (`mlx_port.tensor`: the cached one when a load replays)."""
+
+    def convert() -> mx.array:
+        v = t if isinstance(t, np.ndarray) else t.detach().double().cpu().numpy()
+        a = mx.array(np.ascontiguousarray(v, dtype=np.float32)).astype(dtype)
+        mx.eval(a)
+        return a
+
+    return mlx_port.tensor(t, dtype, convert)
 
 
 def linear(layer: Any, dtype: mx.Dtype) -> Callable[[mx.array], mx.array]:
@@ -215,13 +220,16 @@ def _attention(attn: Any, dtype: mx.Dtype, pad_to: dict[int, int]) -> Callable[[
     heads = attn.num_heads
     d = attn.dim_out // heads
     dp = pad_to.get(d, d)
-    w = attn.qkv.weight.detach().double().numpy().reshape(3, heads, d, attn.dim)
-    b = attn.qkv.bias.detach().double().numpy().reshape(3, heads, d)
-    o = attn.proj.weight.detach().double().numpy().T.reshape(heads, d, attn.dim_out)
+    # torch operations, not numpy: a replayed load runs this on the meta skeleton (shapes only)
+    w = attn.qkv.weight.detach().reshape(3, heads, d, attn.dim)
+    b = attn.qkv.bias.detach().reshape(3, heads, d)
+    o = attn.proj.weight.detach().T.reshape(heads, d, attn.dim_out)
     if dp != d:
-        w = np.pad(w, ((0, 0), (0, 0), (0, dp - d), (0, 0)))
-        b = np.pad(b, ((0, 0), (0, 0), (0, dp - d)))
-        o = np.pad(o, ((0, 0), (0, dp - d), (0, 0)))
+        import torch.nn.functional as F  # noqa: PLC0415 - only the padded head dims need it
+
+        w = F.pad(w, (0, 0, 0, dp - d))
+        b = F.pad(b, (0, dp - d))
+        o = F.pad(o, (0, 0, 0, dp - d))
     qkv_w, qkv_b = arr(w.reshape(3 * heads * dp, attn.dim).T, dtype), arr(b.reshape(-1), dtype)
     out_w, out_b = arr(o.reshape(heads * dp, attn.dim_out), dtype), arr(attn.proj.bias, dtype)
     pooled, scale = attn.q_pool is not None, d**-0.5

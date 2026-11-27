@@ -4,7 +4,7 @@ The PyTorch modules are never built: `model.safetensors` (float32) is opened laz
 and the `detector_model.*` tensors are laid out (`read`) and stored in the dtype they run in, layer by layer, in the
 conversion cache (`cached`, `fastforks._core.mlx.convert_cached`); every later load reads that file and not the
 checkpoint. Memory holds the detector once (fp16: 1.6 GB) plus the activations. The tracker's keys are read only by
-`tracker_neck` (its neck, converted and cached alike on the first `video` call); the tracker heads stay PyTorch.
+`tracker_neck` (its neck, converted and cached alike on the first `video` call); the tracker heads are `mlx_tracker`.
 
 Precision follows the PyTorch portable path (`model.half_parts`): the trunk, neck, text encoder, DETR encoder, mask
 decoder and every 256-wide attention block run in the run dtype `dt`; the geometry encoder's and DETR decoder's

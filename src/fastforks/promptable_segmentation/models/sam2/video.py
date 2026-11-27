@@ -30,7 +30,7 @@ one object; here every object has its own filter and memory, objects with the sa
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 import torch
@@ -51,6 +51,8 @@ if TYPE_CHECKING:
 
     from .net.mask_decoder import MaskDecoder
     from .net.prompt_encoder import PromptEncoder
+
+_T = TypeVar("_T")
 
 DIM = 256  # fixed: SAM 2's hidden width (all released checkpoints)
 MEM_DIM = 64  # fixed: memory feature width
@@ -180,7 +182,7 @@ def resize_frame(frame: torch.Tensor, size: int) -> torch.Tensor:
     return x.round().clamp(0, 255) / 255
 
 
-def prefetch(load: Callable[[int], torch.Tensor], n: int) -> Iterator[torch.Tensor]:
+def prefetch(load: Callable[[int], _T], n: int) -> Iterator[_T]:
     """`load(0) ... load(n - 1)`, each loaded in a worker thread while the caller works on the previous one.
 
     Frame decoding (PIL releases the GIL) overlaps the GPU work of the previous frame, as upstream

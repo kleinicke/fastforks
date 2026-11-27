@@ -2348,41 +2348,51 @@ def _sam2_prompt_side(tokens: int):
     return _randomise(pe), _randomise(dec)
 
 
-@pytest.mark.parametrize("mask_prompt", [False, True])
-@pytest.mark.parametrize("prompts", [1, 3])
-def test_mlx_sam2_decoder_matches_torch(prompts, mask_prompt):
-    """`sam2.mlx_heads.MlxDecoder` against upstream `MaskDecoder.predict_masks`: one image for `prompts` prompts.
+def _channels_last(x: torch.Tensor):
+    from fastforks._core.mlx import to_mx  # noqa: PLC0415 - optional (mlx extra)
 
-    With and without a mask prompt (the dense embedding a map, or one vector expanded over the map), the feature maps
-    as PyTorch tensors of the encoder's MLX arrays (`Twins`, not converted again) and as plain tensors.
+    return to_mx(x.permute(0, 2, 3, 1))
+
+
+@pytest.mark.parametrize("multimask", [False, True])
+@pytest.mark.parametrize("mask_prompt", [False, True])
+@pytest.mark.parametrize(("prompts", "points"), [(1, 1), (3, 2), (2, 0)])
+def test_mlx_sam2_prompt_side_matches_torch(prompts, points, mask_prompt, multimask):
+    """`sam2.mlx_heads` prompt encoder + mask decoder against the upstream modules: one image for `prompts` prompts.
+
+    Clicks and box corners (or no point at all: only a mask), with and without a mask prompt, the three masks and the
+    single one (mask 0, or the best of the others where it is unstable).
     """
     pytest.importorskip("mlx.core")
     from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net  # noqa: PLC0415 - optional (mlx extra)
 
+    if not points and not mask_prompt:
+        pytest.skip("no prompt")
     t = 12
     pe, dec = _sam2_prompt_side(t)
     torch.manual_seed(1)
     embed, s1, s0 = torch.randn(1, 256, t, t), torch.randn(1, 64, 2 * t, 2 * t), torch.randn(1, 32, 4 * t, 4 * t)
-    pts = (torch.rand(prompts, 2, 2) * 16 * t, torch.tensor([[1, 0]]).expand(prompts, 2))
+    labels = torch.tensor([[1, 0, 2, 3][:points]]).expand(prompts, points)
+    pts = (torch.rand(prompts, points, 2) * 16 * t, labels) if points else None
     masks = torch.randn(prompts, 1, 4 * t, 4 * t) if mask_prompt else None
     with torch.no_grad():
         sparse, dense = pe(points=pts, boxes=None, masks=masks)
-    kw = {
-        "image_pe": pe.get_dense_pe(), "sparse_prompt_embeddings": sparse, "dense_prompt_embeddings": dense,
-        "repeat_image": prompts > 1,
-    }  # fmt: skip
-    with torch.no_grad():
-        want = dec.predict_masks(image_embeddings=embed, high_res_features=[s0, s1], **kw)
-    twins = mlx_net.Twins()
-    run = mlx_heads.MlxDecoder(dec, twins)
-    plain = run(image_embeddings=embed, high_res_features=[s0, s1], **kw)
-    kept = [twins.tensor(mlx_net.to_mx(x.permute(0, 2, 3, 1))) for x in (embed, s0, s1)]
-    seen = len(twins.items)
-    found = run(image_embeddings=kept[0], high_res_features=kept[1:], **kw)
-    assert len(twins.items) == seen  # all three found again
-    for got in (plain, found):
-        for g, w in zip(got, want, strict=True):
-            torch.testing.assert_close(g, w, atol=2e-3, rtol=2e-3)
+        want = dec(
+            image_embeddings=embed, image_pe=pe.get_dense_pe(), sparse_prompt_embeddings=sparse,
+            dense_prompt_embeddings=dense, multimask_output=multimask, repeat_image=prompts > 1,
+            high_res_features=[s0, s1],
+        )[:2]  # fmt: skip
+    mp = mlx_heads.MlxPrompts(pe)
+    run = mlx_heads.MlxDecoder(dec, mp.dense_pe)
+    sp = None if pts is None else mp.sparse(pts[0].numpy(), pts[1].numpy())
+    if pts is not None:
+        torch.testing.assert_close(mlx_net.to_torch(sp), sparse, atol=1e-5, rtol=1e-5)
+    dn = mp.no_mask if masks is None else mp.dense(mlx_net.to_mx(masks[:, 0]))
+    got = run.predict(
+        _channels_last(embed), dn, sp, _channels_last(s0), _channels_last(s1), prompts, multimask=multimask
+    )
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(mlx_net.to_torch(g), w, atol=2e-3, rtol=2e-3)
 
 
 @pytest.mark.parametrize(("dtype", "tol"), [("float32", 2e-3), ("float16", 3e-2)])
@@ -2437,18 +2447,38 @@ def test_mlx_sam2_fill_holes_matches_torch(p_bg):
     assert (got != low).any() or p_bg > 0.9
 
 
-def test_mlx_sam2_tracker_matches_torch():
-    """`sam2.mlx_heads.MlxTracker` against `video.Tracker` over 10 frames, two objects (float32).
+class _Sam2Frames:
+    """Stands in for `mlx_net.MlxEncoder` in the tracker tests: frame `i` (the "image" is its index) -> its maps."""
 
-    Ten frames fill the six-frame memory window and release the oldest maps; the heads run the MLX mask decoder on
-    the conditioned maps handed back as PyTorch tensors.
+    def __init__(self, feats: list[dict[str, torch.Tensor]], no_mem: torch.Tensor) -> None:
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - optional (mlx extra)
+
+        self.feats, self.no_mem = feats, to_mx(no_mem)
+
+    def features(self, x):
+        f = self.feats[int(x.item())]
+        return tuple(_channels_last(f[k]) for k in ("image_embed", "feat_s1", "feat_s0"))
+
+
+@pytest.mark.parametrize(
+    ("prompt", "kf_weight", "frames"),
+    [("point", None, 10), ("box", None, 4), ("mask", None, 9), ("point", 0.25, 19), ("box", 0.25, 6)],
+)
+def test_mlx_sam2_tracker_matches_torch(prompt, kf_weight, frames, monkeypatch):
+    """`sam2.mlx_video.MlxTracker` against `video.Tracker`, two objects (float32).
+
+    A click (multimask on frame 0), a box (the single mask) and a mask prompt (used as frame 0's output); ten frames
+    fill the six-frame memory window and release the oldest maps. With `kf_weight` as SAMURAI: 19 frames reach the
+    filter's scoring (15 stable frames) and the pointer window's end.
     """
     pytest.importorskip("mlx.core")
-    import copy  # noqa: PLC0415
+    import numpy as np  # noqa: PLC0415
 
-    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net, video  # noqa: PLC0415 - optional
+    from fastforks.promptable_segmentation.models.sam2 import mlx_heads, mlx_net, mlx_video, video  # noqa: PLC0415
 
-    t, frames = 8, 10
+    t, p = 8, 2
+    s = 16 * t
+    monkeypatch.setattr(video, "LOW", s // 4)  # the mask prompt's logits: a quarter of this small input side
     pe, dec = _sam2_prompt_side(t)
     mods = _randomise(video.VideoModules(t))
     torch.manual_seed(3)
@@ -2458,22 +2488,63 @@ def test_mlx_sam2_tracker_matches_torch():
          "feat_s1": torch.randn(1, 64, 2 * t, 2 * t)}
         for _ in range(frames)
     ]  # fmt: skip
-    coords, labels = torch.tensor([[[40.0, 50.0]], [[90.0, 30.0]]]), torch.ones(2, 1, dtype=torch.int32)
+    coords = labels = mask = None
+    if prompt == "point":
+        coords, labels = torch.tensor([[[40.0, 50.0]], [[90.0, 30.0]]]), torch.ones(p, 1, dtype=torch.int32)
+    elif prompt == "box":
+        coords = torch.tensor([[[20.0, 30.0], [70.0, 90.0]], [[60.0, 10.0], [120.0, 50.0]]])
+        labels = torch.tensor([[2, 3]], dtype=torch.int32).expand(p, 2)
+    else:
+        mask = torch.zeros(p, 1, s, s)
+        mask[0, 0, 20:70, 30:90] = 1  # the second object's mask is empty: no object on frame 0
+    want = []
+    with torch.no_grad():
+        video.Tracker(mods, pe, dec, no_mem, torch.float32, s).run(
+            iter(feats), frames, coords=coords, labels=labels, mask=mask, emit=lambda *a: want.append(a[1:]),
+            kf_weight=kf_weight,
+        )  # fmt: skip
+    prompts = mlx_heads.MlxPrompts(pe)
+    tracker = mlx_video.MlxTracker(
+        mods, _Sam2Frames(feats, no_mem), prompts, mlx_heads.MlxDecoder(dec, prompts.dense_pe), "float32", s
+    )
+    got = tracker.track(
+        (np.array(i) for i in range(frames)), frames, (40, 56), p,
+        coords=None if coords is None else coords.numpy(), labels=None if labels is None else labels.numpy(),
+        mask=None if mask is None else mlx_net.to_mx(mask[:, 0]), kf_weight=kf_weight,
+    )  # fmt: skip
+    for i, (low, obj) in enumerate(want):
+        torch.testing.assert_close(torch.from_numpy(got["object_score_logits"][i]), obj[:, 0], atol=5e-3, rtol=5e-3)
+        torch.testing.assert_close(torch.from_numpy(got["pred_masks"][i]), low[:, 0], atol=5e-3, rtol=5e-3)
+        up = torch.nn.functional.interpolate(low, (40, 56), mode="bilinear", align_corners=False)[:, 0]
+        clear = up.abs() > 1e-2  # away from the threshold
+        assert torch.equal(torch.from_numpy(got["masks"][i])[clear], (up > 0)[clear])
 
-    def track(tracker: video.Tracker) -> list[tuple[torch.Tensor, torch.Tensor]]:
-        out = []
-        with torch.no_grad():
-            tracker.run(iter(feats), frames, coords=coords, labels=labels, mask=None, emit=lambda *a: out.append(a[1:]))
-        return out
 
-    want = track(video.Tracker(copy.deepcopy(mods), pe, copy.deepcopy(dec), no_mem, torch.float32, 16 * t))
-    twins = mlx_net.Twins()
-    dec.predict_masks = mlx_heads.MlxDecoder(dec, twins)
-    got = track(mlx_heads.MlxTracker(mods, pe, dec, no_mem, "float32", 16 * t, twins))
-    assert len(got) == frames
-    for (low, obj), (want_low, want_obj) in zip(got, want, strict=True):
-        torch.testing.assert_close(obj, want_obj, atol=5e-3, rtol=5e-3)
-        torch.testing.assert_close(low, want_low, atol=5e-3, rtol=5e-3)
+def test_mlx_sam2_motion_matches_torch():
+    """`sam2.mlx_video.Motion` (numpy, the filter steps on the objects they apply to) against `video.Motion`."""
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415
+    import numpy as np  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam2 import mlx_video, video  # noqa: PLC0415 - optional
+
+    p, size = 3, 64
+    torch.manual_seed(5)
+    ref, got = video.Motion(p, 0.25, torch.device("cpu")), mlx_video.Motion(p, 0.25)
+    for t in range(1, 24):
+        low = torch.randn(p, 3, 16, 16) + 0.3 * torch.linspace(-1, 1, 16)
+        if t % 7 == 0:
+            low[1] = -5.0  # an empty mask: a zero box
+        iou = torch.rand(p, 3) * (0.2 if t % 9 == 0 else 1.0)  # some frames below the stable IoU
+        obj = torch.randn(p, 1)
+        want = ref.select(low, iou, size)
+        box = np.array(mlx_video.boxes(mx.array(low.numpy()), size))
+        assert np.array_equal(box, ref.boxes(low, size).numpy())
+        assert np.array_equal(got.select(box, iou.numpy()), want.numpy())
+        assert got.memory(t) == {k: list(v) for k, v in ref.memory(t).items()}
+        assert got.kept(t, obj.numpy()[:, 0]) == ref.kept(t, obj)
+        np.testing.assert_allclose(got.mean, ref.mean.numpy(), rtol=1e-9, atol=1e-9)
+        assert np.array_equal(got.stable, ref.stable.numpy())
 
 
 @pytest.mark.parametrize("count", [0, 1, 3])
