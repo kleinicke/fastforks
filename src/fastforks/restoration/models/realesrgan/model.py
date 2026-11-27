@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -88,6 +88,18 @@ def _stripe_forward(m: RRDBNet, x: torch.Tensor, ups: _Ups | None = None) -> tor
     return _upsample_stripes(m, feature, ups)
 
 
+def _skeleton(p: Params) -> RRDBNet:
+    """The network of `p` without weights."""
+    return RRDBNet(3, 3, scale=p.scale, num_feat=p.num_feat, num_block=p.num_block, num_grow_ch=p.num_grow)
+
+
+def _network(ctx: Context) -> RRDBNet:
+    """The upstream network with the checkpoint (float32, CPU)."""
+    net = _skeleton(ctx.params)
+    load_strict(net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
+    return net.eval()
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype, channels-last on CUDA.
 
@@ -101,9 +113,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        p = ctx.params
-        self.net = RRDBNet(3, 3, scale=p.scale, num_feat=p.num_feat, num_block=p.num_block, num_grow_ch=p.num_grow)
-        load_strict(self.net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
+        self.net = _network(ctx)
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
@@ -197,9 +207,63 @@ class Kernels(Portable):
         self._graphs.release()
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the padding and crop as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+    KERNELS = False
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        kernels = self.KERNELS and ctx.dtype == "float16"  # float32 runs as portable (as the graph port's kernels)
+        self.mlx = mlx_port.recorded(
+            ctx,
+            f"{mlx_net.LAYOUT}-{'kernels' if kernels else 'portable'}",
+            lambda net: mlx_net.network(net, ctx.dtype, kernels=kernels),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The upscaled batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.mlx(to_mx(image.float())))}
+
+
+class _MlxKernels(_MlxPortable):
+    """Apple MLX, float16: the convs through `conv_mlx`'s Winograd kernel, activation and residual fused."""
+
+    KERNELS = True
+    # the kernels' Winograd transforms recycle large buffers (512 x 512 float16, the peak unchanged): x4plus
+    # 3907 / 2326 / 2090 ms at a 128 / 512 / 1024 MB buffer cache, anime-6b 1431 / 784 / 742, x2plus 541 / 525 / 503
+    CACHE_MB: ClassVar[dict[str, int]] = {
+        "realesrgan-x2plus": 128,
+        "realesrgan-x4plus": 1024,
+        "realesrgan-x4plus-anime-6b": 512,
+    }
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxKernels,
+}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph ports the hand-written network replaced
+GRAPH_RUNNERS = {
     "portable_mlx": mlx_wrap.port(Portable),
     # the cache is resident memory: each variant gets the smallest one that keeps its speed (survey, 512x512 float16)
     "kernels_mlx": mlx_wrap.port(

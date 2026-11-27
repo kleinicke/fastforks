@@ -9,7 +9,7 @@ buffer of the network's dtype and device.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -45,6 +45,22 @@ def _fused(m: Conv3XC, x: torch.Tensor) -> torch.Tensor:
     return F.leaky_relu(out, negative_slope=0.05) if m.has_relu else out
 
 
+def _skeleton(p: Params) -> SPAN:
+    """The network of `p` without its checkpoint (built on the CPU: upstream makes its mean with `torch.Tensor`)."""
+    with torch.device("cpu"):
+        return SPAN(3, 3, feature_channels=p.channels, upscale=p.scale)
+
+
+def _network(ctx: Context) -> SPAN:
+    """The upstream network with the checkpoint, every `Conv3XC`'s branches fused into `eval_conv` (float32, CPU)."""
+    net = _skeleton(ctx.params)
+    load_strict(net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
+    for m in net.modules():
+        if isinstance(m, Conv3XC):
+            m.update_params()
+    return net.eval()
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype."""
 
@@ -54,12 +70,9 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network and fuse its `Conv3XC` branches once."""
         super().__init__(ctx)
-        p = ctx.params
-        self.net = SPAN(3, 3, feature_channels=p.channels, upscale=p.scale)
-        load_strict(self.net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
+        self.net = _network(ctx)
         for m in self.net.modules():
             if isinstance(m, Conv3XC):
-                m.update_params()
                 del m.sk, m.conv  # training branches, folded into eval_conv
                 override(m, _fused)
         mean = self.net.mean
@@ -128,9 +141,58 @@ class Kernels(Portable):
             return {"image": self.net(x)}
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`)."""
+
+    module = Runner.module  # the MLX network is not exportable
+    KERNELS = False
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts and fuses the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        kernels = self.KERNELS and ctx.dtype == "float16"  # float32 runs as portable (as the graph port's kernels)
+        self.mlx = mlx_port.recorded(
+            ctx,
+            f"{mlx_net.LAYOUT}-{'kernels' if kernels else 'portable'}",
+            lambda net: mlx_net.network(net, ctx.dtype, kernels=kernels),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The upscaled batch."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"image": to_torch(self.mlx(to_mx(image.float())))}
+
+
+class _MlxKernels(_MlxPortable):
+    """Apple MLX, float16: the wide 3 x 3 convs through `conv_mlx`'s Winograd kernel."""
+
+    KERNELS = True
+    # 512 x 512 float16: 72 / 65 / 61 ms at a 128 / 512 / 1024 MB buffer cache (the graph port's 512)
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 512}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxKernels,
+}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph ports the hand-written network replaced
+GRAPH_RUNNERS = {
     "portable_mlx": mlx_wrap.port(Portable),
     "kernels_mlx": mlx_wrap.port(Portable, kernels_fp16_only=True, cache_mb=512),
 }
