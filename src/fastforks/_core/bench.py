@@ -13,10 +13,8 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-import torch
-import torch.nn.functional as F
-
 from fastforks._core.errors import FastforksError
+from fastforks._core.lazy import lazy
 
 WARMUP = (
     4  # calls before timing: `kernels` builds a new size's cudnn_hacc plans on its 1st call, CUDA graphs on its 4th
@@ -25,7 +23,14 @@ WARMUP = (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    import torch
+    import torch.nn.functional as F
+
     from fastforks._core.model import Model
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+
 
 BenchInputs: TypeAlias = tuple[tuple[Any, ...], dict[str, Any]]
 """`(args, kwargs)` of one model call."""

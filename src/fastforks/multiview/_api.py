@@ -9,7 +9,6 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
-import torch
 
 from fastforks._core import cameras
 from fastforks._core import model as core
@@ -18,6 +17,7 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, to_rgb_batch, to_rgb_batches
 from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_map
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs, _array
 from fastforks._core.save import CLOUD_SUFFIXES
@@ -31,6 +31,10 @@ from fastforks.multiview._scene import SceneFormat, save_scene
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
+
+    import torch
+else:
+    torch = lazy("torch")
 
 
 __all__ = [

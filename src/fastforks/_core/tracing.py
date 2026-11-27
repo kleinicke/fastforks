@@ -8,8 +8,14 @@ from __future__ import annotations
 
 import contextvars
 import sys
+from typing import TYPE_CHECKING
 
-import torch
+from fastforks._core.lazy import lazy
+
+if TYPE_CHECKING:
+    import torch
+else:
+    torch = lazy("torch")
 
 
 def in_onnx_export() -> bool:

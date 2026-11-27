@@ -25,13 +25,25 @@ Portable runners also implement `module()`: the dense part of the network (backb
 from __future__ import annotations
 
 import abc
-
-import torch
+from typing import TYPE_CHECKING
 
 from fastforks._core import runner as core
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.lazy import lazy
+from fastforks._core.runner import Context, NoParams
+
+if TYPE_CHECKING:
+    import torch
+
+    from fastforks._core.runner import Forward
+else:
+    torch = lazy("torch")
 
 __all__ = ["Context", "Forward", "NoParams", "Runner", "split_kept"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
 
 
 class Runner(core.Runner):

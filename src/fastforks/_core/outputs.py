@@ -1,40 +1,48 @@
-"""`.numpy()` for the typed results."""
+"""`.numpy()`, `.to()` and the NumPy containers of the typed results.
+
+A result's outputs are torch tensors or NumPy arrays (`fastforks.set_outputs`, `arrays`); every method here takes both.
+"""
 
 from __future__ import annotations
 
 import dataclasses
 import os
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
-import torch
+import numpy as np
 
+from fastforks._core import arrays
 from fastforks._core.errors import InputError
 from fastforks._core.io import MAP_SUFFIXES, atomic_write, check_suffix, write_map
+from fastforks._core.lazy import after_import
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import numpy as np
+    import torch
+
+_array = arrays.to_numpy  # numpy has no bfloat16: those become float32
 
 
-def _array(t: torch.Tensor) -> np.ndarray:
-    t = t.detach().cpu()
-    return (t.float() if t.dtype is torch.bfloat16 else t).numpy()  # numpy has no bfloat16
+def _is_out(v: object) -> bool:
+    """Whether `v` is an output: a tensor or an array (numbers, not the 0-d metadata NumPy hands out)."""
+    return arrays.is_tensor(v) or (isinstance(v, np.ndarray) and v.dtype.kind in "biufc")
 
 
 def _short(v: object) -> str:  # noqa: PLR0911 - one return per kind of value
     """Tensors as `Tensor[shape dtype device]`, containers of them recursively, anything else as `repr`."""
-    if isinstance(v, torch.Tensor):
+    if arrays.is_tensor(v):
         return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"
     if type(v).__module__ == "numpy" and hasattr(v, "shape") and getattr(v, "ndim", 0) > 0:
         return f"ndarray[{', '.join(map(str, v.shape))}; {v.dtype}]"  # e.g. `VolumeMeta.affine`  # ty: ignore[invalid-argument-type, unresolved-attribute]
     if hasattr(v, "keys") and type(v).__module__.startswith("nibabel"):
         return f"<{type(v).__name__}>"  # a NIfTI header
-    if isinstance(v, tuple | list) and any(isinstance(x, torch.Tensor) for x in v):
+    if isinstance(v, tuple | list) and any(_is_out(x) for x in v):
         return f"({', '.join(_short(x) for x in v)})"
-    if isinstance(v, Mapping) and any(isinstance(x, torch.Tensor) for x in v.values()):
+    if isinstance(v, Mapping) and any(_is_out(x) for x in v.values()):
         return "{" + ", ".join(f"{k!r}: {_short(x)}" for k, x in v.items()) + "}"
     if dataclasses.is_dataclass(v) and not isinstance(v, type):
         return short_repr(v)
@@ -52,9 +60,12 @@ class NumpyOutputs:
     """Mixin of the result dataclasses: their tensors as NumPy arrays."""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Allow `torch.load(path)` (`weights_only=True`) of a `torch.save`d result: its class holds only tensors."""
+        """Allow `torch.load(path)` (`weights_only=True`) of a `torch.save`d result: its class holds only tensors.
+
+        (Registered once torch is imported: defining a result class does not import it.)
+        """
         super().__init_subclass__(**kwargs)
-        torch.serialization.add_safe_globals([cls])
+        after_import("torch", lambda: sys.modules["torch"].serialization.add_safe_globals([cls]))
         if "__repr__" not in cls.__dict__:  # in the class dict, so the dataclass decorator keeps it
             cls.__repr__ = short_repr  # type: ignore[assignment, method-assign]
 
@@ -66,7 +77,8 @@ class NumpyOutputs:
         float32 because NumPy has no bfloat16. Metadata (`model`, `backend`, `options`, `class_names`) is not included.
 
         The arrays of CPU tensors share their memory (no copy) and are writable: editing one in place also changes
-        the result's tensor. `.copy()` an array before editing it if the result is still used.
+        the result's tensor. `.copy()` an array before editing it if the result is still used. A result that holds
+        NumPy arrays already (`outputs="numpy"`) gives those arrays.
 
         Returns:
             Array per output, e.g. `{"disparity": ..., "confidence": ..., "occlusion": ...}`.
@@ -77,33 +89,45 @@ class NumpyOutputs:
         }
 
     def to(self, device: str | torch.device) -> Self:
-        """The result on another device (same type, so `save`, `top`, ... keep working).
+        """The result on another device (same type, so `save`, `top`, ... keep working), or as NumPy arrays.
 
         Every tensor field moves, including tuples of tensors (entries may be `None`), tensors in `extras` and the
         tensors of dataclass fields (`MultiViewResult.gaussians`); other fields are unchanged. Like `torch.Tensor.to`,
-        tensors already on `device` are not copied.
+        tensors already on `device` are not copied. NumPy outputs (`outputs="numpy"`) become tensors on `device` (on
+        the CPU they share the arrays' memory).
 
         Args:
-            device: Target, e.g. `"cpu"`, `"cuda:0"` or a `torch.device`.
+            device: Target, e.g. `"cpu"`, `"cuda:0"` or a `torch.device`; `"numpy"` gives NumPy arrays instead (as
+                `outputs="numpy"` would have).
 
         Returns:
             A new result.
         """
-        return self._moved(lambda t: t.to(device))
+        if isinstance(device, str) and device == arrays.HOST.type:
+            return self._converted("numpy")
+        return self._converted("torch", device)
 
     def cpu(self) -> Self:
-        """The result on the host (same type); shorthand for `.to("cpu")`."""
-        return self._moved(lambda t: t.cpu())
+        """The result on the host (same type); `.to("cpu")` for tensors, NumPy outputs stay arrays."""
+        return self._moved(lambda t: t if isinstance(t, np.ndarray) else t.cpu())
 
-    def _moved(self, move: Callable[[torch.Tensor], torch.Tensor]) -> Self:
+    def _converted(self, kind: arrays.Outputs, device: Any = None) -> Self:  # noqa: ANN401 - torch.device or str
+        """The outputs as `kind` (`arrays.convert`): tensors on `device` (`None`: where they are), or host arrays."""
+        if kind == "numpy":
+            return self._moved(arrays.to_numpy)
+        return self._moved(
+            lambda t: arrays.to_torch(t, device) if isinstance(t, np.ndarray) else t if device is None else t.to(device)
+        )
+
+    def _moved(self, move: Callable[[Any], Any]) -> Self:
         def one(v: object) -> object:  # tensor, tuple of tensors/None, dataclass of tensors, else unchanged
-            if isinstance(v, torch.Tensor):
+            if _is_out(v):
                 return move(v)
-            if isinstance(v, tuple) and v and all(isinstance(x, torch.Tensor | None) for x in v):
+            if isinstance(v, tuple) and v and all(x is None or _is_out(x) for x in v):
                 return tuple(None if x is None else move(x) for x in v)
             if dataclasses.is_dataclass(v) and not isinstance(v, type):  # e.g. `MultiViewResult.gaussians`
                 sub = {f.name: getattr(v, f.name) for f in dataclasses.fields(v)}
-                if any(isinstance(x, torch.Tensor) for x in sub.values()):
+                if any(arrays.is_tensor(x) for x in sub.values()):  # not metadata (`VolumeMeta.affine`)
                     return dataclasses.replace(v, **{k: one(x) for k, x in sub.items()})
             return v
 
@@ -121,16 +145,14 @@ class NumpyOutputs:
         return new
 
     def _tensors(self) -> dict[str, Any]:
-        """The tensor outputs by name (tensors or tuples of tensors), not yet moved to the CPU."""
+        """The outputs by name (tensors / arrays or tuples of them), not yet moved to the CPU."""
         out: dict[str, Any] = {}
         for f in dataclasses.fields(cast("Any", self)):
             value = getattr(self, f.name)
-            if isinstance(value, torch.Tensor) or (
-                isinstance(value, tuple) and value and all(isinstance(v, torch.Tensor | None) for v in value)
-            ):
+            if _is_out(value) or (isinstance(value, tuple) and value and all(v is None or _is_out(v) for v in value)):
                 out[f.name] = value
             elif f.name == "extras":
-                out.update({k: v for k, v in value.items() if isinstance(v, torch.Tensor)})
+                out.update({k: v for k, v in value.items() if _is_out(v)})
         return out
 
 
@@ -144,7 +166,7 @@ class MapOutputs(NumpyOutputs):
         tensors = self._tensors()
         key = key or next((k for k in self._save_fields if k in tensors), None)
         t = tensors.get(key)
-        if not isinstance(t, torch.Tensor):
+        if not _is_out(t):
             msg = f"no output {key or self._save_fields[0]!r} to save (available: {sorted(tensors)})"
             raise InputError(msg)
         a = _array(t)  # only this map goes to the CPU
@@ -196,7 +218,7 @@ class MapOutputs(NumpyOutputs):
 
 def save_images(
     path: str | os.PathLike[str],
-    t: torch.Tensor,
+    t: torch.Tensor | np.ndarray,
     what: str,
     suffixes: tuple[str, ...],
     write: Callable[[Path, np.ndarray], None],

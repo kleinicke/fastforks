@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
-import torch
-from torch import nn
+from typing import TYPE_CHECKING
+
+from fastforks._core.lazy import lazy
+
+if TYPE_CHECKING:
+    import torch
+    from torch import nn
+else:
+    torch = lazy("torch")
+    nn = lazy("torch.nn")
+
 
 _MIN_BYTES = 64 << 20  # networks below this are left alone (squeezenet / u2netp: reserved +14 MB with an arena)
 _ALIGN = 512  # bytes: every tensor starts aligned (kernels load 16-byte vectors)

@@ -9,12 +9,18 @@ on their device (SAMURAI: no host round trip per frame; no error check, a singul
 
 from __future__ import annotations
 
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
-import torch
 
-A = TypeVar("A", np.ndarray, torch.Tensor)  # numpy arrays or torch tensors (one kind per call)
+from fastforks._core.lazy import lazy
+
+if TYPE_CHECKING:
+    import torch
+else:
+    torch = lazy("torch")
+
+A = TypeVar("A", np.ndarray, "torch.Tensor")  # numpy arrays or torch tensors (one kind per call)
 __all__ = ["initiate", "predict", "to_xyah", "to_xyxy", "update"]
 
 POSITION = 1.0 / 20  # fixed: reference position noise per unit of box height

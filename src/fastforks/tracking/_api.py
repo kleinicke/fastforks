@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.upload import to_device
@@ -21,7 +22,12 @@ from fastforks._core.upload import to_device
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    import torch
+
     from fastforks.tracking._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "TrackingModel", "TrackingResult", "list_models", "load", "model_card"]
 
@@ -82,7 +88,7 @@ class TrackingModel(core.Model):
         Raises:
             BackendUnavailableError: The backend has no exportable module.
         """
-        return _Module(super().module())
+        return _module_class()(super().module())
 
     def example_inputs(
         self, height: int | None = None, width: int | None = None, *, batch: int = 1
@@ -214,17 +220,23 @@ def grid_queries(height: int, width: int, n: int, device: torch.device) -> torch
     return torch.stack((torch.zeros(n * n), x.flatten(), y.flatten()), -1).to(device)
 
 
-class _Module(torch.nn.Module):
-    """The runner's module with float32 outputs."""
+@functools.cache
+def _module_class() -> type:
+    """`_Module` (a torch class: defined at its first use, so importing this module does not import torch)."""
 
-    def __init__(self, net: torch.nn.Module) -> None:
-        super().__init__()
-        self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
-        self.eval()
+    class _Module(torch.nn.Module):
+        """The runner's module with float32 outputs."""
 
-    def forward(self, video: torch.Tensor, queries: torch.Tensor) -> dict[str, torch.Tensor]:
-        """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` float32 of `[T, 3, H, W]` frames and `[Q, 3]` queries."""
-        return {k: v.float() for k, v in self.net(video, queries).items()}
+        def __init__(self, net: torch.nn.Module) -> None:
+            super().__init__()
+            self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
+            self.eval()
+
+        def forward(self, video: torch.Tensor, queries: torch.Tensor) -> dict[str, torch.Tensor]:
+            """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` float32 of `[T, 3, H, W]` frames and `[Q, 3]` queries."""
+            return {k: v.float() for k, v in self.net(video, queries).items()}
+
+    return _Module
 
 
 def bench_inputs(model: TrackingModel, size: BenchSize) -> BenchInputs:

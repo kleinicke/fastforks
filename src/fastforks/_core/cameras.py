@@ -6,7 +6,15 @@ copy and sync instead of ~20 tiny kernels and a sync). `problem` explains a fail
 
 from __future__ import annotations
 
-import torch
+from typing import TYPE_CHECKING
+
+from fastforks._core.lazy import lazy
+
+if TYPE_CHECKING:
+    import torch
+else:
+    torch = lazy("torch")
+
 
 ROTATION_TOLERANCE = 1e-4
 """Largest `|R R^T - I|` of a pose rotation, as `StereoRig` (files round rotations to ~1e-6)."""

@@ -19,11 +19,17 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 
-import torch
-import torch.nn.functional as F
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    import torch
+    import torch.nn.functional as F
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+
 
 __all__ = ["start", "wait"]
 

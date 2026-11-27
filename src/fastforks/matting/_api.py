@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch, unbatch
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
 from fastforks._core.upload import to_device
@@ -20,8 +19,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     import numpy as np
+    import torch
 
     from fastforks.matting._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "MattingModel", "MattingResult", "VideoMattingResult", "list_models", "load", "model_card"]
 

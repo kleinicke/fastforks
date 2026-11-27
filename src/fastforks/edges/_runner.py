@@ -25,14 +25,22 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import runner as core
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.runner import Context, NoParams
 from fastforks.kernels import cv_resample
 from fastforks.shared.cv2_resize import cv2_resize
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from fastforks._core.runner import Forward
+
 __all__ = ["Context", "Forward", "NoParams", "Runner", "detect_size", "safe_step", "to_detect", "to_input"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
+
 
 MULTIPLE = 64  # fixed: controlnet_aux `resize_image` rounds both sides to a multiple of 64
 

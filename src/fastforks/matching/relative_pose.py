@@ -30,14 +30,18 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
-import torch
-
 from fastforks._core.errors import InputError, KernelUnavailableError
+from fastforks._core.lazy import lazy
 from fastforks._core.outputs import short_repr
 from fastforks._core.upload import device_tensor
 
 if TYPE_CHECKING:
+    import torch
+
     from fastforks._core.kernels import CubinModule
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["FundamentalMatrix", "RelativePose", "estimate_fundamental", "estimate_pose"]
 
@@ -63,7 +67,7 @@ _F_ROUNDS = 4
 _F_WIDE = 2.0
 _REFITS = 1
 _SEED = 0
-_LO_DTYPE = torch.float32
+_LO_DTYPE = "float32"  # a torch dtype name (torch is imported at the first call)
 # Non-linear refinement (Levenberg-Marquardt of R, t on the Sampson error of the inliers, truncated loss): iterations
 # of the final refinement, and of the local optimisation of every round's best model (0: off).
 _LM_FINAL = 10
@@ -865,7 +869,7 @@ def _refine_f(scorer: _TorchScorer, pairs: torch.Tensor, f: torch.Tensor, iterat
     stays 2 and the norm 1 by construction. Same loss and acceptance rule as `_refine`.
     """
     A = f.shape[0]
-    u, sig, vh = torch.linalg.svd(f.view(A, 3, 3).to(_LO_DTYPE))
+    u, sig, vh = torch.linalg.svd(f.view(A, 3, 3).to(getattr(torch, _LO_DTYPE)))
     v = vh.transpose(1, 2)
     phi = torch.atan2(sig[:, 1], sig[:, 0])
     basis = torch.eye(3, device=f.device)
@@ -912,7 +916,7 @@ def _refit(kron: torch.Tensor, w: torch.Tensor, e: torch.Tensor, *, fundamental:
     Projected to an essential matrix (equal singular values) or, `fundamental`, to rank 2; `e` where fewer than
     8 points weigh.
     """
-    kron, w = kron.to(_LO_DTYPE), w.to(_LO_DTYPE)
+    kron, w = kron.to(getattr(torch, _LO_DTYPE)), w.to(getattr(torch, _LO_DTYPE))
     ata = torch.einsum("pni,pn,pnj->pij", kron, w, kron)
     vec = torch.linalg.eigh(ata).eigenvectors[..., 0]  # smallest eigenvalue
     u, sig, vh = torch.linalg.svd(vec.view(-1, 3, 3))
@@ -928,7 +932,7 @@ def _recover_pose(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """OpenCV `recoverPose`: the decomposition of `E` `[P, 3, 3]` with most inliers in front of both cameras."""
     P = e.shape[0]
-    u, _, vh = torch.linalg.svd(e.to(_LO_DTYPE))
+    u, _, vh = torch.linalg.svd(e.to(getattr(torch, _LO_DTYPE)))
     u = u * torch.where(torch.linalg.det(u) < 0, -1.0, 1.0)[:, None, None]
     vh = vh * torch.where(torch.linalg.det(vh) < 0, -1.0, 1.0)[:, None, None]
     w = device_tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], device=e.device, dtype=u.dtype)

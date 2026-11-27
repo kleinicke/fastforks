@@ -7,8 +7,6 @@ import numbers
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
@@ -16,12 +14,18 @@ from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    import torch
+
     from fastforks.detection._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "DetectionModel", "DetectionResult", "list_models", "load", "model_card"]
 

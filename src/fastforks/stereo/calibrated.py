@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Self, TypeAlias, cast
 
 import numpy as np
-import torch
 
 from fastforks._core.arguments import renamed_attributes, warn_renamed
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import checked_ranges
 from fastforks._core.io import MAP_SUFFIXES, check_suffix
+from fastforks._core.lazy import lazy
 from fastforks._core.outputs import MapOutputs, short_repr
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks.stereo.geometry.calib import read_calib
@@ -34,8 +34,13 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from typing import Any
 
+    import torch
+
     from fastforks._core.model import Backend
     from fastforks.stereo._api import StereoModel
+else:
+    torch = lazy("torch")
+
 
 Views: TypeAlias = Literal["left", "right", "both"]
 Rig: TypeAlias = "str | os.PathLike[str] | StereoRig | Rectification | RectifiedRig"

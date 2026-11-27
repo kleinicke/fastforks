@@ -35,13 +35,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeVar
 
-import torch
-
 from fastforks._core.errors import CardError, KernelUnavailableError, WeightsError
 from fastforks._core.files import FileSpec, cache_root, locate, read_caches, search_path
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 log = logging.getLogger(__name__)
 

@@ -28,13 +28,18 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 from fastforks.shared import box_kalman
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Sequence
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["ByteTracker", "ObjectTracks", "linear_assignment", "track_objects"]
 

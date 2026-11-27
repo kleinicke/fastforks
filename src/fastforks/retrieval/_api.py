@@ -5,20 +5,24 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import torch
+
     from fastforks.retrieval._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "RetrievalModel", "RetrievalResult", "list_models", "load", "model_card", "pairs", "top_k"]
 

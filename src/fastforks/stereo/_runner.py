@@ -33,12 +33,19 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 from fastforks._core import runner as core
 from fastforks._core.preprocess import Crop, crop, pad_to, pad_widths, scale
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.runner import Context, NoParams
 
 if TYPE_CHECKING:
     import torch
 
+    from fastforks._core.runner import Forward
+
 __all__ = ["Context", "Crop", "Forward", "NoParams", "Runner", "crop", "pad_to", "pad_widths", "scale"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
 
 
 class Runner(core.Runner):

@@ -38,22 +38,29 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-import torch
-from torch.nn.attention import SDPBackend, sdpa_kernel
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from contextlib import AbstractContextManager
 
+    import torch
+    from torch.nn.attention import SDPBackend
+else:
+    torch = lazy("torch")
+
+
 __all__ = ["ENV", "backends", "policy"]
 
 ENV = "FASTFORKS_SDPA"
-NAMES = {
-    "flash": SDPBackend.FLASH_ATTENTION,
-    "cudnn": SDPBackend.CUDNN_ATTENTION,
-    "efficient": SDPBackend.EFFICIENT_ATTENTION,
-    "math": SDPBackend.MATH,
-}
-NO_FLASH = (SDPBackend.CUDNN_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH)  # `auto` without flash
+NAMES = {"flash": "FLASH_ATTENTION", "cudnn": "CUDNN_ATTENTION", "efficient": "EFFICIENT_ATTENTION", "math": "MATH"}
+NO_FLASH = ("cudnn", "efficient", "math")  # `auto` without flash
+
+
+def _backend(name: str) -> SDPBackend:
+    """The `SDPBackend` of a policy name (torch's enum, looked up at first use)."""
+    from torch.nn.attention import SDPBackend  # noqa: PLC0415 - torch at first use
+
+    return getattr(SDPBackend, NAMES[name])
 
 
 def backends(auto: str | None = None) -> tuple[SDPBackend, ...] | None:
@@ -87,7 +94,7 @@ def _parse(value: str, source: str) -> tuple[SDPBackend, ...]:
     if unknown:
         msg = f"{source}={value!r}: unknown SDPA backend {unknown}; use auto, torch or a list of {', '.join(NAMES)}"
         raise ValueError(msg)
-    return tuple(dict.fromkeys(NAMES[n] for n in names))
+    return tuple(dict.fromkeys(_backend(n) for n in names))
 
 
 @functools.cache
@@ -105,7 +112,7 @@ def _resolve(value: str) -> tuple[SDPBackend, ...] | None:
             ENV,
             ENV,
         )
-        return NO_FLASH
+        return tuple(map(_backend, NO_FLASH))
     chosen = _parse(value, ENV)
     names = dict.fromkeys(n.strip() for n in value.split(","))
     log.info("SDPA: CUDA attention uses %s, in that order (%s)", ", ".join(names), ENV)
@@ -120,4 +127,6 @@ def policy(device: torch.device, auto: str | None = None) -> AbstractContextMana
     chosen = backends(auto) if device.type == "cuda" else None
     if chosen is None:
         return contextlib.nullcontext()
+    from torch.nn.attention import sdpa_kernel  # noqa: PLC0415 - torch at first use
+
     return sdpa_kernel(list(chosen), set_priority=True)

@@ -7,14 +7,13 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, to_rgb_pair, unbatch
 from fastforks._core.io import IMAGE_SUFFIXES, write_rgb
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.interpolation._runner import crop, scale
@@ -23,7 +22,12 @@ if TYPE_CHECKING:
     import os
     from collections.abc import Mapping
 
+    import torch
+
     from fastforks.interpolation._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "InterpolationModel", "InterpolationResult", "list_models", "load", "model_card"]
 
@@ -84,7 +88,7 @@ class InterpolationModel(core.Model):
         Raises:
             BackendUnavailableError: The backend has no exportable module.
         """
-        return _PortableModule(self._runner, super().module())
+        return _portable_module_class()(self._runner, super().module())
 
     def __call__(self, image1: ImageLike, image2: ImageLike, *, timestep: float = 0.5) -> InterpolationResult:
         """Interpolate the frame between `image1` and `image2`.
@@ -123,22 +127,28 @@ class InterpolationModel(core.Model):
         return self._check_outputs(out, {"frame": tuple(image1.shape)})
 
 
-class _PortableModule(torch.nn.Module):
-    """Scaling, padding, the portable runner (its network and precision) and cropping, at time 0.5."""
+@functools.cache
+def _portable_module_class() -> type:
+    """`_PortableModule` (a torch class: defined at its first use, so importing this module does not import torch)."""
 
-    def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
-        """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
-        super().__init__()
-        self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
-        self._runner = runner
-        self.eval()
+    class _PortableModule(torch.nn.Module):
+        """Scaling, padding, the portable runner (its network and precision) and cropping, at time 0.5."""
 
-    def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
-        """Middle frame `[B, 3, H, W]` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
-        r = self._runner
-        io = r.ctx.io
-        (p1, region), (p2, _) = r.pad(scale(image1, io)), r.pad(scale(image2, io))
-        return crop(r(p1, p2, 0.5)["frame"], region).float()
+        def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
+            """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
+            super().__init__()
+            self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
+            self._runner = runner
+            self.eval()
+
+        def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+            """Middle frame `[B, 3, H, W]` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
+            r = self._runner
+            io = r.ctx.io
+            (p1, region), (p2, _) = r.pad(scale(image1, io)), r.pad(scale(image2, io))
+            return crop(r(p1, p2, 0.5)["frame"], region).float()
+
+    return _PortableModule
 
 
 def bench_inputs(model: InterpolationModel, size: BenchSize) -> BenchInputs:

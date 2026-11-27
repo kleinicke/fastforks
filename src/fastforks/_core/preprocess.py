@@ -9,11 +9,17 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING, NamedTuple
 
-import torch
-import torch.nn.functional as F
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
+
     from fastforks._core.cards import Io
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

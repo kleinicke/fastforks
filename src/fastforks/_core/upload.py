@@ -17,10 +17,16 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import torch
+
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 _capture = threading.local()  # .uploads: the staging buffers of the capture open on this thread
 

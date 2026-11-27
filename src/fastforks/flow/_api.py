@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-
-import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.image import ImageLike, to_rgb_pair, unbatch
 from fastforks._core.io import FLOW_SUFFIXES, write_flow
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.flow._runner import crop, scale
@@ -20,7 +20,12 @@ if TYPE_CHECKING:
     import os
     from collections.abc import Mapping
 
+    import torch
+
     from fastforks.flow._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "FlowModel", "FlowResult", "list_models", "load", "model_card"]
 
@@ -83,7 +88,7 @@ class FlowModel(core.Model):
         Raises:
             BackendUnavailableError: The backend has no exportable module.
         """
-        return _PortableModule(self._runner, super().module())
+        return _portable_module_class()(self._runner, super().module())
 
     def __call__(self, image1: ImageLike, image2: ImageLike) -> FlowResult:
         """Estimate the optical flow from `image1` to `image2`.
@@ -119,23 +124,29 @@ class FlowModel(core.Model):
         return self._check_outputs(out, {"flow": (image1.shape[0], 2, *image1.shape[-2:])})
 
 
-class _PortableModule(torch.nn.Module):
-    """Scaling, resizing, padding, the portable runner (its network, precision and autocast), cropping and restoring."""
+@functools.cache
+def _portable_module_class() -> type:
+    """`_PortableModule` (a torch class: defined at its first use, so importing this module does not import torch)."""
 
-    def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
-        """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
-        super().__init__()
-        self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
-        self._runner = runner
-        self.eval()
+    class _PortableModule(torch.nn.Module):
+        """Scaling, resizing, padding, the portable runner (network, precision, autocast), cropping and restoring."""
 
-    def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
-        """Flow `[B, 2, H, W]` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
-        r = self._runner
-        io = r.ctx.io
-        (p1, region), (p2, _) = r.pad(r.resize(scale(image1, io))), r.pad(r.resize(scale(image2, io)))
-        size = (image1.shape[-2], image1.shape[-1])
-        return r.restore(crop(r(p1, p2)["flow"], region), size).float()
+        def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
+            """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
+            super().__init__()
+            self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
+            self._runner = runner
+            self.eval()
+
+        def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+            """Flow `[B, 2, H, W]` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
+            r = self._runner
+            io = r.ctx.io
+            (p1, region), (p2, _) = r.pad(r.resize(scale(image1, io))), r.pad(r.resize(scale(image2, io)))
+            size = (image1.shape[-2], image1.shape[-1])
+            return r.restore(crop(r(p1, p2)["flow"], region), size).float()
+
+    return _PortableModule
 
 
 def bench_inputs(model: FlowModel, size: BenchSize) -> BenchInputs:

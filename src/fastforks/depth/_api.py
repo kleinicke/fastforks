@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
-import torch
 
 from fastforks._core import cameras
 from fastforks._core import model as core
@@ -16,6 +15,7 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches
 from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_png_x256
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs
 from fastforks._core.save import CLOUD_SUFFIXES
@@ -26,7 +26,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
+    import torch
+
     from fastforks.depth._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "DepthKind", "DepthModel", "DepthResult", "list_models", "load", "model_card"]
 

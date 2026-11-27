@@ -26,20 +26,24 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 from __future__ import annotations
 
 import abc
+import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
-
-import torch
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from fastforks._core import registry
-from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.errors import WeightsError
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from pathlib import Path
 
+    import torch
+
+    from fastforks._core.arrays import Device
     from fastforks._core.cards import Dtype, Io, Mode, ModelCard, Variant
+else:
+    torch = lazy("torch")
 
 
 @dataclass(frozen=True)
@@ -55,7 +59,7 @@ class Context:
         card: The family's card.
         variant: The variant to load.
         mode: The backend.
-        device: Target device.
+        device: Target device (`fastforks._core.arrays.HOST` for an array runner: `Runner.arrays`).
         dtype: Main compute dtype (portable: the card's validated CUDA dtype, or float32 on CPU; kernels: the card's).
         params: The runner's `Params`, filled from the card and the load options.
         kernels: Kernel library tags of `kernels` (`name@build:target`), empty for portable.
@@ -67,7 +71,7 @@ class Context:
     card: ModelCard
     variant: Variant
     mode: Mode
-    device: torch.device
+    device: torch.device | Device
     dtype: Dtype
     params: Any
     kernels: tuple[str, ...] = ()
@@ -119,6 +123,8 @@ class Context:
             WeightsError: Missing, unverifiable or unsafe weights, or a user's file that cannot be read (empty,
                 truncated, another format): the message names it and the variant.
         """
+        from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415 - imports torch
+
         if self.user_state is not None:
             return dict(self.user_state)
         path = self.weights()[index]
@@ -163,6 +169,9 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
         uint8_input: The task API passes uint8 images on as uint8 `[B, 3, H, W]` (levels 0..255) instead of float32 in
             `[0, 1]` (other inputs stay float32): for families that resize the 8-bit levels themselves, so no full-size
             float32 copy is made (detection).
+        arrays: `"numpy"`: the runner takes and returns NumPy arrays (`[B, 3, H, W]` float32 images on the host)
+            instead of torch tensors, so a call never imports torch (MLX ports; `fastforks._core.arrays`). The task
+            API then prepares the images and post-processes the outputs with NumPy.
         compiled_methods: The methods the task API calls, which `Model.compile()` wraps in `torch.compile` (one
             calling another runs inside the caller's graph). A family whose API path calls other methods (a
             multi-view `scene` override) lists those; an override that is host code (`@host`) lists the methods it
@@ -176,6 +185,7 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     deterministic_cudnn: ClassVar[bool] = False
     sdpa_auto: ClassVar[str | None] = None
     uint8_input: ClassVar[bool] = False
+    arrays: ClassVar[Literal["torch", "numpy"]] = "torch"
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
 
     def __init__(self, ctx: Context) -> None:
@@ -215,28 +225,42 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
         return (self.module(),)
 
 
-class Forward(torch.nn.Module):
-    """`nn.Module` wrapper for `Runner.module()`: `forward(*inputs) = fn(net, *inputs)`."""
+def __getattr__(name: str) -> Any:  # noqa: ANN401 - `Forward`, made on first use (it subclasses `torch.nn.Module`)
+    if name == "Forward":
+        return _forward()
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
-    def __init__(
-        self,
-        net: torch.nn.Module,
-        fn: Callable[..., Any],
-        output_names: tuple[str, ...] = (),
-        query_scores: Callable[[torch.Tensor], torch.Tensor] | None = None,
-    ) -> None:
-        """Wrap `net`; `fn` is called as `fn(net, *inputs)`. `output_names` name a tuple output in an ONNX export.
 
-        `query_scores` (detection transformers): `logits [B, Q, C]` -> the per-query score `[B, Q]`; the CLI's
-        TensorRT check then matches the scored queries by box (an encoder top-k may pick or order them differently).
-        """
-        super().__init__()
-        self.net = net
-        self.fn = fn
-        self.output_names = output_names
-        self.query_scores = query_scores
-        self.training = net.training  # a new Module starts in training mode; only this flag, no recursion
+@functools.cache
+def _forward() -> type[torch.nn.Module]:
+    """The `Forward` class: defined at its first use, since it needs torch (array runners never use it)."""
 
-    def forward(self, *inputs: torch.Tensor) -> Any:  # noqa: ANN401 - whatever the task's module returns
-        """`fn(net, *inputs)`."""
-        return self.fn(self.net, *inputs)
+    class Forward(torch.nn.Module):
+        """`nn.Module` wrapper for `Runner.module()`: `forward(*inputs) = fn(net, *inputs)`."""
+
+        def __init__(
+            self,
+            net: torch.nn.Module,
+            fn: Callable[..., Any],
+            output_names: tuple[str, ...] = (),
+            query_scores: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        ) -> None:
+            """Wrap `net`; `fn` is called as `fn(net, *inputs)`. `output_names` name a tuple output in an ONNX export.
+
+            `query_scores` (detection transformers): `logits [B, Q, C]` -> the per-query score `[B, Q]`; the CLI's
+            TensorRT check then matches the scored queries by box (an encoder top-k may pick or order them differently).
+            """
+            super().__init__()
+            self.net = net
+            self.fn = fn
+            self.output_names = output_names
+            self.query_scores = query_scores
+            self.training = net.training  # a new Module starts in training mode; only this flag, no recursion
+
+        def forward(self, *inputs: torch.Tensor) -> Any:  # noqa: ANN401 - whatever the task's module returns
+            """`fn(net, *inputs)`."""
+            return self.fn(self.net, *inputs)
+
+    Forward.__qualname__ = "Forward"  # pickles as `fastforks._core.runner.Forward` (served by `__getattr__`)
+    return Forward

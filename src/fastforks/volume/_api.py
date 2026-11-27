@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-import torch
 
 from fastforks._core import model as core
 from fastforks._core import registry
@@ -20,6 +19,7 @@ from fastforks._core.arguments import typo_checked_load, warn_renamed
 from fastforks._core.errors import CardError, InputError, ModelNotFoundError, OptionsError, WeightsError
 from fastforks._core.files import FileSpec
 from fastforks._core.io import atomic_write, check_suffix
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 from fastforks.volume._nifti import VolumeMeta, write_nifti
@@ -27,10 +27,15 @@ from fastforks.volume._nifti import VolumeMeta, write_nifti
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    import torch
+
     from fastforks._core.bench import BenchInputs, BenchSize
     from fastforks._core.cards import Dtype
     from fastforks._core.model import ModeArg
     from fastforks.volume._runner import EncoderRunner, InteractiveRunner, Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = [
     "Backend",

@@ -27,12 +27,14 @@ import numpy as np
 import torch
 
 from fastforks._core import runner as core
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.runner import Context, NoParams
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.ocr import _crop, _db
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
+
+    from fastforks._core.runner import Forward
 
 __all__ = [
     "Context",
@@ -50,6 +52,12 @@ __all__ = [
     "rec_batches",
     "text_boxes",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
+
 
 STRIDE = 32  # fixed: the detectors' input sides are multiples of 32
 DET_MIN_SIDE = 64  # fixed: PaddleX `limit_type="min"`, `limit_side_len=64` (PP-OCRv5 defaults)

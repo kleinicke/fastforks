@@ -36,9 +36,7 @@ import math
 import warnings
 from typing import TYPE_CHECKING, cast
 
-import torch
-import torch.nn.functional as F
-
+from fastforks._core.lazy import lazy
 from fastforks._core.patch import base_type, override
 
 _POLYPHASE = 2  # the stride `conv_transpose` splits into output parities
@@ -47,6 +45,12 @@ _DEPTH_ROW_BYTES = 256  # ... when one input position's channels take at most th
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    import torch
+    import torch.nn.functional as F
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
 
 
 def conv3d(

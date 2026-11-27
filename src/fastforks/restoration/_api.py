@@ -9,8 +9,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core import registry
 from fastforks._core.api import is_path, task_api
@@ -20,6 +18,7 @@ from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.errors import InputError, OptionsError, WeightsError
 from fastforks._core.image import ImageLike, to_rgb_batch, unbatch
 from fastforks._core.io import IMAGE_SUFFIXES, write_rgb
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.restoration._runner import Crop, crop, scale
@@ -27,9 +26,14 @@ from fastforks.restoration._runner import Crop, crop, scale
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import torch
+
     from fastforks._core.cards import Dtype, Io, ModelCard
     from fastforks._core.model import ModeArg
     from fastforks.restoration._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = [
     "Backend",
@@ -105,7 +109,7 @@ class RestorationModel(core.Model):
         Raises:
             BackendUnavailableError: The backend has no exportable module.
         """
-        return _PortableModule(self._runner, super().module())
+        return _portable_module_class()(self._runner, super().module())
 
     def __call__(
         self, image: ImageLike, *, mask: ImageLike | None = None, tile: int | None = None
@@ -253,24 +257,30 @@ def _ramp(n: int, feather: int, device: torch.device) -> torch.Tensor:
     return v
 
 
-class _PortableModule(torch.nn.Module):
-    """Scaling, padding, the portable runner (its network and precision), cropping and clamping, without tiling."""
+@functools.cache
+def _portable_module_class() -> type:
+    """`_PortableModule` (a torch class: defined at its first use, so importing this module does not import torch)."""
 
-    def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
-        """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
-        super().__init__()
-        self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
-        self._runner = runner
-        self.eval()
+    class _PortableModule(torch.nn.Module):
+        """Scaling, padding, the portable runner (its network and precision), cropping and clamping, without tiling."""
 
-    def forward(self, image: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        """`[B, 3, sH, sW]` float32 in `[0, 1]` of RGB `[B, 3, H, W]` in `[0, 1]` (+ inpainting: the mask)."""
-        r, s = self._runner, self._runner.scale
-        h, w = image.shape[-2:]
-        x = image if mask is None else torch.cat([image, (mask > 0).to(image.dtype)], 1)
-        padded, region = r.pad(_scale(x, r.ctx.io))
-        out = crop(r(padded)["image"], Crop(region.top * s, region.left * s, h * s, w * s))
-        return out.float().clamp(0, 1)
+        def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
+            """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
+            super().__init__()
+            self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
+            self._runner = runner
+            self.eval()
+
+        def forward(self, image: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+            """`[B, 3, sH, sW]` float32 in `[0, 1]` of RGB `[B, 3, H, W]` in `[0, 1]` (+ inpainting: the mask)."""
+            r, s = self._runner, self._runner.scale
+            h, w = image.shape[-2:]
+            x = image if mask is None else torch.cat([image, (mask > 0).to(image.dtype)], 1)
+            padded, region = r.pad(_scale(x, r.ctx.io))
+            out = crop(r(padded)["image"], Crop(region.top * s, region.left * s, h * s, w * s))
+            return out.float().clamp(0, 1)
+
+    return _PortableModule
 
 
 def bench_inputs(model: RestorationModel, size: BenchSize) -> BenchInputs:

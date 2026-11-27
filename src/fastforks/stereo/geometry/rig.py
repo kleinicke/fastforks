@@ -8,15 +8,19 @@ import numbers
 from typing import TYPE_CHECKING, Literal, NamedTuple, TypeVar, cast
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 from fastforks.stereo.geometry.cameras import Camera, hw_size
 
 if TYPE_CHECKING:
+    import torch
     from numpy.typing import ArrayLike
+else:
+    torch = lazy("torch")
 
-ArrayT = TypeVar("ArrayT", np.ndarray, torch.Tensor)
+
+ArrayT = TypeVar("ArrayT", np.ndarray, "torch.Tensor")
 Frame = Literal["rectified", "camera"]
 View = Literal["left", "right"]
 _ROTATION_TOLERANCE = 1e-4  # files round R to ~1e-6; more is a calibration bug

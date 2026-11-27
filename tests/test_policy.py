@@ -48,8 +48,9 @@ OPTIONAL = {
     "mlx": {"_core/mlx.py"},  # the mlx extra (device="mlx"): family and kernel code takes `mx` from this module
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
-# task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.
-DYNAMIC = {"__init__.py", "_core/registry.py", "_core/tasks/__init__.py"}
+# task package its own `<task>` spec modules, the top level the module of each lazily re-exported name, `lazy` the
+# module of a stand-in (torch) at its first use.
+DYNAMIC = {"__init__.py", "_core/lazy.py", "_core/registry.py", "_core/tasks/__init__.py"}
 # Known violations of three rules on main, open in the depth / features workstreams. Exempt per file (and per name),
 # so the rules stay active for every other file of these tasks; remove an entry when its file is fixed.
 # DPT conversions shared from the DAv2 `fused` module (should move to shared/):

@@ -13,10 +13,17 @@ ONNX with dynamic shapes, and a check on a dynamic dimension would constrain it.
 
 from __future__ import annotations
 
-import torch
-import torch.nn.functional as F
+from typing import TYPE_CHECKING
 
+from fastforks._core.lazy import lazy
 from fastforks._core.tracing import in_onnx_export
+
+if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
 
 _GRID_Y_MAX = 65535
 MPS_INPUT_BYTES = 512 << 20

@@ -9,14 +9,18 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
-import torch
 
 from fastforks._core.image import _FILE, decode_image
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    import torch
+
     from fastforks._core.image import ImageLike
+else:
+    torch = lazy("torch")
 
 
 def nbytes(value: object) -> int:

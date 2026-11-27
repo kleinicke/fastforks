@@ -24,10 +24,9 @@ import weakref
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import torch
-import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 from fastforks._core.sampling import grid_sample
 from fastforks._core.upload import device_tensor
 from fastforks.stereo.geometry.cameras import hw_size
@@ -46,7 +45,14 @@ from fastforks.stereo.geometry.rig import (
 )
 
 if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
+
     from fastforks.stereo.geometry.cameras import Camera
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+
 
 _GRID = 9  # border samples per side, as cv::getRectangles (exact OpenCV parity for pinhole models)
 _GRID_WIDE = 33  # non-pinhole models: curved borders need denser samples for a tight inner rectangle

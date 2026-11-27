@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
+import functools
 import numbers
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-import torch
-
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches, unbatch
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, short_repr
 from fastforks._core.upload import device_tensor
@@ -25,7 +25,12 @@ from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, es
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping, Sequence
 
+    import torch
+
     from fastforks.matching._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = [
     "Backend",
@@ -321,7 +326,7 @@ class MatchingModel(core.Model):
         Raises:
             BackendUnavailableError: The backend has no exportable module.
         """
-        return _PortableModule(self._runner, super().module())
+        return _portable_module_class()(self._runner, super().module())
 
     @property
     def sparse(self) -> bool:
@@ -546,23 +551,29 @@ def _match_streams(model: MatchingModel, *, lazy: bool) -> int:
     return model._runner.match_streams if lazy and model.device.type == "cuda" else 1  # noqa: SLF001 - its runner
 
 
-class _PortableModule(torch.nn.Module):
-    """Scaling and the portable runner (its network, resizing and precision)."""
+@functools.cache
+def _portable_module_class() -> type:
+    """`_PortableModule` (a torch class: defined at its first use, so importing this module does not import torch)."""
 
-    def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
-        """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
-        super().__init__()
-        self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
-        self._runner = runner
-        self.eval()
+    class _PortableModule(torch.nn.Module):
+        """Scaling and the portable runner (its network, resizing and precision)."""
 
-    def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
-        """`{"warp": [B, 2, H, W], "certainty": [B, H, W]}` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
-        io = self._runner.ctx.io
-        return {
-            k: v.float() if v.is_floating_point() else v
-            for k, v in self.net(scale(image1, io), scale(image2, io)).items()
-        }
+        def __init__(self, runner: Runner, net: torch.nn.Module) -> None:
+            """Wrap a portable runner; `net` (its `Runner.module()`) holds the parameters."""
+            super().__init__()
+            self.net = net.eval().requires_grad_(requires_grad=False)  # inference only
+            self._runner = runner
+            self.eval()
+
+        def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+            """`{"warp": [B, 2, H, W], "certainty": [B, H, W]}` float32 of RGB `[B, 3, H, W]` pairs in `[0, 1]`."""
+            io = self._runner.ctx.io
+            return {
+                k: v.float() if v.is_floating_point() else v
+                for k, v in self.net(scale(image1, io), scale(image2, io)).items()
+            }
+
+    return _PortableModule
 
 
 def bench_inputs(model: MatchingModel, size: BenchSize) -> BenchInputs:

@@ -7,13 +7,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import after_import, lazy
 
 if TYPE_CHECKING:
     import os
     from collections.abc import Mapping
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["FIELDS", "PREFIX", "Gaussians", "pop_gaussians"]
 
@@ -111,4 +116,6 @@ def pop_gaussians(maps: dict[str, torch.Tensor]) -> Gaussians | None:
     return Gaussians(**{k: got[k].float() for k in FIELDS})
 
 
-torch.serialization.add_safe_globals([Gaussians])  # `torch.load(..., weights_only=True)` of a saved result
+after_import(
+    "torch", lambda: torch.serialization.add_safe_globals([Gaussians])
+)  # `torch.load(..., weights_only=True)` of a saved result

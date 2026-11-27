@@ -19,18 +19,23 @@ import functools
 import math
 import numbers
 import operator
-from typing import TYPE_CHECKING, ClassVar, Protocol, Self, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, Self, TypeAlias, TypeVar, runtime_checkable
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-ArrayT = TypeVar("ArrayT", np.ndarray, torch.Tensor)
-Pair = tuple[torch.Tensor, torch.Tensor]
+    import torch
+else:
+    torch = lazy("torch")
+
+
+ArrayT = TypeVar("ArrayT", np.ndarray, "torch.Tensor")
+Pair: TypeAlias = "tuple[torch.Tensor, torch.Tensor]"
 
 _EPS = 1e-12
 _MAX_THETA = math.pi - 1e-7

@@ -29,15 +29,27 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, ClassVar
 
-import torch
-
 from fastforks._core import runner as core
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.lazy import lazy
+from fastforks._core.runner import Context, NoParams
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    import torch
+
+    from fastforks._core.runner import Forward
+else:
+    torch = lazy("torch")
+
+
 __all__ = ["BUCKETS", "Context", "Forward", "NoParams", "Runner", "TopDown", "in_buckets"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
+
 
 BUCKETS = (1, 2, 4, 8, 16, 32)  # fixed: graph cache policy (people per network call), not architecture
 PEOPLE = BUCKETS[-1]  # fixed: people per `estimate_batch` call the core gathers from several images (memory bound)

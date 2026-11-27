@@ -29,9 +29,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_args
 
-import torch
-
-from fastforks._core import mps, registry, warmup
+from fastforks._core import arrays, mps, registry, warmup
 from fastforks._core.arguments import bind_error, warn_renamed
 from fastforks._core.cards import Dtype, planned_reason, require_available
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
@@ -51,6 +49,7 @@ from fastforks._core.errors import (
 from fastforks._core.files import stamped
 from fastforks._core.image import late_ranges
 from fastforks._core.kernels import begin_call, checked, cuda_device
+from fastforks._core.lazy import after_import, lazy
 from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
@@ -63,8 +62,12 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
     from typing import Self
 
+    import torch
+
     from fastforks._core.cards import Commercial, Mode, ModelCard, Tier, Variant
     from fastforks._core.export import SizeBounds
+else:
+    torch = lazy("torch")
 
 _KERNELS_DEVICE: list[
     torch.device
@@ -145,7 +148,8 @@ class Backend:
     weights: tuple[str, ...] = field(default=(), compare=False, repr=False)
 
 
-torch.serialization.add_safe_globals([ReadOnlyDict, Backend])  # results `torch.save`d by users load with weights_only
+# results `torch.save`d by users load with weights_only (registered when torch is imported: MLX runs need no torch)
+after_import("torch", lambda: sys.modules["torch"].serialization.add_safe_globals([ReadOnlyDict, Backend]))
 
 MLX = "mlx"  # `load(..., device="mlx")`: the Apple MLX backend (`fastforks._core.mlx`), not a `torch.device`
 
@@ -174,9 +178,6 @@ def _deterministic_cudnn() -> Generator[None]:
         torch.backends.cudnn.deterministic = old
 
 
-_TORCH_DIR = str(Path(torch.__file__).parent) + os.sep  # frames of torch itself (`_drop_trace_frames`)
-
-
 def _drop_trace_frames(error: BaseException) -> None:
     """Free the torch frames of a failed compiled call now, keeping torch's dispatch key set as it is.
 
@@ -185,6 +186,7 @@ def _drop_trace_frames(error: BaseException) -> None:
     "PythonDispatcherTLS was not set" (torch 2.14). Clearing torch's frames under a key-set guard runs them here
     instead; the traceback keeps its lines, and user frames keep their locals.
     """
+    torch_dir = str(Path(torch.__file__).parent) + os.sep  # frames of torch itself
     seen: set[int] = set()
     todo: list[BaseException | None] = [error]
     with torch._C._PreserveDispatchKeyGuard():  # noqa: SLF001
@@ -195,7 +197,7 @@ def _drop_trace_frames(error: BaseException) -> None:
             seen.add(id(e))
             tb = e.__traceback__
             while tb is not None:
-                if tb.tb_frame.f_code.co_filename.startswith(_TORCH_DIR):
+                if tb.tb_frame.f_code.co_filename.startswith(torch_dir):
                     with contextlib.suppress(RuntimeError):  # a frame still running
                         tb.tb_frame.clear()
                 tb = tb.tb_next
@@ -216,11 +218,13 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
     """`fn` (a model's `__call__`) with a keyword typo reported as `ArgumentError`; nothing runs on the success path.
 
     The call runs inside `late_ranges`: the value-range check of float CUDA images does not stop the host before the
-    network is queued.
+    network is queued. `outputs=` (`"torch"` / `"numpy"`, default `fastforks.set_outputs`) picks the container of the
+    result (`fastforks._core.arrays`).
     """
 
     @functools.wraps(fn)
-    def call(self: Model, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
+    def call(self: Model, *args: Any, outputs: arrays.Outputs | None = None, **kwargs: Any) -> Any:  # noqa: ANN401
+        kind = arrays.resolve_outputs(outputs)
         try:
             with late_ranges():
                 out = fn(self, *args, **kwargs)
@@ -236,7 +240,7 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
                 raise
             _fall_back_to_mps(self, e)
             out = fn(self, *args, **kwargs)
-        return self._move_result(out)
+        return self._finish(out, kind)
 
     return call
 
@@ -293,7 +297,7 @@ def _fall_back_to_mps(model: Model, error: Exception) -> None:
 
 def _results_to(out: object, device: torch.device) -> object:
     """A result, tensor, or list / tuple / dict of them moved to `device`; anything else unchanged."""
-    if isinstance(out, NumpyOutputs | torch.Tensor):
+    if isinstance(out, NumpyOutputs) or arrays.is_tensor(out):
         return out.to(device)
     if isinstance(out, dict):
         return {k: _results_to(v, device) for k, v in out.items()}
@@ -510,7 +514,8 @@ class Model:
         self.variant = runner.ctx.variant
         self.backend = backend
         self.options: Mapping[str, Any] = ReadOnlyDict(options)
-        self.device = runner.ctx.device
+        self._arrays = runner.arrays == "numpy" and runner.ctx.device is arrays.HOST  # computes on NumPy arrays
+        self.device = "cpu" if self._arrays else runner.ctx.device
         self.weights = runner.ctx.user_weights
         self._runner = runner
         self._lock = threading.Lock()
@@ -522,14 +527,39 @@ class Model:
             _kernels_entry_points(runner)
 
     @property
+    def device(self) -> torch.device:
+        """The device results come back on (see the class docstring); a `torch.device` once torch is imported.
+
+        Without torch (an MLX run, `fastforks._core.arrays`) a `Device` of the same name, equal to the torch one.
+        """
+        return arrays.device(self._device_name)
+
+    @device.setter
+    def device(self, device: torch.device | str) -> None:
+        self._device_name = str(device)
+
+    @property
     def _device(self) -> torch.device:
-        """Where the runner takes its inputs: `device`, or the CPU when an MLX port stands in for Apple MPS."""
+        """Where the runner takes its inputs: `device`, the CPU when an MLX port stands in for Apple MPS, or `HOST`.
+
+        `HOST` (`fastforks._core.arrays`): the runner takes NumPy arrays (`Runner.arrays`).
+        """
+        if self.__dict__.get("_arrays"):
+            return cast("torch.device", arrays.HOST)
         return self.device if getattr(self, "_result_device", None) is None else torch.device("cpu")
 
     def _move_result(self, result: _Result) -> _Result:
         """Move a result from an MLX runner to the MPS device requested at load time."""
         device = getattr(self, "_result_device", None)
-        return result if device is None else cast("_Result", _results_to(result, device))
+        return result if device is None else cast("_Result", _results_to(result, torch.device(str(device))))
+
+    def _finish(self, result: _Result, kind: arrays.Outputs) -> _Result:
+        """A call's result in the container `kind`: NumPy arrays, or torch tensors on `device`."""
+        if kind == "numpy":
+            return cast("_Result", arrays.convert(result, "numpy"))
+        if self.__dict__.get("_arrays"):  # an array runner's result as tensors, on MPS where it stands in for it
+            return cast("_Result", arrays.convert(result, "torch", getattr(self, "_result_device", None)))
+        return self._move_result(result)
 
     def __repr__(self) -> str:
         """Model ref, backend and the user's weight files, if any."""
@@ -793,6 +823,10 @@ class Model:
         """
         if _FORKED:
             self._warn_if_forked()
+        if self.__dict__.get("_arrays"):  # NumPy in and out: no torch state to set
+            with _GPU_CALLS, self._lock:  # MLX: one Metal stream per process
+                yield
+            return
         cuda = self._device.type == "cuda"
         on_device = torch.cuda.device(self._device) if cuda else contextlib.nullcontext()
         if cuda:
@@ -855,7 +889,7 @@ class Model:
         step = self._runner.batch or (max(1, pixels // (first.shape[-2] * first.shape[-1])) if pixels else n)
         with self._session():
             outs = [fn(*(None if x is None else x[i : i + step] for x in inputs)) for i in range(0, n, step)]
-        return {k: torch.cat([o[k] for o in outs]) if len(outs) > 1 else outs[0][k] for k in outs[0]}
+        return {k: arrays.cat([o[k] for o in outs]) if len(outs) > 1 else outs[0][k] for k in outs[0]}
 
     def _check_outputs(
         self, out: Mapping[str, torch.Tensor], shapes: Mapping[str, tuple[int, ...]], *, cast: bool = True
@@ -888,13 +922,13 @@ class Model:
             if tuple(v.shape) != want:
                 msg = f"{self.variant.ref}: output {k!r} has shape {tuple(v.shape)}, expected {want}"
                 raise CardError(msg)
-            if (k in task.bool_outputs) != (v.dtype == torch.bool):
+            if (k in task.bool_outputs) != arrays.is_bool(v):
                 want_dtype = "torch.bool" if k in task.bool_outputs else "numbers (torch.bool only for masks)"
                 msg = f"{self.variant.ref}: runner returned a {v.dtype} {k}; {k} maps must be {want_dtype}"
                 raise CardError(msg)
         if not cast:
             return dict(out)
-        return {k: v if k in task.bool_outputs else v.float() for k, v in out.items()}
+        return {k: v if k in task.bool_outputs else arrays.float32(v) for k, v in out.items()}
 
 
 M = TypeVar("M", bound=Model)
@@ -982,7 +1016,7 @@ def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype 
         best = entry.get("auto")
         return (best[0], best[1]) if best else None
     mlx_mode = entry.get("dtypes", {}).get(dtype)
-    metal_dtype = card.kernels_dtype_on(torch.device("mps")) if card.mps_kernel_libs else None
+    metal_dtype = card.kernels_dtype_on(arrays.device("mps")) if card.mps_kernel_libs else None
     if mlx_mode is None and dtype not in card.portable_mps_dtypes and dtype != metal_dtype:
         # When MPS has no implementation at the requested precision, a passing MLX run stands on its own.
         mlx_mode = entry.get("mlx", {}).get(dtype)
@@ -991,6 +1025,8 @@ def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype 
 
 def dtype_name(dtype: str | torch.dtype | None) -> str | None:
     """`"float16"` for `torch.float16` (any `torch.dtype` -> its name); anything else unchanged (validated later)."""
+    if dtype is None or isinstance(dtype, str) or "torch" not in sys.modules:  # no torch: not a torch dtype
+        return dtype
     return str(dtype).removeprefix("torch.") if isinstance(dtype, torch.dtype) else dtype
 
 
@@ -1087,7 +1123,7 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913, PLR0915 - the arguments of `l
     require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
     on_mlx = isinstance(device, str) and device.strip().lower() == MLX  # "MLX" too
-    dev = torch.device("cpu") if on_mlx else resolve_device(device, card)
+    dev = arrays.device("cpu") if on_mlx else resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
     files = None if weights is None else user_weights(variant, weights, log)
     if state is not None and files is None:
@@ -1122,6 +1158,7 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913, PLR0915 - the arguments of `l
                 via_mlx=False,
             )
         return m
+    dev = _torch_device(dev)  # a PyTorch load from here on
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
@@ -1290,7 +1327,8 @@ def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
     rcls = models.RUNNERS[f"{mode}_mlx"]
     if runtime.graph_switch():  # diagnostics: the exported-graph runner the hand-written network replaced
         rcls = getattr(models, "GRAPH_RUNNERS", {}).get(f"{mode}_mlx", rcls)
-    device = torch.device("cpu")
+    array_runner = getattr(rcls, "arrays", "torch") == "numpy"
+    device = arrays.HOST if array_runner else torch.device("cpu")
     ctx = Context(
         card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights, state
     )
@@ -1365,7 +1403,13 @@ def resolve_device(device: str | torch.device | None, card: ModelCard | None = N
 
     The default is CUDA if available, else Apple MPS for a family validated on it (`card.portable_mps_dtypes`),
     else the CPU.
+
+    On Apple silicon without torch imported, the default and `"mps"` / `"cpu"` resolve without importing it (no CUDA
+    there; MPS availability is checked when a PyTorch load needs it, `_torch_device`): the MLX route decides first.
     """
+    if "torch" not in sys.modules and _apple_silicon() and (device is None or device in {"mps", "cpu"}):
+        on_mps = device == "mps" or (device is None and card is not None and bool(card.portable_mps_dtypes))
+        return cast("torch.device", arrays.Device("mps" if on_mps else "cpu"))
     if device is None:
         if torch.cuda.is_available():
             return cuda_device(torch.device("cuda"))
@@ -1392,6 +1436,22 @@ def resolve_device(device: str | torch.device | None, card: ModelCard | None = N
         msg = f"device {device!r}: MPS is not available in this torch build / on this machine"
         raise OptionsError(msg)
     return cuda_device(dev)
+
+
+@functools.cache
+def _apple_silicon() -> bool:
+    """MacOS on Apple silicon: no CUDA, MPS with every supported torch build."""
+    import platform  # noqa: PLC0415 - only here
+
+    return sys.platform == "darwin" and platform.machine() == "arm64"
+
+
+def _torch_device(dev: torch.device) -> torch.device:
+    """`dev` as a `torch.device` (imports torch): a `Device` that `resolve_device` gave without torch, checked."""
+    if isinstance(dev, arrays.Device):
+        importlib.import_module("torch")
+        return resolve_device(str(dev))
+    return dev
 
 
 def claim_kernels_device(device: torch.device) -> None:

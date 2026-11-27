@@ -28,24 +28,32 @@ import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeGuard
 
 import numpy as np
-import torch
 from PIL import Image
 
+from fastforks._core import arrays
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator, Sequence
 
+    import torch
+else:
+    torch = lazy("torch")
+
+
 log = logging.getLogger(__name__)
 _exif_warned = False
 
-ImageLike: TypeAlias = str | os.PathLike[str] | bytes | bytearray | io.BytesIO | Image.Image | np.ndarray | torch.Tensor
+ImageLike: TypeAlias = (  # a string: importing this module does not import torch (as `depth.ArrayLike`)
+    "str | os.PathLike[str] | bytes | bytearray | io.BytesIO | Image.Image | np.ndarray | torch.Tensor"
+)
 """Anything `to_rgb_batch` accepts."""
 
-_INT_MAX = {torch.uint8: 255.0, torch.uint16: 65535.0}
+_INT_MAX = {"uint8": 255.0, "uint16": 65535.0}  # by dtype name (torch's without its `torch.` prefix)
 _PIL_MODES = ("L", "I;16", "I;16L", "I;16B", "RGB", "RGBA")  # read as they are
 _PIL_TO_RGB = ("P", "1", "LA")  # 8-bit or less per channel: convert("RGB") is lossless
 _PIL_8BIT_OTHER = ("CMYK", "YCbCr", "LAB", "HSV")  # 8 bits per channel, not RGB
@@ -71,23 +79,29 @@ _DECODERS = 8  # threads at most for the files of one call
 _pool: tuple[int, ThreadPoolExecutor] | None = None  # (pid, pool): a forked child starts its own threads
 
 
-def _as_tensor(img: ImageLike) -> torch.Tensor:
+def _as_tensor(img: ImageLike, *, host: bool = False) -> Any:  # noqa: ANN401, C901 - tensor, or array with `host`
     """Channel-first tensor `[B, C, H, W]` in the input dtype, except float64 -> float32.
 
     The one conversion of every image input (model calls, calibrated / two-view calls, `run_many`): models compute in
     float32 and MPS has no float64, so float64 images give the same numbers as their float32 copy on every path.
+
+    `host`: a NumPy array `[B, C, H, W]` instead (a view of a numpy input; a tensor input is copied to the host), for
+    the array runners (`Runner.arrays`); torch is not imported.
     """
     if isinstance(img, _FILE):
-        return _as_tensor(decode_image(img))
+        return _as_tensor(decode_image(img), host=host)
     shape = tuple(getattr(img, "shape", ()))  # as the caller passed it, for the error messages
     if isinstance(img, Image.Image):
         img = _pil_image(img)
     if type(img).__module__.partition(".")[0] == "mlx":  # an `mx.array`, without importing mlx: laid out as numpy
         img = np.array(img)
     if isinstance(img, np.ndarray):
-        t = _from_numpy(img)
-    elif isinstance(img, torch.Tensor):
-        t = img.float() if img.dtype == torch.float64 else img
+        t = _from_numpy(img, host=host)
+    elif arrays.is_tensor(img):
+        t = img.float() if img.dtype in {torch.float64, torch.bfloat16} and host else img
+        t = t.float() if t.dtype == torch.float64 else t
+        if host:
+            t = t.detach().cpu().numpy()
     else:
         hint = (
             ": not an image (a model call takes a flat list of images; a batch is a BHWC array or BCHW tensor)"
@@ -305,8 +319,8 @@ def _check_lossless_file(im: Image.Image, path: str, head: bytes | None = None) 
     return False
 
 
-def _from_numpy(img: np.ndarray) -> torch.Tensor:
-    """Channel-last numpy (`HW`, `HWC`, `BHWC`, any byte order) -> channel-first tensor."""
+def _from_numpy(img: np.ndarray, *, host: bool = False) -> Any:  # noqa: ANN401 - tensor, or array with `host`
+    """Channel-last numpy (`HW`, `HWC`, `BHWC`, any byte order) -> channel-first tensor (`host`: array view)."""
     if img.ndim not in (2, 3, 4):
         msg = f"numpy image must be HW, HWC or BHWC, got shape {img.shape}"
         raise InputError(msg)
@@ -320,6 +334,11 @@ def _from_numpy(img: np.ndarray) -> torch.Tensor:
         img = img.astype(np.float32)  # see `_as_tensor`; one copy, also for the byte order
     elif not img.dtype.isnative:
         img = img.astype(img.dtype.newbyteorder("="))
+    if host:
+        if img.dtype.kind not in "biuf":  # object, string, datetime arrays
+            msg = f"unsupported image dtype {img.dtype} (use uint8, uint16 or float in [0, 1])"
+            raise InputError(msg)
+        return img[None] if img.ndim == 2 else np.moveaxis(img, -1, -3)  # noqa: PLR2004 - HW has no channel axis
     try:
         t = torch.from_numpy(np.require(img, requirements="CW"))  # PIL arrays are read-only: copy those
     except TypeError as e:  # object, string, datetime arrays
@@ -458,6 +477,12 @@ def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) ->
     given = [b for b in bounds if b is not None]
     if not given:
         return
+    for lo, hi in given:  # NumPy images (array runners): plain floats, checked now
+        if isinstance(lo, float) and not (lo >= 0 and hi <= 1):  # also NaN
+            raise _range_error(lo, hi)
+    given = [b for b in given if not isinstance(b[0], float)]
+    if not given:
+        return
     pending = _DEFERRED.get()
     if pending is not None:
         pending.extend(given)
@@ -489,8 +514,11 @@ def _to_rgb(
 ) -> tuple[torch.Tensor, int, tuple[torch.Tensor, torch.Tensor] | None]:
     """`to_rgb_batch` without the value-range check: the image, its input channels and its float `[min, max]`.
 
-    The bounds are `None` for integer images and inside `checked_ranges`.
+    The bounds are `None` for integer images and inside `checked_ranges`. On `arrays.HOST` the image is a NumPy array
+    and the bounds are floats (`_to_rgb_host`).
     """
+    if device is arrays.HOST:
+        return _to_rgb_host(img, keep_uint8=keep_uint8)
     t = _as_tensor(img)
     if t.device.type == "meta":
         msg = "image is a meta tensor (it has no data)"
@@ -507,7 +535,7 @@ def _to_rgb(
     elif keep_uint8 and t.dtype == torch.uint8:
         t = t.to(device, non_blocking=lazy)
     else:
-        scale = _INT_MAX.get(t.dtype)
+        scale = _INT_MAX.get(str(t.dtype).removeprefix("torch."))
         if scale is None:
             msg = f"unsupported image dtype {t.dtype} (use uint8, uint16 or float in [0, 1])"
             raise InputError(msg)
@@ -515,6 +543,29 @@ def _to_rgb(
     if t.shape[1] == 1:
         t = t.expand(-1, _RGB, -1, -1)
     return t.contiguous(), c, bounds
+
+
+def _to_rgb_host(img: ImageLike, *, keep_uint8: bool = False) -> tuple[np.ndarray, int, tuple[float, float] | None]:
+    """`_to_rgb` as NumPy (`arrays.HOST`): the same float32 values as the tensor path, computed on the host."""
+    a = _as_tensor(img, host=True)
+    c = a.shape[1]
+    if c == _RGBA:
+        a = a[:, :_RGB]
+    bounds = None
+    if a.dtype.kind == "f":
+        a = a.astype(np.float32, copy=False)
+        if not _CHECKED.get():
+            bounds = (float(a.min()), float(a.max()))
+    elif not (keep_uint8 and a.dtype == np.uint8):
+        scale = _INT_MAX.get(str(a.dtype)) if a.dtype.kind == "u" else None
+        if scale is None:
+            msg = f"unsupported image dtype {a.dtype} (use uint8, uint16 or float in [0, 1])"
+            raise InputError(msg)
+        a = a.astype(np.float32)
+        a /= np.float32(scale)  # in float32, as the tensor path's `div_`
+    if a.shape[1] == 1:
+        a = np.broadcast_to(a, (a.shape[0], _RGB, *a.shape[2:]))
+    return np.ascontiguousarray(a), c, bounds
 
 
 def is_batch(img: ImageLike) -> bool:

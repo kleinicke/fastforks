@@ -38,15 +38,20 @@ import time
 import weakref
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor, wait
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeAlias, TypeVar, cast
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import FastforksError, InputError
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 T = TypeVar("T")
 OnError = Literal["raise", "skip"]
@@ -362,7 +367,9 @@ class _Record:
     out: Future[Any]
 
 
-_Pending = tuple[_Record, Any, "torch.cuda.Event | None", list[torch.Tensor]]  # record, payload, download event
+_Pending: TypeAlias = (
+    "tuple[_Record, Any, torch.cuda.Event | None, list[torch.Tensor]]"  # record, payload, download event
+)
 
 
 class _End:

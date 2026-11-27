@@ -34,16 +34,28 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-import torch
-
 from fastforks._core import runner as core
+from fastforks._core.lazy import lazy
 from fastforks._core.preprocess import scale
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.runner import Context, NoParams
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    import torch
+
+    from fastforks._core.runner import Forward
+else:
+    torch = lazy("torch")
+
+
 __all__ = ["Context", "Forward", "NoParams", "Runner", "Use", "invert", "scale", "take"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
+
 
 Use = Literal["unused", "optional", "required"]
 """Whether a runner ignores an input (passing it is an error), uses it if given, or needs it."""

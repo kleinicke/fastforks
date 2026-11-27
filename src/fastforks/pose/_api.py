@@ -5,10 +5,9 @@ from __future__ import annotations
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
 
 import numpy as np
-import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
@@ -17,13 +16,19 @@ from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks.pose._runner import PEOPLE
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import torch
+
     from fastforks.pose._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["Backend", "PoseModel", "PoseResult", "list_models", "load", "model_card"]
 
@@ -62,7 +67,7 @@ SKELETONS: dict[str, tuple[tuple[int, int], ...]] = {  # limbs as keypoint index
     "ap10k-17": _pairs("0-1 0-2 1-2 2-3 3-4 3-5 5-6 6-7 3-8 8-9 9-10 4-11 11-12 12-13 4-14 14-15 15-16"),
 }
 
-BoxesLike = torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Instances
+BoxesLike: TypeAlias = "torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Instances"
 """Person boxes `[P, 4]` `(x0, y0, x1, y1)` in input pixels: a tensor, array, nested list, or a detection result."""
 
 

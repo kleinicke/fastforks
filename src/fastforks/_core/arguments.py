@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import difflib
 import functools
 import inspect
@@ -53,8 +54,18 @@ def warn_renamed(old: str, new: str, *, stacklevel: int = 3) -> None:
     warnings.warn(f"{old} is renamed to {new}; the old name is removed after {REMOVAL}", FutureWarning, stacklevel)
 
 
+@dataclasses.dataclass(frozen=True)
+class Later:
+    """An object of `renamed_attributes` that `load()` gives at its first access (one whose module imports torch)."""
+
+    load: Callable[[], object]
+
+
 def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -> Callable[[str], Any]:
-    """A module `__getattr__` that serves the old names `renames` (old -> (new name shown, the object)), warned."""
+    """A module `__getattr__` that serves the old names `renames` (old -> (new name shown, the object)), warned.
+
+    An object given as `Later(load)` is loaded at its first access (`TensorRTEngine` imports torch).
+    """
 
     def __getattr__(name: str) -> Any:  # noqa: ANN401, N807 - any attribute
         if name not in renames:
@@ -64,7 +75,7 @@ def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -
         # `from m import name` first probes via `hasattr` in `importlib._handle_fromlist`: warn once, at the real access
         if not sys._getframe(1).f_code.co_filename.startswith("<frozen importlib"):  # noqa: SLF001
             warn_renamed(f"{module}.{name}", new)
-        return target
+        return target.load() if isinstance(target, Later) else target
 
     return __getattr__
 

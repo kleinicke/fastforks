@@ -14,16 +14,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-import torch
-
 from fastforks._core.errors import InputError
 from fastforks._core.io import atomic_write
+from fastforks._core.lazy import lazy
 from fastforks._core.outputs import NumpyOutputs
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
+    import torch
+
     from fastforks._core.model import Backend
+else:
+    torch = lazy("torch")
 
 
 @dataclass(frozen=True)

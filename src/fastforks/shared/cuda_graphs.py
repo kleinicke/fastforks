@@ -36,13 +36,17 @@ import weakref
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-import torch
-
 from fastforks._core.kernels import checked, trim_cuda_graph_pool
+from fastforks._core.lazy import lazy
 from fastforks._core.upload import capture_uploads
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Hashable
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 log = logging.getLogger("fastforks")
 _FAILED = 256  # fixed: shapes remembered as not capturable
@@ -66,10 +70,14 @@ def graph_request() -> Generator[None]:
         _REQUEST.reset(token)
 
 
-class _Graph(torch.cuda.CUDAGraph):
-    """A CUDA graph that holds the pinned host buffers its captured uploads copy from (`capture_uploads`)."""
+@functools.cache
+def _graph_class() -> type[torch.cuda.CUDAGraph]:
+    class _Graph(torch.cuda.CUDAGraph):
+        """A CUDA graph that holds the pinned host buffers its captured uploads copy from (`capture_uploads`)."""
 
-    uploads: list[torch.Tensor]
+        uploads: list[torch.Tensor]
+
+    return _Graph  # defined at first use: importing this module does not import torch
 
 
 @functools.cache
@@ -314,7 +322,7 @@ class GraphCache:
         static = tuple(self._static_input(i, x) for i, x in enumerate(inputs))
         cur = torch.cuda.current_stream(device)
         side = capture_stream(device)
-        graph = _Graph()
+        graph = _graph_class()()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
             try:
@@ -469,15 +477,31 @@ class SmallShapeGraphs(Generic[_Output]):
             self.cache.release()
 
 
-class CapturedModule(torch.nn.Module):
-    """A dense inference submodule with a bounded per-shape CUDA graph cache."""
+@functools.cache
+def _captured_module() -> type[torch.nn.Module]:
+    class CapturedModule(torch.nn.Module):
+        """A dense inference submodule with a bounded per-shape CUDA graph cache."""
 
-    def __init__(self, network: torch.nn.Module, *, pixels: int) -> None:
-        """Keep the underlying module registered so its parameters remain visible."""
-        super().__init__()
-        self.network = network
-        self.graphs = SmallShapeGraphs(network, pixels=pixels)
+        def __init__(self, network: torch.nn.Module, *, pixels: int) -> None:
+            """Keep the underlying module registered so its parameters remain visible."""
+            super().__init__()
+            self.network = network
+            self.graphs = SmallShapeGraphs(network, pixels=pixels)
 
-    def forward(self, *inputs: torch.Tensor) -> Any:  # noqa: ANN401 - preserve tensor or tuple module outputs
-        """Replay the complete dense output for a recurring shape."""
-        return self.graphs(*inputs)
+        def forward(self, *inputs: torch.Tensor) -> Any:  # noqa: ANN401 - preserve tensor or tuple module outputs
+            """Replay the complete dense output for a recurring shape."""
+            return self.graphs(*inputs)
+
+    return CapturedModule
+
+
+if TYPE_CHECKING:
+    CapturedModule = _captured_module()
+else:
+
+    def __getattr__(name: str) -> object:
+        """`CapturedModule` (it subclasses `torch.nn.Module`: made at its first use)."""
+        if name == "CapturedModule":
+            return _captured_module()
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg)

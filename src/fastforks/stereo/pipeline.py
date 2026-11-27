@@ -14,13 +14,13 @@ from typing import TYPE_CHECKING, Any, TypeAlias, cast
 from urllib.parse import urlparse
 
 import numpy as np
-import torch
 from PIL import Image
 
 from fastforks._core.arguments import renamed_attributes
 from fastforks._core.errors import InputError
 from fastforks._core.image import _as_tensor, is_batch, is_url
 from fastforks._core.io import atomic_write, write_map
+from fastforks._core.lazy import lazy
 from fastforks._core.pipeline import Done, OnError, Pipeline, default_prefetch, default_workers
 from fastforks.stereo import calibrated as _calibrated
 from fastforks.stereo.calibrated import (
@@ -40,11 +40,16 @@ from fastforks.stereo.io import write_disparity
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
 
+    import torch
+
     from fastforks._core.image import ImageLike
     from fastforks._core.pipeline import Copies
     from fastforks.stereo._api import StereoModel
     from fastforks.stereo.calibrated import Geometry
     from fastforks.stereo.geometry.rig import RectifiedRig
+else:
+    torch = lazy("torch")
+
 
 Images: TypeAlias = "str | os.PathLike[str] | Iterable[ImageLike] | np.ndarray | torch.Tensor"
 """One side of `run_many`: a directory, a glob pattern, or an iterable of images (paths, numpy arrays, tensors)."""

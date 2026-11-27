@@ -34,12 +34,20 @@ import torch
 
 from fastforks._core import runner as core
 from fastforks._core.preprocess import scale
-from fastforks._core.runner import Context, Forward, NoParams
+from fastforks._core.runner import Context, NoParams
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from fastforks._core.runner import Forward
+
 __all__ = ["Context", "Forward", "NoParams", "Runner", "bounded_binary_masks", "scale"]
+
+
+def __getattr__(name: str) -> object:
+    """`Forward` (it subclasses `torch.nn.Module`: made at its first use)."""
+    return core.__getattr__(name)
+
 
 _MASK_RESIZE_PIXELS = 64 << 20  # target at most 256 MiB of live FP32 resize output per prompt group
 

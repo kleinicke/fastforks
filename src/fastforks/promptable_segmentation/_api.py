@@ -5,10 +5,9 @@ from __future__ import annotations
 import numbers
 import warnings
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
 
 import numpy as np
-import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
@@ -17,6 +16,7 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError, ModelNotFoundError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend, Dtype, ModeArg
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
 from fastforks._core.upload import device_tensor, to_device
@@ -25,7 +25,12 @@ if TYPE_CHECKING:
     import os
     from collections.abc import Mapping, Sequence
 
+    import torch
+
     from fastforks.promptable_segmentation._runner import Runner
+else:
+    torch = lazy("torch")
+
 
 __all__ = [
     "Backend",
@@ -46,7 +51,7 @@ __all__ = [
 ]
 
 TASK = "promptable_segmentation"
-PromptLike = torch.Tensor | np.ndarray | list[Any] | tuple[Any, ...]
+PromptLike: TypeAlias = "torch.Tensor | np.ndarray | list[Any] | tuple[Any, ...]"
 """A prompt array: torch tensor, numpy array or nested lists / tuples of numbers."""
 ConceptModelId = Literal["clipseg", "clipseg@1", "sam3", "sam3@1"]
 """Ids of the concept models (text / exemplar prompts): `load` returns a `ConceptSegmentationModel` for them."""
@@ -94,11 +99,11 @@ def _check_flipped(boxes: torch.Tensor) -> None:
         raise InputError(msg)
 
 
-_PROMPTS = {  # argument -> (prompt kind, dims with the prompt batch P, dtype)
-    "input_points": ("points", 3, torch.float32),
-    "input_labels": ("points", 2, torch.int64),
-    "input_boxes": ("boxes", 2, torch.float32),
-    "input_masks": ("masks", 4, torch.float32),
+_PROMPTS = {  # argument -> (prompt kind, dims with the prompt batch P, torch dtype name)
+    "input_points": ("points", 3, "float32"),
+    "input_labels": ("points", 2, "int64"),
+    "input_boxes": ("boxes", 2, "float32"),
+    "input_masks": ("masks", 4, "float32"),
 }
 
 
@@ -461,7 +466,7 @@ class PromptableSegmentationModel(core.Model):
             if any(v is not None for v in (input_points, input_labels, input_boxes)):
                 msg = "video takes input_masks or input_points / input_boxes, not both"
                 raise InputError(msg)
-            m = _numeric("input_masks", input_masks, torch.float32)
+            m = _numeric("input_masks", input_masks, "float32")
             batched = m.ndim == 3  # noqa: PLR2004 - [P, H, W]
             if m.ndim not in {2, 3} or tuple(m.shape[-2:]) != size:
                 msg = f"input_masks must be [P, H, W] (or [H, W]) at the frame size {size}, got {tuple(m.shape)}"
@@ -567,7 +572,7 @@ class PromptableSegmentationModel(core.Model):
         if "boxes" not in self.prompts:
             msg = f"{self.variant.ref} takes no boxes prompts (takes: {sorted(self.prompts)})"
             raise InputError(msg)
-        b = _numeric("input_boxes", boxes, torch.float32).cpu()
+        b = _numeric("input_boxes", boxes, "float32").cpu()
         if b.numel() == 0:  # an empty exemplar set (e.g. a detector found nothing)
             b = b.reshape(0, 4)
         elif b.ndim == 1:
@@ -829,9 +834,9 @@ def _reference_masks(
         InputError: Not one mask per reference, or a mask not at its reference's size.
     """
     if isinstance(masks, list | tuple) and len(masks) == len(sizes) and not all(np.isscalar(m) for m in masks):
-        items = [_numeric("reference_masks", m, torch.float32) for m in masks]
+        items = [_numeric("reference_masks", m, "float32") for m in masks]
     else:
-        t = _numeric("reference_masks", cast("PromptLike", masks), torch.float32)
+        t = _numeric("reference_masks", cast("PromptLike", masks), "float32")
         items = [t] if t.ndim == 2 else list(t)  # noqa: PLR2004 - [H, W]
     if len(items) != len(sizes):
         msg = f"reference_masks: {len(items)} mask(s) for {len(sizes)} reference image(s)"
@@ -861,7 +866,7 @@ def _exemplar_labels(labels: PromptLike, n: int) -> torch.Tensor:
     Raises:
         InputError: Not `n` labels, or a label other than 1 / 0.
     """
-    lab = _numeric("input_boxes_labels", labels, torch.float32).cpu().reshape(-1)
+    lab = _numeric("input_boxes_labels", labels, "float32").cpu().reshape(-1)
     if lab.shape[0] != n:
         msg = f"input_boxes_labels has {lab.shape[0]} labels for {n} boxes"
         raise InputError(msg)
@@ -916,7 +921,7 @@ def _check_point_labels(value: PromptLike) -> None:
     Raises:
         InputError: Any other value.
     """
-    lab = _numeric("input_labels", value, torch.float32)
+    lab = _numeric("input_labels", value, "float32")
     if not bool(((lab == 1) | (lab == 0) | (lab == -1)).all()):
         msg = "input_labels must be 1 (foreground), 0 (background) or -1 (padding)"
         raise InputError(msg)
@@ -938,8 +943,8 @@ def _normalised(boxes: torch.Tensor | None, size: tuple[int, int]) -> torch.Tens
     return boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
 
 
-def _numeric(name: str, value: PromptLike, dtype: torch.dtype) -> torch.Tensor:
-    """A prompt array as a finite real tensor of `dtype` (on its own device: numpy / lists on the CPU).
+def _numeric(name: str, value: PromptLike, dtype: str) -> torch.Tensor:
+    """A prompt array as a finite real tensor of `dtype` (a torch dtype name; numpy / lists on the CPU).
 
     Raises:
         InputError: Not numeric, complex, or not finite.
@@ -952,7 +957,7 @@ def _numeric(name: str, value: PromptLike, dtype: torch.dtype) -> torch.Tensor:
     if t.is_complex():
         msg = f"{name} must be real, got {t.dtype}"
         raise InputError(msg)
-    t = t.to(dtype=dtype)
+    t = t.to(dtype=getattr(torch, dtype))
     if not bool(torch.isfinite(t).all()):
         msg = f"{name} has non-finite values"
         raise InputError(msg)

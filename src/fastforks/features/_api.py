@@ -7,24 +7,29 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-import torch
-import torch.nn.functional as F
-
 from fastforks._core import model as core
+from fastforks._core import runner as _core_runner
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, unbatch
+from fastforks._core.lazy import lazy
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.preprocess import scale
-from fastforks._core.runner import Forward
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import torch
+    import torch.nn.functional as F
+
     from fastforks._core.cards import Io
     from fastforks.features._runner import Runner
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+
 
 __all__ = ["Backend", "FeaturesModel", "FeaturesResult", "list_models", "load", "model_card", "network_size"]
 
@@ -269,7 +274,7 @@ class FeaturesModel(core.Model):
         def fwd(_net: torch.nn.Module, image: torch.Tensor) -> torch.Tensor:
             return net(prepare(image, network_size(*image.shape[-2:], None, stride), io))
 
-        return Forward(net, fwd)
+        return _core_runner.Forward(net, fwd)
 
 
 def bench_inputs(model: FeaturesModel, size: BenchSize) -> BenchInputs:

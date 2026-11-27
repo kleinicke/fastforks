@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import builtins
 import contextlib
+import functools
 import io
 import json
 import pickle
@@ -24,9 +25,9 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import CheckpointMismatchError, WeightsError
+from fastforks._core.lazy import lazy
 
 try:  # numpy's array pickle (numpy 2 moved the module; pickles name either)
     from numpy._core.multiarray import _reconstruct
@@ -38,6 +39,11 @@ except ImportError:  # numpy 1
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 __all__ = [
     "NUMPY_ARRAYS",
@@ -56,26 +62,37 @@ __all__ = [
 ]
 
 _STORAGES = ("Float", "Double", "Half", "BFloat16", "Long", "Int", "Short", "Char", "Byte", "Bool")
-_BASE: dict[tuple[str, str], object] = {
-    ("collections", "OrderedDict"): OrderedDict,
-    ("torch._utils", "_rebuild_tensor_v2"): torch._utils._rebuild_tensor_v2,  # noqa: SLF001 - torch's own tensor pickle
-    **{("torch", f"{s}Storage"): getattr(torch, f"{s}Storage") for s in _STORAGES},
-    **{
-        (m, n): getattr(builtins, n)
-        for m in ("builtins", "__builtin__")
-        for n in ("list", "dict", "set", "tuple", "int")
-    },
-    ("__builtin__", "long"): int,  # python 2 pickles
-}
-# storage class -> element dtype (without `Storage.dtype`, which warns that TypedStorage is deprecated)
-_STORAGE_DTYPES: dict[object, torch.dtype] = {
-    getattr(torch, f"{s}Storage"): getattr(torch, d)
-    for s, d in zip(
-        _STORAGES,
-        ("float32", "float64", "float16", "bfloat16", "int64", "int32", "int16", "int8", "uint8", "bool"),
-        strict=True,
-    )
-}
+
+
+@functools.cache
+def _base() -> dict[tuple[str, str], object]:
+    """The globals every torch checkpoint may reference (built at first use: importing this module skips torch)."""
+    return {
+        ("collections", "OrderedDict"): OrderedDict,
+        ("torch._utils", "_rebuild_tensor_v2"): torch._utils._rebuild_tensor_v2,  # noqa: SLF001 - torch's own tensor pickle
+        **{("torch", f"{s}Storage"): getattr(torch, f"{s}Storage") for s in _STORAGES},
+        **{
+            (m, n): getattr(builtins, n)
+            for m in ("builtins", "__builtin__")
+            for n in ("list", "dict", "set", "tuple", "int")
+        },
+        ("__builtin__", "long"): int,  # python 2 pickles
+    }
+
+
+@functools.cache
+def _storage_dtypes() -> dict[object, torch.dtype]:
+    """Storage class -> element dtype (without `Storage.dtype`, which warns that TypedStorage is deprecated)."""
+    return {
+        getattr(torch, f"{s}Storage"): getattr(torch, d)
+        for s, d in zip(
+            _STORAGES,
+            ("float32", "float64", "float16", "bfloat16", "int64", "int32", "int16", "int8", "uint8", "bool"),
+            strict=True,
+        )
+    }
+
+
 # torch's legacy (pre-1.6) format starts with this pickled magic number; other non-zip files are plain pickles
 _LEGACY_MAGIC = b"\x80\x02\x8a\x0a\x6c\xfc\x9c\x46\xf9\x20\x6a\xa8\x50\x19"
 # numeric numpy arrays (an object array would need further globals, which stay refused)
@@ -200,10 +217,10 @@ def restricted_load(path: Path, extra: Mapping[tuple[str, str], object] | None =
                 msg = f"{path.name}: not a torch checkpoint (a plain pickle); reading it needs its allowed globals"
                 raise WeightsError(msg)
             with path.open("rb") as f:
-                return _module({**_BASE, **extra}, path).load(f)
+                return _module({**_base(), **extra}, path).load(f)
         if not extra:  # torch's own `weights_only` unpickler is the stricter one; ours is only for the extra globals
             return torch.load(path, map_location="cpu", mmap=not legacy, weights_only=True)
-        table = {**_BASE, **extra}
+        table = {**_base(), **extra}
         return torch.load(
             path, map_location="cpu", mmap=not legacy, weights_only=False, pickle_module=_module(table, path)
         )
@@ -222,17 +239,18 @@ def _is_safetensors(path: Path) -> bool:
     return brace == b"{" and int.from_bytes(size, "little") < path.stat().st_size
 
 
+# safetensors dtype -> torch dtype name
 _SAFETENSORS_DTYPES = {
-    "F64": torch.float64,
-    "F32": torch.float32,
-    "F16": torch.float16,
-    "BF16": torch.bfloat16,
-    "I64": torch.int64,
-    "I32": torch.int32,
-    "I16": torch.int16,
-    "I8": torch.int8,
-    "U8": torch.uint8,
-    "BOOL": torch.bool,
+    "F64": "float64",
+    "F32": "float32",
+    "F16": "float16",
+    "BF16": "bfloat16",
+    "I64": "int64",
+    "I32": "int32",
+    "I16": "int16",
+    "I8": "int8",
+    "U8": "uint8",
+    "BOOL": "bool",
 }
 _READ_CHUNK = 1 << 30  # fixed: below Windows' 2 GiB limit of one read() call
 
@@ -252,7 +270,7 @@ def _safetensors_header(f: io.RawIOBase, path: Path) -> tuple[int, dict[str, tup
         if e["dtype"] not in _SAFETENSORS_DTYPES or not 0 <= start <= end <= size - 8 - n:
             msg = f"{path.name}: tensor {k!r} has dtype {e['dtype']} or offsets {start}..{end} out of range"
             raise WeightsError(msg)
-        entries[k] = (_SAFETENSORS_DTYPES[e["dtype"]], torch.Size(e["shape"]), start, end)
+        entries[k] = (getattr(torch, _SAFETENSORS_DTYPES[e["dtype"]]), torch.Size(e["shape"]), start, end)
     return 8 + n, entries
 
 
@@ -459,7 +477,7 @@ class _ScriptUnpickler(pickle.Unpickler):
         if module == "torch.jit._pickle" and name in _SCRIPT_LISTS:  # typed-list wrappers: keep the value as is
             return _script_value
         try:
-            return _BASE[module, name]
+            return _base()[module, name]
         except KeyError:
             msg = f"{self.path.name}: the archive references {module}.{name}, which is not on the allow-list"
             raise WeightsError(msg) from None
@@ -469,7 +487,7 @@ class _ScriptUnpickler(pickle.Unpickler):
             msg = f"{self.path.name}: unexpected persistent id {pid!r}"
             raise WeightsError(msg)
         _, kind, key, _, numel = pid
-        dtype = _STORAGE_DTYPES.get(kind)
+        dtype = _storage_dtypes().get(kind)
         if dtype is None:
             msg = f"{self.path.name}: tensor data {key!r} has an unsupported storage type {kind!r}"
             raise WeightsError(msg)

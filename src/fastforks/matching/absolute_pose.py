@@ -21,13 +21,17 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-import torch
-
 from fastforks._core.errors import InputError
+from fastforks._core.lazy import lazy
 from fastforks.matching import relative_pose as rp
 
 if TYPE_CHECKING:
+    import torch
+
     from fastforks._core.kernels import CubinModule
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["AbsolutePose", "estimate_absolute_pose"]
 

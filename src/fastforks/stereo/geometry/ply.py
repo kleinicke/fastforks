@@ -7,13 +7,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 
 from fastforks._core.errors import InputError, MissingDependencyError, OptionsError
 from fastforks._core.io import atomic_write
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     import os
+
+    import torch
+else:
+    torch = lazy("torch")
 
 
 AXES_PRESETS = {"opencv": "RDF", "opengl": "RUB", "blender": "RUB", "ros": "FLU", "pytorch3d": "LUF"}

@@ -22,11 +22,16 @@ import threading
 import weakref
 from typing import TYPE_CHECKING, Any
 
-import torch
+from fastforks._core.lazy import lazy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable, Sequence
     from types import ModuleType
+
+    import torch
+else:
+    torch = lazy("torch")
+
 
 __all__ = ["deferred_init", "deferred_library_inits", "float32_default", "skipped_init", "trunc_normal_"]
 
@@ -170,7 +175,7 @@ def skipped_init() -> Generator[_Skipped]:
 
 _dt_lock = threading.Lock()
 _dt_users = 0  # threads inside `float32_default`
-_dt_saved = torch.float32  # the default dtype before the first one entered
+_dt_saved: torch.dtype | None = None  # the default dtype before the first one entered (set on entry)
 
 
 @contextlib.contextmanager
