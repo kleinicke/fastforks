@@ -299,6 +299,9 @@
     "portable",
     "float16"
    ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

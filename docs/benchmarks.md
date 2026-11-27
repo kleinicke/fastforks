@@ -308,7 +308,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
 |---|---|---|
-| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 850 ms · portable fp16 |
+| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 806 ms · portable fp16 |
 | [`birefnet`](models/matting.md#birefnet) | 1152 ms · portable fp16 | 877 ms · portable fp16 |
 | [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 274 ms · portable fp16 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 | 679 ms · portable fp16 |

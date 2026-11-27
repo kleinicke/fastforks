@@ -327,7 +327,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`ben2`](../models/matting.md#ben2) | 1524 | 850 | unsupported | – | – | 2863 | – |
+| [`ben2`](../models/matting.md#ben2) | 1004 | 806 | unsupported | – | – | 2345 | – |
 | [`birefnet`](../models/matting.md#birefnet) | 975 | 877 | unsupported | – | – | 1668 | – |
 | [`birefnet-lite`](../models/matting.md#birefnet) | 351 | 274 | unsupported | – | – | 1027 | – |
 | [`inspyrenet`](../models/matting.md#inspyrenet) | 1121 | 679 | unsupported | – | – | 1741 | – |

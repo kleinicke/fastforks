@@ -3,7 +3,7 @@ name = "BEN2"
 summary = "BEN2 (Prama LLC, 2025): background erase network for dichotomous image segmentation and background removal. A Swin Transformer v1 Base encoder sees the image at half resolution and as four full-resolution quarter patches; multi-view cross-attention (MVANet-style) merges them, a convolutional head upsamples to one foreground mask per image."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap", "swin_v1"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cspnext", "cuda_graphs", "mlx_matting", "mlx_port", "mlx_rsu", "mlx_swin_net", "mlx_wrap", "swin_v1"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/PramaLLC/BEN2"

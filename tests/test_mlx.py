@@ -3172,3 +3172,47 @@ def test_mlx_vitmatte_matches_torch(monkeypatch):
     hand = object.__new__(vm._MlxPortable)
     hand.ctx, hand.mlx = SimpleNamespace(io=io), mnet
     torch.testing.assert_close(hand(image, trimap)["alpha"], want, atol=1e-4, rtol=1e-3)
+
+
+def test_mlx_ben2_matches_torch(monkeypatch):
+    """The hand-written BEN2 (`ben2/mlx_net.py`) against `BEN_Base` (the logits), float32, a shallow Swin-B (two
+    layers per stage) at 512 x 512, the smallest side the pools allow: the quarter and half-size views, the multi-field
+    cross attention, the refiners, the folded shallow convs, the phase convs of the nearest 2x upsamplings, the output
+    in row strips; float16 loosely; then the runner's pre- and post-processing (sigmoid, bilinear back, min-max)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matting.models.ben2 import mlx_net  # noqa: PLC0415
+    from fastforks.matting.models.ben2 import model as ben  # noqa: PLC0415
+    from fastforks.matting.models.ben2.net.ben2 import BEN_Base  # noqa: PLC0415
+    from fastforks.shared.swin_v1.net.swin_v1 import SwinTransformer  # noqa: PLC0415
+
+    s = 512
+    monkeypatch.setattr(mlx_net, "STRIP_BYTES", 40 * 4 * (s // 2) * 128 * 4)  # 40 source rows: seven strips
+    net = BEN_Base()
+    net.backbone = SwinTransformer(embed_dim=128, depths=[2, 2, 2, 2], num_heads=[4, 8, 16, 32], window_size=12)
+    net = _randomise(net.eval())
+    x = torch.randn(1, 3, s, s)
+    with torch.no_grad():
+        want = net(x)
+    scale = want.abs().max().item()
+    mnet = mlx_net.network(net, "float32")
+    got = to_torch(mnet(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(got, want, atol=1e-4 * max(scale, 1), rtol=1e-3)
+    half = to_torch(mlx_net.network(net, "float16")(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(half, want, atol=3e-2 * max(scale, 1), rtol=0)
+
+    runner = SimpleNamespace(
+        net=net,
+        dtype=torch.float32,
+        ctx=SimpleNamespace(params=SimpleNamespace(size=s), io=SimpleNamespace(input="imagenet")),
+    )
+    runner._net = net
+    image = torch.rand(1, 3, 301, 257)
+    with torch.no_grad():
+        want = ben._Matting.__call__(runner, image, None)["alpha"]
+    hand = object.__new__(ben._MlxPortable)
+    hand.ctx, hand.mlx = runner.ctx, mnet
+    torch.testing.assert_close(hand(image, None)["alpha"], want, atol=1e-3, rtol=1e-3)

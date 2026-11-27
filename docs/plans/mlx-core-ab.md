@@ -429,12 +429,12 @@ depth_anything_v2, marigold_v2, dinov2_linear, dinov2_linear_cls.
 
 ## Counts
 
-729 rows over 104 families; 725 measured in both arms.
+731 rows over 105 families; 727 measured in both arms.
 
 - 286 rows flagged (105 slower, 193 heavier, 10 worse).
 - 98 of them accepted as a peak trade; 188 miss the bar (70 beyond 10 %).
 - Median hand / graph: warm 0.89, peak 0.90.
-- Quality: 252 rows with a golden error in both arms, 0 without a golden, 10 hand arms `worse` than the graph's.
+- Quality: 254 rows with a golden error in both arms, 0 without a golden, 10 hand arms `worse` than the graph's.
 
 ## Flagged beyond 10 %
 
@@ -627,6 +627,7 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | aanet | 3 (3) / 4 | 0 | 3 | 0 | 0.54 | 2.42 |
 | alexnet | 0 (0) / 2 | 0 | 0 | 0 | 0.99 | 0.96 |
 | anyline | 0 (0) / 2 | 0 | 0 | 0 | 0.64 | 0.65 |
+| ben2 | 0 (0) / 2 | 0 | 0 | 0 | 0.96 | 0.76 |
 | birefnet | 0 (0) / 6 | 0 | 0 | 0 | 0.92 | 0.63 |
 | clip | 13 (0) / 20 | 13 | 0 | 0 | 1.04 | 0.98 |
 | coatnet | 0 (0) / 20 | 0 | 0 | 0 | 1.01 | 0.90 |
@@ -763,6 +764,8 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | aliked-lightglue | fp32 | 88.3 / 167.4 | 0.53 | 0.13 / 1.63 | 714 / 1324 | 0.54 | 49 / 2 | 88.4 / 309.8 | 0.08 / 0.05 | 0.16 / 1.79 | - | 1.7e-05 | - |  |
 | anyline | fp16 | 49.9 / 77.9 | 0.64 | 0.08 / 1.15 | 394 / 861 | 0.46 | 0 / 0 | 65.4 / 223.5 | 0.02 / 0.02 | 0.11 / 1.34 | - | 0.45 (0.27 % off) | - |  |
 | anyline | fp32 | 66.4 / 122.9 | 0.54 | 0.10 / 1.10 | 743 / 1148 | 0.65 | 0 / 0 | 83.1 / 270.1 | 0.03 / 0.02 | 0.13 / 1.28 | - | 0.16 (0.00019 % off) | - |  |
+| ben2 | fp16 | 782.8 / 812.6 | 0.96 | 0.96 / 4.98 | 1638 / 2202 | 0.74 | 210 / 184 | 789.8 / 819.2 | 0.79 / 0.07 | 1.02 / 4.99 | 0.009 | 0.069 (0.35 % off) | 1.11e-05 / 1.11e-05 (2.4e-05) |  |
+| ben2 | fp32 | 964.5 / 1189.1 | 0.81 | 1.10 / 5.64 | 2852 / 3748 | 0.76 | 404 / 364 | 990.4 / 1200.4 | 0.81 / 0.07 | 1.17 / 5.65 | 1.6e-05 | 8.2e-05 | 2.42e-08 / 1.58e-08 (2.4e-05) |  |
 | birefnet | fp16 | 949.2 / 1027.6 | 0.92 | 1.06 / 7.68 | 1062 / 1745 | 0.61 | 474 / 499 | 933.4 / 1261.1 | 1.29 / 0.16 | 1.13 / 7.69 | 1 (1e+02 % off) | 0.0089 | 5.29e-06 / 6.09e-06 (6e-06) |  |
 | birefnet | fp32 | 1016.7 / 1455.8 | 0.70 | 1.43 / 8.56 | 2129 / 3386 | 0.63 | 915 / 941 | 1010.2 / 1409.3 | 1.11 / 0.17 | 1.50 / 8.57 | 1 (1e+02 % off) | 2.8e-05 | 1.72e-07 / 1.37e-07 (6e-06) |  |
 | birefnet-lite | fp16 | 252.9 / 373.1 | 0.68 | 0.31 / 5.88 | 556 / 1016 | 0.55 | 112 / 103 | 263.0 / 371.0 | 0.69 / 0.07 | 0.37 / 5.88 | 1 (1e+02 % off) | 0.0097 | 3.77e-06 / 5.29e-06 (6e-06) |  |

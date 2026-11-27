@@ -16,7 +16,7 @@ larger reserved memory footprint.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -47,7 +47,7 @@ class Params:
 
 
 def _cpu_net(ctx: Context) -> BEN_Base:
-    net = BEN_Base()
+    net = BEN_Base()  # the skeleton of the MLX conversion cache too
     net.load_state_dict(ctx.state_dict())
     return net.eval()
 
@@ -121,8 +121,51 @@ class Kernels(_Matting):
         self.graphs.release()
 
 
+class _MlxPortable(_Matting):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the pre- and post-processing on MLX too."""
+
+    module = Runner.module  # the MLX network is not exportable
+    dtypes = ("float32", "float16")
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda n: mlx_net.network(n, ctx.dtype),
+            real=lambda: _cpu_net(ctx),
+            skeleton=BEN_Base,
+            sources=mlx_net.SOURCES,
+        )
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_matting as mm  # noqa: PLC0415 - imports mlx
+
+        # `_Matting.__call__` on the GPU: antialiased bicubic resize, normalise, net, sigmoid, bilinear back, min-max
+        x = to_mx(image.float())
+        s, (h, w) = self.ctx.params.size, x.shape[2:]
+        x = mm.normalise(mm.resize_aa(x, (s, s), cubic=True), self.ctx.io).transpose(0, 2, 3, 1)
+        y = mx.concatenate([mx.sigmoid(self.mlx(x[i : i + 1])) for i in range(x.shape[0])])
+        y = mm.resize(y.transpose(0, 3, 1, 2), (h, w))
+        return {"alpha": to_torch(mm.min_max(y, (2, 3))[:, 0])}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
