@@ -2618,3 +2618,27 @@ def test_mlx_retinaface_matches_torch(backbone):
     got = mlx_net.network(net, "float32")(to_mx(x))
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g), w, atol=1e-2, rtol=1e-3)
+
+
+@pytest.mark.parametrize(("stage1", "shared"), [(64, 1), (32, 0)])
+def test_mlx_yunet_matches_torch(stage1, shared):
+    """The hand-written YuNet (`yunet/mlx_net.py`) against the network, float32: the units with their BatchNorms
+    folded, the pools, the neck, the shared head units of yunet-n."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.pose.models.yunet import mlx_net  # noqa: PLC0415
+    from fastforks.pose.models.yunet.net import Arch, YuNet  # noqa: PLC0415
+
+    net = _randomise(YuNet(Arch(stage1=stage1, shared_convs=shared)))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.rand(1, 3, 96, 128) * 255
+    with torch.no_grad():
+        want = net(x)
+    got = mlx_net.network(net, "float32")(to_mx(x))
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g), w, atol=1e-2, rtol=1e-3)

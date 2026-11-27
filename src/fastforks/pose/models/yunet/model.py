@@ -211,8 +211,54 @@ class _OneImage(Portable):
     batch = 1
 
 
+def _network(ctx: Context) -> YuNet:
+    """The network with the checkpoint (heads merged): float32, CPU, BatchNorms unfolded."""
+    net = YuNet(ctx.params)
+    sd = ctx.state_dict()
+    net.load_state_dict(convert(sd.get("state_dict", sd)))  # ty: ignore[invalid-argument-type]
+    return net.eval()
+
+
+class _MlxPortable(_OneImage):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), padding, decoding and NMS as portable."""
+
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: YuNet(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        self.net = None
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def dense(self, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """float32 head maps of `image` `[B, 3, H, W]` RGB in [0, 1] (padded to multiples of 32 here)."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        h, w = image.shape[-2:]
+        x = F.pad(image.flip(1) * 255, (0, -w % DIVISOR, 0, -h % DIVISOR))
+        return tuple(to_torch(m) for m in self.mlx(to_mx(x.float())))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OneImage),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OneImage)}
