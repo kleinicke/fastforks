@@ -27,6 +27,7 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
+    from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
 
 _CLASSES = 19  # fixed: the CelebAMask-HQ classes of the checkpoint
@@ -170,9 +171,54 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
     return Mlx
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the main head written in MLX operations (`mlx_net`); `kernels`: the translator's conv kernels."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX head from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        kernels = ctx.mode == "kernels"
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,  # the same arrays in both modes
+            lambda n: mlx_net.network(n, ctx.dtype, kernels=kernels),
+            real=lambda: network(ctx),
+            skeleton=lambda: BiSeNet(num_class=_CLASSES),
+            sources=mlx_net.SOURCES,
+        )
+
+    def _logits(self, image: torch.Tensor) -> mx.array:
+        """The network's float32 logits `[B, 512, 512, 19]` on MLX, image by image."""
+        from fastforks._core.mlx import mx, to_mx  # noqa: PLC0415 - imports mlx
+
+        size = target_size(*image.shape[-2:], self.ctx.params.resize)
+        x = to_mx(scale(resize(image, size, pil=True), self.ctx.io).float()).transpose(0, 2, 3, 1)
+        return mx.concatenate([self.mlx(x[i : i + 1]) for i in range(x.shape[0])]).astype(mx.float32)
+
+    def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - imports mlx
+
+        s = to_torch(self._logits(image).transpose(0, 3, 1, 2))
+        return s.contiguous(), ((image.shape[-2], image.shape[-1]),)
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the logits stay on MLX up to the resize-and-argmax kernel."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - imports mlx
+
+        return mlx_seg.resize_argmax(self._logits(image), image.shape[-2:])
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": _mlx(Portable),
-    "kernels_mlx": _mlx(Portable),
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": _mlx(Portable), "kernels_mlx": _mlx(Portable)}

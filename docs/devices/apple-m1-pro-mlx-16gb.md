@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-27 |
-| rows | 1739 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1740 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -290,9 +290,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 21.0 | 17.6 | – | – | – | 607 | – |
+| [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 16.1 | 12.3 | unsupported | – | – | 371 | – |
 | [`segformer-b2-clothes`](../models/segmentation.md#segformer) | 42.3 | 31.8 | 60.5 | 53.8 | 0.6x | 686 | 982 |
 | [`segformer-b5-face-parsing`](../models/segmentation.md#segformer) | 91.4 | 72.9 | 108 | 94.1 | 0.8x | 900 | 1200 |
+
+Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Segmentation, synthetic, 1024x2048
 

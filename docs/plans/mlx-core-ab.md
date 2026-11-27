@@ -429,12 +429,12 @@ depth_anything_v2, marigold_v2, dinov2_linear, dinov2_linear_cls.
 
 ## Counts
 
-731 rows over 105 families; 727 measured in both arms.
+733 rows over 106 families; 729 measured in both arms.
 
-- 286 rows flagged (105 slower, 193 heavier, 10 worse).
-- 98 of them accepted as a peak trade; 188 miss the bar (70 beyond 10 %).
+- 288 rows flagged (105 slower, 195 heavier, 10 worse).
+- 99 of them accepted as a peak trade; 189 miss the bar (70 beyond 10 %).
 - Median hand / graph: warm 0.89, peak 0.90.
-- Quality: 254 rows with a golden error in both arms, 0 without a golden, 10 hand arms `worse` than the graph's.
+- Quality: 256 rows with a golden error in both arms, 0 without a golden, 10 hand arms `worse` than the graph's.
 
 ## Flagged beyond 10 %
 
@@ -522,6 +522,7 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | aanet-plus-sceneflow | fp16 | 639.7 / 1224.1 | 0.52 | 2112 / 1914 | 1.10 | 2259 | 3754 | 3104 |
 | aanet-sceneflow | fp16 | 443.1 / 1077.9 | 0.41 | 1062 / 900 | 1.18 | 1362 | 2594 | 2140 |
 | aanet-sceneflow | fp32 | 636.4 / 1177.7 | 0.54 | 2072 / 855 | 2.42 | 2140 | 2594 | 2140 |
+| bisenet-face-parsing | fp16 | 10.3 / 16.2 | 0.64 | 148 / 112 | 1.32 | 371 | 440 | 500 |
 | dat-light-x4 | fp32 | 1241.8 / 1651.2 | 0.75 | 2385 / 1899 | 1.26 | 3919 | 6851 | 3919 |
 | deim-l-coco | fp32 | 46.7 / 54.4 | 0.86 | 483 / 393 | 1.23 | 972 | 1806 | 972 |
 | deim-x-coco | fp32 | 80.3 / 90.3 | 0.89 | 740 / 710 | 1.04 | 1288 | 2207 | 1288 |
@@ -629,6 +630,7 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | anyline | 0 (0) / 2 | 0 | 0 | 0 | 0.64 | 0.65 |
 | ben2 | 0 (0) / 2 | 0 | 0 | 0 | 0.96 | 0.76 |
 | birefnet | 0 (0) / 6 | 0 | 0 | 0 | 0.92 | 0.63 |
+| bisenet | 2 (1) / 2 | 0 | 2 | 0 | 0.70 | 1.32 |
 | clip | 13 (0) / 20 | 13 | 0 | 0 | 1.04 | 0.98 |
 | coatnet | 0 (0) / 20 | 0 | 0 | 0 | 1.01 | 0.90 |
 | coex | 0 (0) / 2 | 0 | 0 | 0 | 0.50 | 0.53 |
@@ -770,6 +772,8 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | birefnet | fp32 | 1016.7 / 1455.8 | 0.70 | 1.43 / 8.56 | 2129 / 3386 | 0.63 | 915 / 941 | 1010.2 / 1409.3 | 1.11 / 0.17 | 1.50 / 8.57 | 1 (1e+02 % off) | 2.8e-05 | 1.72e-07 / 1.37e-07 (6e-06) |  |
 | birefnet-lite | fp16 | 252.9 / 373.1 | 0.68 | 0.31 / 5.88 | 556 / 1016 | 0.55 | 112 / 103 | 263.0 / 371.0 | 0.69 / 0.07 | 0.37 / 5.88 | 1 (1e+02 % off) | 0.0097 | 3.77e-06 / 5.29e-06 (6e-06) |  |
 | birefnet-lite | fp32 | 387.6 / 645.2 | 0.60 | 0.38 / 6.28 | 845 / 1989 | 0.42 | 197 / 189 | 393.1 / 646.9 | 0.69 / 0.06 | 0.45 / 6.29 | 1 (1e+02 % off) | 2.3e-05 | 1.64e-07 / 1.27e-07 (6e-06) |  |
+| bisenet-face-parsing | fp16 | 10.3 / 16.2 | 0.64 | 0.04 / 1.55 | 148 / 112 | 1.32 | 25 / 25 | 12.2 / 22.3 | 0.04 / 0.05 | 0.05 / 1.56 | 0.00026 | 0 | 0.00346 / 0.00347 (0.0042) | heavier |
+| bisenet-face-parsing | fp32 | 12.0 / 17.1 | 0.70 | 0.04 / 1.48 | 259 / 246 | 1.05 | 50 / 50 | 13.8 / 23.4 | 0.04 / 0.05 | 0.05 / 1.50 | 1.1e-06 | 0 | 2.36e-06 / 2.31e-06 (0.0042) | heavier |
 | clip-b16-laion2b | fp16 | 14.2 / 14.0 | 1.02 | 0.04 / 0.67 | 186 / 231 | 0.80 | 164 / 164 | 14.5 / 14.2 | 0.85 / 0.71 | 0.04 / 0.68 | 0.0043 | 0.0043 | - |  |
 | clip-b16-laion2b | fp32 | 16.3 / 16.1 | 1.01 | 0.06 / 0.66 | 362 / 417 | 0.87 | 327 / 327 | 16.6 / 16.5 | 0.78 / 0.71 | 0.06 / 0.66 | 6e-06 | 6e-06 | - |  |
 | clip-b16-openai | fp16 | 14.2 / 13.9 | 1.03 | 0.03 / 0.67 | 185 / 231 | 0.80 | 164 / 164 | 14.4 / 14.2 | 0.86 / 0.71 | 0.04 / 0.68 | 0.019 (0.00066 % off) | 0.019 (0.00066 % off) | - | slower |

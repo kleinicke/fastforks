@@ -3216,3 +3216,44 @@ def test_mlx_ben2_matches_torch(monkeypatch):
     hand = object.__new__(ben._MlxPortable)
     hand.ctx, hand.mlx = runner.ctx, mnet
     torch.testing.assert_close(hand(image, None)["alpha"], want, atol=1e-3, rtol=1e-3)
+
+
+def test_mlx_bisenet_matches_torch():
+    """The hand-written BiSeNet head (`bisenet/mlx_net.py`) against `model._main_head` of the BN-folded network,
+    float32 at an odd size (the nearest gathers, the max pool's edge), float16 loosely, kernels mode; then the
+    runner's scores."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.segmentation.models.bisenet import mlx_net  # noqa: PLC0415
+    from fastforks.segmentation.models.bisenet import model as bs  # noqa: PLC0415
+    from fastforks.segmentation.models.bisenet.net import BiSeNet  # noqa: PLC0415
+
+    net = _randomise(BiSeNet(num_class=19))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+        bs._fold(net)
+        for x in (torch.randn(1, 3, 200, 168), torch.randn(1, 3, 256, 256)):
+            want = bs._main_head(net, x)
+            scale = want.abs().max().item()
+            xm = to_mx(x.permute(0, 2, 3, 1).contiguous())
+            for dtype, kernels, tol in (("float32", False, 1e-4), ("float32", True, 1e-3), ("float16", False, 3e-2)):
+                got = to_torch(mlx_net.network(net, dtype, kernels=kernels)(xm)).permute(0, 3, 1, 2)
+                torch.testing.assert_close(got, want, atol=tol * max(scale, 1), rtol=0 if tol > 1e-3 else 1e-3)
+
+        ctx = SimpleNamespace(params=SimpleNamespace(resize=("fixed", 256, 256)), io=SimpleNamespace(input="imagenet"))
+        torch_runner = object.__new__(bs.Portable)
+        torch_runner.ctx, torch_runner.net, torch_runner.fmt = ctx, net, torch.contiguous_format
+        hand = object.__new__(bs._MlxPortable)
+        hand.ctx, hand.mlx = ctx, mlx_net.network(net, "float32")
+        image = torch.rand(1, 3, 301, 257)
+        want = torch_runner(image)["logits"]
+        torch.testing.assert_close(hand(image)["logits"], want, atol=1e-3, rtol=1e-3)
+        top2 = want.topk(2, dim=1).values
+        clear = top2[:, 0] - top2[:, 1] > 1e-3  # pixels without a near-tie
+        assert torch.equal(hand.labels(image)[clear], want.argmax(1)[clear])

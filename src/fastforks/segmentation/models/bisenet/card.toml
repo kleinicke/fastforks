@@ -4,7 +4,7 @@ summary = "BiSeNet (Yu et al. 2018) face parsing from face-parsing.PyTorch: a Re
 tier = "experimental"
 outputs = ["logits"]
 limitations = ["Accuracy is measured on 2,000 LaPa test images with nine shared face-part labels, including background."]
-uses = ["seginfer", "cnn_kernels", "cuda_graphs", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "cnn_kernels", "cuda_graphs", "mlx_graph", "mlx_port", "mlx_rsu", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/facexlib"
