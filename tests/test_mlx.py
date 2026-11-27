@@ -3084,3 +3084,47 @@ def test_mlx_isnet_matches_torch():
     hand.ctx, hand.mlx = runner.ctx, mnet
     got = hand(image, None)["alpha"]
     torch.testing.assert_close(got, want, atol=1e-3, rtol=1e-3)
+
+
+def test_mlx_birefnet_matches_torch(monkeypatch):
+    """The hand-written BiRefNet (`birefnet/mlx_net.py`) against the network, float32, Swin-T at 64 x 64: the Swin v1
+    encoder at two scales (window padding), the deformable ASPP in row chunks, the image patches, the gradient
+    attention, the commuted last projection with the image branch in row strips; float16 loosely; then the runner's
+    pre- and post-processing (bicubic back, clamp)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matting.models.birefnet import mlx_net  # noqa: PLC0415
+    from fastforks.matting.models.birefnet import model as bi  # noqa: PLC0415
+    from fastforks.matting.models.birefnet.net.birefnet import BiRefNet  # noqa: PLC0415
+
+    monkeypatch.setattr(mlx_net, "STRIP", 24)  # three strips: top, middle, bottom
+    monkeypatch.setattr(mlx_net, "CHUNK_BYTES", 1 << 14)  # several ASPP chunks per level
+    net = _randomise(BiRefNet("swin_v1_t"))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.randn(1, 3, 64, 64)
+    with torch.no_grad():
+        want = net(x)[-1].sigmoid()
+    mnet = mlx_net.network(net, "float32")
+    torch.testing.assert_close(to_torch(mnet(to_mx(x))), want, atol=2e-4, rtol=1e-3)
+    half = mlx_net.network(net, "float16")
+    torch.testing.assert_close(to_torch(half(to_mx(x))), want, atol=3e-2, rtol=0)
+
+    runner = SimpleNamespace(
+        net=net,
+        dtype=torch.float32,
+        ctx=SimpleNamespace(params=SimpleNamespace(size=64), io=SimpleNamespace(input="imagenet")),
+    )
+    runner._net = lambda t: net(t)[-1]
+    image = torch.rand(1, 3, 131, 97)
+    with torch.no_grad():
+        want = bi._Matting.__call__(runner, image, None)["alpha"]
+    hand = object.__new__(bi._MlxPortable)
+    hand.ctx, hand.mlx = runner.ctx, mnet
+    torch.testing.assert_close(hand(image, None)["alpha"], want, atol=1e-3, rtol=1e-3)

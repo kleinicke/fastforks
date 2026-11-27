@@ -332,6 +332,13 @@
    }
   },
   "birefnet-lite@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -348,6 +355,14 @@
    }
   },
   "birefnet@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
