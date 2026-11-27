@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-27 |
-| rows | 1738 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1739 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -339,8 +339,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`u2net`](../models/matting.md#u2net) | 69.6 | 57.8 | unsupported | – | – | 723 | – |
 | [`u2net-human-seg`](../models/matting.md#u2net) | 68.8 | 59.3 | unsupported | – | – | 709 | – |
 | [`u2netp`](../models/matting.md#u2net) | 33.2 | 27.9 | unsupported | – | – | 504 | – |
-| [`vitmatte-b`](../models/matting.md#vitmatte) | 2370 | 1652 | – | – | – | 1741 | – |
-| [`vitmatte-s`](../models/matting.md#vitmatte) | 1181 | 816 | unsupported | – | – | 1622 | – |
+| [`vitmatte-b`](../models/matting.md#vitmatte) | 1344 | 1075 | unsupported | – | – | 1246 | – |
+| [`vitmatte-s`](../models/matting.md#vitmatte) | 754 | 570 | unsupported | – | – | 1073 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

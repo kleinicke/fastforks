@@ -3128,3 +3128,47 @@ def test_mlx_birefnet_matches_torch(monkeypatch):
     hand = object.__new__(bi._MlxPortable)
     hand.ctx, hand.mlx = runner.ctx, mnet
     torch.testing.assert_close(hand(image, None)["alpha"], want, atol=1e-3, rtol=1e-3)
+
+
+def test_mlx_vitmatte_matches_torch(monkeypatch):
+    """The hand-written ViTMatte (`vitmatte/mlx_net.py`) against `VitMatteForImageMatting`, float32, a 128-wide
+    backbone (64-wide heads) on a 14 x 18 token grid: the bicubic position embedding, the windowed layers (padded
+    windows), the global layers (relative tables resized, the mask in row chunks), the residual bottlenecks, the
+    detail capture, the matting tail in strips; float16 loosely; then the runner's padding and crop."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.matting.models.vitmatte import mlx_net  # noqa: PLC0415
+    from fastforks.matting.models.vitmatte import model as vm  # noqa: PLC0415
+    from fastforks.matting.models.vitmatte.net.vitmatte import Config, VitMatteForImageMatting  # noqa: PLC0415
+
+    net = _randomise(VitMatteForImageMatting(Config(hidden_size=128, num_attention_heads=2)))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.cat([torch.randn(1, 3, 224, 288), torch.rand(1, 1, 224, 288)], 1)
+    with torch.no_grad():
+        want = net(x)
+    monkeypatch.setattr(mlx_net, "MASK_BYTES", 1 << 16)  # several chunks per global layer
+    mnet = mlx_net.network(net, "float32")
+    got = to_torch(mnet(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-3)
+    monkeypatch.setattr(mlx_net, "STRIP_PIXELS", 0)
+    monkeypatch.setattr(mlx_net, "STRIP_ROW_PIXELS", 0)  # 32-row strips of the 112-row half map
+    monkeypatch.setattr(mlx_net, "FUSION_VALUES", 0)  # 8-row strips of every fusion's input map
+    got = to_torch(mnet(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-3)
+    half = to_torch(mlx_net.network(net, "float16")(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+    torch.testing.assert_close(half, want, atol=3e-2, rtol=0)
+
+    io = SimpleNamespace(input="mean_std", mean=[0.5] * 3, std=[0.5] * 3)
+    image, trimap = torch.rand(1, 3, 201, 270), torch.rand(1, 1, 201, 270)
+    with torch.no_grad():
+        want = net(vm.pixel_values(image, trimap, io))[:, 0, :201, :270]
+    hand = object.__new__(vm._MlxPortable)
+    hand.ctx, hand.mlx = SimpleNamespace(io=io), mnet
+    torch.testing.assert_close(hand(image, trimap)["alpha"], want, atol=1e-4, rtol=1e-3)

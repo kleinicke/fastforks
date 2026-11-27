@@ -62,9 +62,13 @@ class Params:
     cuda_graphs: bool
 
 
+def _skeleton(p: Params) -> VitMatteForImageMatting:
+    """The network of `p` without weights."""
+    return VitMatteForImageMatting(Config(hidden_size=p.hidden_size, num_attention_heads=p.num_heads))
+
+
 def _cpu_net(ctx: Context) -> VitMatteForImageMatting:
-    p = ctx.params
-    net = VitMatteForImageMatting(Config(hidden_size=p.hidden_size, num_attention_heads=p.num_heads))
+    net = _skeleton(ctx.params)
     sd = {k: v for k, v in ctx.state_dict().items() if not k.endswith("num_batches_tracked")}
     net.load_state_dict(sd)
     return net.eval()
@@ -397,8 +401,54 @@ class Kernels(_Matting):
         self._graphs.release()
 
 
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the padding and the crop on MLX too."""
+
+    Params = Params
+    trimap: ClassVar = "required"
+    dtypes = ("float32", "float16")
+    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda n: mlx_net.network(n, ctx.dtype),
+            real=lambda: _cpu_net(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB and its `[B, 1, H, W]` trimap in `[0, 1]`."""
+        if trimap is None:  # trimap = "required": the task checks it before
+            msg = "ViTMatte needs a trimap"
+            raise RuntimeError(msg)
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared import mlx_matting as mm  # noqa: PLC0415 - imports mlx
+
+        # `pixel_values` on the GPU: normalise, the trimap as the 4th channel, zero padding bottom-right; crop back
+        h, w = image.shape[-2:]
+        x = mx.concatenate([mm.normalise(to_mx(image.float()), self.ctx.io), to_mx(trimap.float())], axis=1)
+        x = mx.pad(x.transpose(0, 2, 3, 1), [(0, 0), (0, -h % _PAD), (0, -w % _PAD), (0, 0)])
+        alpha = mx.concatenate([self.mlx(x[i : i + 1])[:, :h, :w, 0] for i in range(x.shape[0])])
+        return {"alpha": to_torch(alpha)}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_net",)),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_net",))}

@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1738 rows, measured 2026-11-19 to 2026-11-27.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1739 rows, measured 2026-11-19 to 2026-11-27.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -320,8 +320,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 57.8 ms · portable fp16 |
 | [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 59.3 ms · portable fp16 |
 | [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 | 27.9 ms · portable fp16 |
-| [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1652 ms · portable fp16 |
-| [`vitmatte-s`](models/matting.md#vitmatte) | 1254 ms · portable fp16 | 816 ms · portable fp16 |
+| [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1075 ms · portable fp16 |
+| [`vitmatte-s`](models/matting.md#vitmatte) | 1254 ms · portable fp16 | 570 ms · portable fp16 |
 
 #### Promptable segmentation, 1024x1024
 
