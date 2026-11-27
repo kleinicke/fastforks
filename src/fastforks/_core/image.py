@@ -28,7 +28,7 @@ import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeGuard, cast
 
 import numpy as np
 from PIL import Image
@@ -518,7 +518,7 @@ def _to_rgb(
     and the bounds are floats (`_to_rgb_host`).
     """
     if device is arrays.HOST:
-        return _to_rgb_host(img, keep_uint8=keep_uint8)
+        return cast("Any", _to_rgb_host(img, keep_uint8=keep_uint8))  # NumPy on `HOST` (see above)
     t = _as_tensor(img)
     if t.device.type == "meta":
         msg = "image is a meta tensor (it has no data)"

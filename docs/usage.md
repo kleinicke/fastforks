@@ -40,6 +40,7 @@ directory.
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
 | `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#what-auto-picks-on-a-mac) |
+| `FASTFORKS_OUTPUTS` | `numpy` = results hold NumPy arrays instead of torch tensors, as `fastforks.set_outputs("numpy")` (see [Inputs and outputs](#inputs-and-outputs)); default `torch` |
 | `FASTFORKS_MLX_PLAN_CACHE` | a directory: [MLX](#apple-silicon-mlx) graph ports keep the exported graph and the tuning decisions of each input size there, so the first call of a size in a new process skips them (off by default; see "First call" there) |
 | `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
 | `FASTFORKS_MLX_GRAPH` | `1` = diagnostics only: every family whose [MLX](#apple-silicon-mlx) network is written by hand builds the exported-graph translation it replaced instead (the family's `GRAPH_RUNNERS`; the libnet classifiers' generic translation), to A/B the two (`tools/mlx_core_ab.py`); any other value: no effect |
@@ -561,6 +562,12 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
 - Outputs are tensors on the model's device; `result.numpy()` returns them as a dict of NumPy arrays by name (`None`
   fields left out, `extras` flattened in, bfloat16 as float32). Some models also return
   `result.confidence` or `result.extras` (see the model page).
+- NumPy results: `model(image, outputs="numpy")` returns the same result type with NumPy arrays in every field (CPU,
+  float32 where the tensors are float32 or float16; masks stay `bool`, labels integer). `fastforks.set_outputs("numpy")`
+  (or `FASTFORKS_OUTPUTS=numpy`) makes that the default of every call in the process; `outputs="torch"` asks for
+  tensors in one call. The values are the same either way. On CUDA, MPS and the CPU the network still runs in torch
+  and the arrays are copied out at the end; on [MLX](#apple-silicon-mlx) ports that compute on arrays a run with NumPy
+  outputs needs no torch at all.
 - Results are snapshots you own: frozen dataclasses with new tensors per call (never buffers a later call reuses, also
   with CUDA graphs). `.to(device)` / `.cpu()` return new results. `numpy()` arrays of CPU tensors share their memory;
   arrays of cached values (calibrated stereo `depth()`, `run_many`'s numpy maps, rig matrices) are read-only:
@@ -847,7 +854,8 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
 - Inputs and outputs: as on every other device. Images are converted, scaled, padded and cropped by the same PyTorch
   code, on the CPU (`model.device` is `cpu`); the network input goes to MLX in one copy and the outputs come back
   as float32 CPU tensors in one copy (the memory is unified, so neither crosses a bus). A call has finished when it
-  returns: there is nothing to synchronise before timing or reading. Besides the usual image types an `mx.array` is
+  returns: there is nothing to synchronise before timing or reading. Ports that compute on NumPy arrays (see
+  "Without torch" below) do the same steps on NumPy arrays and in MLX, with the same results. Besides the usual image types an `mx.array` is
   accepted, laid out like a NumPy image (`HWC` / `BHWC`). `result.backend.device` is `"mlx"`.
 - Weights: the same original checkpoints as everywhere else (same download, `FASTFORKS_WEIGHTS_PATH`,
   `weights=PATH`). For CREStereo, Depth Anything, the DINO ViT feature backbones and TIPSv2, the first load converts them to the port's layout (convolutions channel-last, batch norms folded,
@@ -873,6 +881,14 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
   takes tens to hundreds of KB. The cache is keyed by the fastforks, torch and mlx versions
   and fastforks' source files, so an upgrade starts it afresh; it is never pruned (delete the directory to reset it).
   Outputs with and without it are bit-identical.
+- Without torch: `import fastforks` and the task packages never import torch. A port that computes on NumPy arrays
+  (Depth Anything V2 and its fine-tunes so far; `fastforks._core.runner.Runner.arrays`) called with
+  `outputs="numpy"` (or after `fastforks.set_outputs("numpy")`) and a converted checkpoint in the cache (any earlier
+  load) does not import it either: it decodes the image to NumPy, resizes and normalises on the GPU exactly as
+  PyTorch's CPU `F.interpolate` does (bit-identical results), and returns NumPy arrays. That saves torch's import time
+  and memory (about 0.6 s and 150 MB on an M1 Pro: Depth Anything V2 S starts and returns its first result in 0.4 s
+  instead of 1.0 s) in a process that only runs such ports. Torch is still a dependency
+  and is imported for the first conversion of a checkpoint, for torch tensor results and for the other ports.
 - Not there: `model.module()`, `model.compile()` and ONNX / TensorRT export are PyTorch features and raise
   `BackendUnavailableError` on `"mlx"`; the outputs carry no gradients.
 

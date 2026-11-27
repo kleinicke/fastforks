@@ -16,25 +16,31 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
-import torch
-import torch.nn.functional as F
-from torch import nn
+import numpy as np
 
-from fastforks._core.half import pure_half
-from fastforks.depth._runner import Forward, Runner, scale
-from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks._core.lazy import lazy
+from fastforks._core.preprocess import mean_std
+from fastforks.depth._runner import Runner, scale
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
-from fastforks.shared.depth_anything_v2 import DepthAnythingV2, fold_layer_scale, use_sdpa_attention
-
-from .fused import FusedHead, FusedViT
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from typing import Any
 
+    import torch
+    import torch.nn.functional as F
+    from torch import nn
+
     from fastforks.depth._runner import Context
+    from fastforks.shared.depth_anything_v2 import DepthAnythingV2
+else:  # the MLX runners run without torch
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
+    nn = lazy("torch.nn")
+
+_Maps = TypeVar("_Maps", "torch.Tensor", np.ndarray)
 
 PATCH = 14  # fixed: the DINOv2 ViT-*/14 patch; upstream hard-codes ensure_multiple_of=14
 _CONFIGS = {  # upstream run.py model_configs
@@ -83,6 +89,8 @@ def _state_dict(ctx: Context) -> dict[str, torch.Tensor]:
 
 def _cpu_net(ctx: Context) -> DepthAnythingV2:
     """The network on the CPU in float32; a metric head ends in a sigmoid (upstream `metric_depth` DPTHead)."""
+    from fastforks.shared.depth_anything_v2 import DepthAnythingV2  # noqa: PLC0415 - torch runners only
+
     net = DepthAnythingV2(encoder=ctx.params.arch, **_CONFIGS[ctx.params.arch])
     if ctx.params.max_depth > 0:
         net.depth_head.scratch.output_conv2[3] = nn.Sigmoid()  # the shared net's final ReLU is then a no-op
@@ -98,7 +106,7 @@ def _key(ctx: Context) -> str:
     return "depth" if ctx.params.max_depth > 0 else "inverse_depth"
 
 
-def _scaled(ctx: Context, d: torch.Tensor) -> torch.Tensor:
+def _scaled(ctx: Context, d: _Maps) -> _Maps:
     """Restored network output -> metric depth (`sigmoid * max_depth`), or the relative inverse depth as it is."""
     return d * ctx.params.max_depth if ctx.params.max_depth > 0 else d
 
@@ -126,6 +134,9 @@ class Portable(Runner):
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
+        from fastforks._core.half import pure_half  # noqa: PLC0415 - torch runners only
+        from fastforks.shared.depth_anything_v2 import fold_layer_scale, use_sdpa_attention  # noqa: PLC0415
+
         super().__init__(ctx)
         self.net = _net(ctx)
         use_sdpa_attention(self.net)
@@ -143,6 +154,8 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> inverse (metric) depth `[B, H, W]`."""
+        from fastforks.depth._runner import Forward  # noqa: PLC0415 - a torch class, made at first use
+
         return Forward(self.net, lambda _net, image: self._run(image))
 
 
@@ -172,6 +185,10 @@ class Kernels(Runner):
 
     def __init__(self, ctx: Context) -> None:
         """Build the network on the CPU, convert it, move it to the device."""
+        from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: PLC0415 - torch runners only
+
+        from .fused import FusedHead, FusedViT  # noqa: PLC0415
+
         super().__init__(ctx)
         net = _cpu_net(ctx)
         k = load_dpt_fused(ctx.device)
@@ -210,8 +227,13 @@ class Kernels(Runner):
 
 
 class MlxPortable(Runner):
-    """Apple MLX (`device="mlx"`): encoder and head in MLX array operations, float32 or fp16 (fp32 output conv)."""
+    """Apple MLX (`device="mlx"`): encoder and head in MLX array operations, float32 or fp16 (fp32 output conv).
 
+    NumPy in and out (`arrays`): the input resize + normalisation and the output resize run as torch's CPU
+    `F.interpolate` computes them, bit for bit (`fastforks.shared.mlx_resize`), on the GPU.
+    """
+
+    arrays = "numpy"
     batch = None
     Params = Params
 
@@ -225,15 +247,32 @@ class MlxPortable(Runner):
         self.engine = mlx_net.Engine(
             p32, ctx.params.arch, ctx.dtype, sigmoid=ctx.params.max_depth > 0, up=self._resize() or mlx_net.resize
         )
+        norm = mean_std(ctx.io)
+        if norm is None:
+            msg = (
+                f"depth_anything_v2: the MLX runners normalise with a mean / std, the card has input = {ctx.io.input!r}"
+            )
+            raise ValueError(msg)
+        self.norm = norm
 
     def _resize(self) -> Callable[..., Any] | None:
         """The head's bilinear resize, if not MLX's own operations."""
         return None
 
-    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
-        """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
-        d = self.engine(_prepare(self.ctx, image))
-        return {_key(self.ctx): _scaled(self.ctx, _restore(d, image.shape[-2:]))}
+    def __call__(  # ty: ignore[invalid-method-override] - an array runner: NumPy in and out
+        self,
+        image: np.ndarray,
+        intrinsics: np.ndarray | None,  # noqa: ARG002 - unused
+    ) -> dict[str, np.ndarray]:
+        """Relative inverse depth (metric depth for metric checkpoints) of a `[B, 3, H, W]` float32 batch."""
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - needs the mlx extra
+        from fastforks.shared import mlx_resize  # noqa: PLC0415
+
+        size = image.shape[-2:]
+        x = mlx_resize.bicubic(mx.array(image), network_size(*size, self.ctx.params.short_side), *self.norm)
+        d = mlx_resize.bilinear_aligned(self.engine(x)[:, None], size)[:, 0]
+        mx.eval(d)
+        return {_key(self.ctx): _scaled(self.ctx, np.asarray(d))}
 
 
 class MlxKernels(MlxPortable):

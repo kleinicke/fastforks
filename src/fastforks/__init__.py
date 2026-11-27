@@ -6,7 +6,8 @@ Tasks: `fastforks.stereo`, `flow`, `matching`, `depth`, `multiview`, `classifica
 `fastforks.list_models()` lists the installed models of every task and `fastforks.load(id)` loads any of them.
 The shared types (`Model`, `Backend`, `ModelCard`, `SizeRange`, `TensorRTEngine`, `ImageLike`) are exported here.
 `fastforks.patch(model)` speeds up your own timm / torchvision / HF transformers classifier in place (imported on
-first use: `import fastforks` stays torch-free).
+first use: `import fastforks` stays torch-free). `fastforks.set_outputs("numpy")` makes results NumPy arrays (MLX runs
+then need no torch; see `fastforks._core.arrays`).
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastforks._core import registry
 from fastforks._core.arguments import legacy_labels, typo_checked_load
+from fastforks._core.arrays import get_outputs, set_outputs
 from fastforks._core.errors import (
     ArgumentError,
     BackendUnavailableError,
@@ -75,12 +77,14 @@ __all__ = [
     "__version__",
     "base_type",
     "describe_models",
+    "get_outputs",
     "list_models",
     "load",
     "model_card",
     "patch",
     "read_images",
     "save",
+    "set_outputs",
 ]
 
 

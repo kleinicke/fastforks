@@ -19,13 +19,14 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 
-from fastforks._core.mlx import mx, to_mx, tuning
+from fastforks._core.mlx import mx, tuning
 from fastforks.shared.mlx_vit import dinov2_layers, dinov2_params, dinov2_table
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    import torch
 
     Resize = Callable[[mx.array, int, int], mx.array]
 
@@ -171,7 +172,7 @@ class Engine:
     def __init__(self, p32: dict[str, mx.array], arch: str, dtype: str, *, sigmoid: bool, up: Resize = resize) -> None:
         """Cast the float32 parameters of `prepare` (`p32`, emptied) to the run dtype; `up`: the head's resize."""
         self.dtype = getattr(mx, dtype)
-        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos.cls", "pos.grid", "patch.bias")}
+        host = {k: np.array(p32.pop(k)) for k in ("pos.cls", "pos.grid", "patch.bias")}
         self.pos, self.cls, self.bias = host["pos.grid"], host["pos.cls"], host["patch.bias"]  # fp32, as upstream
         fp32 = ("head.out3.weight", "head.out3.bias")
         self.p = {k: v if k in fp32 else v.astype(self.dtype) for k, v in p32.items()}
@@ -188,7 +189,7 @@ class Engine:
         """`[1 + h0 * w0, C]` in the run dtype: row 0 = cls token + its position, the rest = positions + patch bias."""
         key = (h0, w0)
         if key not in self.tables:
-            table = to_mx(dinov2_table(self.cls, self.pos, self.bias, h0, w0)).astype(self.dtype)
+            table = mx.array(dinov2_table(self.cls, self.pos, self.bias, h0, w0)).astype(self.dtype)
             mx.eval(table)
             self.tables[key] = table
             while len(self.tables) > TABLES:
@@ -196,8 +197,6 @@ class Engine:
         self.tables.move_to_end(key)
         return self.tables[key]
 
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
-        """Normalised `[B, 3, h, w]` CPU tensor -> float32 CPU `[B, h, w]`."""
-        out = self.run(to_mx(image), self.table(image.shape[2] // PATCH, image.shape[3] // PATCH))
-        mx.eval(out)
-        return torch.from_numpy(np.array(out))
+    def __call__(self, image: mx.array) -> mx.array:
+        """Normalised `[B, 3, h, w]` -> float32 `[B, h, w]` (lazy)."""
+        return self.run(image, self.table(image.shape[2] // PATCH, image.shape[3] // PATCH))

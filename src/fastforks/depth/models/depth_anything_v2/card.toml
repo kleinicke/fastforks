@@ -3,7 +3,7 @@ name = "Depth Anything V2"
 summary = "Depth Anything V2 (Yang et al. 2024): relative monocular depth from a DINOv2 ViT encoder and a DPT head, trained on synthetic labels and 62M pseudo-labelled real images; with the authors' metric fine-tunes (Hypersim indoor, Virtual KITTI 2 outdoor) and the Distill-Any-Depth checkpoints (He et al. 2025) of the same network."
 tier = "stable"
 outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_resize"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).",

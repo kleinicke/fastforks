@@ -1026,8 +1026,8 @@ def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype 
 def dtype_name(dtype: str | torch.dtype | None) -> str | None:
     """`"float16"` for `torch.float16` (any `torch.dtype` -> its name); anything else unchanged (validated later)."""
     if dtype is None or isinstance(dtype, str) or "torch" not in sys.modules:  # no torch: not a torch dtype
-        return dtype
-    return str(dtype).removeprefix("torch.") if isinstance(dtype, torch.dtype) else dtype
+        return cast("str | None", dtype)
+    return str(dtype).removeprefix("torch.") if isinstance(dtype, torch.dtype) else cast("str", dtype)
 
 
 def _check_args(mode: str, dtype: str | torch.dtype | None) -> tuple[bool, Dtype | None]:
@@ -1328,15 +1328,18 @@ def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
     if runtime.graph_switch():  # diagnostics: the exported-graph runner the hand-written network replaced
         rcls = getattr(models, "GRAPH_RUNNERS", {}).get(f"{mode}_mlx", rcls)
     array_runner = getattr(rcls, "arrays", "torch") == "numpy"
-    device = arrays.HOST if array_runner else torch.device("cpu")
+    device = cast("torch.device", arrays.HOST) if array_runner else torch.device("cpu")
     ctx = Context(
         card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights, state
     )
-    from fastforks.shared import mlx_plan_cache  # noqa: PLC0415 - MLX loads only
-
-    # the runner's MLX modules get on-disk plan cache keys of this load (FASTFORKS_MLX_PLAN_CACHE; off by default)
-    with mlx_plan_cache.scope(repr((variant.ref, mode, dtype, ctx.params, weights))):
+    if array_runner:  # hand-written on NumPy arrays: no exported graphs, so no plan cache (and no torch)
         runner = _construct(rcls, ctx)
+    else:
+        from fastforks.shared import mlx_plan_cache  # noqa: PLC0415 - MLX loads only
+
+        # the runner's MLX modules get on-disk plan cache keys of this load (FASTFORKS_MLX_PLAN_CACHE; off by default)
+        with mlx_plan_cache.scope(repr((variant.ref, mode, dtype, ctx.params, weights))):
+            runner = _construct(rcls, ctx)
     backend = Backend(
         mode,
         MLX,
@@ -1694,6 +1697,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
 def _construct(rcls: type[Runner], ctx: Context) -> Runner:
     """`rcls(ctx)`; an error that says the user's `weights=` files do not fit becomes a `CheckpointMismatchError`."""
     try:
+        if getattr(rcls, "arrays", "torch") == "numpy":  # builds no torch modules (and must not import torch)
+            return rcls(ctx)
         # the checkpoint overwrites the initial values: skip the random fill; the build runs at the requested dtype
         # whatever the caller's `torch.set_default_dtype`
         with deferred_init(), float32_default():

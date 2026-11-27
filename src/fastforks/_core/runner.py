@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 
     import torch
 
-    from fastforks._core.arrays import Device
     from fastforks._core.cards import Dtype, Io, Mode, ModelCard, Variant
 else:
     torch = lazy("torch")
@@ -71,7 +70,7 @@ class Context:
     card: ModelCard
     variant: Variant
     mode: Mode
-    device: torch.device | Device
+    device: torch.device  # or `arrays.HOST` (typed as a torch device: torch runners never see it)
     dtype: Dtype
     params: Any
     kernels: tuple[str, ...] = ()

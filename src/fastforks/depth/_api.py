@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
 
-from fastforks._core import cameras
+from fastforks._core import arrays, cameras
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
@@ -335,7 +335,7 @@ class DepthModel(core.Model):
             backend=self.backend,
             options=self.options,
         )
-        if isinstance(x, torch.Tensor):  # not a field: colours of `save` (a cloud is of one image)
+        if isinstance(x, np.ndarray) or arrays.is_tensor(x):  # not a field: colours of `save` (a cloud is of one image)
             object.__setattr__(result, "_image", x if batched else x[0])
         return result
 

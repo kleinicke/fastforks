@@ -70,12 +70,21 @@ def _channels(values: tuple[float, ...], device: torch.device) -> torch.Tensor:
     return torch.tensor(values, device=device, dtype=torch.float32).view(1, -1, 1, 1)
 
 
+def mean_std(io: Io) -> tuple[tuple[float, ...], tuple[float, ...]] | None:
+    """The per-channel `(mean, std)` that `scale` normalises with, or `None` if `io.input` is no normalisation."""
+    if io.input == "imagenet":
+        return IMAGENET_MEAN, IMAGENET_STD
+    if io.input == "mean_std":
+        return tuple(io.mean), tuple(io.std)
+    return None
+
+
 def scale(x: torch.Tensor, io: Io) -> torch.Tensor:
     """`[0, 1]` RGB -> the value range the network expects (`io.input`)."""
     if io.input == "0-255":
         return x * 255.0
-    if io.input in {"imagenet", "mean_std"}:
-        mean, std = (IMAGENET_MEAN, IMAGENET_STD) if io.input == "imagenet" else (io.mean, io.std)
+    if (norm := mean_std(io)) is not None:
+        mean, std = norm
         if torch.compiler.is_compiling() or torch.jit.is_tracing():  # traced graphs keep their constants inline
             m, s = (torch.tensor(v, device=x.device, dtype=torch.float32).view(1, 3, 1, 1) for v in (mean, std))
         else:

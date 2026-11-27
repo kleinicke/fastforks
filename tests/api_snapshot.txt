@@ -97,6 +97,8 @@ cli fastforks bench: --runs
 cli fastforks bench: --size
 cli fastforks bench: --views
 cli fastforks bench: model
+cli fastforks cache mlx: --dry-run
+cli fastforks cache mlx: --prune
 cli fastforks download: --all-archs
 cli fastforks download: --arch
 cli fastforks download: --check
@@ -220,6 +222,7 @@ def fastforks.flow._api.FlowResult.save(self, path: 'str | os.PathLike[str]') ->
 def fastforks.flow.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.flow.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.flow._api.FlowModel
 def fastforks.flow.model_card(model: 'str') -> 'ModelCard'
+def fastforks.get_outputs() -> 'Outputs'
 def fastforks.interpolation._api.InterpolationModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike', *, timestep: 'float' = 0.5) -> 'InterpolationResult'
 def fastforks.interpolation._api.InterpolationModel.module(self) -> 'torch.nn.Module'
 def fastforks.interpolation._api.InterpolationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
@@ -303,6 +306,7 @@ def fastforks.segmentation._api.SegmentationModel.__call__(self, image: 'ImageLi
 def fastforks.segmentation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.segmentation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.segmentation._api.SegmentationModel
 def fastforks.segmentation.model_card(model: 'str') -> 'ModelCard'
+def fastforks.set_outputs(kind: 'Outputs | None') -> 'Outputs'
 def fastforks.stereo._api.StereoModel.__call__(self, left: 'ImageLike', right: 'ImageLike', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None) -> 'StereoResult'
 def fastforks.stereo._api.StereoModel.module(self) -> 'torch.nn.Module'
 def fastforks.stereo._api.StereoModel.run_many(self, lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False) -> 'Pipeline[StereoResult]'
@@ -1090,6 +1094,7 @@ option volume.totalsegmentator.stream
 property fastforks._core.cards.ModelCard.extras -> tuple[str, ...]
 property fastforks._core.cards.ModelCard.module -> str
 property fastforks._core.cards.ModelCard.requires -> tuple[str, ...]
+property fastforks._core.model.Model.device -> torch.device
 property fastforks._optimize.FastModel.original -> nn.Module
 property fastforks.classification._api.ClassificationModel.class_names -> tuple[str, ...]
 property fastforks.classification._api.ClassificationModel.data_config -> dict[str, Any]

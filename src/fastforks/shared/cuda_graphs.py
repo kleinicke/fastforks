@@ -34,7 +34,7 @@ import traceback
 import warnings
 import weakref
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from fastforks._core.kernels import checked, trim_cuda_graph_pool
 from fastforks._core.lazy import lazy
@@ -70,14 +70,20 @@ def graph_request() -> Generator[None]:
         _REQUEST.reset(token)
 
 
+if TYPE_CHECKING:
+
+    class _Graph(torch.cuda.CUDAGraph):
+        uploads: list[torch.Tensor]
+
+
 @functools.cache
-def _graph_class() -> type[torch.cuda.CUDAGraph]:
+def _graph_class() -> type[_Graph]:
     class _Graph(torch.cuda.CUDAGraph):
         """A CUDA graph that holds the pinned host buffers its captured uploads copy from (`capture_uploads`)."""
 
         uploads: list[torch.Tensor]
 
-    return _Graph  # defined at first use: importing this module does not import torch
+    return cast("Any", _Graph)  # defined at first use: importing this module does not import torch
 
 
 @functools.cache
@@ -478,7 +484,7 @@ class SmallShapeGraphs(Generic[_Output]):
 
 
 @functools.cache
-def _captured_module() -> type[torch.nn.Module]:
+def _captured_module() -> type[CapturedModule]:
     class CapturedModule(torch.nn.Module):
         """A dense inference submodule with a bounded per-shape CUDA graph cache."""
 
@@ -492,11 +498,17 @@ def _captured_module() -> type[torch.nn.Module]:
             """Replay the complete dense output for a recurring shape."""
             return self.graphs(*inputs)
 
-    return CapturedModule
+    return cast("Any", CapturedModule)
 
 
 if TYPE_CHECKING:
-    CapturedModule = _captured_module()
+
+    class CapturedModule(torch.nn.Module):  # noqa: D101 - the class `_captured_module` makes
+        network: torch.nn.Module
+        graphs: SmallShapeGraphs[Any]
+
+        def __init__(self, network: torch.nn.Module, *, pixels: int) -> None: ...  # noqa: D107
+
 else:
 
     def __getattr__(name: str) -> object:

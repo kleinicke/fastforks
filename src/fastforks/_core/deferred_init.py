@@ -229,5 +229,5 @@ def float32_default() -> Generator[None]:
     finally:
         with _dt_lock:
             _dt_users -= 1
-            if _dt_users == 0 and _dt_saved != torch.float32:
+            if _dt_users == 0 and _dt_saved is not None and _dt_saved != torch.float32:
                 torch.set_default_dtype(_dt_saved)

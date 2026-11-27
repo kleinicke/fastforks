@@ -39,14 +39,14 @@ class _Lazy(types.ModuleType):
         super().__init__(name)
         self.__dict__["_ff_target"] = None
 
-    def __getattr__(self, attr: str) -> Any:  # noqa: ANN401 - the real module's attribute
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401 - the real module's attribute
         target = self.__dict__["_ff_target"]
         if target is None:
-            if attr.startswith("__"):  # introspection (copy, pickle, doctest) on a stand-in never imported
-                raise AttributeError(attr)
+            if name.startswith("__"):  # introspection (copy, pickle, doctest) on a stand-in never imported
+                raise AttributeError(name)
             target = importlib.import_module(self.__name__)
             self.__dict__["_ff_target"] = target
-        return getattr(target, attr)
+        return getattr(target, name)
 
     def __repr__(self) -> str:
         return f"<lazy module {self.__name__!r}>"

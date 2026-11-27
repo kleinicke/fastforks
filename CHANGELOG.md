@@ -17,6 +17,10 @@ No model family is new in this release; the changes are backends, platforms and 
 - Explicit modes are strict, as in 0.2.0: `mode="portable"` and `mode="kernels"` on `device="mps"` never run MLX.
   `mode="kernels"` runs the family's Metal kernels or raises `BackendUnavailableError`, naming `mode="auto"` and
   `device="mlx"`. `device="mlx"` is the explicit choice of MLX.
+- NumPy results: `model(..., outputs="numpy")`, `fastforks.set_outputs("numpy")` or `FASTFORKS_OUTPUTS=numpy` give
+  the same result types with NumPy arrays; the default stays torch tensors. `import fastforks` no longer imports
+  torch, and an MLX run of a port that computes on arrays (Depth Anything V2 and its fine-tunes so far) with NumPy
+  results and a warm conversion cache never imports it. Torch is still a dependency.
 
 ### Windows
 

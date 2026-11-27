@@ -23,14 +23,19 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
-import torch.nn.functional as F
 
 from fastforks._core import mlx as mlx_core
+from fastforks._core.lazy import lazy
 from fastforks._core.mlx import mx, to_mx, to_torch
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    import torch
+    import torch.nn.functional as F
+else:
+    torch = lazy("torch")
+    F = lazy("torch.nn.functional")
 
 __all__ = [
     "DinoFeatureEngine",
@@ -372,16 +377,23 @@ def dinov2_layers(
     return [mx.fast.layer_norm(h, p["norm.weight"], p["norm.bias"], norm_eps) for h in hs]
 
 
-def dinov2_table(
-    cls: torch.Tensor, grid: torch.Tensor, bias: torch.Tensor, h0: int, w0: int, offset: float = 0.1
-) -> torch.Tensor:
+def dinov2_table(cls, grid, bias, h0: int, w0: int, offset: float = 0.1):
     """The embedding table `[1 + h0 * w0, C]` of an `h0 x w0` patch grid (float32): what `_embed` adds.
 
     Row 0 = `cls` (`pos.cls`: class token + its position), the rest = the patch positions `grid` (`pos.grid`, a square
     table) + the patch embedding's `bias`. Another grid size is DINOv2's `interpolate_pos_encoding`: bicubic by scale
-    factors, with its `interpolate_offset`.
+    factors, with its `interpolate_offset`. Torch tensors in, a tensor out; NumPy arrays in, an array out (the same
+    values: `mlx_resize.bicubic_host`, without torch).
     """
     side = math.isqrt(grid.shape[0])
+    if isinstance(grid, np.ndarray):
+        if (h0, w0) != (side, side):
+            from fastforks.shared.mlx_resize import bicubic_host  # noqa: PLC0415 - Metal kernels: at first use
+
+            g = np.ascontiguousarray(grid.reshape(1, side, side, -1).transpose(0, 3, 1, 2))
+            g = bicubic_host(g, (h0, w0), ((h0 + offset) / side, (w0 + offset) / side))
+            grid = g[0].transpose(1, 2, 0).reshape(h0 * w0, -1)
+        return np.concatenate([cls, grid + bias])
     if (h0, w0) != (side, side):
         g = grid.reshape(1, side, side, -1).permute(0, 3, 1, 2)
         g = F.interpolate(g, scale_factor=((h0 + offset) / side, (w0 + offset) / side), mode="bicubic")
