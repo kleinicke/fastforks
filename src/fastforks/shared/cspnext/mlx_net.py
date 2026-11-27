@@ -45,6 +45,7 @@ __all__ = [
     "chain",
     "conv",
     "conv_act",
+    "folded",
     "max_pool",
     "module",
     "neck",
@@ -141,6 +142,31 @@ def conv(layer: Any, dtype: mx.Dtype, graph: str | None = None) -> Layer:
         return mg._conv2d(x, ohwi, stride, padding, (1, 1), g) + b  # noqa: SLF001 - the translator's channel padding
 
     return apply
+
+
+def folded(layer: Any, bn: Any) -> Any:
+    """A `Conv2d` followed by an eval `BatchNorm2d` as one conv for `conv` (the stand-in's weight and bias folded).
+
+    Folded in float64 on the real modules; on a cache hit (the meta skeleton) the stand-in carries the modules' own
+    tensors, whose shapes are the folded ones (only shapes are read there: torch arithmetic on a meta tensor imports
+    `torch._dynamo`).
+    """
+    w, b = layer.weight, bn.bias
+    if not w.is_meta:
+        s = bn.weight.detach().double() / (bn.running_var.detach().double() + bn.eps).sqrt()
+        w = w.detach().double() * s[:, None, None, None]
+        b0 = 0.0 if layer.bias is None else layer.bias.detach().double()
+        b = bn.bias.detach().double() + (b0 - bn.running_mean.detach().double()) * s
+    return SimpleNamespace(
+        weight=w,
+        bias=b,
+        stride=layer.stride,
+        padding=layer.padding,
+        kernel_size=layer.kernel_size,
+        groups=layer.groups,
+        in_channels=layer.in_channels,
+        out_channels=layer.out_channels,
+    )
 
 
 def options(graph: str | None, *, gemm1x1: bool = True, half_wino_f32: bool = False) -> None:

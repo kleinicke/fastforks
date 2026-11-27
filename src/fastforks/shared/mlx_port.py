@@ -25,6 +25,8 @@ it by hash: a changed builder never replays an old file (`fastforks cache mlx --
 from __future__ import annotations
 
 import contextvars
+import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastforks._core.mlx import convert_cached, mx
@@ -32,11 +34,10 @@ from fastforks.shared.mlx_wrap import lazy_build
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from fastforks._core.runner import Context
 
-__all__ = ["recorded", "tensor"]
+__all__ = ["header_skeleton", "recorded", "tensor"]
 
 _T = TypeVar("_T")
 
@@ -140,3 +141,17 @@ def recorded(  # noqa: PLR0913 - the builder, both networks and the cache key
         msg = f"MLX port cache: the builder took {tape.taken} of {n} cached arrays (bump the layout tag)"
         raise RuntimeError(msg)
     return out
+
+
+def header_skeleton(path: str | Path) -> dict[str, Any]:
+    """A safetensors file's tensors as empty ones of their shapes, from its header only: a state-dict skeleton.
+
+    For a builder that reads the checkpoint's tensors by name rather than a module (`recorded`'s `skeleton`, called
+    under the meta device): no checkpoint read and no network class to import on a hit.
+    """
+    import torch  # noqa: PLC0415 - the skeleton's tensors
+
+    with Path(path).open("rb") as f:
+        n = int.from_bytes(f.read(8), "little")
+        header = json.loads(f.read(n))
+    return {k: torch.empty(v["shape"]) for k, v in header.items() if k != "__metadata__"}
