@@ -3,7 +3,7 @@ name = "Line art (informative-drawings)"
 summary = "Line art preprocessor of ControlNet 1.1 (controlnet_aux `LineartDetector`, ComfyUI's \"Realistic Lineart\"): the informative-drawings generator (Chan, Durand and Isola, CVPR 2022; 3 residual blocks, instance norm) turns a photo into a line drawing. `lineart` is the realistic model, `lineart-coarse` the coarse one."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["cnn_kernels", "mlx_wrap", "mlx_graph"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap", "mlx_graph", "mlx_port"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"
