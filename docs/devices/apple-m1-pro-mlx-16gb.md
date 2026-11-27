@@ -10,8 +10,8 @@
 | hardware | 16-core GPU; the families with an MLX port (device="mlx") |
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-19 to 2026-11-26 |
-| rows | 1718 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| measured | 2026-11-19 to 2026-11-27 |
+| rows | 1732 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -779,36 +779,36 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|---|---|---|---|
 | [`big-lama`](../models/restoration.md#lama) | 347 | 225 | – | unsupported | – | – | 990 | – |
 | [`codeformer`](../models/restoration.md#codeformer) | 484 | 285 | – | 481 | 239 | 1.2x | 1597 | 1637 |
-| [`dat-2-x4`](../models/restoration.md#dat) | 12210 | 15757 | – | – | – | – | 5878 | – |
-| [`dat-light-x4`](../models/restoration.md#dat) | 2678 | 1870 | – | – | – | – | 2425 | – |
-| [`dat-x4`](../models/restoration.md#dat) | 24476 | 9358 | – | – | – | – | 3305 | – |
-| [`drct-l-x4`](../models/restoration.md#drct) | 29775 | 18644 | – | – | – | – | 5279 | – |
-| [`drct-x4`](../models/restoration.md#drct) | 15300 | 10754 | – | – | – | – | 5003 | – |
+| [`dat-2-x4`](../models/restoration.md#dat) | 8587 | 5231 | – | unsupported | – | – | 3643 | – |
+| [`dat-light-x4`](../models/restoration.md#dat) | 1761 | 1031 | – | unsupported | – | – | 2751 | – |
+| [`dat-x4`](../models/restoration.md#dat) | 10244 | 5785 | – | unsupported | – | – | 3572 | – |
+| [`drct-l-x4`](../models/restoration.md#drct) | 12178 | 8199 | – | unsupported | – | – | 2349 | – |
+| [`drct-x4`](../models/restoration.md#drct) | 6303 | 4229 | – | unsupported | – | – | 2306 | – |
 | [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 258 | 159 | – | unsupported | – | – | 1108 | – |
-| [`hat-s-x4`](../models/restoration.md#hat) | 15572 | 10010 | – | – | – | – | 3396 | – |
-| [`hat-x4`](../models/restoration.md#hat) | 17231 | 11318 | – | – | – | – | 3674 | – |
+| [`hat-s-x4`](../models/restoration.md#hat) | 8777 | 6491 | – | unsupported | – | – | 3108 | – |
+| [`hat-x4`](../models/restoration.md#hat) | 11091 | 7478 | – | unsupported | – | – | 3470 | – |
 | [`nafnet-gopro`](../models/restoration.md#nafnet) | 322 | 221 | – | unsupported | – | – | 1414 | – |
 | [`nafnet-sidd`](../models/restoration.md#nafnet) | 271 | 225 | – | unsupported | – | – | 1473 | – |
-| [`real-hat-gan-x4`](../models/restoration.md#hat) | 24682 | 15831 | – | – | – | – | 5687 | – |
-| [`realesr-general-x4v3`](../models/restoration.md#compact) | 333 | 246 | – | 177 | 104 | 2.4x | 737 | 1061 |
-| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 1599 | 1199 | – | 1667 | 567 | 2.1x | 974 | 1222 |
-| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 7548 | 5321 | – | 7380 | 2184 | 2.4x | 1390 | 2452 |
-| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 2700 | 1617 | – | 2038 | 849 | 1.9x | 1319 | 2106 |
+| [`real-hat-gan-x4`](../models/restoration.md#hat) | 11457 | 7445 | – | unsupported | – | – | 3416 | – |
+| [`realesr-general-x4v3`](../models/restoration.md#compact) | 236 | 195 | – | 165 | 96.3 | 2.0x | 516 | 968 |
+| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 1488 | 1057 | – | 1506 | 567 | 1.9x | 628 | 1130 |
+| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 5840 | 4195 | – | 5184 | 2047 | 2.0x | 1248 | 2337 |
+| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 1770 | 1304 | – | 1743 | 790 | 1.7x | 1187 | 1922 |
 | [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 2269 | 904 | – | 2150 | 904 | 1.0x | 1850 | 1849 |
-| [`restormer-deblur`](../models/restoration.md#restormer) | 809 | 554 | – | unsupported | – | – | 2195 | – |
-| [`restormer-derain`](../models/restoration.md#restormer) | 806 | 552 | – | unsupported | – | – | 2262 | – |
-| [`restormer-sidd`](../models/restoration.md#restormer) | 796 | 551 | – | unsupported | – | – | 2264 | – |
+| [`restormer-deblur`](../models/restoration.md#restormer) | 812 | 555 | – | unsupported | – | – | 2017 | – |
+| [`restormer-derain`](../models/restoration.md#restormer) | 792 | 547 | – | unsupported | – | – | 2198 | – |
+| [`restormer-sidd`](../models/restoration.md#restormer) | 789 | 541 | – | unsupported | – | – | 2218 | – |
 | [`seedvr2-3b`](../models/restoration.md#seedvr2) | – | 14023 | 14307 | – | – | – | 5178 | – |
 | [`seedvr2-7b`](../models/restoration.md#seedvr2) | – | 32426 | 25365 | – | – | – | 6547 | – |
-| [`span-x2`](../models/restoration.md#span) | 180 | 134 | – | 171 | 76.5 | 1.7x | 753 | 1073 |
-| [`span-x4`](../models/restoration.md#span) | 190 | 149 | – | 179 | 86.0 | 1.7x | 827 | 1210 |
-| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 8277 | 5144 | – | – | – | – | 1980 | – |
-| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 8163 | 4902 | – | – | – | – | 3313 | – |
-| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 8813 | 5522 | – | – | – | – | 2268 | – |
-| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 14252 | 8691 | – | – | – | – | 2437 | – |
-| [`swinir-m-x2`](../models/restoration.md#swinir) | 6857 | 4312 | – | – | – | – | 2423 | – |
-| [`swinir-m-x4`](../models/restoration.md#swinir) | 6706 | 4217 | – | unsupported | – | – | 3278 | – |
-| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 7297 | 4668 | – | – | – | – | 2243 | – |
+| [`span-x2`](../models/restoration.md#span) | 123 | 103 | – | 117 | 62.7 | 1.6x | 640 | 830 |
+| [`span-x4`](../models/restoration.md#span) | 132 | 110 | – | 125 | 67.3 | 1.6x | 746 | 927 |
+| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 5058 | 3730 | – | unsupported | – | – | 1524 | – |
+| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 5239 | 3966 | – | unsupported | – | – | 1677 | – |
+| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 5447 | 3883 | – | unsupported | – | – | 1597 | – |
+| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 9984 | 6640 | – | unsupported | – | – | 1521 | – |
+| [`swinir-m-x2`](../models/restoration.md#swinir) | 4380 | 3118 | – | unsupported | – | – | 1523 | – |
+| [`swinir-m-x4`](../models/restoration.md#swinir) | 5195 | 3492 | – | unsupported | – | – | 1687 | – |
+| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 4796 | 3360 | – | unsupported | – | – | 1478 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

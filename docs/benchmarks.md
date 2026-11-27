@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2289 rows, measured 2026-11-06 to 2026-11-25.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1718 rows, measured 2026-11-19 to 2026-11-26.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1732 rows, measured 2026-11-19 to 2026-11-27.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -648,36 +648,36 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|
 | [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 | 225 ms · portable fp16 |
 | [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 | 239 ms · kernels fp16 |
-| [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 | 12210 ms · portable fp32 |
-| [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 | 1870 ms · portable fp16 |
-| [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 | 9358 ms · portable fp16 |
-| [`drct-l-x4`](models/restoration.md#drct) | 12431 ms · portable fp16 | 18644 ms · portable fp16 |
-| [`drct-x4`](models/restoration.md#drct) | 6277 ms · portable fp16 | 10754 ms · portable fp16 |
+| [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 | 5231 ms · portable fp16 |
+| [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 | 1031 ms · portable fp16 |
+| [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 | 5785 ms · portable fp16 |
+| [`drct-l-x4`](models/restoration.md#drct) | 12431 ms · portable fp16 | 8199 ms · portable fp16 |
+| [`drct-x4`](models/restoration.md#drct) | 6277 ms · portable fp16 | 4229 ms · portable fp16 |
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 | 159 ms · portable fp16 |
-| [`hat-s-x4`](models/restoration.md#hat) | 13687 ms · portable fp16 | 10010 ms · portable fp16 |
-| [`hat-x4`](models/restoration.md#hat) | 8044 ms · portable fp16 | 11318 ms · portable fp16 |
+| [`hat-s-x4`](models/restoration.md#hat) | 13687 ms · portable fp16 | 6491 ms · portable fp16 |
+| [`hat-x4`](models/restoration.md#hat) | 8044 ms · portable fp16 | 7478 ms · portable fp16 |
 | [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 | 221 ms · portable fp16 |
 | [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 | 225 ms · portable fp16 |
-| [`real-hat-gan-x4`](models/restoration.md#hat) | 7775 ms · portable fp16 | 15831 ms · portable fp16 |
-| [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 | 104 ms · kernels fp16 |
+| [`real-hat-gan-x4`](models/restoration.md#hat) | 7775 ms · portable fp16 | 7445 ms · portable fp16 |
+| [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 | 96.3 ms · kernels fp16 |
 | [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 | 567 ms · kernels fp16 |
-| [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2184 ms · kernels fp16 |
-| [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 | 849 ms · kernels fp16 |
+| [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2047 ms · kernels fp16 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 | 790 ms · kernels fp16 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 | 904 ms · portable fp16 |
-| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 554 ms · portable fp16 |
-| [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 552 ms · portable fp16 |
-| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 551 ms · portable fp16 |
+| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 555 ms · portable fp16 |
+| [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 547 ms · portable fp16 |
+| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 541 ms · portable fp16 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported | 14023 ms · portable fp16 |
 | [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported | 25365 ms · portable bf16 |
-| [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 | 76.5 ms · kernels fp16 |
-| [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 | 86.0 ms · kernels fp16 |
-| [`swin2sr-x2`](models/restoration.md#swin2sr) | 4607 ms · portable fp16 | 5144 ms · portable fp16 |
-| [`swin2sr-x4`](models/restoration.md#swin2sr) | 4690 ms · portable fp16 | 4902 ms · portable fp16 |
-| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 4751 ms · portable fp16 | 5522 ms · portable fp16 |
-| [`swinir-l-x4-real`](models/restoration.md#swinir) | 7252 ms · portable fp16 | 8691 ms · portable fp16 |
-| [`swinir-m-x2`](models/restoration.md#swinir) | 3674 ms · portable fp16 | 4312 ms · portable fp16 |
-| [`swinir-m-x4`](models/restoration.md#swinir) | 3750 ms · portable fp16 | 4217 ms · portable fp16 |
-| [`swinir-m-x4-real`](models/restoration.md#swinir) | 3829 ms · portable fp16 | 4668 ms · portable fp16 |
+| [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 | 62.7 ms · kernels fp16 |
+| [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 | 67.3 ms · kernels fp16 |
+| [`swin2sr-x2`](models/restoration.md#swin2sr) | 4607 ms · portable fp16 | 3730 ms · portable fp16 |
+| [`swin2sr-x4`](models/restoration.md#swin2sr) | 4690 ms · portable fp16 | 3966 ms · portable fp16 |
+| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 4751 ms · portable fp16 | 3883 ms · portable fp16 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | 7252 ms · portable fp16 | 6640 ms · portable fp16 |
+| [`swinir-m-x2`](models/restoration.md#swinir) | 3674 ms · portable fp16 | 3118 ms · portable fp16 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | 3750 ms · portable fp16 | 3492 ms · portable fp16 |
+| [`swinir-m-x4-real`](models/restoration.md#swinir) | 3829 ms · portable fp16 | 3360 ms · portable fp16 |
 
 #### Volume, 200x200
 
