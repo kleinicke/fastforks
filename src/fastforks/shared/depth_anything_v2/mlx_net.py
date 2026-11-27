@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from fastforks._core.mlx import mx, tuning
+from fastforks.shared.mlx_port import tap
 from fastforks.shared.mlx_vit import dinov2_layers, dinov2_params, dinov2_table
 
 if TYPE_CHECKING:
@@ -146,12 +147,12 @@ def head(  # noqa: PLR0913 - the head's pieces
             y = y.reshape(b, h0, w0, -1)
         if i == len(feats) - 1:
             y = _conv(p, "head.down", y, stride=2)
-        maps.append(_conv(p, f"head.rn{i}", y))
-    x = _fuse(p, "head.fuse3", maps[3], None, (maps[2].shape[1], maps[2].shape[2]), up)
-    x = _fuse(p, "head.fuse2", x, maps[2], (maps[1].shape[1], maps[1].shape[2]), up)
-    x = _fuse(p, "head.fuse1", x, maps[1], (maps[0].shape[1], maps[0].shape[2]), up)
-    x = _fuse(p, "head.fuse0", x, maps[0], (2 * maps[0].shape[1], 2 * maps[0].shape[2]), up)
-    x = up(_conv(p, "head.out1", x), h0 * PATCH, w0 * PATCH)
+        maps.append(tap(f"scratch.layer{i + 1}_rn", _conv(p, f"head.rn{i}", tap(f"resize_layers.{i}", y))))
+    x = tap("refinenet4", _fuse(p, "head.fuse3", maps[3], None, (maps[2].shape[1], maps[2].shape[2]), up))
+    x = tap("refinenet3", _fuse(p, "head.fuse2", x, maps[2], (maps[1].shape[1], maps[1].shape[2]), up))
+    x = tap("refinenet2", _fuse(p, "head.fuse1", x, maps[1], (maps[0].shape[1], maps[0].shape[2]), up))
+    x = tap("refinenet1", _fuse(p, "head.fuse0", x, maps[0], (2 * maps[0].shape[1], 2 * maps[0].shape[2]), up))
+    x = up(tap("output_conv1", _conv(p, "head.out1", x)), h0 * PATCH, w0 * PATCH)
     x = mx.maximum(_conv(p, "head.out2", x), 0).astype(mx.float32)
     x = (x @ p["head.out3.weight"] + p["head.out3.bias"])[..., 0]
     return mx.sigmoid(x) if sigmoid else mx.maximum(x, 0)

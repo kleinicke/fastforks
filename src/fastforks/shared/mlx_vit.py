@@ -27,6 +27,7 @@ import numpy as np
 from fastforks._core import mlx as mlx_core
 from fastforks._core.lazy import lazy
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks.shared.mlx_port import tap
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -175,7 +176,7 @@ def blocks(
     hs = [t] if 0 in layers else []
     prev = None
     for i in range(depth):
-        t = block(p, i, t, heads, eps, rope, act)
+        t = tap(f"blocks.{i}", block(p, i, t, heads, eps, rope, act))
         if bounded:
             mx.async_eval(t)
             if prev is not None:

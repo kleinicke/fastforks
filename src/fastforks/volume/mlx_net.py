@@ -41,6 +41,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.mlx import mx, to_mx
 from fastforks.kernels.conv_mlx import ops as conv_ops
 from fastforks.kernels.graph_mlx import ops
+from fastforks.shared.mlx_port import tap
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -197,13 +198,13 @@ class MlxUNet:
         plan, skips = self.plan, []
         for i in range(self.n):
             for j in range(plan.n_conv_encoder[i]):
-                x = self._conv_norm_act(f"e{i}.{j}", x)
+                x = tap(f"encoder.stages.{i}.0.convs.{j}", self._conv_norm_act(f"e{i}.{j}", x))
             skips.append(x)
         x = skips.pop()
         for s in range(self.n - 1):
             x = mx.concatenate([self._upsample(s, x), skips.pop()], axis=-1)
             for j in range(plan.n_conv_decoder[s]):
-                x = self._conv_norm_act(f"d{s}.{j}", x)
+                x = tap(f"decoder.stages.{s}.convs.{j}", self._conv_norm_act(f"d{s}.{j}", x))
         w, b = self._head
         return (x.reshape(-1, x.shape[-1]) @ w + b).reshape(*x.shape[:-1], w.shape[1])
 

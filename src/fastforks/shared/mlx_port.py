@@ -20,24 +20,36 @@ through `tensor` too.
 
 The layout tag names the builder's version, and `sources` (the builder's files and the checkpoint conversion's) join
 it by hash: a changed builder never replays an old file (`fastforks cache mlx --prune` removes the superseded one).
+
+Taps, for debugging a port layer by layer (`tools/mlx_layer_diff.py`): a hand-written forward marks what it computed
+with `x = tap(name, x)` at its block boundaries, `name` being the PyTorch module whose output `x` corresponds to (its
+dotted path in the torch network, or a suffix of it: `blocks.3`, `layer2.1`, `scratch.refinenet4`). `tap` returns `x`
+unchanged and costs a context-variable read; only inside `with taps() as rows:` does it record. Recording evaluates `x`
+(`mx.eval`), so the tool runs the port with `mx.disable_compile()`; `rows` gets one `Tap` per call, in call order, with
+its value (float32 numpy) and the milliseconds since the previous tap (the work up to this boundary). A tap's layout
+may be MLX's (`[B, H, W, C]`, `[B, D, H, W, C]`, tokens `[B, N, C]` of a `[B, C, h, w]` map): the tool aligns it.
 """
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import json
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastforks._core.mlx import convert_cached, mx
-from fastforks.shared.mlx_wrap import lazy_build
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
+
+    import numpy as np
 
     from fastforks._core.runner import Context
 
-__all__ = ["header_skeleton", "recorded", "tensor"]
+__all__ = ["Tap", "header_skeleton", "recorded", "tap", "taps", "tensor"]
 
 _T = TypeVar("_T")
 
@@ -121,6 +133,8 @@ def recorded(  # noqa: PLR0913 - the builder, both networks and the cache key
 
     def build() -> tuple[dict[str, mx.array], dict[str, Any]]:
         tape = _Tape(None)
+        from fastforks.shared.mlx_wrap import lazy_build  # noqa: PLC0415 - torch: only for a first build
+
         built.append(_run(tape, make, lazy_build(real)))
         arrays = {_key(i): a for i, a in enumerate(tape.arrays)}
         islands.update(k for k, a in arrays.items() if a.dtype == mx.float32)
@@ -155,3 +169,48 @@ def header_skeleton(path: str | Path) -> dict[str, Any]:
         n = int.from_bytes(f.read(8), "little")
         header = json.loads(f.read(n))
     return {k: torch.empty(v["shape"]) for k, v in header.items() if k != "__metadata__"}
+
+
+@dataclass
+class Tap:
+    """One recorded `tap` call: the torch module `name`, its value (float32, None unless kept) and the time to it."""
+
+    name: str
+    shape: tuple[int, ...]
+    value: np.ndarray | None
+    ms: float
+
+
+class _Recorder:
+    def __init__(self, *, keep: bool) -> None:
+        self.keep = keep
+        self.rows: list[Tap] = []
+        self.last = time.perf_counter()
+
+
+_TAPS: contextvars.ContextVar[_Recorder | None] = contextvars.ContextVar("mlx_port_taps", default=None)
+
+
+def tap(name: str, x: mx.array) -> mx.array:
+    """`x`, recorded under the torch module `name` inside `taps()` (see the module docstring); else just `x`."""
+    rec = _TAPS.get()
+    if rec is not None:
+        import numpy as np  # noqa: PLC0415 - only while recording
+
+        mx.eval(x)
+        now = time.perf_counter()
+        value = np.array(x.astype(mx.float32)) if rec.keep else None
+        rec.rows.append(Tap(name, tuple(x.shape), value, 1e3 * (now - rec.last)))
+        rec.last = time.perf_counter()  # the copy to numpy is not the next block's time
+    return x
+
+
+@contextlib.contextmanager
+def taps(*, keep: bool = True) -> Generator[list[Tap]]:
+    """Record every `tap` of the block (`keep`: with its value; without, the times only)."""
+    rec = _Recorder(keep=keep)
+    token = _TAPS.set(rec)
+    try:
+        yield rec.rows
+    finally:
+        _TAPS.reset(token)

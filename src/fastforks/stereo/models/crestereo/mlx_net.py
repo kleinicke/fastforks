@@ -33,6 +33,7 @@ import numpy as np
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS
 from fastforks._core.mlx import converted, mx, to_mx, to_torch, tuning
+from fastforks.shared.mlx_port import tap
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -197,10 +198,10 @@ def attention(p, f1, f2):
     n, h, w, c = f1.shape
     pe = position_encoding(c, h, w)
     s1, s2 = ((x + pe).reshape(n, h * w, c) for x in (f1, f2))
-    s1 = _loftr_layer(p, "self_att_fn.layers.0", s1, s1)
-    s2 = _loftr_layer(p, "self_att_fn.layers.0", s2, s2)
-    s1 = _loftr_layer(p, "cross_att_fn.layers.0", s1, s2)
-    s2 = _loftr_layer(p, "cross_att_fn.layers.0", s2, s1)  # the updated s1, as upstream
+    s1 = tap("self_att_fn[0]", _loftr_layer(p, "self_att_fn.layers.0", s1, s1))
+    s2 = tap("self_att_fn[1]", _loftr_layer(p, "self_att_fn.layers.0", s2, s2))
+    s1 = tap("cross_att_fn[0]", _loftr_layer(p, "cross_att_fn.layers.0", s1, s2))
+    s2 = tap("cross_att_fn[1]", _loftr_layer(p, "cross_att_fn.layers.0", s2, s1))  # the updated s1, as upstream
     return s1.reshape(n, h, w, c), s2.reshape(n, h, w, c)
 
 
@@ -231,11 +232,13 @@ def motion_features(p, flow, corr, dtype, raw=False):
 
 def flow_head(p, hidden):
     h = mx.maximum(conv(hidden, p, "update_block.flow_head.conv1", 1, 1), 0)
-    return conv(h, p, "update_block.flow_head.conv2", 1, 1).astype(mx.float32)
+    return tap("update_block.flow_head", conv(h, p, "update_block.flow_head.conv2", 1, 1)).astype(mx.float32)
 
 
 def mask_head(p, hidden):
-    m = conv(mx.maximum(conv(hidden, p, "update_block.mask.0", 1, 1), 0), p, "update_block.mask.2")
+    m = tap(
+        "update_block.mask", conv(mx.maximum(conv(hidden, p, "update_block.mask.0", 1, 1), 0), p, "update_block.mask.2")
+    )
     return 0.25 * m.astype(mx.float32)
 
 
@@ -280,12 +283,12 @@ def run_pass(ops, p, steps, images, iters, flow_init, dtype, pair=False):
     x = (2 * (images / 255.0) - 1.0).astype(dtype)
     if pair:
         fmaps = steps["fnet"](x)
-        fmap1, fmap2 = fmaps[:1], fmaps[1:]
+        fmap1, fmap2 = tap("fnet", fmaps[:1]), tap("fnet", fmaps[1:])
         mx.eval(fmap1, fmap2)
     else:
-        fmap1 = steps["fnet"](x[:1])
+        fmap1 = tap("fnet", steps["fnet"](x[:1]))
         mx.eval(fmap1)
-        fmap2 = steps["fnet"](x[1:])
+        fmap2 = tap("fnet", steps["fnet"](x[1:]))
         mx.eval(fmap2)
     hidden, inp = mx.tanh(fmap1[..., :HDIM]), mx.maximum(fmap1[..., HDIM:], 0)
     if flow_init is None:
