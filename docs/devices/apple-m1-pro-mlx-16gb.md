@@ -303,8 +303,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 313 | 256 | unsupported | – | – | 1356 | – |
 | [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 941 | 760 | unsupported | – | – | 2178 | – |
 | [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 135 | 115 | unsupported | – | – | 1201 | – |
-| [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 667 | 574 | – | – | – | 3661 | – |
-| [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
+| [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 571 | 474 | – | – | – | 2317 | – |
+| [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 583 | 484 | – | – | – | 2357 | – |
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 477 | 362 | 528 | 366 | 1.0x | 1359 | 1391 |
 | [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 243 | 204 | 262 | 234 | 0.9x | 1054 | 1500 |
 | [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 772 | 649 | unsupported | – | – | 2170 | – |
@@ -400,8 +400,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`deim-n-coco`](../models/detection.md#dfine) | 25.7 | 21.7 | unsupported | – | – | 575 | – |
 | [`deim-s-coco`](../models/detection.md#dfine) | 35.8 | 30.8 | – | – | – | 674 | – |
 | [`deim-x-coco`](../models/detection.md#dfine) | 120 | 94.8 | – | – | – | 1117 | – |
-| [`detr-r101-coco`](../models/detection.md#detr) | 181 | 144 | – | – | – | 1397 | – |
-| [`detr-r50-coco`](../models/detection.md#detr) | 108 | 90.6 | unsupported | – | – | 1397 | – |
+| [`detr-r101-coco`](../models/detection.md#detr) | 148 | 120 | – | – | – | 994 | – |
+| [`detr-r50-coco`](../models/detection.md#detr) | 102 | 79.8 | unsupported | – | – | 954 | – |
 | [`dfine-l-coco`](../models/detection.md#dfine) | 63.8 | 52.2 | unsupported | – | – | 785 | – |
 | [`dfine-m-coco`](../models/detection.md#dfine) | 42.1 | 37.0 | unsupported | – | – | 663 | – |
 | [`dfine-n-coco`](../models/detection.md#dfine) | 18.3 | 17.0 | unsupported | – | – | 406 | – |
@@ -418,8 +418,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 181 | 144 | unsupported | – | – | 1174 | – |
 | [`mm-grounding-dino-base`](../models/detection.md#grounding_dino) | 1254 | 916 | – | – | – | 1719 | – |
 | [`mm-grounding-dino-tiny`](../models/detection.md#grounding_dino) | 935 | 766 | – | – | – | 1507 | – |
-| [`owlv2-b16`](../models/detection.md#owlv2) | 383 | 290 | unsupported | – | – | 1046 | – |
-| [`owlv2-l14`](../models/detection.md#owlv2) | 1890 | 1426 | unsupported | – | – | 1793 | – |
+| [`owlv2-b16`](../models/detection.md#owlv2) | 374 | 291 | unsupported | – | – | 885 | – |
+| [`owlv2-l14`](../models/detection.md#owlv2) | 1879 | 1428 | unsupported | – | – | 1463 | – |
 | [`rf-detr-l-coco`](../models/detection.md#rfdetr) | 55.5 | 47.6 | unsupported | – | – | 717 | – |
 | [`rf-detr-m-coco`](../models/detection.md#rfdetr) | 39.0 | 34.8 | unsupported | – | – | 702 | – |
 | [`rf-detr-n-coco`](../models/detection.md#rfdetr) | 20.4 | 19.0 | unsupported | – | – | 596 | – |
@@ -477,12 +477,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dwpose-m`](../models/pose.md#rtmpose) | 57.8 | 53.4 | – | 915 |
 | [`dwpose-s`](../models/pose.md#rtmpose) | 30.6 | 29.6 | – | 647 |
 | [`dwpose-t`](../models/pose.md#rtmpose) | 28.7 | 27.7 | – | 591 |
-| [`hrnet-w32`](../models/pose.md#hrnet) | 145 | 109 | unsupported | 860 |
-| [`hrnet-w32-384`](../models/pose.md#hrnet) | 327 | 237 | – | 1104 |
-| [`hrnet-w48`](../models/pose.md#hrnet) | 285 | 222 | – | 897 |
-| [`hrnet-w48-384`](../models/pose.md#hrnet) | 597 | 449 | – | 1058 |
-| [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 23.8 | 19.8 | – | 621 |
-| [`retinaface-resnet50`](../models/pose.md#retinaface) | 263 | 185 | unsupported | 1165 |
+| [`hrnet-w32`](../models/pose.md#hrnet) | 118 | 97.0 | unsupported | 691 |
+| [`hrnet-w32-384`](../models/pose.md#hrnet) | 251 | 205 | – | 881 |
+| [`hrnet-w48`](../models/pose.md#hrnet) | 243 | 193 | – | 746 |
+| [`hrnet-w48-384`](../models/pose.md#hrnet) | 488 | 416 | – | 894 |
+| [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 22.7 | 15.8 | – | 497 |
+| [`retinaface-resnet50`](../models/pose.md#retinaface) | 173 | 133 | unsupported | 936 |
 | [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 74.4 | 64.2 | unsupported | 983 |
 | [`rtmo-l`](../models/pose.md#rtmo) | 62.0 | 55.0 | unsupported | 1188 |
 | [`rtmo-m`](../models/pose.md#rtmo) | 38.7 | 35.1 | unsupported | 917 |
@@ -511,14 +511,14 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`rtmw-m`](../models/pose.md#rtmpose) | 98.9 | 88.6 | – | 983 |
 | [`rtmw-x`](../models/pose.md#rtmpose) | 235 | 205 | – | 1605 |
 | [`rtmw-x-384`](../models/pose.md#rtmpose) | 531 | 418 | – | 1713 |
-| [`vitpose-base`](../models/pose.md#vitpose) | 178 | 158 | – | 831 |
-| [`vitpose-base-simple`](../models/pose.md#vitpose) | 202 | 169 | unsupported | 1080 |
-| [`vitpose-plus-base`](../models/pose.md#vitpose) | 179 | 158 | – | 876 |
-| [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1005 | 877 | unsupported | 3175 |
-| [`vitpose-plus-large`](../models/pose.md#vitpose) | 504 | 452 | unsupported | 1775 |
-| [`vitpose-plus-small`](../models/pose.md#vitpose) | 84.6 | 72.3 | – | 712 |
-| [`yunet-n`](../models/pose.md#yunet) | 30.2 | 22.3 | unsupported | 717 |
-| [`yunet-s`](../models/pose.md#yunet) | 21.9 | 17.7 | – | 703 |
+| [`vitpose-base`](../models/pose.md#vitpose) | 176 | 159 | – | 740 |
+| [`vitpose-base-simple`](../models/pose.md#vitpose) | 170 | 155 | unsupported | 733 |
+| [`vitpose-plus-base`](../models/pose.md#vitpose) | 176 | 160 | – | 749 |
+| [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1017 | 895 | unsupported | 1858 |
+| [`vitpose-plus-large`](../models/pose.md#vitpose) | 510 | 460 | unsupported | 1184 |
+| [`vitpose-plus-small`](../models/pose.md#vitpose) | 85.3 | 74.4 | – | 601 |
+| [`yunet-n`](../models/pose.md#yunet) | 18.8 | 15.6 | unsupported | 579 |
+| [`yunet-s`](../models/pose.md#yunet) | 17.3 | 13.8 | – | 550 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
