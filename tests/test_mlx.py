@@ -2510,6 +2510,86 @@ def test_mlx_sam3_geometry_matches_torch(count):
     torch.testing.assert_close(got, want, atol=2e-4, rtol=2e-4)
 
 
+@pytest.mark.parametrize(
+    ("size", "out"), [((300, 500), (1008, 1008)), ((1008, 1008), (288, 288)), ((72, 72), (97, 131))]
+)
+def test_mlx_sam3_tracker_resizes_match_torch(size, out):
+    """`sam3.net.mlx_tracker.resize` / `resize_aa` against `F.interpolate` (bilinear, plain and antialiased)."""
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam3.net import mlx_tracker  # noqa: PLC0415 - optional (mlx extra)
+
+    torch.manual_seed(0)
+    x = torch.randn(2, 1, *size)
+    for fn, antialias in ((mlx_tracker.resize, False), (mlx_tracker.resize_aa, True)):
+        want = torch.nn.functional.interpolate(x, out, mode="bilinear", align_corners=False, antialias=antialias)
+        got = torch.from_numpy(np.array(fn(mx.array(x[:, 0].numpy()), out)))
+        torch.testing.assert_close(got, want[:, 0], atol=5e-4, rtol=0)  # float32 sample positions differ slightly
+
+
+@pytest.mark.parametrize(
+    ("prompt", "dtype", "frames", "tol"),
+    [("point", "float32", 9, 5e-3), ("points", "float32", 2, 5e-3), ("mask", "float32", 3, 5e-3),
+     ("point", "float16", 3, 0.5)],
+)  # fmt: skip
+def test_mlx_sam3_tracker_matches_torch(prompt, dtype, frames, tol):
+    """`sam3.net.mlx_tracker.Tracker.track` against `video.Tracker.run` on the float32 PyTorch modules, two objects.
+
+    Nine frames fill the seven-frame memory window and release the oldest memory; `point` takes the multimask path,
+    `points` the single-mask one, `mask` upstream's mask-as-output. float16 runs only the memory attention and the
+    memory encoder in half precision (random weights: a loose tolerance, and the masks must agree).
+    """
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415
+
+    from fastforks.promptable_segmentation.models.sam3 import video  # noqa: PLC0415
+    from fastforks.promptable_segmentation.models.sam3.net import mlx_tracker, sam3, tracker  # noqa: PLC0415 - optional
+
+    m = _randomise(tracker.TrackerModel())
+    torch.manual_seed(4)
+    feats = [
+        {"raw": torch.randn(1, 256, 72, 72), "feat_s0": torch.randn(1, 32, 288, 288) / 4,
+         "feat_s1": torch.randn(1, 64, 144, 144) / 4}
+        for _ in range(frames)
+    ]  # fmt: skip
+    coords = labels = mask = None
+    if prompt == "mask":
+        mask = torch.zeros(2, 1, 1008, 1008)
+        mask[0, 0, 200:600, 300:700] = 1  # the second object's mask is empty: the no-object pointer
+    else:
+        n = 1 if prompt == "point" else 3
+        coords, labels = torch.rand(2, n, 2) * 1008, torch.tensor([[1, 0, 1][:n], [1, 1, 0][:n]], dtype=torch.int32)
+    want: list[tuple[torch.Tensor, torch.Tensor]] = []
+    with torch.no_grad():
+        video.Tracker(m, torch.float32).run(
+            iter(feats), frames, coords=coords, labels=labels, mask=mask, emit=lambda *a: want.append(a[1:])
+        )
+
+    raw = {k: mx.array(v.numpy()) for k, v in m.state_dict().items()}
+    pos = sam3.grid_position_encoding(sam3.GRID, sam3.GRID).flatten(2).transpose(1, 2)
+    port = mlx_tracker.Tracker(mlx_tracker.convert(raw, getattr(mx, dtype)), getattr(mx, dtype), mx.array(pos.numpy()))
+    size = (120, 160)
+    got = port.track(
+        (tuple(mx.array(f[k].permute(0, 2, 3, 1).numpy()) for k in ("raw", "feat_s0", "feat_s1")) for f in feats),
+        frames,
+        size,
+        2,
+        coords=None if coords is None else coords.numpy(),
+        labels=None if labels is None else labels.numpy(),
+        mask=None if mask is None else mx.array(mask[:, 0].numpy()),
+    )
+    want_low, want_obj = torch.cat([w[0] for w in want], 1).transpose(0, 1), torch.cat([w[1] for w in want], 1).T
+    low = torch.from_numpy(got["pred_masks"])
+    if dtype == "float32":
+        torch.testing.assert_close(low, want_low, atol=tol, rtol=tol)
+        torch.testing.assert_close(torch.from_numpy(got["object_score_logits"]), want_obj, atol=tol, rtol=tol)
+    else:
+        assert (low - want_low).abs().mean() < tol * want_low.abs().mean()
+    masks = torch.nn.functional.interpolate(want_low, size, mode="bilinear", align_corners=False) > 0
+    assert (torch.from_numpy(got["masks"]) != masks).float().mean() < (1e-3 if dtype == "float32" else 0.05)
+
+
 @pytest.mark.parametrize(("value", "on"), [(None, False), ("", False), ("0", False), ("true", False), ("1", True)])
 def test_graph_switch_is_only_on_for_1(monkeypatch, value, on):
     from fastforks._core import mlx as runtime  # noqa: PLC0415 - optional (the mlx extra)

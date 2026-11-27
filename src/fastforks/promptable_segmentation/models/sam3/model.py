@@ -71,6 +71,8 @@ from .video import HostCopies, Tracker, prefetch
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from .net.mlx_tracker import Tracker as MlxTracker
+
 SIZE = 1008  # fixed: SAM 3 input side (upstream Sam3Processor resolution)
 PATCH = 14  # fixed: ViT patch size
 WINDOW = 24  # fixed: ViT attention window (also the stored position-embedding grid, 336 / 14)
@@ -568,8 +570,9 @@ class MlxPortable(_Sam3):
     The weights are converted from the checkpoint straight into MLX (no PyTorch twin) and kept in the conversion
     cache, with the precision split of `Portable`; the uint8 resize, the tokenizer and the exemplar ROI weights stay
     PyTorch on the CPU. The features are the neck levels in the run dtype (NCHW views of NHWC memory); a prompt on
-    them reads the MLX arrays they view (`_level`), not a copy. `video` runs the tracker heads in PyTorch float32 on
-    the CPU, the frames through the MLX trunk and the tracker's neck.
+    them reads the MLX arrays they view (`_level`), not a copy. `video` runs the tracker on MLX as well
+    (`net.mlx_tracker`: its heads float32, the memory modules in the run dtype); only the frames' uint8 resize and the
+    returned tensors are PyTorch.
     """
 
     dtypes = ("float32", "float16")
@@ -582,6 +585,7 @@ class MlxPortable(_Sam3):
         self.mlx = mlx_net
         self.mnet = mlx_net.Net(ctx)
         self._levels: dict[int, tuple[weakref.ref[torch.Tensor], object]] = {}  # `embed`'s tensors -> MLX arrays
+        self._mlx_video: MlxTracker | None = None  # the tracker, read on the first `video` call
 
     def _pixels(self, image: torch.Tensor) -> object:
         return self.mlx.to_mx(prepare(image.cpu(), self.ctx, exact=True))
@@ -626,17 +630,51 @@ class MlxPortable(_Sam3):
         msg = "SAM 3 on MLX has no PyTorch module; export from device='cpu'"
         raise NotImplementedError(msg)
 
-    def _tracker(self) -> tuple[Tracker, object]:
-        """The tracker heads and memory modules in PyTorch float32 on the CPU (its neck runs on MLX)."""
-        if self._video is None:
-            m, _ = load_tracker(self.ctx)
-            self._video = (Tracker(m, torch.float32), None)
-        return self._video
+    def track(  # noqa: PLR0913 - one argument per prompt kind
+        self,
+        frames: Callable[[int], torch.Tensor],
+        n_frames: int,
+        size: tuple[int, int],
+        *,
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> dict[str, torch.Tensor]:
+        """`_Sam3.track` on MLX (`net.mlx_tracker`): no PyTorch between the uint8 resize and the results."""
+        import numpy as np  # noqa: PLC0415 - only this path needs it here
 
-    def _track_embed(self, image: torch.Tensor, neck: object) -> list[torch.Tensor]:
-        del neck
-        levels = self.mnet.tracker_neck(self.mnet.trunk(self._pixels(image)))
-        return [self.mlx.nhwc_to_torch(f) for f in levels]
+        from .net import mlx_tracker  # noqa: PLC0415 - needs the mlx extra
+
+        mx = self.mlx.mx
+        if self._mlx_video is None:
+            self._mlx_video = mlx_tracker.Tracker(mlx_tracker.cached(self.ctx), self.mnet.dt, self.mnet.pos)
+        tracker = self._mlx_video
+        coords = labs = mask = None
+        if masks is not None:
+            mask = tracker.prompt_mask(mx.array(masks.float().cpu().numpy()))
+            p = masks.shape[0]
+        else:
+            (h, w) = size
+            wh = np.array([w, h], dtype=np.float32)
+            cs, ls = [], []
+            if boxes is not None:
+                cs.append(boxes.float().cpu().numpy().reshape(-1, 2, 2) / wh * np.float32(SIZE))
+                ls.append(np.broadcast_to(np.array([[2, 3]]), (boxes.shape[0], 2)))
+            if points is not None and labels is not None:
+                cs.append(points.float().cpu().numpy() / wh * np.float32(SIZE))
+                ls.append(labels.cpu().numpy())
+            coords, labs = np.concatenate(cs, 1), np.concatenate(ls, 1).astype(np.int32)
+            p = coords.shape[0]
+
+        def feats(x: torch.Tensor) -> tuple[object, object, object]:
+            l0, l1, l2 = self.mnet.tracker_neck(self.mnet.trunk(self.mlx.to_mx(x)))
+            return l2.astype(mx.float32), tracker.feat_s0(l0), tracker.feat_s1(l1)
+
+        # the uint8 resize of a frame runs in the loader's thread, while the GPU works on the frame before
+        loaded = prefetch(lambda t: prepare(frames(t).cpu(), self.ctx, exact=True), n_frames)
+        out = tracker.track((feats(x) for x in loaded), n_frames, size, p, coords=coords, labels=labs, mask=mask)
+        return {k: torch.from_numpy(v) for k, v in out.items()}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}
