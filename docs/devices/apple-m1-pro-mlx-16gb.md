@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-27 |
-| rows | 1732 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1718 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -61,11 +61,11 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 7788 | 5768 | 7862 | 5701 | 1.0x | 2962 | 2962 |
 | [`igev-plusplus-middlebury`](../models/stereo.md#igev_plusplus) | 8011 | 5700 | 8065 | 5726 | 1.0x | 2920 | 2930 |
 | [`igev-plusplus-sceneflow`](../models/stereo.md#igev_plusplus) | 7888 | 5846 | 7876 | 5724 | 1.0x | 2949 | 2963 |
-| [`igev-stereo-eth3d`](../models/stereo.md#igev_stereo) | 4910 | 3311 | unsupported | – | – | 2546 | – |
-| [`igev-stereo-kitti12`](../models/stereo.md#igev_stereo) | 5159 | 3298 | unsupported | – | – | 2542 | – |
-| [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 5031 | 3304 | unsupported | – | – | 2575 | – |
-| [`igev-stereo-middlebury`](../models/stereo.md#igev_stereo) | 4986 | 3297 | unsupported | – | – | 2548 | – |
-| [`igev-stereo-sceneflow`](../models/stereo.md#igev_stereo) | 4888 | 3290 | unsupported | – | – | 2568 | – |
+| [`igev-stereo-eth3d`](../models/stereo.md#igev_stereo) | 4851 | 3306 | unsupported | – | – | 2551 | – |
+| [`igev-stereo-kitti12`](../models/stereo.md#igev_stereo) | 4798 | 3296 | unsupported | – | – | 2559 | – |
+| [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 4872 | 3303 | unsupported | – | – | 2570 | – |
+| [`igev-stereo-middlebury`](../models/stereo.md#igev_stereo) | 4833 | 3301 | unsupported | – | – | 2555 | – |
+| [`igev-stereo-sceneflow`](../models/stereo.md#igev_stereo) | 4866 | 3301 | unsupported | – | – | 2558 | – |
 | [`las2-h`](../models/stereo.md#las2) | 888 | 537 | – | – | – | 1347 | – |
 | [`las2-l`](../models/stereo.md#las2) | 477 | 355 | – | – | – | 1103 | – |
 | [`las2-m`](../models/stereo.md#las2) | 252 | 190 | – | – | – | 1061 | – |
@@ -77,21 +77,21 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`monster-sceneflow`](../models/stereo.md#monster) | 13099 | 10064 | unsupported | – | – | 2941 | – |
 | [`nmrf-sceneflow`](../models/stereo.md#nmrf) | 2224 | 1438 | unsupported | – | – | 2241 | – |
 | [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 3638 | 2597 | unsupported | – | – | 2941 | – |
-| [`raft-stereo-eth3d`](../models/stereo.md#raft_stereo) | 4966 | 3239 | 4194 | 2361 | 1.4x | 3296 | 3875 |
-| [`raft-stereo-middlebury`](../models/stereo.md#raft_stereo) | 4944 | 3249 | 4193 | 2370 | 1.4x | 3286 | 3898 |
-| [`raft-stereo-sceneflow`](../models/stereo.md#raft_stereo) | 4958 | 3250 | 4162 | 2361 | 1.4x | 3284 | 3874 |
+| [`raft-stereo-eth3d`](../models/stereo.md#raft_stereo) | 5141 | 3193 | 4194 | 2361 | 1.4x | 2719 | 3875 |
+| [`raft-stereo-middlebury`](../models/stereo.md#raft_stereo) | 5151 | 3214 | 4193 | 2370 | 1.4x | 2746 | 3898 |
+| [`raft-stereo-sceneflow`](../models/stereo.md#raft_stereo) | 5151 | 3169 | 4162 | 2361 | 1.3x | 2741 | 3874 |
 | [`rt-monster-plusplus-mix-all`](../models/stereo.md#rt_monster_plusplus) | 891 | 605 | 852 | 511 | 1.2x | 1453 | 1591 |
 | [`s2m2-l`](../models/stereo.md#s2m2) | 8523 | 5464 | – | – | – | 5135 | – |
 | [`s2m2-m`](../models/stereo.md#s2m2) | 6278 | 4085 | – | – | – | 3490 | – |
 | [`s2m2-s`](../models/stereo.md#s2m2) | 4036 | 1835 | unsupported | – | – | 2779 | – |
 | [`s2m2-xl`](../models/stereo.md#s2m2) | 13001 | 10264 | – | – | – | 8376 | – |
-| [`selective-igev-eth3d-finetune`](../models/stereo.md#selective_igev) | 5510 | 3757 | 5448 | 3751 | 1.0x | 2774 | 2767 |
-| [`selective-igev-eth3d-train`](../models/stereo.md#selective_igev) | 5416 | 3746 | 5386 | 3755 | 1.0x | 2763 | 2768 |
-| [`selective-igev-kitti12`](../models/stereo.md#selective_igev) | 5373 | 3751 | 5363 | 3757 | 1.0x | 2778 | 2781 |
-| [`selective-igev-kitti15`](../models/stereo.md#selective_igev) | 5450 | 3746 | 5369 | 3756 | 1.0x | 2777 | 2770 |
-| [`selective-igev-middlebury-finetune`](../models/stereo.md#selective_igev) | 5379 | 3755 | 5378 | 3756 | 1.0x | 2779 | 2772 |
-| [`selective-igev-middlebury-train`](../models/stereo.md#selective_igev) | 5377 | 3753 | 5381 | 3758 | 1.0x | 2762 | 2768 |
-| [`selective-igev-sceneflow`](../models/stereo.md#selective_igev) | 5596 | 3751 | 5363 | 3741 | 1.0x | 2779 | 2772 |
+| [`selective-igev-eth3d-finetune`](../models/stereo.md#selective_igev) | 5420 | 3757 | 5448 | 3751 | 1.0x | 2776 | 2767 |
+| [`selective-igev-eth3d-train`](../models/stereo.md#selective_igev) | 5405 | 3753 | 5386 | 3755 | 1.0x | 2777 | 2768 |
+| [`selective-igev-kitti12`](../models/stereo.md#selective_igev) | 5443 | 3745 | 5363 | 3757 | 1.0x | 2764 | 2781 |
+| [`selective-igev-kitti15`](../models/stereo.md#selective_igev) | 5404 | 3751 | 5369 | 3756 | 1.0x | 2774 | 2770 |
+| [`selective-igev-middlebury-finetune`](../models/stereo.md#selective_igev) | 5453 | 3747 | 5378 | 3756 | 1.0x | 2932 | 2772 |
+| [`selective-igev-middlebury-train`](../models/stereo.md#selective_igev) | 5410 | 3765 | 5381 | 3758 | 1.0x | 2779 | 2768 |
+| [`selective-igev-sceneflow`](../models/stereo.md#selective_igev) | 5425 | 3754 | 5363 | 3741 | 1.0x | 2781 | 2772 |
 | [`waft-stereo-b`](../models/stereo.md#waft_stereo) | 7982 | 5040 | – | – | – | 2731 | – |
 | [`waft-stereo-s`](../models/stereo.md#waft_stereo) | 5474 | 3509 | unsupported | – | – | 1835 | – |
 
@@ -168,23 +168,23 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 25.5 | 19.2 | 23.4 | 19.5 | 1.0x | 710 | 776 |
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 23.4 | 19.8 | 23.4 | 19.1 | 1.0x | 727 | 763 |
 | [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 8.21 | 7.07 | 8.38 | 7.07 | 1.0x | 450 | 457 |
-| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 20.4 | 17.2 | 21.1 | 16.2 | 1.1x | 608 | 646 |
-| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 19.5 | 17.1 | 20.1 | 17.2 | 1.0x | 602 | 651 |
-| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 40.8 | 36.8 | 45.0 | 37.5 | 1.0x | 678 | 750 |
-| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 35.0 | 30.6 | 33.7 | 28.6 | 1.1x | 929 | 966 |
-| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 36.8 | 30.4 | 34.1 | 28.7 | 1.1x | 931 | 965 |
-| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 79.6 | 65.2 | 73.2 | 62.8 | 1.0x | 1053 | 1037 |
-| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 14.4 | 13.6 | 14.5 | 12.3 | 1.1x | 495 | 522 |
-| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 14.6 | 13.0 | 14.1 | 12.7 | 1.0x | 495 | 521 |
-| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 29.6 | 26.7 | 30.8 | 25.0 | 1.1x | 553 | 625 |
-| [`convnext_tiny.fb_in1k`](../models/classification.md#convnext) | 8.58 | 7.55 | 9.08 | 7.97 | 0.9x | 440 | 450 |
-| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 8.86 | 8.10 | 9.44 | 8.11 | 1.0x | 439 | 446 |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 18.2 | 16.7 | 18.6 | 15.9 | 1.0x | 495 | 518 |
-| [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 22.1 | 20.7 | 23.2 | 20.6 | 1.0x | 671 | 772 |
-| [`davit_base.msft_in1k`](../models/classification.md#davit) | 25.0 | 21.6 | 22.2 | 19.9 | 1.1x | 662 | 732 |
-| [`davit_small.msft_in1k`](../models/classification.md#davit) | 19.3 | 17.4 | 17.6 | 16.0 | 1.1x | 531 | 586 |
-| [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 11.5 | 9.97 | 10.6 | 9.84 | 1.0x | 480 | 496 |
-| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 18.6 | 15.1 | unsupported | – | – | 461 | – |
+| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 17.0 | 15.1 | 21.1 | 16.2 | 0.9x | 609 | 646 |
+| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 17.1 | 15.1 | 20.1 | 17.2 | 0.9x | 608 | 651 |
+| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 36.5 | 31.1 | 45.0 | 37.5 | 0.8x | 685 | 750 |
+| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 32.3 | 27.3 | 33.7 | 28.6 | 1.0x | 931 | 966 |
+| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 32.2 | 27.3 | 34.1 | 28.7 | 1.0x | 933 | 965 |
+| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 69.3 | 60.0 | 73.2 | 62.8 | 1.0x | 1005 | 1037 |
+| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 12.4 | 10.9 | 14.5 | 12.3 | 0.9x | 499 | 522 |
+| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 12.3 | 11.1 | 14.1 | 12.7 | 0.9x | 498 | 521 |
+| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 24.4 | 21.7 | 30.8 | 25.0 | 0.9x | 552 | 625 |
+| [`convnext_tiny.fb_in1k`](../models/classification.md#convnext) | 7.26 | 6.44 | 9.08 | 7.97 | 0.8x | 442 | 450 |
+| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 7.22 | 6.46 | 9.44 | 8.11 | 0.8x | 442 | 446 |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 14.6 | 12.9 | 18.6 | 15.9 | 0.8x | 496 | 518 |
+| [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 19.8 | 18.0 | 23.2 | 20.6 | 0.9x | 673 | 772 |
+| [`davit_base.msft_in1k`](../models/classification.md#davit) | 21.6 | 19.6 | 22.2 | 19.9 | 1.0x | 660 | 732 |
+| [`davit_small.msft_in1k`](../models/classification.md#davit) | 17.1 | 15.7 | 17.6 | 16.0 | 1.0x | 531 | 586 |
+| [`davit_tiny.msft_in1k`](../models/classification.md#davit) | 10.4 | 9.66 | 10.6 | 9.84 | 1.0x | 481 | 496 |
+| [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 17.0 | 14.8 | unsupported | – | – | 402 | – |
 | [`densenet121.tv_in1k`](../models/classification.md#densenet) | 11.3 | 9.71 | unsupported | – | – | 416 | – |
 | [`dinov2_vitl14_lc`](../models/classification.md#dinov2_linear_cls) | 65.0 | 56.1 | unsupported | – | – | 1108 | – |
 | [`efficientformer_l1.snap_dist_in1k`](../models/classification.md#efficientformer) | 4.62 | 4.35 | 4.25 | 3.96 | 1.1x | 397 | 405 |
@@ -198,8 +198,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`efficientnet_b4.tv_in1k`](../models/classification.md#efficientnet) | 16.5 | 14.5 | 16.0 | 14.2 | 1.0x | 539 | 598 |
 | [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 16.4 | 14.7 | 16.5 | 14.5 | 1.0x | 480 | 505 |
 | [`efficientvit_b2.r288_in1k`](../models/classification.md#efficientvit) | 8.93 | 8.12 | 9.19 | 7.21 | 1.1x | 528 | 539 |
-| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](../models/classification.md#eva02) | 242 | 196 | unsupported | – | – | 1145 | – |
-| [`falconsai-nsfw-vit`](../models/classification.md#nsfw_vit) | 16.2 | 14.1 | unsupported | – | – | 677 | – |
+| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](../models/classification.md#eva02) | 243 | 195 | unsupported | – | – | 930 | – |
+| [`falconsai-nsfw-vit`](../models/classification.md#nsfw_vit) | 16.3 | 14.1 | unsupported | – | – | 398 | – |
 | [`focalnet_base_lrf.ms_in1k`](../models/classification.md#focalnet) | 23.1 | 19.9 | 24.4 | 21.5 | 0.9x | 633 | 1223 |
 | [`focalnet_base_srf.ms_in1k`](../models/classification.md#focalnet) | 23.3 | 19.1 | 22.4 | 18.9 | 1.0x | 627 | 1220 |
 | [`focalnet_small_lrf.ms_in1k`](../models/classification.md#focalnet) | 17.7 | 16.1 | 19.3 | 16.8 | 1.0x | 511 | 859 |
@@ -232,7 +232,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`resnet152.tv2_in1k`](../models/classification.md#resnet) | 18.2 | 16.1 | 19.2 | 16.4 | 1.0x | 551 | 551 |
 | [`resnet18.tv_in1k`](../models/classification.md#resnet) | 4.83 | 4.05 | 4.62 | 4.24 | 1.0x | 359 | 353 |
 | [`resnet50.tv2_in1k`](../models/classification.md#resnet) | 7.43 | 6.49 | 8.24 | 6.84 | 0.9x | 439 | 444 |
-| [`shufflenet_v2_x1_0.tv_in1k`](../models/classification.md#shufflenetv2) | 3.39 | 3.29 | unsupported | – | – | 319 | – |
+| [`shufflenet_v2_x1_0.tv_in1k`](../models/classification.md#shufflenetv2) | 2.98 | 3.01 | unsupported | – | – | 322 | – |
 | [`shvit_s1.in1k`](../models/classification.md#shvit) | 4.27 | 4.54 | 3.88 | 3.41 | 1.3x | 359 | 352 |
 | [`shvit_s2.in1k`](../models/classification.md#shvit) | 4.44 | 3.97 | 4.18 | 3.94 | 1.0x | 365 | 367 |
 | [`shvit_s3.in1k`](../models/classification.md#shvit) | 5.13 | 4.52 | 4.94 | 4.45 | 1.0x | 379 | 377 |
@@ -242,12 +242,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`starnet_s3.in1k`](../models/classification.md#starnet) | 3.19 | 2.66 | unsupported | – | – | 349 | – |
 | [`starnet_s4.in1k`](../models/classification.md#starnet) | 4.04 | 3.46 | unsupported | – | – | 358 | – |
 | [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](../models/classification.md#swin) | 23.1 | 19.7 | 21.5 | 19.2 | 1.0x | 678 | 741 |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 6.15 | 5.53 | 5.78 | 5.32 | 1.0x | 401 | 407 |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 8.04 | 7.09 | 8.29 | 7.41 | 1.0x | 454 | 459 |
-| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 5.24 | 5.41 | 6.97 | 5.31 | 1.0x | 404 | 374 |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 5.44 | 5.02 | 5.78 | 5.32 | 0.9x | 403 | 407 |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 7.86 | 7.13 | 8.29 | 7.41 | 1.0x | 450 | 459 |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 4.68 | 4.24 | 6.97 | 5.31 | 0.8x | 369 | 374 |
 | [`vgg16.tv_in1k`](../models/classification.md#vgg) | 17.4 | 13.9 | unsupported | – | – | 2003 | – |
-| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 19.8 | 15.5 | unsupported | – | – | 459 | – |
-| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 182 | unsupported | – | – | 1360 | – |
+| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](../models/classification.md#vit) | 16.7 | 14.6 | unsupported | – | – | 400 | – |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](../models/classification.md#siglip) | 215 | 183 | unsupported | – | – | 1108 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -265,16 +265,16 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | [`coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 59.1 | 45.3 | 63.3 | 47.2 | 1.0x | 1101 | 1132 |
-| [`tiny_vit_21m_384.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 17.4 | 14.6 | 18.9 | 15.9 | 0.9x | 645 | 697 |
+| [`tiny_vit_21m_384.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 19.0 | 14.6 | 18.9 | 15.9 | 0.9x | 643 | 697 |
 
 ### Classification, synthetic, 448x448
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|
-| [`wd-convnext-tagger-v3`](../models/classification.md#wd_tagger) | 53.8 | 45.8 | unsupported | 793 |
-| [`wd-eva02-large-tagger-v3`](../models/classification.md#wd_tagger) | 241 | 195 | unsupported | 977 |
-| [`wd-vit-large-tagger-v3`](../models/classification.md#wd_tagger) | 203 | 179 | unsupported | 930 |
-| [`wd-vit-tagger-v3`](../models/classification.md#wd_tagger) | 57.8 | 47.5 | unsupported | 509 |
+| [`wd-convnext-tagger-v3`](../models/classification.md#wd_tagger) | 51.4 | 43.4 | unsupported | 794 |
+| [`wd-eva02-large-tagger-v3`](../models/classification.md#wd_tagger) | 242 | 195 | unsupported | 948 |
+| [`wd-vit-large-tagger-v3`](../models/classification.md#wd_tagger) | 204 | 179 | unsupported | 905 |
+| [`wd-vit-tagger-v3`](../models/classification.md#wd_tagger) | 54.2 | 45.2 | unsupported | 447 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -282,7 +282,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`tiny_vit_21m_512.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 32.4 | 25.4 | 41.5 | 29.1 | 0.9x | 934 | 919 |
+| [`tiny_vit_21m_512.dist_in22k_ft_in1k`](../models/classification.md#tinyvit) | 33.4 | 25.3 | 41.5 | 29.1 | 0.9x | 918 | 919 |
 
 ## Segmentation
 
@@ -291,8 +291,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 21.0 | 17.6 | – | – | – | 607 | – |
-| [`segformer-b2-clothes`](../models/segmentation.md#segformer) | 42.8 | 31.1 | 60.5 | 53.8 | 0.6x | 738 | 982 |
-| [`segformer-b5-face-parsing`](../models/segmentation.md#segformer) | 92.7 | 73.4 | 108 | 94.1 | 0.8x | 946 | 1200 |
+| [`segformer-b2-clothes`](../models/segmentation.md#segformer) | 42.3 | 31.8 | 60.5 | 53.8 | 0.6x | 686 | 982 |
+| [`segformer-b5-face-parsing`](../models/segmentation.md#segformer) | 91.4 | 72.9 | 108 | 94.1 | 0.8x | 900 | 1200 |
 
 ### Segmentation, synthetic, 1024x2048
 
@@ -303,8 +303,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 313 | 256 | unsupported | – | – | 1356 | – |
 | [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 941 | 760 | unsupported | – | – | 2178 | – |
 | [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 135 | 115 | unsupported | – | – | 1201 | – |
-| [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 571 | 474 | – | – | – | 2317 | – |
-| [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 583 | 484 | – | – | – | 2357 | – |
+| [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 667 | 574 | – | – | – | 3661 | – |
+| [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 477 | 362 | 528 | 366 | 1.0x | 1359 | 1391 |
 | [`hrnet-w48-fcn-ade20k`](../models/segmentation.md#mmseg) | 243 | 204 | 262 | 234 | 0.9x | 1054 | 1500 |
 | [`mask2former-swinl-ade20k`](../models/segmentation.md#mask2former) | 772 | 649 | unsupported | – | – | 2170 | – |
@@ -312,12 +312,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`pspnet-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 482 | 378 | 498 | 376 | 1.0x | 1530 | 1553 |
 | [`sapiens-seg-0.3b-goliath`](../models/segmentation.md#sapiens) | 1553 | 1308 | unsupported | – | – | 2950 | – |
 | [`sapiens-seg-1b-goliath`](../models/segmentation.md#sapiens) | 3552 | 2683 | unsupported | – | – | 4522 | – |
-| [`segformer-b0-ade20k`](../models/segmentation.md#segformer) | 75.0 | 61.7 | 76.9 | 69.6 | 0.9x | 723 | 917 |
-| [`segformer-b5-ade20k`](../models/segmentation.md#segformer) | 346 | 272 | 396 | 348 | 0.8x | 1393 | 2048 |
-| [`segnext-mscan-b-ade20k`](../models/segmentation.md#segnext) | 124 | 117 | 126 | 119 | 1.0x | 891 | 940 |
-| [`segnext-mscan-l-ade20k`](../models/segmentation.md#segnext) | 195 | 180 | 196 | 186 | 1.0x | 1053 | 1145 |
-| [`segnext-mscan-s-ade20k`](../models/segmentation.md#segnext) | 85.3 | 79.3 | 87.1 | 81.6 | 1.0x | 776 | 830 |
-| [`segnext-mscan-t-ade20k`](../models/segmentation.md#segnext) | 79.7 | 76.5 | 73.6 | 69.9 | 1.1x | 745 | 746 |
+| [`segformer-b0-ade20k`](../models/segmentation.md#segformer) | 64.3 | 55.8 | 76.9 | 69.6 | 0.8x | 735 | 917 |
+| [`segformer-b5-ade20k`](../models/segmentation.md#segformer) | 332 | 269 | 396 | 348 | 0.8x | 1179 | 2048 |
+| [`segnext-mscan-b-ade20k`](../models/segmentation.md#segnext) | 137 | 118 | 126 | 119 | 1.0x | 861 | 940 |
+| [`segnext-mscan-l-ade20k`](../models/segmentation.md#segnext) | 207 | 179 | 196 | 186 | 1.0x | 1029 | 1145 |
+| [`segnext-mscan-s-ade20k`](../models/segmentation.md#segnext) | 95.7 | 82.8 | 87.1 | 81.6 | 1.0x | 751 | 830 |
+| [`segnext-mscan-t-ade20k`](../models/segmentation.md#segnext) | 77.4 | 71.5 | 73.6 | 69.9 | 1.0x | 581 | 746 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -381,11 +381,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 409 | 352 | – | 1069 |
 | [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 1968 | 1589 | unsupported | 2350 |
 | [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1051 | 864 | – | 1639 |
-| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 272 | 229 | unsupported | 911 |
-| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 597 | 516 | unsupported | 1243 |
-| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 169 | 133 | unsupported | 798 |
-| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 145 | 115 | unsupported | 785 |
-| [`sam3`](../models/promptable_segmentation.md#sam3) | 1894 | 1547 | unsupported | 2582 |
+| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 273 | 234 | unsupported | 1072 |
+| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 600 | 523 | unsupported | 1474 |
+| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 169 | 137 | unsupported | 931 |
+| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 146 | 117 | unsupported | 919 |
+| [`sam3`](../models/promptable_segmentation.md#sam3) | 1902 | 1544 | unsupported | 2590 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -400,36 +400,36 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`deim-n-coco`](../models/detection.md#dfine) | 25.7 | 21.7 | unsupported | – | – | 575 | – |
 | [`deim-s-coco`](../models/detection.md#dfine) | 35.8 | 30.8 | – | – | – | 674 | – |
 | [`deim-x-coco`](../models/detection.md#dfine) | 120 | 94.8 | – | – | – | 1117 | – |
-| [`detr-r101-coco`](../models/detection.md#detr) | 148 | 120 | – | – | – | 994 | – |
-| [`detr-r50-coco`](../models/detection.md#detr) | 102 | 79.8 | unsupported | – | – | 954 | – |
+| [`detr-r101-coco`](../models/detection.md#detr) | 181 | 144 | – | – | – | 1397 | – |
+| [`detr-r50-coco`](../models/detection.md#detr) | 108 | 90.6 | unsupported | – | – | 1397 | – |
 | [`dfine-l-coco`](../models/detection.md#dfine) | 63.8 | 52.2 | unsupported | – | – | 785 | – |
 | [`dfine-m-coco`](../models/detection.md#dfine) | 42.1 | 37.0 | unsupported | – | – | 663 | – |
 | [`dfine-n-coco`](../models/detection.md#dfine) | 18.3 | 17.0 | unsupported | – | – | 406 | – |
 | [`dfine-s-coco`](../models/detection.md#dfine) | 30.7 | 29.4 | unsupported | – | – | 512 | – |
 | [`dfine-x-coco`](../models/detection.md#dfine) | 99.4 | 77.9 | unsupported | – | – | 1220 | – |
-| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 156 | 126 | unsupported | – | – | 1156 | – |
+| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 146 | 123 | unsupported | – | – | 1123 | – |
 | [`grounding-dino-base`](../models/detection.md#grounding_dino) | 1189 | 889 | unsupported | – | – | 1687 | – |
 | [`grounding-dino-tiny`](../models/detection.md#grounding_dino) | 933 | 753 | unsupported | – | – | 1499 | – |
-| [`lw-detr-large-coco`](../models/detection.md#lwdetr) | 61.2 | 56.7 | unsupported | – | – | 1000 | – |
-| [`lw-detr-medium-coco`](../models/detection.md#lwdetr) | 44.0 | 39.9 | unsupported | – | – | 703 | – |
-| [`lw-detr-small-coco`](../models/detection.md#lwdetr) | 30.7 | 27.8 | unsupported | – | – | 662 | – |
-| [`lw-detr-tiny-coco`](../models/detection.md#lwdetr) | 22.3 | 19.5 | unsupported | – | – | 601 | – |
-| [`lw-detr-xlarge-coco`](../models/detection.md#lwdetr) | 110 | 100 | unsupported | – | – | 1427 | – |
-| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 181 | 144 | unsupported | – | – | 1174 | – |
+| [`lw-detr-large-coco`](../models/detection.md#lwdetr) | 63.2 | 60.2 | unsupported | – | – | 1005 | – |
+| [`lw-detr-medium-coco`](../models/detection.md#lwdetr) | 45.3 | 40.7 | unsupported | – | – | 730 | – |
+| [`lw-detr-small-coco`](../models/detection.md#lwdetr) | 30.8 | 28.4 | unsupported | – | – | 661 | – |
+| [`lw-detr-tiny-coco`](../models/detection.md#lwdetr) | 22.8 | 20.0 | unsupported | – | – | 590 | – |
+| [`lw-detr-xlarge-coco`](../models/detection.md#lwdetr) | 111 | 105 | unsupported | – | – | 1440 | – |
+| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 166 | 147 | unsupported | – | – | 1135 | – |
 | [`mm-grounding-dino-base`](../models/detection.md#grounding_dino) | 1254 | 916 | – | – | – | 1719 | – |
 | [`mm-grounding-dino-tiny`](../models/detection.md#grounding_dino) | 935 | 766 | – | – | – | 1507 | – |
-| [`owlv2-b16`](../models/detection.md#owlv2) | 374 | 291 | unsupported | – | – | 885 | – |
-| [`owlv2-l14`](../models/detection.md#owlv2) | 1879 | 1428 | unsupported | – | – | 1463 | – |
-| [`rf-detr-l-coco`](../models/detection.md#rfdetr) | 55.5 | 47.6 | unsupported | – | – | 717 | – |
-| [`rf-detr-m-coco`](../models/detection.md#rfdetr) | 39.0 | 34.8 | unsupported | – | – | 702 | – |
-| [`rf-detr-n-coco`](../models/detection.md#rfdetr) | 20.4 | 19.0 | unsupported | – | – | 596 | – |
-| [`rf-detr-s-coco`](../models/detection.md#rfdetr) | 31.6 | 28.4 | unsupported | – | – | 652 | – |
-| [`rf-detr-seg-2xl-coco`](../models/detection.md#rfdetr) | 172 | 137 | unsupported | – | – | 1058 | – |
-| [`rf-detr-seg-l-coco`](../models/detection.md#rfdetr) | 64.4 | 52.1 | unsupported | – | – | 741 | – |
-| [`rf-detr-seg-m-coco`](../models/detection.md#rfdetr) | 49.3 | 41.5 | unsupported | – | – | 739 | – |
-| [`rf-detr-seg-n-coco`](../models/detection.md#rfdetr) | 27.9 | 23.9 | unsupported | – | – | 630 | – |
-| [`rf-detr-seg-s-coco`](../models/detection.md#rfdetr) | 37.1 | 30.8 | unsupported | – | – | 671 | – |
-| [`rf-detr-seg-xl-coco`](../models/detection.md#rfdetr) | 107 | 86.6 | unsupported | – | – | 851 | – |
+| [`owlv2-b16`](../models/detection.md#owlv2) | 383 | 290 | unsupported | – | – | 1046 | – |
+| [`owlv2-l14`](../models/detection.md#owlv2) | 1890 | 1426 | unsupported | – | – | 1793 | – |
+| [`rf-detr-l-coco`](../models/detection.md#rfdetr) | 56.5 | 48.1 | unsupported | – | – | 690 | – |
+| [`rf-detr-m-coco`](../models/detection.md#rfdetr) | 39.7 | 35.0 | unsupported | – | – | 673 | – |
+| [`rf-detr-n-coco`](../models/detection.md#rfdetr) | 21.2 | 19.4 | unsupported | – | – | 593 | – |
+| [`rf-detr-s-coco`](../models/detection.md#rfdetr) | 31.9 | 28.8 | unsupported | – | – | 639 | – |
+| [`rf-detr-seg-2xl-coco`](../models/detection.md#rfdetr) | 180 | 136 | unsupported | – | – | 1002 | – |
+| [`rf-detr-seg-l-coco`](../models/detection.md#rfdetr) | 64.5 | 52.7 | unsupported | – | – | 743 | – |
+| [`rf-detr-seg-m-coco`](../models/detection.md#rfdetr) | 49.0 | 41.5 | unsupported | – | – | 721 | – |
+| [`rf-detr-seg-n-coco`](../models/detection.md#rfdetr) | 27.5 | 24.0 | unsupported | – | – | 626 | – |
+| [`rf-detr-seg-s-coco`](../models/detection.md#rfdetr) | 36.1 | 31.3 | unsupported | – | – | 667 | – |
+| [`rf-detr-seg-xl-coco`](../models/detection.md#rfdetr) | 108 | 85.1 | unsupported | – | – | 840 | – |
 | [`rtdetrv2-l-coco`](../models/detection.md#rtdetrv2) | 65.0 | 55.1 | unsupported | – | – | 831 | – |
 | [`rtdetrv2-m-coco`](../models/detection.md#rtdetrv2) | 53.1 | 44.4 | unsupported | – | – | 713 | – |
 | [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 53.9 | 46.2 | unsupported | – | – | 788 | – |
@@ -477,13 +477,13 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dwpose-m`](../models/pose.md#rtmpose) | 57.8 | 53.4 | – | 915 |
 | [`dwpose-s`](../models/pose.md#rtmpose) | 30.6 | 29.6 | – | 647 |
 | [`dwpose-t`](../models/pose.md#rtmpose) | 28.7 | 27.7 | – | 591 |
-| [`hrnet-w32`](../models/pose.md#hrnet) | 118 | 97.0 | unsupported | 691 |
-| [`hrnet-w32-384`](../models/pose.md#hrnet) | 251 | 205 | – | 881 |
-| [`hrnet-w48`](../models/pose.md#hrnet) | 243 | 193 | – | 746 |
-| [`hrnet-w48-384`](../models/pose.md#hrnet) | 488 | 416 | – | 894 |
-| [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 22.7 | 15.8 | – | 497 |
-| [`retinaface-resnet50`](../models/pose.md#retinaface) | 173 | 133 | unsupported | 936 |
-| [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 74.4 | 64.2 | unsupported | 983 |
+| [`hrnet-w32`](../models/pose.md#hrnet) | 145 | 109 | unsupported | 860 |
+| [`hrnet-w32-384`](../models/pose.md#hrnet) | 327 | 237 | – | 1104 |
+| [`hrnet-w48`](../models/pose.md#hrnet) | 285 | 222 | – | 897 |
+| [`hrnet-w48-384`](../models/pose.md#hrnet) | 597 | 449 | – | 1058 |
+| [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 23.8 | 19.8 | – | 621 |
+| [`retinaface-resnet50`](../models/pose.md#retinaface) | 263 | 185 | unsupported | 1165 |
+| [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 76.4 | 65.6 | unsupported | 869 |
 | [`rtmo-l`](../models/pose.md#rtmo) | 62.0 | 55.0 | unsupported | 1188 |
 | [`rtmo-m`](../models/pose.md#rtmo) | 38.7 | 35.1 | unsupported | 917 |
 | [`rtmo-s`](../models/pose.md#rtmo) | 21.2 | 19.0 | unsupported | 607 |
@@ -511,14 +511,14 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`rtmw-m`](../models/pose.md#rtmpose) | 98.9 | 88.6 | – | 983 |
 | [`rtmw-x`](../models/pose.md#rtmpose) | 235 | 205 | – | 1605 |
 | [`rtmw-x-384`](../models/pose.md#rtmpose) | 531 | 418 | – | 1713 |
-| [`vitpose-base`](../models/pose.md#vitpose) | 176 | 159 | – | 740 |
-| [`vitpose-base-simple`](../models/pose.md#vitpose) | 170 | 155 | unsupported | 733 |
-| [`vitpose-plus-base`](../models/pose.md#vitpose) | 176 | 160 | – | 749 |
-| [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1017 | 895 | unsupported | 1858 |
-| [`vitpose-plus-large`](../models/pose.md#vitpose) | 510 | 460 | unsupported | 1184 |
-| [`vitpose-plus-small`](../models/pose.md#vitpose) | 85.3 | 74.4 | – | 601 |
-| [`yunet-n`](../models/pose.md#yunet) | 18.8 | 15.6 | unsupported | 579 |
-| [`yunet-s`](../models/pose.md#yunet) | 17.3 | 13.8 | – | 550 |
+| [`vitpose-base`](../models/pose.md#vitpose) | 178 | 158 | – | 831 |
+| [`vitpose-base-simple`](../models/pose.md#vitpose) | 202 | 169 | unsupported | 1080 |
+| [`vitpose-plus-base`](../models/pose.md#vitpose) | 179 | 158 | – | 876 |
+| [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1005 | 877 | unsupported | 3175 |
+| [`vitpose-plus-large`](../models/pose.md#vitpose) | 504 | 452 | unsupported | 1775 |
+| [`vitpose-plus-small`](../models/pose.md#vitpose) | 84.6 | 72.3 | – | 712 |
+| [`yunet-n`](../models/pose.md#yunet) | 30.2 | 22.3 | unsupported | 717 |
+| [`yunet-s`](../models/pose.md#yunet) | 21.9 | 17.7 | – | 703 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -779,36 +779,36 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|---|---|---|---|
 | [`big-lama`](../models/restoration.md#lama) | 347 | 225 | – | unsupported | – | – | 990 | – |
 | [`codeformer`](../models/restoration.md#codeformer) | 484 | 285 | – | 481 | 239 | 1.2x | 1597 | 1637 |
-| [`dat-2-x4`](../models/restoration.md#dat) | 8587 | 5231 | – | unsupported | – | – | 3643 | – |
-| [`dat-light-x4`](../models/restoration.md#dat) | 1761 | 1031 | – | unsupported | – | – | 2751 | – |
-| [`dat-x4`](../models/restoration.md#dat) | 10244 | 5785 | – | unsupported | – | – | 3572 | – |
-| [`drct-l-x4`](../models/restoration.md#drct) | 12178 | 8199 | – | unsupported | – | – | 2349 | – |
-| [`drct-x4`](../models/restoration.md#drct) | 6303 | 4229 | – | unsupported | – | – | 2306 | – |
+| [`dat-2-x4`](../models/restoration.md#dat) | 12210 | 15757 | – | – | – | – | 5878 | – |
+| [`dat-light-x4`](../models/restoration.md#dat) | 2678 | 1870 | – | – | – | – | 2425 | – |
+| [`dat-x4`](../models/restoration.md#dat) | 24476 | 9358 | – | – | – | – | 3305 | – |
+| [`drct-l-x4`](../models/restoration.md#drct) | 29775 | 18644 | – | – | – | – | 5279 | – |
+| [`drct-x4`](../models/restoration.md#drct) | 15300 | 10754 | – | – | – | – | 5003 | – |
 | [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 258 | 159 | – | unsupported | – | – | 1108 | – |
-| [`hat-s-x4`](../models/restoration.md#hat) | 8777 | 6491 | – | unsupported | – | – | 3108 | – |
-| [`hat-x4`](../models/restoration.md#hat) | 11091 | 7478 | – | unsupported | – | – | 3470 | – |
-| [`nafnet-gopro`](../models/restoration.md#nafnet) | 322 | 221 | – | unsupported | – | – | 1414 | – |
-| [`nafnet-sidd`](../models/restoration.md#nafnet) | 271 | 225 | – | unsupported | – | – | 1473 | – |
-| [`real-hat-gan-x4`](../models/restoration.md#hat) | 11457 | 7445 | – | unsupported | – | – | 3416 | – |
-| [`realesr-general-x4v3`](../models/restoration.md#compact) | 236 | 195 | – | 165 | 96.3 | 2.0x | 516 | 968 |
-| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 1488 | 1057 | – | 1506 | 567 | 1.9x | 628 | 1130 |
-| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 5840 | 4195 | – | 5184 | 2047 | 2.0x | 1248 | 2337 |
-| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 1770 | 1304 | – | 1743 | 790 | 1.7x | 1187 | 1922 |
+| [`hat-s-x4`](../models/restoration.md#hat) | 15572 | 10010 | – | – | – | – | 3396 | – |
+| [`hat-x4`](../models/restoration.md#hat) | 17231 | 11318 | – | – | – | – | 3674 | – |
+| [`nafnet-gopro`](../models/restoration.md#nafnet) | 284 | 202 | – | unsupported | – | – | 1295 | – |
+| [`nafnet-sidd`](../models/restoration.md#nafnet) | 260 | 187 | – | unsupported | – | – | 1252 | – |
+| [`real-hat-gan-x4`](../models/restoration.md#hat) | 24682 | 15831 | – | – | – | – | 5687 | – |
+| [`realesr-general-x4v3`](../models/restoration.md#compact) | 333 | 246 | – | 177 | 104 | 2.4x | 737 | 1061 |
+| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 1599 | 1199 | – | 1667 | 567 | 2.1x | 974 | 1222 |
+| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 7548 | 5321 | – | 7380 | 2184 | 2.4x | 1390 | 2452 |
+| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 2700 | 1617 | – | 2038 | 849 | 1.9x | 1319 | 2106 |
 | [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 2269 | 904 | – | 2150 | 904 | 1.0x | 1850 | 1849 |
-| [`restormer-deblur`](../models/restoration.md#restormer) | 812 | 555 | – | unsupported | – | – | 2017 | – |
-| [`restormer-derain`](../models/restoration.md#restormer) | 792 | 547 | – | unsupported | – | – | 2198 | – |
-| [`restormer-sidd`](../models/restoration.md#restormer) | 789 | 541 | – | unsupported | – | – | 2218 | – |
+| [`restormer-deblur`](../models/restoration.md#restormer) | 809 | 554 | – | unsupported | – | – | 2195 | – |
+| [`restormer-derain`](../models/restoration.md#restormer) | 806 | 552 | – | unsupported | – | – | 2262 | – |
+| [`restormer-sidd`](../models/restoration.md#restormer) | 796 | 551 | – | unsupported | – | – | 2264 | – |
 | [`seedvr2-3b`](../models/restoration.md#seedvr2) | – | 14023 | 14307 | – | – | – | 5178 | – |
 | [`seedvr2-7b`](../models/restoration.md#seedvr2) | – | 32426 | 25365 | – | – | – | 6547 | – |
-| [`span-x2`](../models/restoration.md#span) | 123 | 103 | – | 117 | 62.7 | 1.6x | 640 | 830 |
-| [`span-x4`](../models/restoration.md#span) | 132 | 110 | – | 125 | 67.3 | 1.6x | 746 | 927 |
-| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 5058 | 3730 | – | unsupported | – | – | 1524 | – |
-| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 5239 | 3966 | – | unsupported | – | – | 1677 | – |
-| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 5447 | 3883 | – | unsupported | – | – | 1597 | – |
-| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 9984 | 6640 | – | unsupported | – | – | 1521 | – |
-| [`swinir-m-x2`](../models/restoration.md#swinir) | 4380 | 3118 | – | unsupported | – | – | 1523 | – |
-| [`swinir-m-x4`](../models/restoration.md#swinir) | 5195 | 3492 | – | unsupported | – | – | 1687 | – |
-| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 4796 | 3360 | – | unsupported | – | – | 1478 | – |
+| [`span-x2`](../models/restoration.md#span) | 180 | 134 | – | 171 | 76.5 | 1.7x | 753 | 1073 |
+| [`span-x4`](../models/restoration.md#span) | 190 | 149 | – | 179 | 86.0 | 1.7x | 827 | 1210 |
+| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 8277 | 5144 | – | – | – | – | 1980 | – |
+| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 8163 | 4902 | – | – | – | – | 3313 | – |
+| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 8813 | 5522 | – | – | – | – | 2268 | – |
+| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 14252 | 8691 | – | – | – | – | 2437 | – |
+| [`swinir-m-x2`](../models/restoration.md#swinir) | 6857 | 4312 | – | – | – | – | 2423 | – |
+| [`swinir-m-x4`](../models/restoration.md#swinir) | 6706 | 4217 | – | unsupported | – | – | 3278 | – |
+| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 7297 | 4668 | – | – | – | – | 2243 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

@@ -1290,19 +1290,19 @@
   },
   "convnext_base.fb_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
@@ -1403,20 +1403,20 @@
   },
   "convnext_large.fb_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "passed": {
     "kernels": [
@@ -1459,20 +1459,20 @@
   },
   "convnext_large.fb_in22k_ft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -1488,20 +1488,20 @@
   },
   "convnext_large.fb_in22k_ft_in1k_384@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -1517,19 +1517,19 @@
   },
   "convnext_small.fb_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
@@ -1573,20 +1573,20 @@
   },
   "convnext_small.fb_in22k_ft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "passed": {
     "kernels": [
@@ -1601,19 +1601,19 @@
   },
   "convnext_small.fb_in22k_ft_in1k_384@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mps_dtype": "float16",
@@ -1691,7 +1691,7 @@
    ],
    "dtypes": {
     "float16": "portable",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -1714,19 +1714,19 @@
   },
   "convnext_tiny.fb_in22k_ft_in1k_384@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mps_dtype": "float16",
@@ -1743,19 +1743,19 @@
   },
   "convnextv2_base.fcmae_ft_in22k_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mps_dtype": "float16",
@@ -2037,20 +2037,20 @@
   },
   "davit_base.msft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -2066,20 +2066,20 @@
   },
   "davit_small.msft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -2095,20 +2095,20 @@
   },
   "davit_tiny.msft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "passed": {
     "kernels": [
@@ -11615,7 +11615,7 @@
    ],
    "dtypes": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mlx_default": [
     "portable",
@@ -11623,7 +11623,7 @@
    ],
    "mlx": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -11644,7 +11644,7 @@
    ],
    "dtypes": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mlx_default": [
     "portable",
@@ -11652,7 +11652,7 @@
    ],
    "mlx": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -11668,20 +11668,20 @@
   },
   "segnext-mscan-s-ade20k@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -11731,7 +11731,7 @@
    ],
    "dtypes": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mlx_default": [
     "kernels",
@@ -11739,7 +11739,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mps_auto": [
     "",
@@ -11891,20 +11891,20 @@
   },
   "selective-igev-middlebury-train@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_auto": [
     "",
@@ -11958,7 +11958,7 @@
   "shufflenet_v2_x1_0.tv_in1k@1": {
    "auto": [
     "portable",
-    "float16"
+    "float32"
    ],
    "dtypes": {
     "float16": "portable",
@@ -11966,7 +11966,7 @@
    },
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
     "float16": "portable",
@@ -12806,20 +12806,20 @@
   },
   "tiny_vit_11m_224.dist_in22k_ft_in1k@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "passed": {
     "kernels": [
@@ -12867,7 +12867,7 @@
    ],
    "dtypes": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mlx_default": [
     "portable",
@@ -12875,7 +12875,7 @@
    ],
    "mlx": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -12921,18 +12921,18 @@
   "tiny_vit_5m_224.dist_in22k_ft_in1k@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
