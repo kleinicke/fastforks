@@ -12,6 +12,7 @@ runs channels-last.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -330,14 +331,18 @@ def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
     return net.output(x).add_(image)
 
 
-def _network(ctx: Context) -> Restormer:
-    """The upstream network with the checkpoint loaded (float32, CPU)."""
-    p = ctx.params
-    net = Restormer(
+def _skeleton(p: Params) -> Restormer:
+    """The upstream network of `p` without weights."""
+    return Restormer(
         dim=p.dim, num_blocks=list(p.blocks), num_refinement_blocks=p.refinement, heads=list(p.heads),
         ffn_expansion_factor=p.ffn, bias=False, LayerNorm_type=p.norm,
     )  # fmt: skip
-    load_strict(net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+
+
+def _network(ctx: Context) -> Restormer:
+    """The upstream network with the checkpoint loaded (float32, CPU)."""
+    net = _skeleton(ctx.params)
+    load_strict(net, ctx.state_dict(key=ctx.params.key), f"{ctx.variant.ref} checkpoint")
     return net.eval()
 
 
@@ -466,11 +471,21 @@ class _MlxPortable(Portable):
     net: Any  # mlx_net.MlxRestormer
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network on MLX; the PyTorch one is not kept."""
+        """Build the network on MLX from the conversion cache (the checkpoint only on a miss); no PyTorch one kept."""
         Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
         from . import mlx_net  # noqa: PLC0415 - imports mlx
 
-        self.net = mlx_net.MlxRestormer(_network(ctx), mlx_wrap.run_dtype(ctx))
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `mlx_wrap.port` builds this in float32
+        self.net = mlx_port.recorded(
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxRestormer(net, run.dtype),
+            real=lambda: _network(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""

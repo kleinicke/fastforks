@@ -16,21 +16,33 @@ of replayed from an exported graph: the export was ~3 s of a 3.5-4.4 s first cal
 
 Each block's attention and FFN halves are evaluated one by one, one in flight (`_step`): MLX frees a command buffer's
 transients only when it completes, and one lazy graph of the whole U-Net holds far more than its live set.
+
+Every weight-derived array goes through `mlx_port.tensor` by its final shape (`_arr`), so `model._MlxPortable` loads
+the folded, padded arrays from the conversion cache (`mlx_port.recorded`, layout `LAYOUT`) without the checkpoint.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from fastforks._core.mlx import mx
 from fastforks.kernels.graph_mlx import ops
 from fastforks.shared import mlx_graph as mg
+from fastforks.shared import mlx_port
 
 from .net.restormer_arch import WithBias_LayerNorm
 
-__all__ = ["MlxRestormer"]
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+__all__ = ["LAYOUT", "SOURCES", "MlxRestormer"]
+
+LAYOUT = "restormer-v1"
+SOURCES = (Path(__file__),)
 
 ONE = (1, 1)
 _EPS = 1e-5  # upstream's LayerNorm epsilon (hard-coded in restormer_arch.py)
@@ -38,6 +50,19 @@ _EPS = 1e-5  # upstream's LayerNorm epsilon (hard-coded in restormer_arch.py)
 
 def _np(t: Any) -> np.ndarray:  # noqa: ANN401 - a torch tensor
     return t.detach().float().numpy().astype(np.float64)
+
+
+def _arr(shape: tuple[int, ...], dtype: mx.Dtype, make: Callable[[], np.ndarray]) -> mx.array:
+    """The array of `shape` that `make()` computes from weight values, in `dtype` (cached: `make` not run on a hit)."""
+
+    def convert() -> mx.array:
+        a = make()
+        if a.shape != shape:
+            msg = f"Restormer MLX: built {a.shape}, declared {shape}"
+            raise AssertionError(msg)
+        return mx.array(np.ascontiguousarray(a, np.float32)).astype(dtype)
+
+    return mlx_port.tensor(SimpleNamespace(shape=shape), dtype, convert)
 
 
 def _unshuffle(x: mx.array) -> mx.array:
@@ -75,30 +100,42 @@ class _Block:
             raise NotImplementedError(msg)
         self.c, self.dtype = c, dtype
         self.center = isinstance(m.norm1.body, WithBias_LayerNorm)
-        a = lambda v: mx.array(np.ascontiguousarray(v, np.float32)).astype(dtype)  # noqa: E731
-        self.qkv, self.qkv_b = self._fold(m.norm1.body, _np(at.qkv.weight)[:, :, 0, 0], a)
-        self.dw = a(_np(at.qkv_dwconv.weight)[:, 0].transpose(1, 2, 0))  # [3, 3, 3 C]
+        self.qkv, self.qkv_b = self._fold(m.norm1.body, lambda: _np(at.qkv.weight)[:, :, 0, 0], (3 * c, c), dtype)
+        self.dw = _arr((3, 3, 3 * c), dtype, lambda: _np(at.qkv_dwconv.weight)[:, 0].transpose(1, 2, 0))
         self.dw_b = mx.zeros((3 * c,), dtype)
-        temperature = _np(at.temperature).reshape(-1)
-        self.scale = mx.array(np.repeat(temperature, c // heads)[None, :, None].astype(np.float32))
-        head = np.arange(c) // (c // heads)
+        rep = c // heads
+        self.scale = _arr((1, c, 1), mx.float32, lambda: np.repeat(_np(at.temperature).reshape(-1), rep)[None, :, None])
+        head = np.arange(c) // rep
         self.mask = mx.array(np.where(head[:, None] == head[None, :], 0.0, -np.inf).astype(np.float32))
-        self.proj = mx.array(_np(at.project_out.weight)[:, :, 0, 0].astype(np.float32))  # [C out, C in], float32
+        self.proj = _arr((c, c), mx.float32, lambda: _np(at.project_out.weight)[:, :, 0, 0])  # [C out, C in]
         hidden = ff.project_out.in_channels
         wide = -(-hidden // 8) * 8
         grow = wide - hidden
-        w_in = _np(ff.project_in.weight)[:, :, 0, 0]  # [2 hidden, C]
-        w_in = np.pad(w_in.reshape(2, hidden, c), [(0, 0), (0, grow), (0, 0)]).reshape(2 * wide, c)
-        self.w_in, self.b_in = self._fold(m.norm2.body, w_in, a)
-        w_dw = _np(ff.dwconv.weight)[:, 0].transpose(1, 2, 0).reshape(3, 3, 2, hidden)
-        self.w_dw = a(np.pad(w_dw, [(0, 0), (0, 0), (0, 0), (0, grow)]).reshape(3, 3, 2 * wide))
-        self.w_out = a(np.pad(_np(ff.project_out.weight)[:, :, 0, 0].T, [(0, grow), (0, 0)]))  # [wide, C]
+
+        def w_in() -> np.ndarray:  # [2 wide, C]
+            w = _np(ff.project_in.weight)[:, :, 0, 0].reshape(2, hidden, c)
+            return np.pad(w, [(0, 0), (0, grow), (0, 0)]).reshape(2 * wide, c)
+
+        def w_dw() -> np.ndarray:  # [3, 3, 2 wide]
+            w = _np(ff.dwconv.weight)[:, 0].transpose(1, 2, 0).reshape(3, 3, 2, hidden)
+            return np.pad(w, [(0, 0), (0, 0), (0, 0), (0, grow)]).reshape(3, 3, 2 * wide)
+
+        self.w_in, self.b_in = self._fold(m.norm2.body, w_in, (2 * wide, c), dtype)
+        self.w_dw = _arr((3, 3, 2 * wide), dtype, w_dw)
+        out = lambda: np.pad(_np(ff.project_out.weight)[:, :, 0, 0].T, [(0, grow), (0, 0)])  # noqa: E731
+        self.w_out = _arr((wide, c), dtype, out)
 
     @staticmethod
-    def _fold(body: Any, w: np.ndarray, a: Any) -> tuple[mx.array, mx.array | None]:  # noqa: ANN401 - torch / a cast
-        """The bias-free 1 x 1 conv `w` `[O, C]` after the norm `body` with its affine folded in: `[C, O]`, bias."""
-        b = a(w @ _np(body.bias)) if isinstance(body, WithBias_LayerNorm) else None
-        return a((w * _np(body.weight)[None, :]).T), b
+    def _fold(
+        body: Any,  # noqa: ANN401 - the norm's torch module
+        w: Callable[[], np.ndarray],
+        shape: tuple[int, int],
+        dtype: mx.Dtype,
+    ) -> tuple[mx.array, mx.array | None]:
+        """The bias-free 1 x 1 conv `w()` `[O, C]` after the norm `body` with its affine folded in: `[C, O]`, bias."""
+        o, c = shape
+        b = _arr((o,), dtype, lambda: w() @ _np(body.bias)) if isinstance(body, WithBias_LayerNorm) else None
+        return _arr((c, o), dtype, lambda: (w() * _np(body.weight)[None, :]).T), b
 
     def _linear(self, x: mx.array, w: mx.array, b: mx.array | None) -> mx.array:
         return x @ w if b is None else mx.addmm(b, x, w)
@@ -145,11 +182,11 @@ class MlxRestormer:
             raise NotImplementedError(msg)
         self.dtype = getattr(mx, dtype)
         self.convs = {
-            name: mx.array(_np(_conv(net, name).weight).transpose(0, 2, 3, 1).astype(np.float32)).astype(self.dtype)
+            name: self._weight(_conv(net, name).weight, lambda w: w.transpose(0, 2, 3, 1))
             for name in ("patch_embed", "down1_2", "down2_3", "down3_4", "up4_3", "up3_2", "up2_1", "output")
         }  # OHWI
         self.reduce = {
-            name: mx.array(_np(getattr(net, name).weight)[:, :, 0, 0].T.astype(np.float32)).astype(self.dtype)
+            name: self._weight(getattr(net, name).weight, lambda w: w[:, :, 0, 0].T)
             for name in ("reduce_chan_level3", "reduce_chan_level2")
         }
         self.stages = {
@@ -159,6 +196,11 @@ class MlxRestormer:
                 "decoder_level3", "decoder_level2", "decoder_level1", "refinement",
             )
         }  # fmt: skip
+
+    def _weight(self, t: Any, view: Callable[[np.ndarray], np.ndarray]) -> mx.array:  # noqa: ANN401 - a torch tensor
+        """`view` of the conv weight `t` (a transpose; its shape read off a broadcast stand-in), in the run dtype."""
+        shape = view(np.broadcast_to(np.float32(0), tuple(int(n) for n in t.shape))).shape
+        return _arr(shape, self.dtype, lambda: view(_np(t)))
 
     def _conv(self, name: str, x: mx.array) -> mx.array:
         return mg._conv2d(x, self.convs[name], ONE, ONE, ONE, 1)  # noqa: SLF001 - the translator's conv dispatch
