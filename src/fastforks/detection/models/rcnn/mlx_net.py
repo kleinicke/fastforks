@@ -39,6 +39,7 @@ __all__ = ["LAYOUT", "Net", "prepare"]
 LAYOUT = "v1"  # version of `prepare`'s parameter layout (for the conversion cache's file name)
 
 _BU, _RPN, _ROI = "backbone.bottom_up", "proposal_generator.rpn_head", "roi_heads"
+FP32 = (f"{_ROI}.box_predictor", f"{_ROI}.mask_head.predictor.b")  # evaluated (and cached) in float32
 _DECONV = f"{_ROI}.mask_head.deconv"
 _FC1 = f"{_ROI}.box_head.fc1"
 _GEMM_MIN_OUT = 33  # a 1 x 1 convolution with fewer outputs is faster as `mx.conv2d` (its narrow-output path)
@@ -163,14 +164,13 @@ class Net:
         self.dtype = dt = getattr(mx, dtype)
         # stride on the first 1 x 1 convolution (and the shortcut) of res3..res5's first block
         self.strided = {f"{_BU}.res{i + 2}.0.{c}" for i in range(1, len(a.blocks)) for c in ("conv1", "shortcut")}
-        f32 = (f"{_ROI}.box_predictor", f"{_ROI}.mask_head.predictor.b")  # evaluated in float32
         p: dict[str, mx.array] = {}
         for key, v in p32.items():
             name = key[:-2]
             if key.endswith(".w") and v.shape[1] == 1 and self._gemm(name, v):
                 p[f"{name}.m"] = v[:, 0, 0, :].T.astype(dt)
             else:
-                p[key] = v if key.startswith(f32) else v.astype(dt)
+                p[key] = v if key.startswith(FP32) else v.astype(dt)
         self.p = p
         mx.eval(p)
         names = [f"{_BU}.res{i + 2}.{j}" for i, n in enumerate(a.blocks) for j in range(n)]

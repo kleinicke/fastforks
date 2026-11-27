@@ -852,7 +852,7 @@ class MlxPortable(Runner):
                     sd[name] = v
             return mlx_net.prepare(sd, cfgs)
 
-        p32 = converted(ctx, mlx_net.LAYOUT, build)
+        p32 = converted(ctx, mlx_net.LAYOUT, build, dtype=ctx.dtype, fp32=mlx_net.fp32)
         self.branches = []
         for name, cfg in cfgs.items():
             part = {k.removeprefix(name + "."): p32.pop(k) for k in list(p32) if k.startswith(name + ".")}

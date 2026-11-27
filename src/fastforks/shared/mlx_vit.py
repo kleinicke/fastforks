@@ -410,6 +410,9 @@ def _feature_forward(
     return tuple(a.astype(mx.float32) for a in (last, *hs))
 
 
+DINO_FP32 = ("pos.cls", "pos.grid", "patch.bias")  # `DinoFeatureEngine`'s float32 torch tensors (cache them so)
+
+
 class DinoFeatureEngine:
     """The MLX network of one loaded model: converted weights, position tables and the forward (block by block).
 
@@ -429,7 +432,7 @@ class DinoFeatureEngine:
         """Use the checkpoint's DINOv2 parameters and the family's position interpolation."""
         self.dtype = getattr(mx, dtype)
         self.interpolate = interpolate
-        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos.cls", "pos.grid", "patch.bias")}
+        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in DINO_FP32}
         self.pos = torch.cat([host["pos.cls"], host["pos.grid"]])[None]  # fp32 prefix and patch positions
         self.bias = host["patch.bias"]
         self.p = {}

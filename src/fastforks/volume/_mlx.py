@@ -166,8 +166,9 @@ def port(portable: type[Runner], *, hand: bool = True) -> type[Runner]:
                 sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
                 return mlx_net.params(UNet.state_dict_of(sd, plan.dims), plan)
 
-            arrays = converted(self.ctx, mlx_net.LAYOUT, build, weights=index)
-            return mlx_net.MlxUNet(arrays, plan, mlx_wrap.run_dtype(self.ctx))
+            dtype = mlx_wrap.run_dtype(self.ctx)
+            arrays = converted(self.ctx, mlx_net.LAYOUT, build, weights=index, dtype=dtype, fp32=mlx_net.fp32)
+            return mlx_net.MlxUNet(arrays, plan, dtype)
 
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
     # A window's transients (Winograd bands, the 128^3 x 32 maps) are fresh zero-filled allocations past the cache:

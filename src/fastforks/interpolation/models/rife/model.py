@@ -344,7 +344,8 @@ class MlxPortable(Runner):
 
         from . import mlx_net  # noqa: PLC0415
 
-        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx).eval()))
+        build = lambda: mlx_net.prepare(_net(ctx).eval())  # noqa: E731
+        p = converted(ctx, mlx_net.LAYOUT, build, dtype=ctx.dtype, fp32=mlx_net.fp32)
         self.net = mlx_net.Net(p, ctx.params.scales, ctx.dtype)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:

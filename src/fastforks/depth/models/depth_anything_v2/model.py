@@ -243,7 +243,9 @@ class MlxPortable(Runner):
         from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
         from fastforks.shared.depth_anything_v2 import mlx_net  # noqa: PLC0415
 
-        p32 = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_state_dict(ctx)))
+        p32 = converted(
+            ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_state_dict(ctx)), dtype=ctx.dtype, fp32=mlx_net.fp32
+        )
         self.engine = mlx_net.Engine(
             p32, ctx.params.arch, ctx.dtype, sigmoid=ctx.params.max_depth > 0, up=self._resize() or mlx_net.resize
         )

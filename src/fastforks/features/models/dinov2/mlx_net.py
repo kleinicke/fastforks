@@ -27,7 +27,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from fastforks._core.mlx import converted
-from fastforks.shared.mlx_vit import DinoFeatureEngine, dinov2_params
+from fastforks.shared.mlx_vit import DINO_FP32, DinoFeatureEngine, dinov2_params
 
 from .model import _pos_embed
 
@@ -43,7 +43,7 @@ class Engine(DinoFeatureEngine):
 
     def __init__(self, ctx: Context) -> None:
         """Convert or read the cached DINOv2 weights."""
-        params = converted(ctx, LAYOUT, lambda: dinov2_params(ctx.state_dict(), 14))
+        params = converted(ctx, LAYOUT, lambda: dinov2_params(ctx.state_dict(), 14), dtype=ctx.dtype, fp32=DINO_FP32)
         registers = ctx.params.registers
         interp = SimpleNamespace(interpolate_offset=0.0 if registers else 0.1, interpolate_antialias=bool(registers))
         super().__init__(params, ctx.dtype, HEADS[ctx.params.arch], partial(_pos_embed, interp))

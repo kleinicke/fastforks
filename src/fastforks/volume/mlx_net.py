@@ -127,6 +127,11 @@ def _im2col_conv(x: mx.array, wk: mx.array) -> mx.array:
     return mx.concatenate(cols, axis=-1) @ wk
 
 
+def fp32(k: str) -> bool:
+    """`params`' arrays kept float32 in a float16 run (and so cached): the instance norms' scale and shift."""
+    return k[0] in "ed" and k.endswith((".g", ".b"))
+
+
 class MlxUNet:
     """A `UNet` of `plan` on MLX in `dtype` (the name), from `params(...)`."""
 

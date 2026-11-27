@@ -500,7 +500,7 @@ class MlxPortable(Runner):
 
         from . import mlx_net  # noqa: PLC0415
 
-        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_loaded(ctx)))
+        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_loaded(ctx)), dtype=ctx.dtype, fp32=mlx_net.fp32)
         params = ctx.params
         constants = partial(_window_constants, params.window)
         self.net = mlx_net.Net(p, params.depths, params.window, ctx.dtype, constants, tta=params.tta)

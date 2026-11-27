@@ -112,17 +112,17 @@ class Engine:
         self.dtype = getattr(mx, ctx.dtype)
         half = ctx.dtype == "float16"
         self.scale = STREAM_SCALE if half and self.cfg.hidden_size >= WIDE else 1.0
-        p32 = converted(ctx, LAYOUT, lambda: prepare(ctx.state_dict()))
+        scale = self.scale
 
         def scaled(k: str) -> bool:  # `blocks.<i>.proj.weight` -> `proj.weight`
             name = k.split(".", 2)[2] if k.startswith("blocks.") else k
-            return self.scale != 1.0 and name.startswith(SCALED)
+            return scale != 1.0 and name.startswith(SCALED)
 
-        self.p = {}
-        for k in list(p32):  # one by one: a lazy cast keeps its float32 source until it is evaluated
-            v = p32.pop(k)
-            self.p[k] = (v / self.scale if scaled(k) else v).astype(self.dtype)
-            mx.eval(self.p[k])
+        def build() -> dict[str, mx.array]:  # the scale (a power of two: exact) before the cache's cast
+            return {k: v / scale if scaled(k) else v for k, v in prepare(ctx.state_dict()).items()}
+
+        layout = LAYOUT if scale == 1.0 else f"{LAYOUT}-s{scale:g}"
+        self.p = converted(ctx, layout, build, dtype=ctx.dtype)
         self.tables: OrderedDict[tuple[int, int], tuple[mx.array, mx.array]] = OrderedDict()
 
     def rope(self, h0: int, w0: int) -> tuple[mx.array, mx.array]:

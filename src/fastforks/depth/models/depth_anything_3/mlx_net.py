@@ -52,6 +52,15 @@ SIZES = 4  # input sizes whose tables are kept (least recently used dropped)
 SHUFFLE = (4, 2)  # stride (= kernel) of the transposed convolutions of the two finest levels
 _POS_RATIO = 0.1  # fixed: upstream DualDPT._add_pos_embed ratio
 _FP32 = ("head.out3.", "cam.")  # parameters that stay float32 in a float16 run
+_HOST = ("pos.cls", "pos.grid", "patch.bias")  # float32 torch tensors for the position tables
+
+
+def fp32(k: str) -> bool:
+    """`prepare`'s arrays (`<branch>.<name>`) the conversion cache stores float32 whatever the run dtype."""
+    name = k.partition(".")[2]
+    return name in _HOST or name.startswith(_FP32)
+
+
 _UNUSED = ("backbone.pretrained.mask_token", "cam_dec.fc_t.", "cam_dec.fc_qvec.")  # no part of the one-view forward
 _CAST_CACHE = 64 << 20  # bytes of cast float32 weights after which the buffer cache is emptied
 
@@ -290,7 +299,7 @@ class Branch:
         """Cast the float32 parameters of one branch (`p32`, emptied) to the run dtype."""
         self.cfg = cfg
         self.dtype = getattr(mx, dtype)
-        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos.cls", "pos.grid", "patch.bias")}
+        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in _HOST}
         self.pos, self.cls, self.bias = host["pos.grid"], host["pos.cls"], host["patch.bias"]  # fp32, as upstream
         self.p: dict[str, mx.array] = {}
         freed = 0

@@ -551,7 +551,8 @@ class MlxPortable(Runner):
 
         from . import mlx_net  # noqa: PLC0415
 
-        self.net = mlx_net.Net(converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx))), ctx.dtype)
+        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx)), dtype=ctx.dtype, fp32=mlx_net.FP32)
+        self.net = mlx_net.Net(p, ctx.dtype)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Depth (and intrinsics when none are given) of one image."""

@@ -331,6 +331,9 @@ def forward(  # noqa: PLR0913 - the network's inputs
     return tuple(a.astype(mx.float32) for a in (last, pooled, *hs))
 
 
+_HOST = ("pos", "patch.bias", "cls")  # float32 torch tensors for the embedding tables (cached float32)
+
+
 class Engine:
     """The MLX network of one loaded model: converted weights and embedding tables."""
 
@@ -348,7 +351,7 @@ class Engine:
             del net
             return _prepare(state, holder["cfg"])
 
-        p32 = converted(ctx, LAYOUT, convert)
+        p32 = converted(ctx, LAYOUT, convert, dtype=ctx.dtype, fp32=lambda k: k in _HOST)
         if "cfg" not in holder:
             with torch.device("meta"):
                 net = timm().create_model(ctx.params.arch, pretrained=False, dynamic_img_size=True)
@@ -360,7 +363,7 @@ class Engine:
             del net
         self.rope = holder.get("rope")  # Eva: the float32 RoPE module (CPU), for the tables per grid
         self.cfg = replace(holder["cfg"], stream_f32=ctx.variant.ref.split("@")[0] in STREAM_F32)
-        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in ("pos", "patch.bias", "cls") if k in p32}
+        host = {k: torch.from_numpy(np.array(p32.pop(k))) for k in _HOST if k in p32}
         self.pos, self.bias, self.cls_token = host["pos"][None], host["patch.bias"], host.get("cls")
         self.p = {}
         for k in list(p32):  # one by one: a lazy cast keeps its float32 source until it is evaluated

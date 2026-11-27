@@ -49,7 +49,7 @@ DEPTH = 24
 STRIPS = 6  # bands of rows a 768x768 3x3 convolution runs in (see `finish`)
 HEAD_WIDTH = 160  # channels between the head's two 3x3 convolutions (see `prepare`)
 VITS = ("patch", "image", "fov")  # the patch encoder, the image encoder and the field-of-view encoder
-_FP32 = ("head.out.", "fovnet.")  # parameters that stay float32 in a float16 run
+FP32 = ("head.out.", "fovnet.")  # parameters that stay float32 in a float16 run
 _CAST_CACHE = 64 << 20  # bytes of cast float32 weights after which the buffer cache is emptied
 
 
@@ -282,7 +282,7 @@ class Net:
         freed = 0
         for k in list(p32):  # one at a time: never the float32 and the run dtype's weights of the whole net at once
             v = p32.pop(k)
-            a = v if k.startswith(_FP32) else v.astype(run)
+            a = v if k.startswith(FP32) else v.astype(run)
             mx.eval(a)
             part, _, name = k.removeprefix("vit.").partition(".") if k.startswith("vit.") else ("net", "", k)
             p[part][name] = a

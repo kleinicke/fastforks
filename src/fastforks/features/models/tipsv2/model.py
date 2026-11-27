@@ -283,9 +283,10 @@ class MlxPortable(Runner):
             msg = "TIPSv2 block streaming requires CUDA"
             raise OptionsError(msg)
         from fastforks._core.mlx import converted  # noqa: PLC0415 - optional MLX
-        from fastforks.shared.mlx_vit import DinoFeatureEngine, dinov2_params  # noqa: PLC0415
+        from fastforks.shared.mlx_vit import DINO_FP32, DinoFeatureEngine, dinov2_params  # noqa: PLC0415
 
-        params = converted(ctx, "v1", lambda: dinov2_params(_network(ctx).state_dict(), 14))
+        build = lambda: dinov2_params(_network(ctx).state_dict(), 14)  # noqa: E731
+        params = converted(ctx, "v1", build, dtype=ctx.dtype, fp32=DINO_FP32)
         interp = partial(_pos_embed, SimpleNamespace(interpolate_antialias=True))
         self.engine = DinoFeatureEngine(params, ctx.dtype, {"vitb": 12, "vitl": 16}[ctx.params.arch], interp)
         self.hidden_size, self.num_layers = self.engine.hidden_size, self.engine.depth

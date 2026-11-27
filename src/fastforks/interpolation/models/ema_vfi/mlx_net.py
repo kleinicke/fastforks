@@ -285,6 +285,11 @@ def _widened(w: mx.array) -> mx.array:
     return w if i % 16 == 0 or i < 16 else mx.pad(w, [(0, 0), (0, 0), (0, 0), (0, -i % 16)])  # noqa: PLR2004
 
 
+def fp32(k: str) -> bool:
+    """`prepare`'s arrays kept (and cached) float32: `_up` adds the bias and applies the slopes in float32."""
+    return k.startswith("u.up") and not k.endswith(".w")
+
+
 class Net:
     """The MLX network: the converted weights and one compiled function per image size."""
 
@@ -304,7 +309,7 @@ class Net:
         self.constants = constants
         self.p = {}
         for k, v in p32.items():
-            if k.startswith("u.up") and not k.endswith(".w"):
+            if fp32(k):
                 self.p[k] = v  # `_up` adds the bias and applies the slopes in float32
             else:
                 self.p[k] = (_widened(v) if v.ndim == 4 else v).astype(self.dtype)  # noqa: PLR2004

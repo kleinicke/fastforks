@@ -56,7 +56,8 @@ def _convert(ctx: Context) -> dict[str, mx.array]:
 def engine(ctx: Context) -> Engine:
     """The engine of `ctx.variant`: its weights converted once, then read from the cache."""
     p = ctx.params
-    return Engine(converted(ctx, LAYOUT, lambda: _convert(ctx)), p.num_heads, ctx.dtype, align=p.pos_align_corners)
+    p32 = converted(ctx, LAYOUT, lambda: _convert(ctx), dtype=ctx.dtype, fp32=lambda k: k == "pos")  # torch fp32
+    return Engine(p32, p.num_heads, ctx.dtype, align=p.pos_align_corners)
 
 
 class Engine:

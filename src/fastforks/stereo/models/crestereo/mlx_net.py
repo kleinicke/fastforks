@@ -88,12 +88,16 @@ def prepare(state: dict[str, np.ndarray], *, pad: bool) -> dict[str, mx.array]:
     return {k: mx.array(np.ascontiguousarray(v)) for k, v in out.items()}
 
 
-def cast(p32: dict[str, mx.array], dtype: mx.Dtype) -> dict[str, mx.array]:
-    """Parameters in the run dtype; the attention, the flow convolution (fp32 input) and the Winograd-domain GRU
-    weights stay float32.
+def fp32(k: str) -> bool:
+    """Parameters that stay float32 in a float16 run: the attention, the flow convolution (fp32 input) and the
+    Winograd-domain GRU weights (the conversion cache stores them so).
     """
-    keep = lambda k: k.startswith((*ATTENTION, "update_block.encoder.convf1")) or k.endswith(".wino")  # noqa: E731
-    return {k: v if keep(k) else v.astype(dtype) for k, v in p32.items()}
+    return k.startswith((*ATTENTION, "update_block.encoder.convf1")) or k.endswith(".wino")
+
+
+def cast(p32: dict[str, mx.array], dtype: mx.Dtype) -> dict[str, mx.array]:
+    """Parameters in the run dtype, but `fp32`'s (a no-op on arrays the cache stored in the run dtype)."""
+    return {k: v if fp32(k) else v.astype(dtype) for k, v in p32.items()}
 
 
 # --------------------------------------------------------------------------- small ops
@@ -326,7 +330,7 @@ class Engine:
             layout += f"-{ctx.mode}-wino{int(tune.winograd)}"
         self.ops = ops
         self.dtype = getattr(mx, ctx.dtype)
-        self.p = cast(converted(ctx, layout, build), self.dtype)
+        self.p = cast(converted(ctx, layout, build, dtype=ctx.dtype, fp32=fp32), self.dtype)
         mx.eval(self.p)
         self.steps = make_steps(ops, self.p, self.dtype, tune.compile_steps)
         self.pair = tune.batch_pair

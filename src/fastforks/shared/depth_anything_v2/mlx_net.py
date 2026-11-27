@@ -166,16 +166,24 @@ def forward(  # noqa: PLR0913 - the network's pieces
     return head(p, feats, h0, w0, sigmoid=sigmoid, up=up)
 
 
+HOST = ("pos.cls", "pos.grid", "patch.bias")  # float32 torch tensors for the position tables
+FP32 = ("head.out3.weight", "head.out3.bias")  # float32 in a float16 run
+
+
+def fp32(k: str) -> bool:
+    """Parameters the conversion cache stores float32 whatever the run dtype."""
+    return k in HOST or k in FP32
+
+
 class Engine:
     """The MLX network of one loaded model: converted weights, position tables and the compiled forward."""
 
     def __init__(self, p32: dict[str, mx.array], arch: str, dtype: str, *, sigmoid: bool, up: Resize = resize) -> None:
         """Cast the float32 parameters of `prepare` (`p32`, emptied) to the run dtype; `up`: the head's resize."""
         self.dtype = getattr(mx, dtype)
-        host = {k: np.array(p32.pop(k)) for k in ("pos.cls", "pos.grid", "patch.bias")}
+        host = {k: np.array(p32.pop(k)) for k in HOST}
         self.pos, self.cls, self.bias = host["pos.grid"], host["pos.cls"], host["patch.bias"]  # fp32, as upstream
-        fp32 = ("head.out3.weight", "head.out3.bias")
-        self.p = {k: v if k in fp32 else v.astype(self.dtype) for k, v in p32.items()}
+        self.p = {k: v if k in FP32 else v.astype(self.dtype) for k, v in p32.items()}
         p32.clear()
         mx.eval(self.p)
 

@@ -280,6 +280,11 @@ def _act(x: mx.array) -> mx.array:
     return mx.maximum(x, 0.2 * x)  # LeakyReLU(0.2)
 
 
+def fp32(k: str) -> bool:
+    """`prepare`'s arrays kept (and cached) float32: the biases added in float32."""
+    return k.endswith(("enc.3.b", "last.b"))
+
+
 class Net:
     """The MLX network: the converted weights and one compiled function per image size."""
 
@@ -288,7 +293,7 @@ class Net:
         self.dtype = getattr(mx, dtype)
         self.scales = scales
         # the biases the kernels add stay float32
-        self.p = {k: v if k.endswith(("enc.3.b", "last.b")) else v.astype(self.dtype) for k, v in p32.items()}
+        self.p = {k: v if fp32(k) else v.astype(self.dtype) for k, v in p32.items()}
         mx.eval(self.p)
         self._compiled = mx.compile(self._forward)
 
