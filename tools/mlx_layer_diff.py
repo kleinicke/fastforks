@@ -84,7 +84,14 @@ def align(ref: np.ndarray, got: np.ndarray) -> np.ndarray | None:
 
 
 def diff(ref: np.ndarray, got: np.ndarray) -> tuple[float, float, float]:
-    """Max and mean abs difference, and the max relative to the largest reference magnitude."""
+    """Max and mean abs difference, and the max relative to the largest reference magnitude.
+
+    An integer output (a label map) gives the share of differing elements as its mean and relative diff instead: one
+    flipped label at a boundary is not a divergence.
+    """
+    if ref.dtype.kind in "iub" and got.shape == ref.shape:
+        share = float(np.mean(ref != got)) if ref.size else 0.0
+        return float(np.max(np.abs(ref.astype(np.int64) - got.astype(np.int64)))) if ref.size else 0.0, share, share
     d = np.abs(ref.astype(np.float64) - got.astype(np.float64))
     scale = float(np.max(np.abs(ref))) if ref.size else 0.0
     m = float(np.max(d)) if d.size else 0.0
@@ -218,13 +225,13 @@ def _to_np(o: Any) -> Any:  # noqa: ANN401 - a module output
 
 
 def flat(tree: Any, prefix: str = "") -> dict[str, np.ndarray]:  # noqa: ANN401 - a call's result
-    """The tensor leaves of a result as float32 numpy arrays, by dotted key."""
+    """The tensor leaves of a result as numpy arrays by dotted key: float32, integer ones kept integer."""
     import torch  # noqa: PLC0415
 
     if isinstance(tree, torch.Tensor):
-        return {prefix or "out": tree.detach().cpu().float().numpy()}
+        tree = (tree.float() if tree.is_floating_point() else tree).detach().cpu().numpy()  # bfloat16: no numpy
     if isinstance(tree, np.ndarray) and tree.dtype != object:
-        return {prefix or "out": tree.astype(np.float32)}
+        return {prefix or "out": tree if tree.dtype.kind in "iub" else tree.astype(np.float32)}
     if hasattr(tree, "__dataclass_fields__"):
         tree = {k: getattr(tree, k) for k in tree.__dataclass_fields__}
     if isinstance(tree, (list, tuple)):

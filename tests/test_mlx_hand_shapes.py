@@ -56,7 +56,7 @@ def _flat(tree: Any, prefix: str = "") -> dict[str, np.ndarray]:
     import torch  # noqa: PLC0415
 
     if isinstance(tree, torch.Tensor):
-        tree = tree.detach().cpu().numpy()
+        tree = (tree.float() if tree.is_floating_point() else tree).detach().cpu().numpy()  # bfloat16: no numpy
     if isinstance(tree, np.ndarray) and tree.dtype != object:
         return {prefix or "out": tree if tree.dtype.kind in "iub" else tree.astype(np.float32)}
     if hasattr(tree, "__dataclass_fields__"):

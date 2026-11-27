@@ -128,3 +128,12 @@ def test_taps_record_only_inside() -> None:
         mlx_port.tap("a", x)
     assert rows[0].value is None
     assert mlx_port.tap("a", x) is x
+
+
+def test_diff_of_labels_is_the_share_that_differs() -> None:
+    ref = np.zeros((4, 5), dtype=np.uint8)
+    got = ref.copy()
+    got[0, 0] = 90
+    mx_, mean, rel = ld.diff(ref, got)
+    assert mx_ == 90
+    assert mean == rel == 1 / 20
