@@ -197,6 +197,215 @@ network timers; the hand arm runs them in MLX as a second network call (`detect`
   29 % faster end to end in both dtypes.
 - Hand peak before / after the pass: 2263 -> 2006 MB (fp16), 4202 -> 3972 MB (fp32).
 
+## Restoration ports (2026-11-27)
+
+SwinIR, Swin2SR, HAT, DRCT, DAT, Real-ESRGAN, SPAN, Compact and Restormer are hand-written (no graph replay):
+`fastforks.shared.swin_sr.mlx_net` holds the Swin layers, the groups and the row-banded tails, `mlx_cnn` the 3 x 3
+convs of the CNNs (Winograd `conv_mlx` in kernels mode), each family's `mlx_net` only its own blocks. All load
+through `mlx_port.recorded` (the conversion cache, no checkpoint on a hit); `GRAPH_RUNNERS` rebuilds the graph arm
+of every family but Restormer (below). 54 A/B rows (the CNNs in both modes, the Swin nets in portable mode, the only
+one they have); the full table has no mode column: of a CNN ref's two rows per dtype, the kernels row comes first.
+
+| family | net warm x fp16 | net peak x fp16 | net warm x fp32 | net peak x fp32 |
+|---|---|---|---|---|
+| swinir | 1.02-1.07 | 0.46-0.80 | 0.78-0.99 | 0.33-0.85 |
+| swin2sr | 1.03-1.07 | 0.46-0.73 | 0.78-0.80 | 0.36-0.76 |
+| hat | 0.66-0.78 | 0.73-0.91 | 0.42-0.48 | 0.82-1.00 |
+| drct | 0.69-0.72 | 0.42-0.43 | 0.55-0.57 | 0.37-0.38 |
+| dat | 0.31-0.53 | 0.62-0.74 | 0.48-0.75 | 0.95-1.26 |
+| realesrgan kernels | 0.99-1.04 | 1.02-1.20 | 0.92-0.94 | 0.57-0.73 |
+| realesrgan portable | 0.94-0.96 | 0.68-0.92 | 0.91-0.94 | 0.83-0.90 |
+| span (both modes) | 0.81-0.84 | 0.78-1.00 | 0.75-0.76 | 1.08 |
+| compact kernels / portable | 0.92 / 0.77 | 0.82 / 0.71 | 0.93 / 0.71 | 1.00 / 0.82 |
+
+- *The buffer cache the mode asks for.* The graph ports' kernels runners asked `request_cache` for a larger MLX
+  buffer cache (Real-ESRGAN x4plus 768 MB, anime 512, Compact and SPAN 512); the first hand runners did not, so the
+  survey ran them at the 128 MB default: x4plus kernels float16 3907 ms against 2090 at 1024 MB (anime 1431 / 742,
+  Compact float32 282 / 151). The hand runners now ask per variant (`CACHE_MB`: x4plus 1024, anime 512, x2plus 128,
+  SPAN and Compact 512, Restormer 1024 as before).
+- *Load.* A torch op on a meta tensor (the RDB's `0.2 * conv5` scale, DAT's BatchNorm fold, Swin2SR's bias MLP)
+  imports `torch._dynamo` and `torch.distributed`, about 0.7 s: the scale is now applied in the conversion and the
+  folds skip a replay's meta tensors. The Swin nets' skeletons still pay it once (the vendored modules' `torch.arange`
+  on the meta device goes through the decomposition that imports it): their cached load is about 1.1-1.3 s in a
+  fresh process against 0.2-0.4 s for the CNNs.
+- *Restormer* was already hand-written; it now loads its folded, padded arrays from the conversion cache too
+  (`mlx_port.tensor` by final shape): float32 load 0.77 -> 0.33 s. Its graph path stays gone (below), so it has no
+  A/B rows; its e2e rows are below.
+
+Still flagged, with the reason:
+
+- SwinIR and Swin2SR float16: 2-7 % slower warm, 20-54 % leaner (float32 1-22 % faster). The slower part was not
+  located this round.
+- Real-ESRGAN x2plus kernels float16: peak 1.20 (1018 / 847 MB) at equal speed. One step per dense block against one
+  per conv (cache 2048 MB): 479 / 485 ms at +885 / +885-970 MB, so the step granularity is not the cause; the rest
+  was not located. x4plus and anime kernels float16: 1.00-1.04 slower and 1.02-1.03 heavier, within the drift above.
+- DAT-light float32 (warm 0.75, peak 1.26) and SPAN float32 (0.75-0.76, 1.08): accepted peak trades (their e2e peaks
+  are their own float32 rows, below the best MPS row). At 1024 x 1024 DAT-light float32 stays below the graph arm
+  (MLX peak 6854 / 7428 MB, 12.2 / 17.5 s), SPAN-x4 float32 reaches 2382 MB (float16 1389).
+
+End to end (`tools/speed_survey.py`, two runs, 512 x 512, the second run's rows kept), against the graph port's
+MLX rows of 2026-11-19 to 25 (the old row) and the best MPS row:
+
+| family | e2e warm new / old | e2e peak new / old | below the best MPS peak |
+|---|---|---|---|
+| swinir | 0.64-0.83 | 0.34-0.70 | all |
+| swin2sr | 0.61-0.81 | 0.37-0.79 | all |
+| hat | 0.46-0.66 | 0.60-0.94 | all |
+| drct | 0.39-0.44 | 0.44-0.50 | all |
+| dat | 0.33-0.70 | 0.88-1.17 | all |
+| realesrgan | 0.66-1.00 | 0.57-0.95 | all |
+| span | 0.68-0.82 | 0.76-0.92 | all |
+| compact kernels / portable | 0.93 / 0.71-0.79 | 0.91-1.09 / 0.70-0.78 | all but compact kernels float32 |
+| restormer (no graph arm) | 0.98-1.00 | 0.92-0.98 | all |
+
+- Peaks above the old row: DAT float16 (dat-x4 3572 / 3305 MB, dat-2-x4 3643 / 3512, dat-light 2751 / 2425),
+  DAT-light float32 (3919 / 3346) and Compact kernels float32 (1461 / 1335, best MPS 1289). The old rows do not
+  reproduce: the graph arm (`FASTFORKS_MLX_GRAPH=1`) through the same survey worker on the same day peaks higher
+  than the hand port in float16 (dat-light 3389 against 2784 MB, dat-x4 4265 / 3723, dat-2-x4 4332 / 3626) and in
+  Compact kernels float32 (1477-1514 against 1444-1460, at 233-245 / 162-173 ms); only DAT-light float32 is
+  heavier than it (3845 / 3324, the accepted trade). A smaller buffer cache does not lower Compact's float32 peak
+  without the speed (512 / 256 / 128 MB: 159 / 183 / 268 ms at 1358 / 1346 / 1204 MB in one process).
+- Load (`load_s`, torch already imported): the CNNs 0.16-0.35 s (old 0.10-0.27), the float16 kernels runners
+  up to 0.54 (x2plus 0.51-0.54 against the graph arm's 0.30): their cache file holds the Winograd-transformed
+  weights, 4x the plain ones (x2plus 167 / 33 MB), read from the cache disk. The Swin nets 0.76-1.15 s (old
+  0.29-1.16): the skeleton's dynamo import above. Restormer float32 0.32-0.34 (old 0.76-0.78). The first call is
+  far shorter everywhere but Restormer (no compile of a replayed graph: swinir-m-x4 float16 3.5 / 8.0 s,
+  drct-l-x4 8.5 / 68.9 s).
+
+## Detection / pose ports (2026-11-27)
+
+ViTPose, HRNet, DETR, OWLv2, EoMT, RetinaFace and YuNet are hand-written (no graph replay). Each family's `mlx_net`
+holds only its own blocks: the CNN backbones run through `mlx_cnn` and are stepped with `cspnext.mlx_net.stepped`
+(HRNet, DETR's ResNet, RetinaFace, YuNet), and the ViTs use `mlx_vit`'s block maths (ViTPose, OWLv2, EoMT on the
+DINOv2 / v3 backbones). They load through `mlx_port.recorded` / `tensor` (the conversion cache, no checkpoint on a
+hit), do their pre- and post-processing in numpy / MLX, and ask `request_cache` for a cache sized per variant.
+`GRAPH_RUNNERS` rebuilds the graph arm of every family. 40 A/B rows (portable, both dtypes). The goldens pass in
+float16 and float32, and float16 is auto's pick.
+
+| family | net warm x fp16 | net peak x fp16 | net warm x fp32 | net peak x fp32 |
+|---|---|---|---|---|
+| vitpose | 0.99-1.03 | 0.74-1.03 | 0.97-1.02 | 0.48-1.15 |
+| hrnet | 0.87-0.92 | 0.86-1.08 | 0.83-0.87 | 0.96-1.08 |
+| detr | 0.88-0.91 | 0.80-0.85 | 0.90-0.92 | 1.09-1.16 |
+| owlv2 | 1.01 | 1.33-1.49 | 0.99-1.01 | 1.34-1.58 |
+| eomt | 0.99-1.02 | 1.02-1.03 | 0.99-1.02 | 1.01-1.03 |
+| retinaface | 0.89-0.90 | 0.52-1.26 | 0.88 | 0.76-1.29 |
+| yunet | 0.83-0.84 | 0.83-0.93 | 0.80-0.81 | 1.12-1.35 |
+
+- *Half blocks.* ViTPose steps its blocks in halves (attention, then MLP), and each half is `async_eval`'d while the
+  previous one is awaited. That keeps the speed with about half the transients of `mlx_vit.blocks(bounded=True)`
+  (ViTPose-B float32 141.0 ms at +262 MB -> 141.0 ms at +152 MB; one block per synchronous eval: 143.4 ms at +143 MB).
+- *Post-processing outside the timed call.* EoMT's window averaging is a module function (`mlx_net.scores`), not a
+  method, so the A/B times the same network in both arms.
+- *Load.* No torch import on a cache hit. The A/B `load_s` is 0.04-0.11 s against the graph's 0.04-2.4 s. Three
+  rows are higher: vitpose-plus-huge float32 1.17 / 0.69 s, owlv2-l14 float32 1.02 s, eomt-l-dinov3 float32 0.82 s.
+  Those are large cache files read from the cache disk. The first network call takes 0.04-2.07 s against the
+  graph's 0.95-4.2 s (no compile of a replayed graph).
+
+Accepted peak trades (in the table above): detr-r50 float32, hrnet-w32 float32, hrnet-w48 both dtypes,
+retinaface-resnet50 both dtypes, yunet-n and yunet-s float32.
+
+Still flagged, with the reason:
+
+- detr-r101 float32 (warm 0.92, peak 1.09) and hrnet-w48-384 float16 (0.92, 1.08) are faster but not by 10 %. The
+  float32 peaks come from the stepped backbone's overlap (two stages in flight), which buys the speed.
+- OWLv2, all four rows (peak 1.33-1.58 at equal speed): accounting. The hand port keeps the text tower in MLX
+  (resident +121 / +242 MB at b16 float16 / float32, +236 / +472 MB at l14), while the graph arm ports only the image
+  tower and leaves the text tower in torch. The hand arm also times three network calls per model call against the
+  graph's one. Transients above resident are +45-74 MB. The e2e peak is lower than the old row everywhere but
+  b16 float32 (1286 / 1253 MB).
+- vitpose-base and vitpose-plus-base float32, peak 1.14-1.15 at 0.97-0.98 warm: the token preparation and the head
+  on top of the half-block transients. Stepping the head (about -17 MB) and the tokens gave no net gain. Calling
+  `mx.fast.scaled_dot_product_attention` directly gave nothing either, since head size 64 is already fused.
+- ViTPose float16 base-simple, plus-small and plus-huge are 1.02-1.03 slower warm, and plus-large float16 is 1.03
+  heavier. The cause was not located (GELU is already the fused one).
+- EoMT, 1.01-1.03: drift level. Sharing the half-block stepper with `mlx_vit` would need an `mlx_vit` edit, which
+  was left for another round (another port is editing it).
+- grounding_dino was not ported: Swin + BERT + deformable attention + the fusion layers are too large for this
+  round. It keeps its graph runner.
+
+End to end (`tools/speed_survey.py`, two runs, the second run's rows kept; every row ok with the golden passing),
+against the graph port's MLX row (the old row) and the best MPS row:
+
+| family | e2e warm new / old | e2e peak new / old | below the best MPS peak |
+|---|---|---|---|
+| vitpose | 0.84-1.03 | 0.59-1.02 | all |
+| hrnet | 0.77-0.93 | 0.80-0.90 | all |
+| detr | 0.82-0.94 | 0.68-0.94 | all |
+| owlv2 | 0.98-1.00 | 0.82-1.03 | all |
+| eomt | 0.76-0.86 | 0.63-0.68 | all |
+| retinaface | 0.66-0.95 | 0.76-0.83 | all |
+| yunet | 0.62-0.79 | 0.78-0.96 | all |
+
+- Above the old row: e2e warm for vitpose-plus-small float16 (1.03: 74.4 / 72.3 ms), plus-large and plus-huge
+  float16 (1.02), base and plus-base float16 (1.01), and plus-huge and plus-large float32 (1.01). Peaks above it:
+  owlv2-b16 float32 (1286 / 1253 MB) and vitpose-base float32 (1083 / 1066).
+- MPS is faster warm on vitpose-plus-small (66.5 / 74.4 ms), hrnet-w48-384 (369 / 416 ms in float16) and
+  retinaface-mobilenet0.25 float16 (15.3 / 15.8 ms). On vitpose-base and plus-base float32 the two are about equal
+  (172-174 / 176 ms).
+- Load (`load_s`, survey): the CNNs 0.15-0.51 s (old 0.16-0.92). EoMT 0.91-1.67 s (old 2.22-4.2). OWLv2 0.55-2.27 s
+  (old 2.18-4.97). ViTPose takes longer than the old row: plus-huge 1.69 / 0.29 s in float16 and 3.21 / 2.66 in
+  float32, plus-large 0.90 / 0.21 and 1.63 / 1.46. The old row loaded the replayed graph's weights lazily; the hand
+  port reads its full cache file at load. The first call is 0.05-2.0 s against the old 1.3-5.9 s.
+
+## SAM 2.1 prompt path and video, SAM 3 tracker (2026-11-27)
+
+What still ran in PyTorch on the CPU in MLX mode is in `mx` now: SAM 2.1's prompt encoder and mask decoder
+(`sam2/mlx_heads.py`, float32 as before), its video memory path (memory attention, memory encoder, object pointers:
+`mlx_heads.py` in the run dtype, the loop in numpy / MLX in `sam2/mlx_video.py`) and SAM 3's tracker heads
+(`sam3/net/mlx_tracker.py`). All weights come through `mlx_port.recorded`: a cache hit reads no checkpoint and builds
+no float32 CPU twin. The graph arm is unchanged (`embed` alone, the prompt in PyTorch), so the SAM 2.1 rows now
+count six network calls in the hand arm (embed, the prompt encoder's parts, the decoder: 5.5 ms and at most 98 MB
+over the resident weights) against one, and its resident weights are 56-67 MB higher (the decoder and the dense
+position embedding): that is most of the `heavier` flag. The embed call's peak over the resident weights is
+236-348 MB against 276-320 MB in float16 (large alone is higher, by 48 MB) and 328-462 MB against 300-462 MB in
+float32 (0-56 MB higher); the process footprint is 125-430 MB lower in every row. The sam3 rows are as in the
+section above (image path untouched).
+
+Image, end to end (`tools/speed_survey.py`, two runs, the second kept; before -> now):
+
+| ref | dtype | warm ms | load s | peak footprint MB | load footprint MB |
+|---|---|---|---|---|---|
+| sam2.1-hiera-base-plus | fp16 | 233.8 -> 229.0 | 0.43 -> 0.38 | 1072 -> 911 | 624 -> 378 |
+| sam2.1-hiera-base-plus | fp32 | 273.2 -> 271.8 | 0.97 -> 0.57 | 1311 -> 1153 | 713 -> 529 |
+| sam2.1-hiera-large | fp16 | 522.8 -> 516.2 | 0.76 -> 0.77 | 1474 -> 1243 | 985 -> 654 |
+| sam2.1-hiera-large | fp32 | 600.1 -> 597.1 | 2.28 -> 1.27 | 1986 -> 1737 | 1325 -> 1075 |
+| sam2.1-hiera-small | fp16 | 136.6 -> 133.3 | 0.33 -> 0.29 | 931 -> 798 | 498 -> 304 |
+| sam2.1-hiera-small | fp32 | 169.0 -> 168.5 | 0.67 -> 0.38 | 1075 -> 936 | 528 -> 380 |
+| sam2.1-hiera-tiny | fp16 | 116.7 -> 114.7 | 0.31 -> 0.26 | 919 -> 785 | 486 -> 289 |
+| sam2.1-hiera-tiny | fp32 | 146.2 -> 145.0 | 0.59 -> 0.34 | 1043 -> 905 | 501 -> 352 |
+| sam3 | fp16 | 1543.8 -> 1546.6 | 2.24 -> 2.23 | 2590 -> 2582 | 1858 -> 1858 |
+| sam3 | fp32 | 1901.6 -> 1893.9 | 4.21 -> 4.27 | 4501 -> 4472 | 3429 -> 3430 |
+
+Per prompt on a cached embedding and per video frame (8 frames, one box prompt, warm second pass; a bench script, not
+the survey; before -> now):
+
+| ref | dtype | prompt ms (CPU ms) | 4 boxes ms | video ms / frame (CPU ms) | video MLX peak MB | video process footprint MB |
+|---|---|---|---|---|---|---|
+| sam2.1-hiera-tiny | fp16 | 10.8 (16.2) -> 8.1 (8.4) | 23.7 -> 18.8 | 348.6 (150) -> 330.4 (145) | 937 -> 1034 | 1527 -> 1384 |
+| sam2.1-hiera-base-plus | fp16 | 10.1 (15.7) -> 8.4 (8.4) | 24.0 -> 19.0 | 467.8 (179) -> 446.5 (176) | 1025 -> 1136 | 1639 -> 1484 |
+| sam2.1-hiera-base-plus | fp32 | 9.6 (15.3) -> 8.0 (8.3) | 22.1 -> 19.1 | 608.2 (337) -> 590.1 (336) | 1932 -> 2065 | 2339 -> 2242 |
+| sam3 | fp16 | - | - | 2352.7 (4901) -> 1760.8 (316) | 2096 -> 2628 | 4205 -> 2977 |
+| sam3 | fp32 | - | - | 2657.5 (5362) -> 2285.1 (666) | 4010 -> 4637 | 5418 -> 4904 |
+
+- *Memory.* The MLX allocator's peak rises by the head weights that used to sit in PyTorch (about 100 MB for
+  SAM 2.1, 530-630 MB for SAM 3); the process footprint, which counts both, falls in every row.
+- *Load.* The replay skeleton of a cache hit ran torch ops that have no meta kernel (`torch.randn` in the prompt
+  encoder's random position embedding, the neck fold's matmul, the position embedding's interpolate, `torch.arange`
+  in the RoPE table, `scale * torch.ones` in the memory encoder's blocks): each goes through a Python decomposition
+  that imports `torch._dynamo`, about 1 s once per process. The skeleton now gets the folded shapes directly
+  (`_replay_shapes`) and builds the prompt encoder and the video modules unfilled on the CPU: cached load 0.63 ->
+  0.23 s (tiny float16), 0.97 -> 0.53 s (base-plus float32).
+- *Video is GPU-bound.* Of tiny's 330 ms / frame, 137 ms is the image encoder and about 200 ms the memory attention
+  (four layers over up to seven frames of memory tokens, evaluated per layer); the host side (frame preparation in the
+  prefetch thread, the tracker's numpy bookkeeping) is under 30 ms and not on the critical path.
+- *Results.* Goldens pass in both dtypes (image for sam3, image and video for sam2.1); `test_mlx` has match tests
+  against the PyTorch prompt path, the tracker and the motion model. Against the old CPU tracker the video mask
+  logits move by at most 0.13 (float16) and 0.0023 (float32); at most 2.5e-6 of a frame's mask pixels flip.
+- *PyTorch is still imported* in an MLX run: the task API takes and returns torch tensors, `model.py` / `video.py` /
+  `net/*` import it at module level, the replay skeleton is a (weightless) torch module, and the image `prepare` /
+  `upsample` are torch. No torch op runs per prompt or per frame in the heads or the tracker.
+
 ## Families whose graph path could not be rebuilt
 
 These have no `GRAPH_RUNNERS` (restoring the pre-port runner would change the torch path or need far more than a small
@@ -220,11 +429,11 @@ depth_anything_v2, marigold_v2, dinov2_linear, dinov2_linear_cls.
 
 ## Counts
 
-583 rows over 80 families; 579 measured in both arms.
+677 rows over 95 families; 673 measured in both arms.
 
-- 242 rows flagged (95 slower, 159 heavier, 10 worse).
-- 75 of them accepted as a peak trade; 167 miss the bar (64 beyond 10 %).
-- Median hand / graph: warm 0.90, peak 0.92.
+- 278 rows flagged (104 slower, 186 heavier, 10 worse).
+- 91 of them accepted as a peak trade; 187 miss the bar (70 beyond 10 %).
+- Median hand / graph: warm 0.89, peak 0.92.
 - Quality: 200 rows with a golden error in both arms, 0 without a golden, 10 hand arms `worse` than the graph's.
 
 ## Flagged beyond 10 %
@@ -242,31 +451,38 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | selective-igev-middlebury-train | fp32 | 4728.9 / 6368.5 | 0.74 | 3498 / 2057 | 1.70 | heavier |
 | selective-igev-sceneflow | fp32 | 4694.9 / 6337.5 | 0.74 | 3498 / 2057 | 1.70 | heavier |
 | lw-detr-xlarge-coco | fp16 | 97.2 / 107.9 | 0.90 | 722 / 445 | 1.62 | heavier |
-| sam3 | fp32 | 1896.0 / 1741.0 | 1.09 | 3972 / 2551 | 1.56 | slower heavier |
+| owlv2-b16 | fp32 | 365.0 / 367.5 | 0.99 | 860 / 544 | 1.58 | heavier |
+| sam3 | fp32 | 1776.2 / 1608.6 | 1.10 | 3972 / 2551 | 1.56 | slower heavier |
 | igev-stereo-middlebury | fp32 | 4180.7 / 4608.6 | 0.91 | 3122 / 2055 | 1.52 | heavier |
 | igev-stereo-eth3d | fp32 | 4165.2 / 4606.8 | 0.90 | 3122 / 2055 | 1.52 | heavier |
 | igev-stereo-sceneflow | fp32 | 4184.8 / 4628.8 | 0.90 | 3122 / 2055 | 1.52 | heavier |
+| owlv2-b16 | fp16 | 283.2 / 279.2 | 1.01 | 505 / 338 | 1.49 | heavier |
 | segformer-b0-ade20k | fp32 | 23.9 / 22.3 | 1.07 | 221 / 149 | 1.48 | slower heavier |
-| sam3 | fp16 | 1574.1 / 1439.5 | 1.09 | 2006 / 1385 | 1.45 | slower heavier |
+| sam3 | fp16 | 1504.2 / 1384.6 | 1.09 | 2037 / 1385 | 1.47 | slower heavier |
 | rf-detr-seg-2xl-coco | fp16 | 130.9 / 125.6 | 1.04 | 385 / 274 | 1.41 | slower heavier worse |
 | segformer-b0-ade20k | fp16 | 20.0 / 17.3 | 1.16 | 158 / 114 | 1.39 | slower heavier |
 | segnext-mscan-l-ade20k | fp16 | 138.7 / 126.9 | 1.09 | 421 / 305 | 1.38 | slower heavier |
 | fcn-r101-d8-ade20k | fp16 | 326.3 / 354.0 | 0.92 | 877 / 638 | 1.38 | heavier |
 | pspnet-r101-d8-ade20k | fp16 | 338.6 / 365.6 | 0.93 | 1042 / 768 | 1.36 | heavier |
+| owlv2-l14 | fp32 | 1869.0 / 1857.1 | 1.01 | 2087 / 1563 | 1.34 | heavier |
+| owlv2-l14 | fp16 | 1419.7 / 1410.2 | 1.01 | 1055 / 793 | 1.33 | heavier |
 | efficientvit-sam-xl1 | fp32 | 348.8 / 342.0 | 1.02 | 2197 / 1668 | 1.32 | heavier |
 | lineart-coarse | fp32 | 110.1 / 117.4 | 0.94 | 1188 / 903 | 1.32 | heavier |
-| sam2.1-hiera-tiny | fp32 | 130.7 / 127.7 | 1.02 | 572 / 436 | 1.31 | slower heavier |
 | unik3d-vitl | fp16 | 889.6 / 897.5 | 0.99 | 1523 / 1166 | 1.31 | heavier |
-| sam2.1-hiera-small | fp32 | 155.0 / 152.5 | 1.02 | 599 / 463 | 1.29 | heavier |
 | totalsegmentator-total-3mm | fp16 | 310.8 / 433.0 | 0.72 | 2058 / 1609 | 1.28 | heavier |
 | efficientvit-sam-xl0 | fp32 | 193.3 / 203.5 | 0.95 | 1311 / 1026 | 1.28 | heavier |
 | rf-detr-keypoint-preview | fp32 | 73.7 / 74.9 | 0.98 | 316 / 248 | 1.28 | heavier |
+| retinaface-resnet50 | fp16 | 119.6 / 132.8 | 0.90 | 469 / 372 | 1.26 | heavier |
 | tiny_vit_11m_224.dist_in22k_ft_in1k | fp32 | 6.7 / 5.3 | 1.26 | 82 / 120 | 0.68 | slower |
 | segnext-mscan-t-ade20k | fp16 | 32.2 / 26.0 | 1.24 | 118 / 176 | 0.67 | slower |
 | segnext-mscan-s-ade20k | fp16 | 43.4 / 37.6 | 1.15 | 237 / 197 | 1.20 | slower heavier |
+| realesrgan-x2plus | fp16 | 499.2 / 506.6 | 0.99 | 1018 / 847 | 1.20 | heavier |
 | raft-stereo-middlebury | fp16 | 3231.3 / 4128.3 | 0.78 | 1246 / 1042 | 1.20 | heavier worse |
+| sam2.1-hiera-base-plus | fp32 | 247.5 / 263.0 | 0.94 | 759 / 636 | 1.19 | heavier |
+| sam2.1-hiera-tiny | fp32 | 127.4 / 128.4 | 0.99 | 520 / 436 | 1.19 | heavier |
 | deeplabv3-r101-d8-ade20k | fp16 | 366.9 / 377.9 | 0.97 | 682 / 574 | 1.19 | heavier |
 | raft-stereo-middlebury | fp32 | 4970.9 / 5321.8 | 0.93 | 2222 / 1872 | 1.19 | heavier |
+| sam2.1-hiera-small | fp32 | 148.2 / 152.3 | 0.97 | 547 / 463 | 1.18 | heavier |
 | loma-b64 | fp32 | 1019.7 / 989.3 | 1.03 | 1164 / 988 | 1.18 | slower heavier |
 | mobilenetv4_conv_medium.e500_r256_in1k | fp32 | 4.1 / 3.5 | 1.17 | 56 / 74 | 0.76 | slower |
 | efficientformerv2_s1.snap_dist_in1k | fp32 | 5.2 / 4.5 | 1.17 | 37 / 66 | 0.56 | slower |
@@ -274,21 +490,20 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | deeplabv3plus-r101-d8-ade20k | fp32 | 347.5 / 377.6 | 0.92 | 1404 / 1209 | 1.16 | heavier |
 | rf-detr-l-coco | fp32 | 56.3 / 54.1 | 1.04 | 262 / 226 | 1.16 | slower heavier |
 | loma-b128 | fp32 | 1195.5 / 1312.4 | 0.91 | 1234 / 1064 | 1.16 | heavier |
-| sam2.1-hiera-large | fp16 | 555.8 / 562.2 | 0.99 | 849 / 734 | 1.16 | heavier |
 | pe-spatial-b16-512 | fp32 | 16.7 / 17.2 | 0.97 | 471 / 409 | 1.15 | heavier |
+| vitpose-base | fp32 | 160.6 / 164.4 | 0.98 | 540 / 469 | 1.15 | heavier |
 | totalsegmentator-total-3mm | fp32 | 415.4 / 547.4 | 0.76 | 2033 / 1769 | 1.15 | heavier |
 | mobilenet_v3_large.tv2_in1k | fp32 | 3.7 / 3.2 | 1.15 | 34 / 53 | 0.64 | slower |
 | deeplabv3plus-r101-d8-ade20k | fp16 | 268.6 / 290.9 | 0.92 | 773 / 674 | 1.15 | heavier |
 | segformer-b2-clothes | fp16 | 27.4 / 24.5 | 1.12 | 181 / 158 | 1.15 | slower heavier |
+| vitpose-plus-base | fp32 | 160.2 / 165.6 | 0.97 | 535 / 469 | 1.14 | heavier |
 | pe-core-b16-224 | fp32 | 17.3 / 17.6 | 0.98 | 496 / 436 | 1.14 | heavier |
-| sam2.1-hiera-large | fp32 | 600.5 / 608.8 | 0.99 | 1495 / 1317 | 1.14 | heavier |
 | igev-plusplus-eth3d | fp32 | 6918.7 / 7331.1 | 0.94 | 4260 / 3786 | 1.13 | heavier |
 | igev-plusplus-kitti12 | fp32 | 6907.6 / 7268.4 | 0.95 | 4260 / 3786 | 1.13 | heavier |
 | igev-plusplus-kitti15 | fp32 | 6913.8 / 7172.6 | 0.96 | 4260 / 3786 | 1.13 | heavier |
 | igev-plusplus-middlebury | fp32 | 6861.8 / 7266.2 | 0.94 | 4260 / 3786 | 1.13 | heavier |
 | igev-plusplus-sceneflow | fp32 | 6877.3 / 7236.8 | 0.95 | 4260 / 3786 | 1.13 | heavier |
 | rtmw-l | fp16 | 101.4 / 108.8 | 0.93 | 393 / 350 | 1.12 | heavier |
-| sam2.1-hiera-base-plus | fp16 | 232.8 / 245.5 | 0.95 | 535 / 478 | 1.12 | heavier |
 | segnext-mscan-t-ade20k | fp32 | 36.5 / 32.6 | 1.12 | 227 / 225 | 1.01 | slower |
 | mvsanywhere | fp16 | 414.7 / 372.0 | 1.11 | 767 / 767 | 1.00 | slower |
 | rf-detr-seg-2xl-coco | fp32 | 163.5 / 164.4 | 0.99 | 482 / 433 | 1.11 | heavier |
@@ -307,10 +522,12 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | aanet-plus-sceneflow | fp16 | 639.7 / 1224.1 | 0.52 | 2112 / 1914 | 1.10 | 2259 | 3754 | 3104 |
 | aanet-sceneflow | fp16 | 443.1 / 1077.9 | 0.41 | 1062 / 900 | 1.18 | 1362 | 2594 | 2140 |
 | aanet-sceneflow | fp32 | 636.4 / 1177.7 | 0.54 | 2072 / 855 | 2.42 | 2140 | 2594 | 2140 |
+| dat-light-x4 | fp32 | 1241.8 / 1651.2 | 0.75 | 2385 / 1899 | 1.26 | 3919 | 6851 | 3919 |
 | deim-l-coco | fp32 | 46.7 / 54.4 | 0.86 | 483 / 393 | 1.23 | 972 | 1806 | 972 |
 | deim-x-coco | fp32 | 80.3 / 90.3 | 0.89 | 740 / 710 | 1.04 | 1288 | 2207 | 1288 |
 | densenet121.tv_in1k | fp16 | 8.2 / 10.7 | 0.77 | 81 / 74 | 1.11 | 416 | 704 | 476 |
 | densenet121.tv_in1k | fp32 | 9.6 / 12.4 | 0.77 | 148 / 142 | 1.04 | 476 | 704 | 476 |
+| detr-r50-coco | fp32 | 85.2 / 95.1 | 0.90 | 524 / 450 | 1.16 | 1603 | 1954 | 1603 |
 | dfine-l-coco | fp32 | 46.5 / 54.2 | 0.86 | 488 / 393 | 1.24 | 1024 | 1810 | 1024 |
 | dfine-x-coco | fp32 | 80.4 / 90.3 | 0.89 | 740 / 710 | 1.04 | 1422 | 2211 | 1422 |
 | dlnr-middlebury | fp16 | 1609.2 / 1927.6 | 0.83 | 1647 / 1209 | 1.36 | 2841 | 4149 | 3856 |
@@ -322,6 +539,9 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | dwpose-l-384 | fp16 | 109.3 / 132.1 | 0.83 | 409 / 376 | 1.09 | 1232 | 1872 | 1340 |
 | dwpose-l-384 | fp32 | 122.6 / 163.0 | 0.75 | 765 / 518 | 1.48 | 1340 | 1872 | 1340 |
 | dwpose-s | fp32 | 18.8 / 24.2 | 0.78 | 286 / 256 | 1.12 | 727 | 1543 | 727 |
+| hrnet-w32 | fp32 | 100.8 / 120.5 | 0.84 | 453 / 420 | 1.08 | 901 | 1675 | 901 |
+| hrnet-w48 | fp16 | 182.1 / 205.9 | 0.88 | 285 / 268 | 1.06 | 746 | 2065 | 1150 |
+| hrnet-w48 | fp32 | 209.2 / 245.7 | 0.85 | 731 / 710 | 1.03 | 1150 | 2065 | 1150 |
 | igev-plusplus-eth3d | fp16 | 5696.6 / 7121.3 | 0.80 | 2414 / 2199 | 1.10 | 2953 | 4971 | 4217 |
 | igev-plusplus-kitti12 | fp16 | 5631.7 / 7096.5 | 0.79 | 2414 / 2189 | 1.10 | 3016 | 4967 | 3926 |
 | igev-plusplus-kitti15 | fp16 | 5640.9 / 7267.1 | 0.78 | 2414 / 2199 | 1.10 | 2962 | 4967 | 3930 |
@@ -343,6 +563,7 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | oneformer-swinl-ade20k | fp16 | 643.5 / 760.8 | 0.85 | 1364 / 1002 | 1.36 | 2137 | 5559 | 2917 |
 | raft-stereo-eth3d | fp16 | 3267.0 / 4104.8 | 0.80 | 1246 / 1042 | 1.20 | 2719 | 4714 | 3704 |
 | raft-stereo-sceneflow | fp16 | 3238.1 / 4084.1 | 0.79 | 1246 / 1042 | 1.20 | 2741 | 4695 | 3808 |
+| retinaface-resnet50 | fp32 | 151.1 / 171.8 | 0.88 | 902 / 697 | 1.29 | 1291 | 1879 | 1291 |
 | rtdetrv2-l-coco | fp32 | 55.3 / 63.4 | 0.87 | 455 / 424 | 1.07 | 1027 | 1823 | 1027 |
 | rtdetrv2-ms-coco | fp32 | 44.5 / 51.5 | 0.86 | 412 / 391 | 1.05 | 958 | 1821 | 958 |
 | rtdetrv2-x-coco | fp32 | 92.5 / 103.2 | 0.90 | 736 / 679 | 1.08 | 1416 | 2017 | 1416 |
@@ -367,6 +588,10 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | sam-hq-vit-l | fp16 | 825.1 / 939.4 | 0.88 | 1119 / 982 | 1.14 | 1884 | 6205 | 2571 |
 | sam-vit-b | fp16 | 299.6 / 383.8 | 0.78 | 613 / 531 | 1.15 | 1069 | 3762 | 1412 |
 | sam-vit-l | fp16 | 815.8 / 931.0 | 0.88 | 1107 / 972 | 1.14 | 1639 | 5193 | 2342 |
+| sam2.1-hiera-base-plus | fp16 | 213.5 / 244.4 | 0.87 | 506 / 475 | 1.06 | 911 | 3988 | 1153 |
+| sam2.1-hiera-large | fp16 | 496.8 / 562.6 | 0.88 | 838 / 734 | 1.14 | 1243 | 2206 | 1737 |
+| sam2.1-hiera-small | fp16 | 123.1 / 138.2 | 0.89 | 378 / 362 | 1.04 | 798 | 1550 | 936 |
+| sam2.1-hiera-tiny | fp16 | 103.1 / 115.6 | 0.89 | 378 / 349 | 1.08 | 785 | 1514 | 905 |
 | selective-igev-eth3d-finetune | fp16 | 3693.7 / 4643.9 | 0.80 | 1873 / 1102 | 1.70 | 2776 | 3854 | 3947 |
 | selective-igev-eth3d-train | fp16 | 3652.2 / 4644.1 | 0.79 | 1873 / 1102 | 1.70 | 2777 | 3862 | 3935 |
 | selective-igev-kitti12 | fp16 | 3643.3 / 4640.5 | 0.79 | 1873 / 1102 | 1.70 | 2764 | 3853 | 3938 |
@@ -374,11 +599,17 @@ Not accepted, hand / graph warm or peak above 1.10, worst first.
 | selective-igev-middlebury-finetune | fp16 | 3655.1 / 4663.3 | 0.78 | 1873 / 1102 | 1.70 | 2932 | 3852 | 3952 |
 | selective-igev-middlebury-train | fp16 | 3651.5 / 4657.9 | 0.78 | 1873 / 1102 | 1.70 | 2779 | 3854 | 3941 |
 | selective-igev-sceneflow | fp16 | 3643.8 / 4680.4 | 0.78 | 1873 / 1102 | 1.70 | 2781 | 3907 | 3938 |
+| span-x2 | fp32 | 113.4 / 149.7 | 0.76 | 661 / 613 | 1.08 | 977 | 1296 | 977 |
+| span-x2 | fp32 | 113.4 / 149.2 | 0.76 | 661 / 613 | 1.08 | 977 | 1296 | 977 |
+| span-x4 | fp32 | 116.7 / 156.6 | 0.75 | 661 / 613 | 1.08 | 1068 | 1296 | 1068 |
+| span-x4 | fp32 | 116.6 / 156.3 | 0.75 | 661 / 613 | 1.08 | 1068 | 1296 | 1068 |
 | xfeat | fp32 | 17.5 / 32.0 | 0.55 | 199 / 165 | 1.21 | 642 | 1471 | 642 |
 | xfeat-lighterglue | fp32 | 17.7 / 34.8 | 0.51 | 204 / 165 | 1.24 | 816 | 1499 | 816 |
 | yolox-l | fp16 | 51.0 / 61.3 | 0.83 | 293 / 280 | 1.05 | 1021 | 1829 | 1307 |
 | yolox-l | fp32 | 60.3 / 75.8 | 0.80 | 581 / 505 | 1.15 | 1307 | 1829 | 1307 |
 | yolox-x | fp32 | 108.8 / 128.4 | 0.85 | 829 / 802 | 1.03 | 1675 | 2036 | 1675 |
+| yunet-n | fp32 | 12.0 / 14.7 | 0.81 | 367 / 271 | 1.35 | 745 | 1377 | 745 |
+| yunet-s | fp32 | 10.5 / 13.1 | 0.80 | 303 / 271 | 1.12 | 693 | 1380 | 693 |
 
 ## Per family
 
@@ -392,26 +623,33 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | clip | 13 (0) / 20 | 13 | 0 | 0 | 1.04 | 0.98 |
 | coatnet | 0 (0) / 20 | 0 | 0 | 0 | 1.01 | 0.90 |
 | coex | 0 (0) / 2 | 0 | 0 | 0 | 0.50 | 0.53 |
+| compact | 0 (0) / 4 | 0 | 0 | 0 | 0.93 | 1.00 |
 | convnext | 2 (0) / 24 | 0 | 1 | 1 | 1.01 | 1.04 |
 | convnextv2 | 0 (0) / 2 | 0 | 0 | 0 | 0.98 | 0.91 |
+| dat | 1 (1) / 6 | 0 | 1 | 0 | 0.75 | 1.26 |
 | davit | 5 (0) / 6 | 4 | 1 | 0 | 1.17 | 1.04 |
 | deit | 2 (0) / 2 | 2 | 0 | 0 | 1.04 | 0.87 |
 | densenet | 2 (2) / 2 | 0 | 2 | 0 | 0.77 | 1.11 |
 | depth_anything_3 | 8 (0) / 10 | 8 | 0 | 0 | 1.06 | 1.00 |
 | depth_pro | 0 (0) / 2 | 0 | 0 | 0 | 0.96 | 0.98 |
+| detr | 2 (1) / 4 | 0 | 2 | 0 | 0.92 | 1.16 |
 | dfine | 4 (4) / 20 | 0 | 4 | 0 | 0.92 | 1.24 |
 | dlnr | 4 (4) / 4 | 0 | 4 | 0 | 0.83 | 1.36 |
+| drct | 0 (0) / 4 | 0 | 0 | 0 | 0.72 | 0.43 |
 | efficientformer | 3 (0) / 6 | 0 | 0 | 3 | 0.86 | 0.83 |
 | efficientformerv2 | 1 (0) / 8 | 1 | 0 | 0 | 1.17 | 0.72 |
 | efficientnet | 0 (0) / 4 | 0 | 0 | 0 | 0.83 | 0.77 |
 | efficientnetv2 | 0 (0) / 2 | 0 | 0 | 0 | 0.87 | 0.60 |
 | efficientvit | 0 (0) / 2 | 0 | 0 | 0 | 0.79 | 0.74 |
 | efficientvit_sam | 2 (0) / 5 | 0 | 2 | 0 | 1.02 | 1.32 |
+| eomt | 3 (0) / 4 | 1 | 2 | 0 | 1.02 | 1.03 |
 | eva02 | 1 (0) / 2 | 0 | 1 | 0 | 1.00 | 1.03 |
 | fastvit | 0 (0) / 6 | 0 | 0 | 0 | 0.99 | 0.62 |
 | flexglue | 0 (0) / 2 | 0 | 0 | 0 | 0.98 | 0.80 |
 | focalnet | 1 (0) / 12 | 1 | 0 | 0 | 1.04 | 0.85 |
+| hat | 0 (0) / 6 | 0 | 0 | 0 | 0.78 | 1.00 |
 | hgnetv2 | 0 (0) / 14 | 0 | 0 | 0 | 0.95 | 0.81 |
+| hrnet | 4 (3) / 8 | 0 | 4 | 0 | 0.92 | 1.08 |
 | igev_plusplus | 10 (5) / 10 | 0 | 10 | 0 | 0.96 | 1.13 |
 | igev_stereo | 10 (7) / 10 | 0 | 10 | 0 | 0.91 | 1.67 |
 | inception_v3 | 0 (0) / 2 | 0 | 0 | 0 | 0.76 | 0.46 |
@@ -430,12 +668,15 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | nafnet | 3 (3) / 4 | 0 | 3 | 0 | 0.89 | 1.39 |
 | nsfw_vit | 1 (0) / 2 | 1 | 0 | 0 | 1.04 | 0.87 |
 | oneformer | 1 (1) / 2 | 0 | 1 | 0 | 0.85 | 1.36 |
+| owlv2 | 4 (0) / 4 | 0 | 4 | 0 | 1.01 | 1.58 |
 | perception_encoder | 6 (0) / 20 | 1 | 6 | 0 | 1.03 | 1.15 |
 | raft_stereo | 6 (2) / 6 | 0 | 6 | 1 | 0.94 | 1.20 |
 | rcnn | 0 (0) / 4 | 0 | 0 | 0 | 0.85 | 0.97 |
+| realesrgan | 3 (0) / 12 | 1 | 3 | 0 | 1.04 | 1.20 |
 | regnet | 0 (0) / 2 | 0 | 0 | 0 | 0.94 | 0.71 |
 | repvit | 0 (0) / 20 | 0 | 0 | 0 | 0.79 | 0.62 |
 | resnet | 0 (0) / 6 | 0 | 0 | 0 | 0.91 | 0.87 |
+| retinaface | 2 (1) / 4 | 0 | 2 | 0 | 0.90 | 1.29 |
 | rfdetr | 15 (0) / 20 | 12 | 5 | 3 | 1.08 | 1.41 |
 | rfdetr_keypoint | 2 (0) / 2 | 1 | 2 | 0 | 1.03 | 1.28 |
 | rtdetrv2 | 3 (3) / 10 | 0 | 3 | 0 | 0.92 | 1.08 |
@@ -443,8 +684,8 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | rtmo | 0 (0) / 8 | 0 | 0 | 0 | 0.84 | 1.02 |
 | rtmpose | 25 (22) / 56 | 0 | 25 | 0 | 0.98 | 1.50 |
 | sam | 3 (2) / 6 | 0 | 3 | 0 | 0.90 | 1.15 |
-| sam2 | 8 (0) / 8 | 1 | 8 | 0 | 1.02 | 1.31 |
-| sam3 | 2 (0) / 2 | 2 | 2 | 0 | 1.09 | 1.56 |
+| sam2 | 8 (4) / 8 | 0 | 8 | 0 | 0.99 | 1.19 |
+| sam3 | 2 (0) / 2 | 2 | 2 | 0 | 1.10 | 1.56 |
 | sam_hq | 3 (2) / 6 | 0 | 3 | 0 | 0.90 | 1.15 |
 | sapiens | 2 (0) / 4 | 0 | 2 | 0 | 0.88 | 1.10 |
 | segformer | 7 (0) / 8 | 6 | 6 | 0 | 1.16 | 1.48 |
@@ -454,17 +695,22 @@ Flagged rows / rows (accepted in brackets), the worst hand / graph ratio of the 
 | shvit | 8 (0) / 8 | 8 | 0 | 0 | 1.11 | 0.86 |
 | siglip | 2 (0) / 2 | 2 | 0 | 0 | 1.02 | 0.98 |
 | siglip2 | 11 (0) / 20 | 11 | 0 | 0 | 1.05 | 1.01 |
+| span | 4 (4) / 8 | 0 | 4 | 0 | 0.84 | 1.08 |
 | squeezenet | 0 (0) / 2 | 0 | 0 | 0 | 0.86 | 0.86 |
 | starnet | 0 (0) / 8 | 0 | 0 | 0 | 0.87 | 0.62 |
 | swin | 1 (0) / 2 | 0 | 1 | 0 | 0.99 | 1.03 |
+| swin2sr | 3 (0) / 6 | 3 | 0 | 0 | 1.07 | 0.76 |
+| swinir | 2 (0) / 8 | 2 | 0 | 0 | 1.07 | 0.85 |
 | tinyvit | 3 (0) / 10 | 2 | 1 | 0 | 1.26 | 1.11 |
 | totalsegmentator | 2 (0) / 4 | 0 | 2 | 0 | 0.76 | 1.28 |
 | unik3d | 1 (0) / 2 | 0 | 1 | 0 | 1.02 | 1.31 |
 | vgg | 0 (0) / 2 | 0 | 0 | 0 | 0.97 | 0.91 |
 | vit | 1 (0) / 2 | 1 | 0 | 0 | 1.05 | 0.87 |
+| vitpose | 6 (0) / 12 | 3 | 3 | 0 | 1.03 | 1.15 |
 | wd_tagger | 3 (0) / 8 | 3 | 0 | 0 | 1.03 | 1.02 |
 | xfeat | 2 (2) / 2 | 0 | 2 | 0 | 0.55 | 1.24 |
 | yolox | 3 (3) / 10 | 0 | 3 | 0 | 0.89 | 1.15 |
+| yunet | 2 (2) / 4 | 0 | 2 | 0 | 0.84 | 1.35 |
 
 ## Quality: hand arms further from the golden
 
@@ -579,6 +825,12 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | da3mono-large | fp32 | 248.8 / 235.7 | 1.06 | 0.29 / 1.92 | 2082 / 2195 | 0.95 | 1273 / 1278 | 265.6 / 252.3 | 0.12 / 0.48 | 0.31 / 1.95 | 1.3e-05 | 1.3e-05 | - | slower |
 | da3nested-giant-large-1.1 | fp16 | 802.3 / 776.6 | 1.03 | 0.86 / 7.92 | 3392 / 3528 | 0.96 | 2958 / 3003 | 829.6 / 791.7 | 5.69 / 0.80 | 0.90 / 7.96 | 0.0029 | 0.017 (0.0041 % off) | - | slower |
 | da3nested-giant-large-1.1 | fp32 | 982.5 / 974.7 | 1.01 | 1.41 / 11.21 | 6652 / 6833 | 0.97 | 5844 / 5916 | 1010.0 / 1003.7 | 7.42 / 0.79 | 1.48 / 11.26 | 3.7e-06 | 2.7e-05 | - |  |
+| dat-2-x4 | fp16 | 4832.4 / 9060.1 | 0.53 | 5.14 / 15.26 | 1974 / 2848 | 0.69 | 57 / 35 | 4790.4 / 8974.4 | 0.89 / 0.37 | 5.16 / 15.27 | 0.0089 | 0.0099 | - |  |
+| dat-2-x4 | fp32 | 7227.0 / 15112.8 | 0.48 | 7.78 / 15.19 | 3943 / 4156 | 0.95 | 112 / 70 | 7499.0 / 15665.8 | 0.71 / 0.37 | 7.80 / 15.20 | 5.6e-06 | 6.3e-06 | - |  |
+| dat-light-x4 | fp16 | 759.3 / 2449.4 | 0.31 | 1.11 / 6.19 | 1194 / 1921 | 0.62 | 28 / 8 | 763.3 / 2449.0 | 0.56 / 0.15 | 1.13 / 6.19 | 0.0031 | 0.0035 | - |  |
+| dat-light-x4 | fp32 | 1241.8 / 1651.2 | 0.75 | 1.67 / 5.29 | 2385 / 1899 | 1.26 | 55 / 16 | 1251.0 / 1666.0 | 0.55 / 0.15 | 1.68 / 5.29 | 8.1e-06 | 9.2e-06 | - | heavier |
+| dat-x4 | fp16 | 5330.8 / 11403.9 | 0.47 | 5.60 / 17.86 | 2137 / 2869 | 0.74 | 64 / 42 | 5323.7 / 11352.6 | 0.70 / 0.42 | 5.61 / 17.87 | 0.0063 | 0.0071 | - |  |
+| dat-x4 | fp32 | 8481.3 / 17063.6 | 0.50 | 9.08 / 17.50 | 3999 / 4170 | 0.96 | 126 / 84 | 8699.1 / 17565.1 | 0.70 / 0.48 | 9.10 / 17.51 | 5.5e-06 | 6.2e-06 | - |  |
 | davit_base.msft_in1k | fp16 | 19.3 / 18.5 | 1.04 | 0.05 / 2.16 | 224 / 248 | 0.90 | 168 / 168 | 19.9 / 19.5 | 1.04 / 0.84 | 0.06 / 2.16 | 0.0008 | 0.0008 | 0.000779 / 0.000801 (0.0026) | slower |
 | davit_base.msft_in1k | fp32 | 22.4 / 22.5 | 1.00 | 0.09 / 2.16 | 434 / 417 | 1.04 | 336 / 336 | 23.7 / 24.0 | 0.98 / 0.97 | 0.09 / 2.16 | 3.3e-07 | 3.3e-07 | 6.87e-06 / 6.92e-06 (0.0026) | heavier |
 | davit_small.msft_in1k | fp16 | 15.5 / 14.1 | 1.11 | 0.11 / 2.14 | 135 / 178 | 0.76 | 95 / 95 | 16.5 / 14.9 | 0.99 / 0.84 | 0.11 / 2.15 | 0.0015 | 0.0015 | 0.00115 / 0.00111 (0.0026) | slower |
@@ -605,6 +857,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | densenet121.tv_in1k | fp32 | 9.6 / 12.4 | 0.77 | 0.03 / 1.31 | 148 / 142 | 1.04 | 30 / 31 | 10.1 / 12.9 | 0.64 / 0.58 | 0.03 / 1.31 | 5.4e-07 | 5.4e-07 | - | heavier |
 | depth-pro | fp16 | 4168.0 / 4341.7 | 0.96 | 4.27 / 9.37 | 4508 / 4609 | 0.98 | 1809 / 1815 | 4170.1 / 4666.0 | 3.88 / 3.42 | 4.28 / 9.38 | 0.0017 | 0.0011 | - |  |
 | depth-pro | fp32 | 5497.0 / 6831.3 | 0.80 | 5.96 / 10.71 | 9014 / 9191 | 0.98 | 3616 / 3630 | 5552.0 / 6573.6 | 4.63 / 3.41 | 5.99 / 10.74 | 1.5e-06 | 1.3e-06 | - |  |
+| detr-r101-coco | fp16 | 107.0 / 117.1 | 0.91 | 0.14 / 2.29 | 310 / 365 | 0.85 | 116 / 117 | 119.0 / 127.5 | 0.07 / 0.15 | 0.16 / 2.31 | 0.0044 | empty | - |  |
+| detr-r101-coco | fp32 | 133.4 / 144.9 | 0.92 | 0.17 / 2.08 | 596 / 547 | 1.09 | 232 / 232 | 146.2 / 157.0 | 0.07 / 0.14 | 0.19 / 2.10 | 2.4e-06 | empty | - | heavier |
+| detr-r50-coco | fp16 | 69.1 / 78.2 | 0.88 | 0.10 / 1.86 | 274 / 343 | 0.80 | 80 / 81 | 80.1 / 89.7 | 0.06 / 0.10 | 0.12 / 1.88 | 0.0078 | 0.00069 | - |  |
+| detr-r50-coco | fp32 | 85.2 / 95.1 | 0.90 | 0.12 / 2.04 | 524 / 450 | 1.16 | 160 / 160 | 97.5 / 107.2 | 0.06 / 0.10 | 0.14 / 2.06 | 6.2e-06 | 3.7e-07 | - | heavier |
 | dfine-l-coco | fp16 | 40.9 / 46.5 | 0.88 | 0.07 / 2.62 | 249 / 274 | 0.91 | 63 / 62 | 48.1 / 54.1 | 0.29 / 0.10 | 0.08 / 2.63 | 0.97 (42 % off) | 0.97 (23 % off) | - |  |
 | dfine-l-coco | fp32 | 46.5 / 54.2 | 0.86 | 0.09 / 2.44 | 488 / 393 | 1.24 | 118 / 118 | 54.4 / 62.6 | 0.17 / 0.10 | 0.10 / 2.45 | 1e-05 | 3.4e-06 | - | heavier |
 | dfine-m-coco | fp16 | 27.2 / 34.0 | 0.80 | 0.08 / 2.39 | 197 / 232 | 0.85 | 40 / 40 | 34.7 / 41.8 | 0.22 / 0.08 | 0.09 / 2.40 | 0.95 (61 % off) | 0.96 (46 % off) | - |  |
@@ -621,6 +877,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | dlnr-middlebury | fp32 | 2050.9 / 2774.3 | 0.74 | 2.06 / 8.03 | 2901 / 2261 | 1.28 | 229 / 314 | 2053.7 / 2758.0 | 0.18 / 0.09 | 2.07 / 8.04 | 0.02 (0.00091 % off) | 0.016 (0.00054 % off) | - | heavier |
 | dlnr-sceneflow | fp16 | 1614.9 / 1942.1 | 0.83 | 1.64 / 7.23 | 1647 / 1208 | 1.36 | 142 / 181 | 1667.1 / 1933.3 | 0.18 / 0.09 | 1.65 / 7.24 | 0.019 (0.0068 % off) | 0.017 (0.0013 % off) | - | heavier |
 | dlnr-sceneflow | fp32 | 2027.6 / 2769.5 | 0.73 | 2.07 / 7.81 | 2901 / 2261 | 1.28 | 229 / 314 | 2054.8 / 2760.3 | 0.18 / 0.09 | 2.08 / 7.82 | 1.2e-05 | 1.2e-05 | - | heavier |
+| drct-l-x4 | fp16 | 8173.1 / 11297.8 | 0.72 | 8.45 / 20.83 | 1083 / 2518 | 0.43 | 106 / 345 | 8295.1 / 11414.6 | 0.53 / 0.95 | 8.47 / 20.84 | 0.01 (1.6e-05 % off) | 0.011 (3.2e-05 % off) | - |  |
+| drct-l-x4 | fp32 | 13143.6 / 23086.9 | 0.57 | 12.48 / 29.68 | 2130 / 5678 | 0.38 | 208 / 432 | 12237.2 / 23323.1 | 0.95 / 0.97 | 12.50 / 29.70 | 1e-05 | 1.1e-05 | - |  |
+| drct-x4 | fp16 | 4250.7 / 6130.6 | 0.69 | 4.54 / 11.53 | 1040 / 2474 | 0.42 | 64 / 301 | 4168.5 / 6226.9 | 0.54 / 0.32 | 4.56 / 11.54 | 0.025 (0.003 % off) | 0.029 (0.0047 % off) | - |  |
+| drct-x4 | fp32 | 6124.1 / 11220.6 | 0.55 | 6.79 / 15.07 | 2046 / 5592 | 0.37 | 123 / 345 | 6147.2 / 11288.8 | 0.75 / 0.37 | 6.82 / 15.09 | 8.1e-06 | 9.3e-06 | - |  |
 | dwpose-l | fp16 | 56.2 / 66.0 | 0.85 | 0.07 / 1.32 | 332 / 290 | 1.15 | 81 / 78 | 65.3 / 74.5 | 0.20 / 0.08 | 0.08 / 1.34 | - | 0.44 (0.099 % off) | - | heavier |
 | dwpose-l | fp32 | 62.2 / 79.0 | 0.79 | 0.09 / 1.30 | 587 / 454 | 1.29 | 128 / 128 | 71.2 / 87.5 | 0.15 / 0.08 | 0.10 / 1.31 | - | 3.3e-06 | - | heavier |
 | dwpose-l-384 | fp16 | 109.3 / 132.1 | 0.83 | 0.13 / 1.47 | 409 / 376 | 1.09 | 81 / 78 | 127.1 / 147.4 | 0.21 / 0.08 | 0.15 / 1.49 | - | 0.57 (0.21 % off) | - | heavier |
@@ -658,6 +918,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | efficientvit-sam-xl1 | fp32 | 348.8 / 342.0 | 1.02 | 0.37 / 1.93 | 2197 / 1668 | 1.32 | 772 / 760 | 368.9 / 363.1 | 0.74 / 1.56 | 0.42 / 1.96 | 3.7e-05 | 1 (0.003 % off) | - | heavier |
 | efficientvit_b2.r288_in1k | fp16 | 6.5 / 8.2 | 0.79 | 0.04 / 1.35 | 90 / 137 | 0.66 | 47 / 47 | 7.1 / 8.9 | 0.82 / 0.69 | 0.04 / 1.36 | 0.0015 | 0.0015 | - |  |
 | efficientvit_b2.r288_in1k | fp32 | 7.7 / 10.6 | 0.72 | 0.04 / 1.33 | 144 / 194 | 0.74 | 93 / 93 | 8.1 / 11.4 | 0.79 / 0.70 | 0.04 / 1.34 | 2.1e-06 | 2.1e-06 | - |  |
+| eomt-l-dinov2-ade20k | fp16 | 393.6 / 386.1 | 1.02 | 0.42 / 2.02 | 909 / 878 | 1.03 | 603 / 603 | 443.6 / 525.1 | 0.07 / 2.14 | 0.55 / 2.30 | 0.0028 | 1 (0.06 % off) | - | heavier |
+| eomt-l-dinov2-ade20k | fp32 | 478.6 / 467.6 | 1.02 | 0.50 / 2.08 | 1802 / 1785 | 1.01 | 1205 / 1206 | 533.4 / 608.3 | 0.10 / 2.31 | 0.69 / 2.83 | 4.1e-06 | 0 | - | slower |
+| eomt-l-dinov3-ade20k | fp16 | 404.9 / 409.1 | 0.99 | 0.42 / 2.67 | 908 / 894 | 1.02 | 601 / 601 | 456.9 / 547.5 | 0.07 / 2.11 | 0.57 / 2.89 | 0.0039 | 1 (0.00033 % off) | - |  |
+| eomt-l-dinov3-ade20k | fp32 | 503.5 / 510.8 | 0.99 | 0.53 / 2.75 | 1799 / 1749 | 1.03 | 1202 / 1202 | 560.5 / 651.1 | 0.82 / 2.17 | 0.76 / 3.10 | 3e-06 | 0 | - | heavier |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | fp16 | 195.8 / 197.9 | 0.99 | 0.23 / 2.13 | 688 / 666 | 1.03 | 583 / 583 | 196.6 / 198.9 | 0.08 / 0.78 | 0.23 / 2.13 | 0.0012 | 0.0012 | 0.000779 / 0.000651 (0.02) | heavier |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | fp32 | 242.3 / 242.4 | 1.00 | 0.27 / 2.17 | 1354 / 1396 | 0.97 | 1165 / 1165 | 243.2 / 243.1 | 0.11 / 0.79 | 0.28 / 2.17 | 6e-07 | 6e-07 | 6.83e-07 / 6.35e-07 (0.02) |  |
 | falconsai-nsfw-vit | fp16 | 14.2 / 13.6 | 1.04 | 0.06 / 0.67 | 185 / 231 | 0.80 | 164 / 164 | 14.4 / 14.0 | 0.05 / 0.74 | 0.06 / 0.67 | 0 | 0 | 0.000728 / 0.000728 (0.009) | slower |
@@ -684,6 +948,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | focalnet_tiny_lrf.ms_in1k | fp32 | 9.3 / 9.7 | 0.95 | 0.04 / 0.79 | 168 / 257 | 0.65 | 110 / 110 | 9.8 / 10.2 | 0.77 / 0.71 | 0.04 / 0.79 | 2.5e-07 | 2.5e-07 | - |  |
 | focalnet_tiny_srf.ms_in1k | fp16 | 8.2 / 7.9 | 1.04 | 0.04 / 0.78 | 86 / 138 | 0.63 | 55 / 55 | 8.6 / 8.5 | 0.80 / 0.69 | 0.04 / 0.79 | 0.00088 | 0.00088 | - | slower |
 | focalnet_tiny_srf.ms_in1k | fp32 | 8.6 / 8.8 | 0.98 | 0.04 / 0.79 | 163 / 244 | 0.67 | 109 / 109 | 9.2 / 9.5 | 0.77 / 0.76 | 0.04 / 0.79 | 4.3e-07 | 4.3e-07 | - |  |
+| hat-s-x4 | fp16 | 5957.5 / 9081.5 | 0.66 | 6.32 / 11.74 | 1958 / 2700 | 0.73 | 77 / 313 | 6019.4 / 9283.4 | 0.60 / 0.36 | 6.34 / 11.76 | 0.0089 | 0.01 (7.9e-06 % off) | - |  |
+| hat-s-x4 | fp32 | 7460.5 / 17686.6 | 0.42 | 7.76 / 17.95 | 3907 / 4739 | 0.82 | 148 / 368 | 7705.2 / 17820.1 | 0.73 / 0.43 | 7.78 / 17.96 | 5.3e-06 | 6e-06 | - |  |
+| hat-x4 | fp16 | 7017.5 / 8996.0 | 0.78 | 7.12 / 12.93 | 2276 / 2507 | 0.91 | 96 / 334 | 6905.1 / 9554.0 | 0.67 / 0.29 | 7.13 / 12.93 | 0.013 (0.00027 % off) | 0.014 (0.00058 % off) | - |  |
+| hat-x4 | fp32 | 10861.1 / 23399.1 | 0.46 | 11.30 / 21.32 | 4514 / 4506 | 1.00 | 189 / 411 | 10852.4 / 22411.1 | 0.78 / 0.40 | 11.32 / 21.34 | 6.9e-06 | 7.5e-06 | - |  |
 | hgnetv2_b0.ssld_stage2_ft_in1k | fp16 | 2.0 / 2.2 | 0.87 | 0.03 / 0.74 | 19 / 28 | 0.70 | 12 / 12 | 2.0 / 2.7 | 0.76 / 0.74 | 0.04 / 0.74 | 0.00081 | 0.00081 | - |  |
 | hgnetv2_b0.ssld_stage2_ft_in1k | fp32 | 2.5 / 3.5 | 0.72 | 0.04 / 0.69 | 36 / 52 | 0.70 | 23 / 23 | 2.4 / 3.2 | 0.72 / 0.69 | 0.05 / 0.69 | 8.1e-07 | 8.1e-07 | - |  |
 | hgnetv2_b1.ssld_stage2_ft_in1k | fp16 | 2.1 / 2.7 | 0.77 | 0.04 / 0.72 | 22 / 35 | 0.64 | 12 / 12 | 2.5 / 3.1 | 0.74 / 0.69 | 0.04 / 0.72 | 0.00063 | 0.00063 | - |  |
@@ -698,6 +966,14 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | hgnetv2_b5.ssld_stage2_ft_in1k | fp32 | 10.4 / 11.3 | 0.92 | 0.04 / 1.43 | 196 / 256 | 0.76 | 151 / 151 | 10.9 / 11.9 | 0.80 / 0.71 | 0.05 / 1.43 | 3.9e-07 | 3.9e-07 | - |  |
 | hgnetv2_b6.ssld_stage2_ft_in1k | fp16 | 18.9 / 19.9 | 0.95 | 0.04 / 1.80 | 187 / 272 | 0.69 | 144 / 144 | 19.4 / 20.5 | 0.94 / 0.72 | 0.04 / 1.80 | 0.00088 | 0.00088 | - |  |
 | hgnetv2_b6.ssld_stage2_ft_in1k | fp32 | 21.7 / 23.5 | 0.92 | 0.06 / 1.77 | 368 / 493 | 0.75 | 288 / 288 | 22.3 / 24.0 | 0.83 / 0.73 | 0.06 / 1.77 | 5.9e-07 | 5.9e-07 | - |  |
+| hrnet-w32 | fp16 | 85.4 / 98.1 | 0.87 | 0.12 / 2.08 | 232 / 271 | 0.86 | 56 / 56 | 94.7 / 106.9 | 0.05 / 0.12 | 0.14 / 2.09 | 0.0036 | 0.29 (0.36 % off) | - |  |
+| hrnet-w32 | fp32 | 100.8 / 120.5 | 0.84 | 0.14 / 1.95 | 453 / 420 | 1.08 | 110 / 110 | 109.7 / 129.6 | 0.06 / 0.12 | 0.15 / 1.97 | 0 | 0 | - | heavier |
+| hrnet-w32-384 | fp16 | 177.4 / 201.0 | 0.88 | 0.21 / 2.15 | 439 / 471 | 0.93 | 56 / 56 | 193.7 / 217.2 | 0.05 / 0.12 | 0.23 / 2.17 | 0.011 (0.00023 % off) | 0.41 (0.83 % off) | - |  |
+| hrnet-w32-384 | fp32 | 217.2 / 261.0 | 0.83 | 0.25 / 2.11 | 835 / 867 | 0.96 | 110 / 110 | 235.1 / 276.8 | 0.06 / 0.12 | 0.27 / 2.13 | 0 | 0 | - |  |
+| hrnet-w48 | fp16 | 182.1 / 205.9 | 0.88 | 0.22 / 2.17 | 285 / 268 | 1.06 | 124 / 124 | 191.8 / 214.6 | 0.06 / 0.15 | 0.23 / 2.18 | 0.00028 | 0.0048 | - | heavier |
+| hrnet-w48 | fp32 | 209.2 / 245.7 | 0.85 | 0.25 / 2.17 | 731 / 710 | 1.03 | 245 / 245 | 220.8 / 254.8 | 0.07 / 0.15 | 0.26 / 2.19 | 0 | 0 | - | heavier |
+| hrnet-w48-384 | fp16 | 376.8 / 410.8 | 0.92 | 0.41 / 2.40 | 416 / 384 | 1.08 | 124 / 124 | 397.0 / 428.0 | 0.06 / 0.15 | 0.43 / 2.42 | 0.00065 | 0.00065 | - | heavier |
+| hrnet-w48-384 | fp32 | 442.4 / 509.0 | 0.87 | 0.48 / 2.52 | 983 / 1012 | 0.97 | 245 / 245 | 455.7 / 525.2 | 0.07 / 0.16 | 0.50 / 2.54 | 0 | 0 | - |  |
 | hrnet-w48-fcn-ade20k | fp16 | 152.8 / 162.0 | 0.94 | 0.18 / 2.29 | 313 / 292 | 1.07 | 129 / 128 | 194.1 / 200.5 | 0.27 / 0.20 | 0.23 / 2.33 | 0.00094 | 0.76 (0.056 % off) | - | heavier |
 | hrnet-w48-fcn-ade20k | fp32 | 176.6 / 193.7 | 0.91 | 0.21 / 2.19 | 583 / 609 | 0.96 | 254 / 254 | 216.9 / 236.1 | 0.27 / 0.20 | 0.25 / 2.23 | 0 | 0 | - |  |
 | igev-plusplus-eth3d | fp16 | 5696.6 / 7121.3 | 0.80 | 5.74 / 14.85 | 2414 / 2199 | 1.10 | 28 / 29 | 5712.6 / 7339.0 | 0.16 / 0.12 | 5.75 / 14.86 | 0.45 (0.33 % off) | 0.29 (0.034 % off) | 0.00067 / 0.00256 (0.02) | heavier |
@@ -772,6 +1048,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | nafnet-sidd | fp32 | 233.4 / 269.8 | 0.87 | 0.27 / 2.22 | 1184 / 896 | 1.32 | 442 / 442 | 234.8 / 270.1 | 0.40 / 0.21 | 0.28 / 2.23 | 7e-07 | 1.1e-06 | 9.81e-08 / 9.98e-08 (0.0015) | heavier |
 | oneformer-swinl-ade20k | fp16 | 643.5 / 760.8 | 0.85 | 0.89 / 6.75 | 1364 / 1002 | 1.36 | 523 / 536 | 861.8 / 1017.3 | 2.92 / 2.80 | 1.13 / 7.07 | - | 0 (2 keys differ) | - | heavier |
 | oneformer-swinl-ade20k | fp32 | 735.6 / 948.3 | 0.78 | 1.18 / 6.84 | 1894 / 2040 | 0.93 | 980 / 1070 | 990.3 / 1177.7 | 2.71 / 2.76 | 1.44 / 7.11 | - | 0 (2 keys differ) | - |  |
+| owlv2-b16 | fp16 | 283.2 / 279.2 | 1.01 | 0.36 / 1.22 | 505 / 338 | 1.49 | 296 / 175 | 284.6 / 289.7 | 0.09 / 2.05 | 0.36 / 1.33 | - | empty | - | heavier |
+| owlv2-b16 | fp32 | 365.0 / 367.5 | 0.99 | 0.45 / 1.31 | 860 / 544 | 1.58 | 585 / 343 | 366.1 / 378.0 | 0.10 / 2.08 | 0.46 / 1.42 | - | empty | - | heavier |
+| owlv2-l14 | fp16 | 1419.7 / 1410.2 | 1.01 | 1.52 / 2.74 | 1055 / 793 | 1.33 | 835 / 599 | 1421.3 / 1420.3 | 0.11 / 2.20 | 1.53 / 2.92 | - | empty | - | heavier |
+| owlv2-l14 | fp32 | 1869.0 / 1857.1 | 1.01 | 2.07 / 3.18 | 2087 / 1563 | 1.34 | 1659 / 1187 | 1870.5 / 1868.9 | 1.02 / 2.17 | 2.08 / 3.37 | - | empty | - | heavier |
 | pe-core-b16-224 | fp16 | 14.9 / 20.5 | 0.73 | 0.03 / 0.87 | 263 / 404 | 0.65 | 176 / 177 | 15.2 / 20.7 | 0.85 / 0.71 | 0.03 / 0.87 | 0.03 (0.024 % off) | 0.03 (0.024 % off) | - |  |
 | pe-core-b16-224 | fp32 | 17.3 / 17.6 | 0.98 | 0.05 / 0.90 | 496 / 436 | 1.14 | 352 / 354 | 17.4 / 18.0 | 0.78 / 0.72 | 0.05 / 0.90 | 8.6e-05 | 8.6e-05 | - | heavier |
 | pe-core-g14-448 | fp16 | 249.2 / 354.6 | 0.70 | 0.28 / 13.99 | 3664 / 3940 | 0.93 | 3580 / 3585 | 249.6 / 355.1 | 10.22 / 1.37 | 0.29 / 14.00 | 0.05 (0.014 % off) | 0.05 (0.014 % off) | - |  |
@@ -800,6 +1080,24 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | raft-stereo-middlebury | fp32 | 4970.9 / 5321.8 | 0.93 | 4.88 / 9.85 | 2222 / 1872 | 1.19 | 42 / 116 | 4925.9 / 5173.5 | 0.08 / 0.06 | 4.89 / 9.86 | 0.00092 | 0.00098 | 3.37e-06 / 5.3e-06 (0.02) | heavier |
 | raft-stereo-sceneflow | fp16 | 3238.1 / 4084.1 | 0.79 | 3.20 / 8.64 | 1246 / 1042 | 1.20 | 35 / 82 | 3264.1 / 4084.6 | 0.08 / 0.06 | 3.21 / 8.65 | 0.27 (0.11 % off) | 0.28 (0.057 % off) | 0.00178 / 0.00198 (0.02) | heavier |
 | raft-stereo-sceneflow | fp32 | 4950.0 / 5270.2 | 0.94 | 4.87 / 9.77 | 1976 / 1872 | 1.06 | 42 / 116 | 4895.1 / 5186.5 | 0.08 / 0.06 | 4.88 / 9.78 | 0.00012 | 0.00012 | 1.46e-06 / 1.81e-06 (0.02) | heavier |
+| real-hat-gan-x4 | fp16 | 7709.2 / 10941.2 | 0.70 | 7.76 / 14.16 | 2282 / 2938 | 0.78 | 96 / 335 | 7318.1 / 10434.9 | 0.76 / 0.60 | 7.78 / 14.17 | 0.032 (0.014 % off) | 0.033 (0.015 % off) | - |  |
+| real-hat-gan-x4 | fp32 | 10545.0 / 22023.5 | 0.48 | 11.38 / 21.03 | 4514 / 4506 | 1.00 | 189 / 411 | 10530.7 / 21139.3 | 1.01 / 0.52 | 11.41 / 21.05 | 0.0001 | 0.0001 | - |  |
+| realesr-general-x4v3 | fp16 | 89.4 / 97.5 | 0.92 | 0.13 / 1.33 | 472 / 576 | 0.82 | 12 / 12 | 92.1 / 98.3 | 0.04 / 0.03 | 0.15 / 1.35 | 0.015 (0.0043 % off) | 0.015 (0.0043 % off) | - |  |
+| realesr-general-x4v3 | fp32 | 146.6 / 158.5 | 0.93 | 0.20 / 1.39 | 938 / 938 | 1.00 | 23 / 23 | 149.2 / 158.7 | 0.04 / 0.03 | 0.22 / 1.40 | 0 | 0 | - |  |
+| realesr-general-x4v3 | fp16 | 186.3 / 241.2 | 0.77 | 0.21 / 1.41 | 199 / 279 | 0.71 | 3 / 3 | 188.8 / 242.4 | 0.04 / 0.03 | 0.23 / 1.42 | 0 | 0 | - |  |
+| realesr-general-x4v3 | fp32 | 227.9 / 322.7 | 0.71 | 0.26 / 1.43 | 296 / 360 | 0.82 | 5 / 5 | 230.4 / 324.3 | 0.04 / 0.03 | 0.28 / 1.43 | 0 | 0 | - |  |
+| realesrgan-x2plus | fp16 | 499.2 / 506.6 | 0.99 | 0.56 / 3.99 | 1018 / 847 | 1.20 | 163 / 165 | 500.5 / 507.0 | 0.52 / 0.10 | 0.56 / 4.00 | 0.11 (2.6 % off) | 0.13 (3.8 % off) | - | heavier |
+| realesrgan-x2plus | fp32 | 1276.3 / 1386.6 | 0.92 | 1.32 / 3.79 | 469 / 822 | 0.57 | 65 / 65 | 1275.0 / 1387.6 | 0.52 / 0.10 | 1.32 / 3.79 | 9.6e-05 | 0.00012 | - |  |
+| realesrgan-x2plus | fp16 | 1006.8 / 1057.8 | 0.95 | 1.05 / 3.75 | 284 / 421 | 0.68 | 35 / 37 | 1008.2 / 1056.9 | 0.52 / 0.10 | 1.05 / 3.75 | 0.14 (4 % off) | 0.18 (5.8 % off) | - |  |
+| realesrgan-x2plus | fp32 | 1280.0 / 1366.0 | 0.94 | 1.32 / 3.83 | 469 / 566 | 0.83 | 65 / 65 | 1283.4 / 1363.2 | 0.62 / 0.10 | 1.33 / 3.83 | 9.6e-05 | 0.00012 | - |  |
+| realesrgan-x4plus | fp16 | 1989.4 / 1987.8 | 1.00 | 2.02 / 5.38 | 1322 / 1292 | 1.02 | 163 / 165 | 1986.8 / 2004.0 | 0.53 / 0.10 | 2.04 / 5.39 | 0.014 (0.00023 % off) | 0.014 (0.00023 % off) | - | heavier |
+| realesrgan-x4plus | fp32 | 5058.9 / 5356.9 | 0.94 | 5.18 / 7.80 | 1381 / 1883 | 0.73 | 65 / 65 | 5058.6 / 5572.1 | 0.62 / 0.10 | 5.21 / 7.81 | 1.9e-05 | 1.9e-05 | - |  |
+| realesrgan-x4plus | fp16 | 4114.4 / 4302.8 | 0.96 | 4.14 / 7.24 | 801 / 867 | 0.92 | 35 / 37 | 4117.2 / 4304.2 | 0.61 / 0.10 | 4.16 / 7.25 | 0.017 (0.00052 % off) | 0.017 (0.00052 % off) | - |  |
+| realesrgan-x4plus | fp32 | 5068.6 / 5405.7 | 0.94 | 5.22 / 7.88 | 1381 / 1531 | 0.90 | 65 / 65 | 5074.6 / 5579.2 | 0.64 / 0.10 | 5.24 / 7.89 | 1.9e-05 | 1.9e-05 | - |  |
+| realesrgan-x4plus-anime-6b | fp16 | 685.8 / 658.9 | 1.04 | 0.76 / 2.22 | 1203 / 1171 | 1.03 | 44 / 44 | 665.0 / 668.5 | 0.46 / 0.05 | 0.78 / 2.23 | 0.18 (0.43 % off) | 0.21 (0.55 % off) | - | slower heavier |
+| realesrgan-x4plus-anime-6b | fp32 | 1571.8 / 1717.7 | 0.92 | 1.60 / 2.99 | 1333 / 1836 | 0.73 | 18 / 18 | 1587.7 / 1726.8 | 0.48 / 0.05 | 1.62 / 3.00 | 0.00026 | 0.00031 | - |  |
+| realesrgan-x4plus-anime-6b | fp16 | 1265.7 / 1349.1 | 0.94 | 1.29 / 2.72 | 775 / 840 | 0.92 | 9 / 10 | 1267.9 / 1351.3 | 0.60 / 0.05 | 1.31 / 2.74 | 0.23 (0.56 % off) | 0.27 (0.71 % off) | - |  |
+| realesrgan-x4plus-anime-6b | fp32 | 1571.5 / 1733.4 | 0.91 | 1.62 / 3.13 | 1333 / 1483 | 0.90 | 18 / 18 | 1577.9 / 1731.8 | 0.59 / 0.04 | 1.64 / 3.14 | 0.00026 | 0.00031 | - |  |
 | regnety_160.tv2_in1k | fp16 | 17.5 / 18.6 | 0.94 | 0.04 / 0.99 | 198 / 280 | 0.71 | 160 / 160 | 18.0 / 19.0 | 0.73 / 0.57 | 0.04 / 1.00 | 0.00029 | 0.00029 | - |  |
 | regnety_160.tv2_in1k | fp32 | 18.4 / 23.6 | 0.78 | 0.05 / 0.96 | 377 / 574 | 0.66 | 319 / 319 | 18.9 / 24.1 | 0.66 / 0.56 | 0.05 / 0.96 | 3.5e-07 | 3.5e-07 | - |  |
 | repvit_m0_9.dist_300e_in1k | fp16 | 3.5 / 4.5 | 0.77 | 0.03 / 1.31 | 18 / 35 | 0.51 | 10 / 11 | 4.0 / 5.0 | 0.79 / 0.70 | 0.03 / 1.32 | 0.0078 | 0.0078 | - |  |
@@ -828,6 +1126,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | resnet18.tv_in1k | fp32 | 3.9 / 4.5 | 0.86 | 0.03 / 0.48 | 59 / 102 | 0.58 | 45 / 45 | 4.3 / 4.9 | 0.51 / 0.51 | 0.03 / 0.48 | 3.7e-07 | 3.7e-07 | - |  |
 | resnet50.tv2_in1k | fp16 | 6.2 / 6.8 | 0.91 | 0.02 / 0.92 | 76 / 99 | 0.77 | 49 / 49 | 6.5 / 7.2 | 0.59 / 0.50 | 0.02 / 0.92 | 0.00082 | 0.00082 | - |  |
 | resnet50.tv2_in1k | fp32 | 7.0 / 8.1 | 0.87 | 0.04 / 0.76 | 147 / 192 | 0.77 | 97 / 97 | 7.4 / 8.5 | 0.55 / 0.51 | 0.04 / 0.76 | 5.5e-07 | 5.5e-07 | - |  |
+| retinaface-mobilenet0.25 | fp16 | 10.6 / 11.9 | 0.89 | 0.04 / 1.07 | 92 / 178 | 0.52 | 1 / 1 | 15.5 / 17.2 | 0.04 / 0.12 | 0.06 / 1.07 | 0.0077 | empty | - |  |
+| retinaface-mobilenet0.25 | fp32 | 12.9 / 14.7 | 0.88 | 0.05 / 1.05 | 136 / 180 | 0.76 | 2 / 2 | 18.1 / 20.1 | 0.04 / 0.11 | 0.06 / 1.05 | 3.7e-06 | empty | - |  |
+| retinaface-resnet50 | fp16 | 119.6 / 132.8 | 0.90 | 0.15 / 1.27 | 469 / 372 | 1.26 | 52 / 52 | 125.1 / 138.9 | 0.05 / 0.17 | 0.16 / 1.27 | 0.014 (0.0017 % off) | empty | - | heavier |
+| retinaface-resnet50 | fp32 | 151.1 / 171.8 | 0.88 | 0.19 / 1.27 | 902 / 697 | 1.29 | 104 / 104 | 157.6 / 177.3 | 0.05 / 0.17 | 0.20 / 1.28 | 1.2e-05 | empty | - | heavier |
 | rf-detr-keypoint-preview | fp16 | 63.7 / 61.9 | 1.03 | 0.11 / 3.19 | 244 / 225 | 1.09 | 95 / 71 | 64.7 / 63.7 | 2.03 / 1.97 | 0.11 / 3.19 | - | empty | 0.0079 / 0.0358 (0.08) | slower heavier |
 | rf-detr-keypoint-preview | fp32 | 73.7 / 74.9 | 0.98 | 0.12 / 3.15 | 316 / 248 | 1.28 | 138 / 142 | 74.6 / 76.7 | 2.07 / 1.94 | 0.12 / 3.15 | - | empty | 2.36e-05 / 2.02e-05 (0.08) | heavier |
 | rf-detr-l-coco | fp16 | 47.3 / 44.4 | 1.06 | 0.29 / 2.83 | 196 / 191 | 1.03 | 73 / 60 | 51.8 / 51.5 | 2.79 / 3.72 | 0.30 / 2.84 | 0.98 (69 % off) | empty | 0.124 / 0.121 (0.32) | slower heavier |
@@ -940,16 +1242,16 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | sam-vit-h | fp32 | 1873.2 / 2106.1 | 0.89 | 2.26 / 5.74 | 3034 / 3210 | 0.94 | 2443 / 2452 | 1905.9 / 2109.5 | 1.39 / 0.14 | 2.31 / 5.79 | 4.2e-06 | 1 (3e-05 % off) | - |  |
 | sam-vit-l | fp16 | 815.8 / 931.0 | 0.88 | 0.83 / 3.62 | 1107 / 972 | 1.14 | 593 / 597 | 837.3 / 954.6 | 0.38 / 0.07 | 0.86 / 3.65 | 0.0029 | 1 (0.00033 % off) | - | heavier |
 | sam-vit-l | fp32 | 972.1 / 1110.9 | 0.88 | 1.00 / 3.88 | 1758 / 1933 | 0.91 | 1186 / 1195 | 995.8 / 1131.8 | 0.32 / 0.07 | 1.04 / 3.91 | 3.5e-06 | 3.1e-06 | - |  |
-| sam2.1-hiera-base-plus | fp16 | 232.8 / 245.5 | 0.95 | 0.24 / 2.21 | 535 / 478 | 1.12 | 153 / 155 | 250.9 / 264.3 | 0.30 / 0.08 | 0.27 / 2.24 | 0.0049 | 1 (0.002 % off) | - | heavier |
-| sam2.1-hiera-base-plus | fp32 | 256.2 / 268.7 | 0.95 | 0.28 / 2.22 | 871 / 808 | 1.08 | 303 / 300 | 275.4 / 290.0 | 0.23 / 0.08 | 0.31 / 2.24 | 1.3e-05 | 8.9e-06 | - | heavier |
-| sam2.1-hiera-large | fp16 | 555.8 / 562.2 | 0.99 | 0.57 / 3.55 | 849 / 734 | 1.16 | 426 / 434 | 574.5 / 583.0 | 0.60 / 0.11 | 0.59 / 3.58 | 0.026 (9.5e-05 % off) | 1 (0.0013 % off) | - | heavier |
-| sam2.1-hiera-large | fp32 | 600.5 / 608.8 | 0.99 | 0.63 / 3.55 | 1495 / 1317 | 1.14 | 847 / 855 | 619.5 / 628.7 | 0.53 / 0.10 | 0.66 / 3.58 | 0.00018 | 5.9e-05 | - | heavier |
-| sam2.1-hiera-small | fp16 | 133.8 / 138.1 | 0.97 | 0.14 / 1.77 | 390 / 362 | 1.08 | 78 / 86 | 153.6 / 157.4 | 0.20 / 0.07 | 0.17 / 1.80 | 0.01 (4.8e-05 % off) | 1 (0.012 % off) | - | heavier |
-| sam2.1-hiera-small | fp32 | 155.0 / 152.5 | 1.02 | 0.18 / 1.78 | 599 / 463 | 1.29 | 155 / 163 | 174.3 / 171.4 | 0.15 / 0.07 | 0.21 / 1.81 | 4.7e-06 | 1 (3e-05 % off) | - | heavier |
-| sam2.1-hiera-tiny | fp16 | 112.1 / 116.0 | 0.97 | 0.12 / 1.58 | 377 / 349 | 1.08 | 65 / 73 | 130.9 / 134.3 | 0.18 / 0.07 | 0.15 / 1.61 | 0.0077 | 1 (0.027 % off) | - | heavier |
-| sam2.1-hiera-tiny | fp32 | 130.7 / 127.7 | 1.02 | 0.15 / 1.58 | 572 / 436 | 1.31 | 128 / 136 | 149.2 / 146.9 | 0.13 / 0.07 | 0.18 / 1.60 | 6.4e-06 | 1.1e-05 | - | slower heavier |
-| sam3 | fp16 | 1574.1 / 1439.5 | 1.09 | 1.60 / 5.10 | 2006 / 1385 | 1.45 | 1633 / 892 | 1590.7 / 2235.5 | 0.18 / 1.01 | 1.65 / 7.30 | 0.21 (0.84 % off) | empty | - | slower heavier |
-| sam3 | fp32 | 1896.0 / 1741.0 | 1.09 | 2.48 / 5.54 | 3972 / 2551 | 1.56 | 3205 / 1776 | 1909.2 / 2695.2 | 4.13 / 1.00 | 2.58 / 11.98 | 0.19 (0.7 % off) | empty | - | slower heavier |
+| sam2.1-hiera-base-plus | fp16 | 213.5 / 244.4 | 0.87 | 0.26 / 2.27 | 506 / 475 | 1.06 | 217 / 155 | 216.9 / 262.8 | 0.09 / 0.08 | 0.26 / 2.30 | 0.008 | 1 (0.0028 % off) | - | heavier |
+| sam2.1-hiera-base-plus | fp32 | 247.5 / 263.0 | 0.94 | 0.29 / 2.23 | 759 / 636 | 1.19 | 367 / 300 | 248.8 / 281.3 | 0.10 / 0.08 | 0.30 / 2.25 | 1.5e-05 | 1.6e-05 | - | heavier |
+| sam2.1-hiera-large | fp16 | 496.8 / 562.6 | 0.88 | 0.54 / 3.60 | 838 / 734 | 1.14 | 490 / 434 | 498.9 / 581.9 | 0.11 / 0.11 | 0.55 / 3.63 | 0.08 (0.0035 % off) | 1 (0.0023 % off) | - | heavier |
+| sam2.1-hiera-large | fp32 | 568.2 / 609.6 | 0.93 | 0.61 / 3.61 | 1373 / 1317 | 1.04 | 911 / 855 | 569.0 / 627.6 | 0.13 / 0.11 | 0.62 / 3.64 | 2.1e-05 | 9e-06 | - | heavier |
+| sam2.1-hiera-small | fp16 | 123.1 / 138.2 | 0.89 | 0.16 / 1.80 | 378 / 362 | 1.04 | 142 / 86 | 124.5 / 157.4 | 0.08 / 0.07 | 0.17 / 1.82 | 0.012 (0.00014 % off) | 1 (0.012 % off) | - | heavier |
+| sam2.1-hiera-small | fp32 | 148.2 / 152.3 | 0.97 | 0.19 / 1.82 | 547 / 463 | 1.18 | 219 / 163 | 151.1 / 171.5 | 0.09 / 0.07 | 0.20 / 1.84 | 5.1e-06 | 1 (3e-05 % off) | - | heavier |
+| sam2.1-hiera-tiny | fp16 | 103.1 / 115.6 | 0.89 | 0.15 / 1.61 | 378 / 349 | 1.08 | 129 / 73 | 105.5 / 134.8 | 0.08 / 0.07 | 0.15 / 1.64 | 0.0077 | 1 (0.024 % off) | - | heavier |
+| sam2.1-hiera-tiny | fp32 | 127.4 / 128.4 | 0.99 | 0.17 / 1.63 | 520 / 436 | 1.19 | 192 / 136 | 128.7 / 146.9 | 0.08 / 0.07 | 0.17 / 1.65 | 5.6e-06 | 1 (6e-05 % off) | - | heavier |
+| sam3 | fp16 | 1504.2 / 1384.6 | 1.09 | 1.54 / 4.40 | 2037 / 1385 | 1.47 | 1633 / 892 | 1516.3 / 2094.0 | 0.16 / 1.00 | 1.58 / 5.80 | 0.21 (0.84 % off) | empty | - | slower heavier |
+| sam3 | fp32 | 1776.2 / 1608.6 | 1.10 | 2.30 / 5.02 | 3972 / 2551 | 1.56 | 3205 / 1776 | 1793.7 / 2332.2 | 3.49 / 0.97 | 2.35 / 6.72 | 0.19 (0.7 % off) | empty | - | slower heavier |
 | sapiens-seg-0.3b-goliath | fp16 | 1140.1 / 1509.1 | 0.76 | 1.18 / 3.15 | 1822 / 1808 | 1.01 | 648 / 648 | 1144.0 / 1829.0 | 0.32 / 0.10 | 1.20 / 3.47 | 0.003 | 0 | - |  |
 | sapiens-seg-0.3b-goliath | fp32 | 1399.4 / 1783.6 | 0.78 | 1.82 / 3.42 | 3631 / 3288 | 1.10 | 1295 / 1295 | 1411.4 / 2102.4 | 4.20 / 0.14 | 1.89 / 3.74 | 2.6e-06 | 0 | - | heavier |
 | sapiens-seg-1b-goliath | fp16 | 2650.0 / 3004.7 | 0.88 | 2.81 / 7.35 | 3426 / 3730 | 0.92 | 2248 / 2248 | 2655.2 / 3316.0 | 23.74 / 0.34 | 2.84 / 7.72 | 0.002 | 0 | - |  |
@@ -1014,6 +1316,14 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | siglip2-so400m16-256 | fp32 | 72.8 / 70.3 | 1.04 | 0.11 / 1.44 | 1678 / 1740 | 0.96 | 1628 / 1633 | 73.1 / 70.6 | 0.88 / 0.81 | 0.12 / 1.44 | 4.6e-05 | 4.6e-05 | - | slower |
 | siglip2-so400m16-512 | fp16 | 63.3 / 61.2 | 1.03 | 0.08 / 1.40 | 863 / 884 | 0.98 | 814 / 817 | 63.6 / 61.5 | 1.97 / 0.73 | 0.09 / 1.40 | 0.0061 | 0.0061 | - | slower |
 | siglip2-so400m16-512 | fp32 | 72.0 / 69.6 | 1.03 | 0.11 / 1.45 | 1678 / 1740 | 0.96 | 1628 / 1633 | 72.3 / 69.9 | 0.88 / 0.77 | 0.11 / 1.45 | 9.6e-06 | 9.6e-06 | - | slower |
+| span-x2 | fp16 | 59.3 / 72.1 | 0.82 | 0.11 / 1.08 | 391 / 499 | 0.78 | 4 / 4 | 60.2 / 72.6 | 0.09 / 0.13 | 0.12 / 1.08 | 1 (0.14 % off) | 1 (0.46 % off) | - |  |
+| span-x2 | fp32 | 113.4 / 149.7 | 0.76 | 0.15 / 1.14 | 661 / 613 | 1.08 | 2 / 2 | 114.3 / 150.0 | 0.09 / 0.13 | 0.15 / 1.14 | 0 | 0 | - | heavier |
+| span-x2 | fp16 | 99.8 / 118.3 | 0.84 | 0.13 / 1.09 | 332 / 345 | 0.96 | 1 / 1 | 100.7 / 118.6 | 0.09 / 0.13 | 0.14 / 1.10 | 0.11 (0.021 % off) | 1 (0.15 % off) | - |  |
+| span-x2 | fp32 | 113.4 / 149.2 | 0.76 | 0.15 / 1.11 | 661 / 613 | 1.08 | 2 / 2 | 114.4 / 150.1 | 0.09 / 0.12 | 0.15 / 1.12 | 0 | 0 | - | heavier |
+| span-x4 | fp16 | 60.2 / 74.0 | 0.81 | 0.11 / 1.11 | 481 / 535 | 0.90 | 4 / 4 | 62.9 / 75.4 | 0.09 / 0.13 | 0.13 / 1.11 | 0.03 (0.00061 % off) | 0.036 (0.001 % off) | - |  |
+| span-x4 | fp32 | 116.7 / 156.6 | 0.75 | 0.15 / 1.14 | 661 / 613 | 1.08 | 2 / 2 | 119.2 / 154.7 | 0.09 / 0.13 | 0.17 / 1.14 | 0 | 0 | - | heavier |
+| span-x4 | fp16 | 103.1 / 122.4 | 0.84 | 0.13 / 1.10 | 380 / 380 | 1.00 | 1 / 1 | 105.6 / 124.0 | 0.09 / 0.13 | 0.15 / 1.11 | 0.0074 | 0.0088 | - |  |
+| span-x4 | fp32 | 116.6 / 156.3 | 0.75 | 0.15 / 1.13 | 661 / 613 | 1.08 | 2 / 2 | 119.6 / 154.6 | 0.09 / 0.13 | 0.17 / 1.14 | 0 | 0 | - | heavier |
 | squeezenet1_1.tv_in1k | fp16 | 1.8 / 3.0 | 0.61 | 0.02 / 0.45 | 16 / 18 | 0.86 | 2 / 2 | 2.1 / 3.3 | 0.56 / 0.54 | 0.02 / 0.45 | 0 | 0 | 0.00209 / 0.00209 (0.02) |  |
 | squeezenet1_1.tv_in1k | fp32 | 1.9 / 2.2 | 0.86 | 0.04 / 0.44 | 28 / 32 | 0.86 | 5 / 5 | 2.0 / 2.3 | 0.51 / 0.53 | 0.05 / 0.45 | 9.2e-08 | 9.2e-08 | 4.19e-07 / 4.23e-07 (0.02) |  |
 | starnet_s1.in1k | fp16 | 2.1 / 2.6 | 0.81 | 0.02 / 0.66 | 12 / 24 | 0.51 | 6 / 6 | 2.5 / 3.1 | 0.77 / 0.69 | 0.02 / 0.66 | 0.0015 | 0.0015 | - |  |
@@ -1024,8 +1334,22 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | starnet_s3.in1k | fp32 | 2.7 / 3.4 | 0.78 | 0.04 / 0.66 | 37 / 63 | 0.58 | 22 / 22 | 3.1 / 3.8 | 0.71 / 0.69 | 0.04 / 0.67 | 3.8e-07 | 3.8e-07 | - |  |
 | starnet_s4.in1k | fp16 | 3.0 / 3.9 | 0.77 | 0.02 / 0.85 | 26 / 46 | 0.56 | 14 / 14 | 3.5 / 4.5 | 0.79 / 0.71 | 0.02 / 0.85 | 0.00086 | 0.00086 | - |  |
 | starnet_s4.in1k | fp32 | 3.5 / 4.3 | 0.80 | 0.04 / 0.83 | 48 / 87 | 0.56 | 29 / 29 | 4.0 / 4.8 | 0.73 / 0.71 | 0.04 / 0.84 | 4.2e-07 | 4.2e-07 | - |  |
+| swin2sr-x2 | fp16 | 3432.4 / 3215.8 | 1.07 | 3.59 / 7.58 | 932 / 1277 | 0.73 | 33 / 92 | 3428.7 / 3203.6 | 0.67 / 0.25 | 3.60 / 7.58 | 0.0059 | 0.0064 | - | slower |
+| swin2sr-x2 | fp32 | 4362.9 / 5434.3 | 0.80 | 4.56 / 9.73 | 1575 / 2069 | 0.76 | 60 / 116 | 4400.9 / 5461.8 | 0.70 / 0.27 | 4.56 / 9.74 | 2.7e-06 | 2.7e-06 | - |  |
+| swin2sr-x4 | fp16 | 3641.9 / 3550.9 | 1.03 | 3.84 / 8.00 | 1022 / 2206 | 0.46 | 33 / 92 | 3597.5 / 3531.1 | 0.73 / 0.26 | 3.87 / 8.01 | 0.012 (5.4e-05 % off) | 0.014 (0.00021 % off) | - | slower |
+| swin2sr-x4 | fp32 | 4605.0 / 5796.5 | 0.79 | 4.83 / 10.19 | 1576 / 4341 | 0.36 | 60 / 117 | 4627.1 / 6034.6 | 0.70 / 0.26 | 4.85 / 10.20 | 5.5e-06 | 6.4e-06 | - |  |
+| swin2sr-x4-real | fp16 | 3675.9 / 3560.4 | 1.03 | 3.79 / 7.88 | 792 / 1415 | 0.56 | 33 / 92 | 3685.9 / 3569.8 | 0.70 / 0.26 | 3.81 / 7.89 | 0.0033 | 0.0035 | - | slower |
+| swin2sr-x4-real | fp32 | 4722.6 / 6065.2 | 0.78 | 4.80 / 9.83 | 1412 / 2496 | 0.57 | 60 / 116 | 4717.6 / 5897.9 | 0.68 / 0.26 | 4.82 / 9.84 | 2.1e-06 | 2.2e-06 | - |  |
 | swin_base_patch4_window7_224.ms_in22k_ft_in1k | fp16 | 18.4 / 18.6 | 0.99 | 0.06 / 1.95 | 221 / 263 | 0.84 | 173 / 170 | 18.9 / 19.2 | 0.88 / 0.71 | 0.06 / 1.95 | 0.0029 | 0.0029 | - |  |
 | swin_base_patch4_window7_224.ms_in22k_ft_in1k | fp32 | 20.8 / 22.2 | 0.93 | 0.07 / 1.91 | 435 / 422 | 1.03 | 346 / 340 | 21.4 / 22.2 | 0.84 / 0.71 | 0.08 / 1.92 | 1.6e-06 | 1.6e-06 | - | heavier |
+| swinir-l-x4-real | fp16 | 6624.4 / 6269.0 | 1.06 | 6.54 / 11.79 | 951 / 1450 | 0.66 | 68 / 127 | 6529.2 / 6235.3 | 0.75 / 0.45 | 6.56 / 11.80 | 0.034 (0.02 % off) | 0.04 (0.042 % off) | - | slower |
+| swinir-l-x4-real | fp32 | 8269.7 / 10549.6 | 0.78 | 8.35 / 16.65 | 1889 / 2564 | 0.74 | 127 / 184 | 8344.2 / 10716.7 | 0.68 / 0.64 | 8.37 / 16.66 | 1.8e-05 | 2.1e-05 | - |  |
+| swinir-m-x2 | fp16 | 2942.8 / 2742.2 | 1.07 | 3.04 / 6.79 | 932 / 1169 | 0.80 | 33 / 92 | 2932.8 / 2749.9 | 0.52 / 0.23 | 3.05 / 6.80 | 0.0065 | 0.006 | - | slower |
+| swinir-m-x2 | fp32 | 3905.8 / 3942.6 | 0.99 | 4.09 / 8.09 | 1389 / 1642 | 0.85 | 59 / 116 | 3912.5 / 3993.5 | 0.51 / 0.23 | 4.10 / 8.09 | 2.6e-06 | 3e-06 | - |  |
+| swinir-m-x4 | fp16 | 3081.4 / 3027.1 | 1.02 | 3.24 / 7.18 | 1021 / 2206 | 0.46 | 33 / 92 | 3140.9 / 3108.6 | 0.62 / 0.23 | 3.26 / 7.19 | 0.01 (7.7e-06 % off) | 0.012 (1.6e-05 % off) | - |  |
+| swinir-m-x4 | fp32 | 4146.5 / 4299.2 | 0.96 | 4.39 / 8.54 | 1417 / 4341 | 0.33 | 59 / 117 | 4154.9 / 4277.7 | 0.67 / 0.23 | 4.41 / 8.55 | 4.8e-06 | 5.5e-06 | - |  |
+| swinir-m-x4-real | fp16 | 3196.2 / 3140.7 | 1.02 | 3.29 / 7.08 | 699 / 1415 | 0.49 | 33 / 92 | 3192.9 / 3114.2 | 0.67 / 0.22 | 3.31 / 7.09 | 0.044 (0.011 % off) | 0.06 (0.036 % off) | - |  |
+| swinir-m-x4-real | fp32 | 4243.3 / 4495.1 | 0.94 | 4.38 / 9.16 | 1389 / 2496 | 0.56 | 59 / 116 | 4283.3 / 4365.5 | 0.62 / 0.24 | 4.41 / 9.17 | 1.3e-05 | 1.8e-05 | - |  |
 | tiny_vit_11m_224.dist_in22k_ft_in1k | fp16 | 4.5 / 5.0 | 0.90 | 0.04 / 1.07 | 43 / 64 | 0.66 | 25 / 25 | 5.0 / 5.4 | 0.85 / 0.81 | 0.04 / 1.07 | 0.0015 | 0.0015 | 0.00527 / 0.00519 (0.0095) |  |
 | tiny_vit_11m_224.dist_in22k_ft_in1k | fp32 | 6.7 / 5.3 | 1.26 | 0.06 / 0.98 | 82 / 120 | 0.68 | 49 / 49 | 6.4 / 6.0 | 0.90 / 0.82 | 0.06 / 0.99 | 1.2e-06 | 1.2e-06 | 4.9e-06 / 4.94e-06 (0.0095) | slower |
 | tiny_vit_21m_224.dist_in22k_ft_in1k | fp16 | 6.6 / 6.8 | 0.98 | 0.04 / 0.98 | 72 / 104 | 0.69 | 46 / 46 | 7.2 / 7.3 | 0.84 / 0.73 | 0.04 / 0.98 | 0.0016 | 0.0016 | 0.00254 / 0.00258 (0.0095) |  |
@@ -1048,6 +1372,18 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | vit_base_patch16_224.augreg2_in21k_ft_in1k | fp32 | 16.9 / 17.8 | 0.95 | 0.07 / 0.75 | 365 / 420 | 0.87 | 330 / 330 | 17.1 / 18.3 | 0.06 / 0.80 | 0.07 / 0.75 | 5.8e-07 | 5.8e-07 | 5.86e-06 / 5.9e-06 (0.02) |  |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | fp16 | 181.8 / 178.1 | 1.02 | 0.22 / 1.50 | 879 / 900 | 0.98 | 817 / 820 | 181.9 / 179.2 | 0.09 / 0.73 | 0.22 / 1.51 | 0.00081 | 0.00081 | 0.00249 / 0.00225 (0.02) | slower |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | fp32 | 214.1 / 209.9 | 1.02 | 0.30 / 1.58 | 1752 / 1796 | 0.98 | 1634 / 1639 | 214.9 / 210.9 | 0.43 / 0.71 | 0.30 / 1.58 | 5.2e-07 | 5.2e-07 | 1.48e-05 / 1.45e-05 (0.02) | slower |
+| vitpose-base | fp16 | 144.5 / 145.3 | 0.99 | 0.17 / 1.40 | 272 / 277 | 0.98 | 172 / 172 | 157.1 / 158.0 | 0.05 / 0.04 | 0.19 / 1.42 | 0.0051 | 0.025 (0.12 % off) | - |  |
+| vitpose-base | fp32 | 160.6 / 164.4 | 0.98 | 0.20 / 1.37 | 540 / 469 | 1.15 | 343 / 343 | 173.7 / 177.2 | 0.06 / 0.04 | 0.22 / 1.40 | 4.8e-06 | 4.8e-06 | - | heavier |
+| vitpose-base-simple | fp16 | 142.0 / 137.4 | 1.03 | 0.16 / 1.39 | 286 / 346 | 0.83 | 164 / 164 | 154.6 / 149.3 | 0.05 / 0.04 | 0.18 / 1.41 | 0.0038 | 0.15 (0.24 % off) | - | slower |
+| vitpose-base-simple | fp32 | 156.4 / 158.1 | 0.99 | 0.19 / 1.40 | 556 / 1162 | 0.48 | 328 / 328 | 168.9 / 171.6 | 0.06 / 0.04 | 0.21 / 1.42 | 3.9e-06 | 2.9e-06 | - |  |
+| vitpose-plus-base | fp16 | 144.6 / 144.6 | 1.00 | 0.17 / 1.40 | 272 / 277 | 0.98 | 172 / 172 | 157.2 / 156.8 | 0.05 / 0.06 | 0.19 / 1.42 | 0.0042 | 0.0085 | - |  |
+| vitpose-plus-base | fp32 | 160.2 / 165.6 | 0.97 | 0.31 / 1.42 | 535 / 469 | 1.14 | 343 / 343 | 174.4 / 178.0 | 0.06 / 0.06 | 0.33 / 1.44 | 3e-06 | 5.2e-06 | - | heavier |
+| vitpose-plus-huge | fp16 | 879.9 / 861.6 | 1.02 | 0.91 / 3.07 | 1372 / 1393 | 0.98 | 1215 / 1216 | 891.8 / 873.3 | 0.12 / 0.21 | 0.93 / 3.10 | 0.0056 | 0.11 (0.36 % off) | - | slower |
+| vitpose-plus-huge | fp32 | 1000.3 / 981.7 | 1.02 | 1.23 / 4.20 | 2693 / 2777 | 0.97 | 2431 / 2431 | 1012.5 / 994.6 | 1.17 / 0.69 | 1.26 / 4.23 | 3.2e-06 | 2.8e-06 | - |  |
+| vitpose-plus-large | fp16 | 444.0 / 438.2 | 1.01 | 0.47 / 2.11 | 715 / 693 | 1.03 | 588 / 588 | 457.0 / 451.3 | 0.08 / 0.12 | 0.50 / 2.13 | 0.0026 | 0.21 (0.24 % off) | - | heavier |
+| vitpose-plus-large | fp32 | 494.0 / 486.0 | 1.02 | 0.53 / 2.15 | 1391 / 1512 | 0.92 | 1177 / 1177 | 506.1 / 499.8 | 0.11 / 0.11 | 0.55 / 2.17 | 2.9e-06 | 2.7e-06 | - |  |
+| vitpose-plus-small | fp16 | 61.9 / 59.9 | 1.03 | 0.09 / 1.30 | 129 / 176 | 0.74 | 46 / 46 | 73.8 / 71.4 | 0.04 / 0.04 | 0.11 / 1.32 | 0.0032 | 0.053 (0.48 % off) | - | slower |
+| vitpose-plus-small | fp32 | 70.1 / 69.5 | 1.01 | 0.11 / 1.29 | 250 / 249 | 1.01 | 93 / 93 | 82.5 / 81.4 | 0.05 / 0.04 | 0.13 / 1.31 | 2.7e-06 | 2.5e-06 | - |  |
 | wd-convnext-tagger-v3 | fp16 | 42.7 / 43.8 | 0.98 | 0.06 / 1.09 | 274 / 328 | 0.83 | 189 / 189 | 43.2 / 44.1 | 0.97 / 0.73 | 0.06 / 1.10 | 0.00096 | 0.00096 | 0.0032 / 0.00336 (0.015) |  |
 | wd-convnext-tagger-v3 | fp32 | 49.8 / 52.3 | 0.95 | 0.09 / 1.06 | 516 / 512 | 1.01 | 377 / 377 | 50.3 / 52.6 | 0.91 / 0.74 | 0.09 / 1.06 | 7.6e-07 | 7.6e-07 | 1.76e-05 / 1.61e-05 (0.015) |  |
 | wd-eva02-large-tagger-v3 | fp16 | 195.5 / 198.1 | 0.99 | 0.23 / 2.14 | 699 / 686 | 1.02 | 602 / 602 | 196.3 / 198.6 | 0.07 / 0.80 | 0.23 / 2.14 | 0.001 | 0.001 | 0.0039 / 0.00337 (0.015) |  |
@@ -1068,6 +1404,10 @@ hand / graph per cell; `x` = hand / graph; `net rel` = max |hand - graph| / max 
 | yolox-tiny | fp32 | 8.9 / 13.7 | 0.65 | 0.05 / 1.23 | 72 / 134 | 0.54 | 20 / 20 | 13.2 / 16.0 | 0.04 / 0.08 | 0.55 / 1.30 | 0 | 0 | - |  |
 | yolox-x | fp16 | 94.4 / 106.6 | 0.89 | 0.12 / 1.73 | 391 / 441 | 0.89 | 190 / 190 | 100.1 / 111.8 | 0.06 / 0.21 | 0.64 / 1.80 | 0.58 (65 % off) | 0 | - |  |
 | yolox-x | fp32 | 108.8 / 128.4 | 0.85 | 0.14 / 1.78 | 829 / 802 | 1.03 | 378 / 378 | 114.7 / 133.5 | 0.07 / 0.21 | 0.15 / 1.79 | 0.58 (65 % off) | empty | - | heavier |
+| yunet-n | fp16 | 9.3 / 11.1 | 0.84 | 0.04 / 1.00 | 207 / 223 | 0.93 | 0 / 0 | 14.0 / 15.1 | 0.04 / 0.10 | 0.05 / 1.01 | 0.0031 | empty | - |  |
+| yunet-n | fp32 | 12.0 / 14.7 | 0.81 | 0.04 / 0.95 | 367 / 271 | 1.35 | 0 / 0 | 17.0 / 18.6 | 0.04 / 0.10 | 0.05 / 0.96 | 1.1e-06 | empty | - | heavier |
+| yunet-s | fp16 | 8.5 / 10.1 | 0.83 | 0.04 / 1.00 | 175 / 211 | 0.83 | 0 / 0 | 13.2 / 14.2 | 0.05 / 0.09 | 0.05 / 1.01 | 0.0021 | empty | - |  |
+| yunet-s | fp32 | 10.5 / 13.1 | 0.80 | 0.04 / 0.95 | 303 / 271 | 1.12 | 0 / 0 | 15.3 / 16.9 | 0.04 / 0.09 | 0.05 / 0.95 | 1.1e-06 | empty | - | heavier |
 
 Not measured (one arm failed):
 
