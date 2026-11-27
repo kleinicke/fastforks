@@ -596,6 +596,64 @@ against the graph port's MLX row (the old row) and the best MPS row:
   float32, plus-large 0.90 / 0.21 and 1.63 / 1.46. The old row loaded the replayed graph's weights lazily; the hand
   port reads its full cache file at load. The first call is 0.05-2.0 s against the old 1.3-5.9 s.
 
+## SAM 2.1 prompt path and video, SAM 3 tracker (2026-11-27)
+
+What still ran in PyTorch on the CPU in MLX mode is in `mx` now: SAM 2.1's prompt encoder and mask decoder
+(`sam2/mlx_heads.py`, float32 as before), its video memory path (memory attention, memory encoder, object pointers:
+`mlx_heads.py` in the run dtype, the loop in numpy / MLX in `sam2/mlx_video.py`) and SAM 3's tracker heads
+(`sam3/net/mlx_tracker.py`). All weights come through `mlx_port.recorded`: a cache hit reads no checkpoint and builds
+no float32 CPU twin. The graph arm is unchanged (`embed` alone, the prompt in PyTorch), so the SAM 2.1 rows now
+count six network calls in the hand arm (embed, the prompt encoder's parts, the decoder: 5.5 ms and at most 98 MB
+over the resident weights) against one, and its resident weights are 56-67 MB higher (the decoder and the dense
+position embedding): that is most of the `heavier` flag. The embed call's peak over the resident weights is
+236-348 MB against 276-320 MB in float16 (large alone is higher, by 48 MB) and 328-462 MB against 300-462 MB in
+float32 (0-56 MB higher); the process footprint is 125-430 MB lower in every row. The sam3 rows are as in the
+section above (image path untouched).
+
+Image, end to end (`tools/speed_survey.py`, two runs, the second kept; before -> now):
+
+| ref | dtype | warm ms | load s | peak footprint MB | load footprint MB |
+|---|---|---|---|---|---|
+| sam2.1-hiera-base-plus | fp16 | 233.8 -> 229.0 | 0.43 -> 0.38 | 1072 -> 911 | 624 -> 378 |
+| sam2.1-hiera-base-plus | fp32 | 273.2 -> 271.8 | 0.97 -> 0.57 | 1311 -> 1153 | 713 -> 529 |
+| sam2.1-hiera-large | fp16 | 522.8 -> 516.2 | 0.76 -> 0.77 | 1474 -> 1243 | 985 -> 654 |
+| sam2.1-hiera-large | fp32 | 600.1 -> 597.1 | 2.28 -> 1.27 | 1986 -> 1737 | 1325 -> 1075 |
+| sam2.1-hiera-small | fp16 | 136.6 -> 133.3 | 0.33 -> 0.29 | 931 -> 798 | 498 -> 304 |
+| sam2.1-hiera-small | fp32 | 169.0 -> 168.5 | 0.67 -> 0.38 | 1075 -> 936 | 528 -> 380 |
+| sam2.1-hiera-tiny | fp16 | 116.7 -> 114.7 | 0.31 -> 0.26 | 919 -> 785 | 486 -> 289 |
+| sam2.1-hiera-tiny | fp32 | 146.2 -> 145.0 | 0.59 -> 0.34 | 1043 -> 905 | 501 -> 352 |
+| sam3 | fp16 | 1543.8 -> 1546.6 | 2.24 -> 2.23 | 2590 -> 2582 | 1858 -> 1858 |
+| sam3 | fp32 | 1901.6 -> 1893.9 | 4.21 -> 4.27 | 4501 -> 4472 | 3429 -> 3430 |
+
+Per prompt on a cached embedding and per video frame (8 frames, one box prompt, warm second pass; a bench script, not
+the survey; before -> now):
+
+| ref | dtype | prompt ms (CPU ms) | 4 boxes ms | video ms / frame (CPU ms) | video MLX peak MB | video process footprint MB |
+|---|---|---|---|---|---|---|
+| sam2.1-hiera-tiny | fp16 | 10.8 (16.2) -> 8.1 (8.4) | 23.7 -> 18.8 | 348.6 (150) -> 330.4 (145) | 937 -> 1034 | 1527 -> 1384 |
+| sam2.1-hiera-base-plus | fp16 | 10.1 (15.7) -> 8.4 (8.4) | 24.0 -> 19.0 | 467.8 (179) -> 446.5 (176) | 1025 -> 1136 | 1639 -> 1484 |
+| sam2.1-hiera-base-plus | fp32 | 9.6 (15.3) -> 8.0 (8.3) | 22.1 -> 19.1 | 608.2 (337) -> 590.1 (336) | 1932 -> 2065 | 2339 -> 2242 |
+| sam3 | fp16 | - | - | 2352.7 (4901) -> 1760.8 (316) | 2096 -> 2628 | 4205 -> 2977 |
+| sam3 | fp32 | - | - | 2657.5 (5362) -> 2285.1 (666) | 4010 -> 4637 | 5418 -> 4904 |
+
+- *Memory.* The MLX allocator's peak rises by the head weights that used to sit in PyTorch (about 100 MB for
+  SAM 2.1, 530-630 MB for SAM 3); the process footprint, which counts both, falls in every row.
+- *Load.* The replay skeleton of a cache hit ran torch ops that have no meta kernel (`torch.randn` in the prompt
+  encoder's random position embedding, the neck fold's matmul, the position embedding's interpolate, `torch.arange`
+  in the RoPE table, `scale * torch.ones` in the memory encoder's blocks): each goes through a Python decomposition
+  that imports `torch._dynamo`, about 1 s once per process. The skeleton now gets the folded shapes directly
+  (`_replay_shapes`) and builds the prompt encoder and the video modules unfilled on the CPU: cached load 0.63 ->
+  0.23 s (tiny float16), 0.97 -> 0.53 s (base-plus float32).
+- *Video is GPU-bound.* Of tiny's 330 ms / frame, 137 ms is the image encoder and about 200 ms the memory attention
+  (four layers over up to seven frames of memory tokens, evaluated per layer); the host side (frame preparation in the
+  prefetch thread, the tracker's numpy bookkeeping) is under 30 ms and not on the critical path.
+- *Results.* Goldens pass in both dtypes (image for sam3, image and video for sam2.1); `test_mlx` has match tests
+  against the PyTorch prompt path, the tracker and the motion model. Against the old CPU tracker the video mask
+  logits move by at most 0.13 (float16) and 0.0023 (float32); at most 2.5e-6 of a frame's mask pixels flip.
+- *PyTorch is still imported* in an MLX run: the task API takes and returns torch tensors, `model.py` / `video.py` /
+  `net/*` import it at module level, the replay skeleton is a (weightless) torch module, and the image `prepare` /
+  `upsample` are torch. No torch op runs per prompt or per frame in the heads or the tracker.
+
 ## Families whose graph path could not be rebuilt
 
 These have no `GRAPH_RUNNERS` (restoring the pre-port runner would change the torch path or need far more than a small
@@ -1137,16 +1195,16 @@ intermediate tensors), `result rel` the same over the model's results (a sanity 
 | sam-vit-h | fp32 | 1873.2 / 2106.1 | 0.89 | 2.26 / 5.74 | 3034 / 3210 | 0.94 | 2443 / 2452 | 1905.9 / 2109.5 | 1.39 / 0.14 | 2.31 / 5.79 | 4.2e-06 | 1 (3e-05 % off) |  |
 | sam-vit-l | fp16 | 815.8 / 931.0 | 0.88 | 0.83 / 3.62 | 1107 / 972 | 1.14 | 593 / 597 | 837.3 / 954.6 | 0.38 / 0.07 | 0.86 / 3.65 | 0.0029 | 1 (0.00033 % off) | heavier |
 | sam-vit-l | fp32 | 972.1 / 1110.9 | 0.88 | 1.00 / 3.88 | 1758 / 1933 | 0.91 | 1186 / 1195 | 995.8 / 1131.8 | 0.32 / 0.07 | 1.04 / 3.91 | 3.5e-06 | 3.1e-06 |  |
-| sam2.1-hiera-base-plus | fp16 | 232.8 / 245.5 | 0.95 | 0.24 / 2.21 | 535 / 478 | 1.12 | 153 / 155 | 250.9 / 264.3 | 0.30 / 0.08 | 0.27 / 2.24 | 0.0049 | 1 (0.002 % off) | heavier |
-| sam2.1-hiera-base-plus | fp32 | 256.2 / 268.7 | 0.95 | 0.28 / 2.22 | 871 / 808 | 1.08 | 303 / 300 | 275.4 / 290.0 | 0.23 / 0.08 | 0.31 / 2.24 | 1.3e-05 | 8.9e-06 | heavier |
-| sam2.1-hiera-large | fp16 | 555.8 / 562.2 | 0.99 | 0.57 / 3.55 | 849 / 734 | 1.16 | 426 / 434 | 574.5 / 583.0 | 0.60 / 0.11 | 0.59 / 3.58 | 0.026 (9.5e-05 % off) | 1 (0.0013 % off) | heavier |
-| sam2.1-hiera-large | fp32 | 600.5 / 608.8 | 0.99 | 0.63 / 3.55 | 1495 / 1317 | 1.14 | 847 / 855 | 619.5 / 628.7 | 0.53 / 0.10 | 0.66 / 3.58 | 0.00018 | 5.9e-05 | heavier |
-| sam2.1-hiera-small | fp16 | 133.8 / 138.1 | 0.97 | 0.14 / 1.77 | 390 / 362 | 1.08 | 78 / 86 | 153.6 / 157.4 | 0.20 / 0.07 | 0.17 / 1.80 | 0.01 (4.8e-05 % off) | 1 (0.012 % off) | heavier |
-| sam2.1-hiera-small | fp32 | 155.0 / 152.5 | 1.02 | 0.18 / 1.78 | 599 / 463 | 1.29 | 155 / 163 | 174.3 / 171.4 | 0.15 / 0.07 | 0.21 / 1.81 | 4.7e-06 | 1 (3e-05 % off) | heavier |
-| sam2.1-hiera-tiny | fp16 | 112.1 / 116.0 | 0.97 | 0.12 / 1.58 | 377 / 349 | 1.08 | 65 / 73 | 130.9 / 134.3 | 0.18 / 0.07 | 0.15 / 1.61 | 0.0077 | 1 (0.027 % off) | heavier |
-| sam2.1-hiera-tiny | fp32 | 130.7 / 127.7 | 1.02 | 0.15 / 1.58 | 572 / 436 | 1.31 | 128 / 136 | 149.2 / 146.9 | 0.13 / 0.07 | 0.18 / 1.60 | 6.4e-06 | 1.1e-05 | slower heavier |
-| sam3 | fp16 | 1574.1 / 1439.5 | 1.09 | 1.60 / 5.10 | 2006 / 1385 | 1.45 | 1633 / 892 | 1590.7 / 2235.5 | 0.18 / 1.01 | 1.65 / 7.30 | 0.21 (0.84 % off) | empty | slower heavier |
-| sam3 | fp32 | 1896.0 / 1741.0 | 1.09 | 2.48 / 5.54 | 3972 / 2551 | 1.56 | 3205 / 1776 | 1909.2 / 2695.2 | 4.13 / 1.00 | 2.58 / 11.98 | 0.19 (0.7 % off) | empty | slower heavier |
+| sam2.1-hiera-base-plus | fp16 | 213.5 / 244.4 | 0.87 | 0.26 / 2.27 | 506 / 475 | 1.06 | 217 / 155 | 216.9 / 262.8 | 0.09 / 0.08 | 0.26 / 2.30 | 0.008 | 1 (0.0028 % off) | heavier |
+| sam2.1-hiera-base-plus | fp32 | 247.5 / 263.0 | 0.94 | 0.29 / 2.23 | 759 / 636 | 1.19 | 367 / 300 | 248.8 / 281.3 | 0.10 / 0.08 | 0.30 / 2.25 | 1.5e-05 | 1.6e-05 | heavier |
+| sam2.1-hiera-large | fp16 | 496.8 / 562.6 | 0.88 | 0.54 / 3.60 | 838 / 734 | 1.14 | 490 / 434 | 498.9 / 581.9 | 0.11 / 0.11 | 0.55 / 3.63 | 0.08 (0.0035 % off) | 1 (0.0023 % off) | heavier |
+| sam2.1-hiera-large | fp32 | 568.2 / 609.6 | 0.93 | 0.61 / 3.61 | 1373 / 1317 | 1.04 | 911 / 855 | 569.0 / 627.6 | 0.13 / 0.11 | 0.62 / 3.64 | 2.1e-05 | 9e-06 | heavier |
+| sam2.1-hiera-small | fp16 | 123.1 / 138.2 | 0.89 | 0.16 / 1.80 | 378 / 362 | 1.04 | 142 / 86 | 124.5 / 157.4 | 0.08 / 0.07 | 0.17 / 1.82 | 0.012 (0.00014 % off) | 1 (0.012 % off) | heavier |
+| sam2.1-hiera-small | fp32 | 148.2 / 152.3 | 0.97 | 0.19 / 1.82 | 547 / 463 | 1.18 | 219 / 163 | 151.1 / 171.5 | 0.09 / 0.07 | 0.20 / 1.84 | 5.1e-06 | 1 (3e-05 % off) | heavier |
+| sam2.1-hiera-tiny | fp16 | 103.1 / 115.6 | 0.89 | 0.15 / 1.61 | 378 / 349 | 1.08 | 129 / 73 | 105.5 / 134.8 | 0.08 / 0.07 | 0.15 / 1.64 | 0.0077 | 1 (0.024 % off) | heavier |
+| sam2.1-hiera-tiny | fp32 | 127.4 / 128.4 | 0.99 | 0.17 / 1.63 | 520 / 436 | 1.19 | 192 / 136 | 128.7 / 146.9 | 0.08 / 0.07 | 0.17 / 1.65 | 5.6e-06 | 1 (6e-05 % off) | heavier |
+| sam3 | fp16 | 1504.2 / 1384.6 | 1.09 | 1.54 / 4.40 | 2037 / 1385 | 1.47 | 1633 / 892 | 1516.3 / 2094.0 | 0.16 / 1.00 | 1.58 / 5.80 | 0.21 (0.84 % off) | empty | slower heavier |
+| sam3 | fp32 | 1776.2 / 1608.6 | 1.10 | 2.30 / 5.02 | 3972 / 2551 | 1.56 | 3205 / 1776 | 1793.7 / 2332.2 | 3.49 / 0.97 | 2.35 / 6.72 | 0.19 (0.7 % off) | empty | slower heavier |
 | sapiens-seg-0.3b-goliath | fp16 | 1140.1 / 1509.1 | 0.76 | 1.18 / 3.15 | 1822 / 1808 | 1.01 | 648 / 648 | 1144.0 / 1829.0 | 0.32 / 0.10 | 1.20 / 3.47 | 0.003 | 0 |  |
 | sapiens-seg-0.3b-goliath | fp32 | 1399.4 / 1783.6 | 0.78 | 1.82 / 3.42 | 3631 / 3288 | 1.10 | 1295 / 1295 | 1411.4 / 2102.4 | 4.20 / 0.14 | 1.89 / 3.74 | 2.6e-06 | 0 | heavier |
 | sapiens-seg-1b-goliath | fp16 | 2650.0 / 3004.7 | 0.88 | 2.81 / 7.35 | 3426 / 3730 | 0.92 | 2248 / 2248 | 2655.2 / 3316.0 | 23.74 / 0.34 | 2.84 / 7.72 | 0.002 | 0 |  |

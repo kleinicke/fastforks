@@ -2234,8 +2234,8 @@ one call 1693 ms: trunk 1328 (32 layers at 5184 tokens, GEMM-bound), neck 41, te
   compiled norm (no gain); a lazily built weight dict under `convert_cached` (the miss peaks at 4.8 GB: `read`
   evaluates group by group, 1.8 GB).
 
-**Left.** SAM 2's mask decoder and the video memory attention still run in PyTorch on the CPU. SAM 3's tracker heads
-are on the CPU. The bounded evaluation was not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2; done in the next
+**Left.** (SAM 2's mask decoder and video memory path and SAM 3's tracker heads, on the CPU in PyTorch at the time,
+are in `mx` since 2026-11-27: `mlx-core-ab.md`.) The bounded evaluation was not tried on `libnet/mlx_features.py` (CLIP, SigLIP 2; done in the next
 section). No DINOv3 ViT-7B weights on this machine.
 
 ### Done: Perception Encoder, timm ViT classifiers, Swin, DaViT; bounded CLIP / SigLIP 2 (2026-11-26)
