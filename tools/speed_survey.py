@@ -68,6 +68,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import _devices
+import merge_rows
 from speed_check import SCENES, STANDARD, SWAPPED, VIEWS, _commit, _px, floor_rows
 
 if TYPE_CHECKING:
@@ -463,7 +464,7 @@ def _row(
 
 def _merge(dev: _devices.Device, new: dict[str, Any]) -> None:
     """Write `new` into the device's file, replacing the row of the same ref / mode / dtype / input."""
-    path = dev.data
+    path = merge_rows.fragment(dev.data)  # FASTFORKS_ROWS_AGENT: the agent's fragment of the shared file
     path.parent.mkdir(parents=True, exist_ok=True)
     key = (new["ref"], new["mode"], new["dtype"], new["input"])
     rows = [json.loads(s) for s in path.read_text(encoding="utf-8").splitlines() if s.strip()] if path.is_file() else []

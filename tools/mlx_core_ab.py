@@ -81,6 +81,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import merge_rows
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
@@ -578,6 +580,7 @@ def _key(r: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def _merge(out: Path, row: dict[str, Any]) -> None:
+    out = merge_rows.fragment(out)  # FASTFORKS_ROWS_AGENT: the agent's fragment of the shared file
     rows = [r for r in _read(out) if _key(r) != _key(row)] + [row]
     rows.sort(key=_key)
     out.parent.mkdir(parents=True, exist_ok=True)
