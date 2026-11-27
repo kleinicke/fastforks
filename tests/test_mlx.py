@@ -2593,3 +2593,28 @@ def test_mlx_detr_matches_torch():
     got = mlx_net.network(net, "float32")(to_mx(x))
     for g, w in zip(got, want, strict=True):
         torch.testing.assert_close(to_torch(g), w, atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("backbone", ["mobilenet0.25", "resnet50"])
+def test_mlx_retinaface_matches_torch(backbone):
+    """The hand-written RetinaFace (`retinaface/mlx_net.py`) against the network with the runner's input transform,
+    float32: BatchNorms folded at load, the FPN's cropped upsampling on odd maps, SSH, the merged heads."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.pose.models.retinaface import mlx_net  # noqa: PLC0415
+    from fastforks.pose.models.retinaface.net import Arch, RetinaFace  # noqa: PLC0415
+
+    net = _randomise(RetinaFace(Arch(backbone=backbone, out_channels=64 if backbone == "mobilenet0.25" else 256)))
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.normal_(0, 0.1)
+                m.running_var.uniform_(0.5, 1.5)
+    x = torch.rand(1, 3, 75, 102)
+    mean = torch.tensor(mlx_net.MEAN_BGR).view(1, 3, 1, 1)
+    with torch.no_grad():
+        want = net(x.flip(1) * 255 - mean)
+    got = mlx_net.network(net, "float32")(to_mx(x))
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(to_torch(g), w, atol=1e-2, rtol=1e-3)
