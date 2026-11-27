@@ -1613,6 +1613,230 @@ def test_mlx_restormer_matches_torch(norm):
     torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
 
 
+def _randomize_norms(net):
+    """Norm weights and biases off their unit / zero init (which would hide a missing or misplaced norm)."""
+    for name, p in net.named_parameters():
+        if "norm" in name:
+            p.data.add_(torch.randn_like(p) * 0.5)
+
+
+@pytest.mark.parametrize(
+    ("scale", "upsampler", "resi"),
+    [(4, "pixelshuffle", "1conv"), (2, "pixelshuffle", "3conv"), (4, "nearest+conv", "3conv")],
+)
+@pytest.mark.filterwarnings("ignore:torch.meshgrid")
+def test_mlx_swinir_matches_torch(scale, upsampler, resi, monkeypatch):
+    """The hand-written SwinIR (`swinir/mlx_net.py`, `shared/swin_sr/mlx_net.py`) against the vendored network,
+    float32: both upsamplers (the tail in row bands), both residual connections, shifted windows (the blocks in bands
+    of window rows), a padded map."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.swinir import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.swinir.net import SwinIR  # noqa: PLC0415
+    from fastforks.shared.swin_sr import mlx_net as swin  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = SwinIR(
+        upscale=scale, in_chans=3, img_size=16, window_size=4, img_range=1.0, depths=[2, 2], embed_dim=24,
+        num_heads=[2, 3], mlp_ratio=2, upsampler=upsampler, resi_connection=resi,
+    )  # fmt: skip
+    _randomize_norms(net)
+    net.eval()
+    x = torch.rand(1, 3, 20, 12)  # a multiple of the window, not of the training size
+    with torch.no_grad():
+        want = net(x)
+    monkeypatch.setattr(swin, "TAIL_BAND_BYTES", 64 * 12 * scale * scale * 4 * 6)  # 6-row bands
+    monkeypatch.setattr(swin, "BLOCK_BAND_BYTES", 3 * 16 * 16 * 4 * 3 * 2)  # blocks in bands of 2-3 window rows
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize(("scale", "upsampler"), [(2, "pixelshuffle"), (4, "nearest+conv")])
+@pytest.mark.filterwarnings("ignore:torch.meshgrid")
+def test_mlx_swin2sr_matches_torch(scale, upsampler):
+    """The hand-written Swin2SR (`swin2sr/mlx_net.py`) against the vendored network, float32: post-norm blocks,
+    cosine attention with the continuous position bias, the groups' 1 x 1 patch-embedding convs, both upsamplers."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.swin2sr import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.swin2sr.net import Swin2SR  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = Swin2SR(
+        upscale=scale, in_chans=3, img_size=16, window_size=4, img_range=1.0, depths=[2, 2], embed_dim=24,
+        num_heads=[2, 3], mlp_ratio=2, upsampler=upsampler, resi_connection="1conv",
+    )  # fmt: skip
+    _randomize_norms(net)
+    with torch.no_grad():
+        for name, t in net.named_parameters():  # the zero-initialised q / v biases would hide their layout
+            if name.endswith(("q_bias", "v_bias")):
+                t.add_(torch.randn_like(t) * 0.5)
+    net.eval()
+    x = torch.rand(1, 3, 20, 12)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.filterwarnings("ignore:torch.meshgrid")
+def test_mlx_hat_matches_torch():
+    """The hand-written HAT (`hat/mlx_net.py`) against the vendored network, float32: hybrid attention blocks with the
+    channel-attention branch (weighted 1 here, not 0.01, so it shows), overlapping cross-attention, shifted windows."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.hat import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.hat.net import HAT  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = HAT(
+        upscale=4, in_chans=3, img_size=16, window_size=4, compress_ratio=3, squeeze_factor=4, conv_scale=1.0,
+        overlap_ratio=0.5, img_range=1.0, depths=[2, 2], embed_dim=24, num_heads=[2, 3], mlp_ratio=2,
+        upsampler="pixelshuffle", resi_connection="1conv",
+    )  # fmt: skip
+    _randomize_norms(net)
+    net.eval()
+    x = torch.rand(1, 3, 20, 12)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.filterwarnings("ignore:torch.meshgrid")
+def test_mlx_drct_matches_torch():
+    """The hand-written DRCT (`drct/mlx_net.py`) against the vendored network, float32: the dense groups (growing
+    widths, their head counts and 1 x 1 adjust convs), shifted windows."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.drct import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.drct.net import DRCT  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = DRCT(
+        upscale=4, in_chans=3, img_size=16, window_size=4, img_range=1.0, depths=[6, 6], embed_dim=24,
+        num_heads=[2, 3], mlp_ratio=2, upsampler="pixelshuffle", resi_connection="1conv", gc=8,
+    )  # fmt: skip
+    _randomize_norms(net)
+    net.eval()
+    x = torch.rand(1, 3, 20, 12)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize(
+    ("scale", "kernels", "per_rrdb"), [(4, False, False), (2, False, False), (4, True, True), (1, True, False)]
+)
+def test_mlx_realesrgan_matches_torch(scale, kernels, per_rrdb, monkeypatch):
+    """The hand-written RRDBNet (`realesrgan/mlx_net.py`, `shared/swin_sr/mlx_cnn.py`) against the vendored network,
+    float32: x4 and the pixel-unshuffled x2 / x1 inputs, the tail in row bands, portable and the Winograd kernels
+    (their fused LeakyReLU and `0.2 * conv5 + x`; channels and maps large enough for `conv_mlx.supported`), one step per
+    RRDB or per dense block."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.realesrgan import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.realesrgan.net import RRDBNet  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = RRDBNet(3, 3, scale=scale, num_feat=32, num_block=2, num_grow_ch=16).eval()
+    size = {4: (60, 52), 2: (120, 104), 1: (240, 208)}[scale]  # 60 x 52 after the unshuffle
+    x = torch.rand(1, 3, *size)
+    with torch.no_grad():
+        want = net(x)
+    monkeypatch.setattr(mlx_net, "TAIL_BAND_BYTES", 32 * 16 * 52 * 4 * 16)  # 16-row bands
+    monkeypatch.setattr(mlx_net, "RRDB_STEP_BYTES", 0 if per_rrdb else 1 << 30)
+    got = to_torch(mlx_net.network(net, "float32", kernels=kernels)(to_mx(x)))
+    tol = 1e-3 if kernels else 1e-4  # Winograd F(4,3) rounds differently from the direct sum
+    torch.testing.assert_close(got, want, atol=tol, rtol=tol)
+
+
+@pytest.mark.parametrize(("scale", "kernels"), [(4, False), (2, True)])
+def test_mlx_span_matches_torch(scale, kernels):
+    """The hand-written SPAN (`span/mlx_net.py`) against the vendored network (its `Conv3XC`s fused), float32: the
+    SPABs' attention, `conv_cat`'s taps (block 6's SiLU'd first conv), the shuffle; portable and Winograd convs."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.span import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.span.net import SPAN  # noqa: PLC0415
+    from fastforks.restoration.models.span.net.span_arch import Conv3XC  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = SPAN(3, 3, feature_channels=32, upscale=scale).eval()
+    for m in net.modules():
+        if isinstance(m, Conv3XC):
+            m.update_params()
+    x = torch.rand(1, 3, 60, 52)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32", kernels=kernels)(to_mx(x)))
+    tol = 1e-3 if kernels else 1e-4  # Winograd F(4,3) rounds differently from the direct sum
+    torch.testing.assert_close(got, want, atol=tol, rtol=tol)
+
+
+@pytest.mark.parametrize(("scale", "kernels"), [(4, False), (2, True)])
+def test_mlx_compact_matches_torch(scale, kernels):
+    """The hand-written SRVGGNetCompact (`compact/mlx_net.py`) against the vendored network, float32: per-channel
+    PReLUs (off their init), the nearest skip added before the shuffle; portable and Winograd convs (fused epilogue)."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.compact import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.compact.net import SRVGGNetCompact  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = SRVGGNetCompact(3, 3, num_feat=32, num_conv=4, upscale=scale, act_type="prelu").eval()
+    for m in net.modules():
+        if isinstance(m, torch.nn.PReLU):
+            m.weight.data.uniform_(-0.5, 0.5)
+    x = torch.rand(1, 3, 60, 52)
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32", kernels=kernels)(to_mx(x)))
+    tol = 1e-3 if kernels else 1e-4  # Winograd F(4,3) rounds differently from the direct sum
+    torch.testing.assert_close(got, want, atol=tol, rtol=tol)
+
+
+@pytest.mark.parametrize(("upsampler", "resi"), [("pixelshuffle", "1conv"), ("pixelshuffledirect", "3conv")])
+@pytest.mark.filterwarnings("ignore:torch.meshgrid")
+def test_mlx_dat_matches_torch(upsampler, resi):
+    """The hand-written DAT (`dat/mlx_net.py`) against the vendored network, float32: spatial blocks unshifted and
+    shifted in both groups' patterns, channel blocks, a size the windows pad, folded BatchNorms."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.restoration.models.dat import mlx_net  # noqa: PLC0415
+    from fastforks.restoration.models.dat.net import DAT  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    net = DAT(
+        upscale=4, in_chans=3, img_size=16, img_range=1.0, split_size=[2, 4], depth=[4, 2], embed_dim=32,
+        num_heads=[4, 4], expansion_factor=2.0, resi_connection=resi, upsampler=upsampler,
+    )  # fmt: skip
+    _randomize_norms(net)
+    for m in net.modules():  # eval BatchNorms off their identity init, temperatures off one
+        if isinstance(m, torch.nn.BatchNorm2d):
+            m.running_mean.normal_(0, 0.3)
+            m.running_var.uniform_(0.5, 2.0)
+            m.weight.data.normal_(1, 0.3)
+            m.bias.data.normal_(0, 0.3)
+        if hasattr(m, "temperature"):
+            m.temperature.data.uniform_(0.5, 2.0)
+    net.eval()
+    x = torch.rand(1, 3, 18, 14)  # padded to 20 x 16 in the spatial attention
+    with torch.no_grad():
+        want = net(x)
+    got = to_torch(mlx_net.network(net, "float32")(to_mx(x)))
+    torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize(("width", "tlc"), [(16, 32), (3, 0)])
 def test_mlx_nafnet_matches_torch(width, tlc):
     """The hand-written NAFNet (`nafnet/mlx_net.py`) against the prepared network, float32: TLC windows / global."""
