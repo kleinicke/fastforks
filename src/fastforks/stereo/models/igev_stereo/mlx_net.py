@@ -28,11 +28,13 @@ class MlxIGEV(MlxIgevBase):
         context = bl.context(im, self.cnet)
         return [n for n, _ in context], [c for _, cs in context for c in cs]
 
-    def _coarse(self, *state: mx.array) -> tuple[mx.array, mx.array, mx.array]:
-        """`BasicMultiUpdateBlock` up to the 1/4 GRU (the base runs it and the disparity step)."""
+    def _iteration(self, *state: mx.array) -> tuple[mx.array, ...]:
+        """One update (`BasicMultiUpdateBlock`, three GRU levels) and the disparity step."""
         net0, net1, net2, disp = state[:4]
         ctx, lookups = state[4:10], list(state[10:])
         net2 = bl.gru(net2, list(ctx[4:6]), bl.pool2x(net1), self.grus[2])
         x = mx.concatenate([bl.pool2x(net0), bl.interp(net2, net1.shape[1:3])], axis=-1)
         net1 = bl.gru(net1, list(ctx[2:4]), x, self.grus[1])
-        return net1, net2, mx.concatenate([self._motion(disp, lookups), bl.interp(net1, net0.shape[1:3])], axis=-1)
+        x = mx.concatenate([self._motion(disp, lookups), bl.interp(net1, net0.shape[1:3])], axis=-1)
+        net0 = bl.gru(net0, list(ctx[0:2]), x, self.grus[0])
+        return net0, net1, net2, disp + self._delta(net0)
