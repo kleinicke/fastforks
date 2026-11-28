@@ -106,3 +106,59 @@ milestone: beat one CPU core of OpenCV on a single pair, which the portable path
 Start with the essential matrix: it is the slowest of the three (114 ms OpenCV, 134 ms portable CPU per pair), the 5-point
 solver dominates its profile, and it is what `estimate_pose` users run. Order: kernel 1 first (largest share, and its fp32 accuracy is
 the one real risk), then 2 and 3 so the whole path is in kernels, with the torch version kept as the reference in tests.
+
+### MLX kernels: result (M1 Pro 16 GB, 2026-11-27)
+Done for all three solvers: `mode="mlx"` of `estimate_pose`, `estimate_fundamental` and `estimate_absolute_pose`
+(`kernels/ransac_mlx`, called from `matching/mlx_pose.py`, torch-free). Six `mx.fast.metal_kernel`s: the five- and
+seven-point solvers (one thread per sample), P3P (one thread per sample), MSAC scoring (`score_many`: one thread per
+candidate with the matches staged through threadgroup memory; `score_few`: one threadgroup per candidate) and the
+polish (one threadgroup per pair: refit, `recoverPose`, LM, inlier mask; `polish_abs` for P3P). The RANSAC loop stays
+in Python with one host sync per round of 512 samples; the random draws are NumPy (seed `_SEED`), so the samples
+differ from the torch path, as between the portable and CUDA paths.
+
+fp32 accuracy of the minimal solvers, against the fp64 CPU solvers on the same 4096 noise-free samples (fraction of
+samples with a solution within 1e-3 of the true model, unit-norm distance):
+
+| solver | fp64 CPU | MLX fp32 | MLX double-float elimination |
+|---|---|---|---|
+| five-point | 0.997 | 0.530 | 0.929 |
+| seven-point | 0.995 | 0.908 | 0.908 |
+| P3P | - | 0.984 | - |
+
+Plain fp32 Gauss-Jordan on the 10 x 20 five-point matrix loses half of the samples; doing the elimination and the
+degree-10 polynomial in double-float (`df`, two fp32s) brings it to 93% at the same speed (3.6 ms for 4096 samples,
+vs 314 ms on one CPU core in fp64), so `DOUBLE_FLOAT = 1` is the default. RANSAC absorbs the remaining 7%
+(slightly more samples to an all-inlier hit). The seven-point cubic does not need it (98% within 1e-2).
+
+Before/after, all rows re-run in this session on the same data (`data: "synthetic-v2"` in the JSONL, 36 rows): the
+parameters of the baseline above, but not its draws (mean inlier ratios 0.464-0.494 per seed instead of 0.456-0.517),
+so these rows are not paired with the baseline rows. Mean over three seeds; OpenCV and portable CPU on one core; times include
+the copy of the result to the host.
+
+| problem | method | AUC@5 | AUC@10 | AUC@20 | one pair (ms) | batched 100 (ms/pair) |
+|---|---|---|---|---|---|---|
+| essential | OpenCV, 1 core | 67.3 | 78.0 | 84.9 | 82 | 111 |
+| essential | portable, CPU | 84.7 | 87.0 | 89.7 | 79 | 86 |
+| essential | portable, MPS | 85.1 | 87.6 | 90.6 | 238 | 20.5 |
+| essential | **mlx** | **89.0** | **90.7** | **92.8** | **7.8** | **1.63** |
+| fundamental | OpenCV, 1 core | 46.1 | 56.5 | 64.9 | 34 | 34 |
+| fundamental | portable, CPU | 64.0 | 66.6 | 69.4 | 31 | 23 |
+| fundamental | portable, MPS | 63.4 | 67.0 | 70.8 | 97 | 10.0 |
+| fundamental | **mlx** | **68.4** | **72.0** | **76.0** | **5.6** | **1.42** |
+| absolute | OpenCV, 1 core (AP3P) | 89.9 | 90.5 | 91.1 | 6.2 | 5.6 |
+| absolute | portable, CPU | 99.7 | 99.8 | 99.9 | 18 | 25 |
+| absolute | portable, MPS | 99.3 | 99.7 | 99.8 | 45 | 7.7 |
+| absolute | **mlx** | 99.1 | 99.4 | 99.5 | **4.3** | **1.15** |
+
+- Speed: against the best existing Mac option, a single pair is 10x faster for essential (portable CPU), 5.5x for
+  fundamental (portable CPU) and 1.4x for absolute (OpenCV); 100 pairs batched are 12.5x, 7x and 4.9x faster
+  (portable MPS, MPS, OpenCV). The CUDA kernels on an RTX 5060 Ti are still ~30x faster batched (0.054 ms/pair).
+- Accuracy: essential and fundamental AUC is above portable on every seed (+3 to +6 AUC@5 for both); the median error is the same (0.058 vs 0.062 deg, 0.20 vs 0.24). Absolute: one failed pair of 300
+  (seed 0, inlier ratio 0.16: no all-inlier triple in the 1024 samples that `MAX_ITERATIONS` allows; at that ratio
+  that happens in ~2% of runs, so portable could miss it on another seed) and fp32 LM (median 0.025 deg, as portable
+  MPS, vs 0.015 on the fp64 CPU path). That is the 0.6 AUC@5 gap; the other two seeds are within 0.3.
+- OpenCV absolute is lower here than in the baseline (89.9 vs 99.9): 6% of its pairs fail on this draw (AP3P at
+  the low inlier ratios); the baseline's 99.9 came from the other draw.
+- `auto` picks `mlx` for all three on Apple silicon (`relative_pose._MLX_AUTO`) for inputs that are not CUDA tensors
+  (CPU and MPS tensors, NumPy), logged once per solver at INFO; `FASTFORKS_MLX=0` keeps the portable path. Results
+  come back as the input type (torch on the input device, or NumPy under `set_outputs("numpy")`).

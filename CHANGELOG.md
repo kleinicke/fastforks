@@ -21,6 +21,11 @@ No model family is new in this release; the changes are backends, platforms and 
   the same result types with NumPy arrays; the default stays torch tensors. `import fastforks` no longer imports
   torch, and an MLX run of a port that computes on arrays (Depth Anything V2 and its fine-tunes so far) with NumPy
   results and a warm conversion cache never imports it. Torch is still a dependency.
+- Pose solvers on MLX: `estimate_pose`, `estimate_fundamental` and `estimate_absolute_pose` take `mode="mlx"`
+  (Metal kernels for the minimal solvers, MSAC scoring and the LM polish, float32, batched like the other modes; no
+  torch needed). On Apple silicon `mode="auto"` picks it for CPU and MPS tensors and NumPy inputs (logged at INFO):
+  on synthetic pairs the relative pose is 5-10x faster per pair than one CPU core and 7-12x faster batched than
+  MPS, at the same or better AUC; absolute pose is 1.4x / 5x faster than OpenCV. `FASTFORKS_MLX=0` keeps `auto` on the portable solvers. The portable solvers also run on MPS (float32).
 
 ### Windows
 
