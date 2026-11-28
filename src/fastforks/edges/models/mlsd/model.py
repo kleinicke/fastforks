@@ -232,8 +232,46 @@ class Kernels(Portable):
         return self.graphs(x)
 
 
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`); the decoding and drawing as `Portable`."""
+
+    compiled_methods = ()  # the network is MLX
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load folds the norms into the convolutions)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        def real() -> MobileV2_MLSD_Large:
+            net = MobileV2_MLSD_Large()
+            net.load_state_dict(ctx.state_dict())
+            return net.eval()
+
+        self.dtype = torch.float32  # the input as the network takes it
+        self.cl = False
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=real,
+            skeleton=MobileV2_MLSD_Large,
+            sources=mlx_net.SOURCES,
+        )
+
+    def _net(self, x: torch.Tensor) -> torch.Tensor:
+        """The maps `[B, 9, h, w]` of `x` `[B, 4, H, W]`."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.mlx(to_mx(x.permute(0, 2, 3, 1).contiguous()))).permute(0, 3, 1, 2)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaces
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}

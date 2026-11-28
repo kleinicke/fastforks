@@ -45,6 +45,12 @@ class Params:
     cuda_graphs: bool = True
 
 
+def _unet() -> UnetGenerator:
+    """The (untrained) U-Net."""
+    norm = functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=False)
+    return UnetGenerator(3, 1, 8, 64, norm_layer=norm, use_dropout=False)
+
+
 class Portable(Runner):
     """Upstream's U-Net in plain PyTorch, float32 or float16."""
 
@@ -61,8 +67,7 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
-        norm = functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=False)
-        net = UnetGenerator(3, 1, 8, 64, norm_layer=norm, use_dropout=False)
+        net = _unet()
         net.load_state_dict(ctx.state_dict())  # `module.` (DataParallel) is stripped
         self.net = net.eval().to(ctx.device, self.dtype)  # NCHW: channels-last is 25-40 % slower (instance norm)
 
@@ -122,8 +127,44 @@ class _OneImage(Portable):
     batch = 1
 
 
+class _MlxPortable(_OneImage):
+    """Apple MLX: the U-Net written in MLX operations (`mlx_net`); one image per call."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        def real() -> UnetGenerator:
+            net = _unet()
+            net.load_state_dict(ctx.state_dict())
+            return net.eval()
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=real,
+            skeleton=_unet,
+            sources=mlx_net.SOURCES,
+        )
+
+    def _lines(self, x: torch.Tensor) -> torch.Tensor:
+        """The line levels `[B, 1, H, W]` (0..255) of the padded `x` `[B, 3, H, W]` in 0..255."""
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        y = self.mlx(to_mx((x / 127.5 - 1).permute(0, 2, 3, 1).contiguous()).astype(getattr(mx, self.ctx.dtype)))
+        return to_torch(y.astype(mx.float32)).permute(0, 3, 1, 2) * 127.5 + 127.5
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OneImage),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaces
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OneImage)}
