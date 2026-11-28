@@ -260,6 +260,9 @@ class _MlxPortable(Portable):
             skeleton=MobileV2_MLSD_Large,
             sources=mlx_net.SOURCES,
         )
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+
+        request_cache(self, 512)  # the buffer cache the network's temporaries reuse (held while this runner lives)
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         """The maps `[B, 9, h, w]` of `x` `[B, 4, H, W]`."""

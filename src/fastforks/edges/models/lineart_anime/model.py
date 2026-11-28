@@ -152,6 +152,9 @@ class _MlxPortable(_OneImage):
             skeleton=_unet,
             sources=mlx_net.SOURCES,
         )
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+
+        request_cache(self, 512)  # the buffer cache the network's temporaries reuse (held while this runner lives)
 
     def _lines(self, x: torch.Tensor) -> torch.Tensor:
         """The line levels `[B, 1, H, W]` (0..255) of the padded `x` `[B, 3, H, W]` in 0..255."""

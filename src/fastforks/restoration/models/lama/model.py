@@ -135,4 +135,46 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}
+class _MlxPortable(Portable):
+    """Apple MLX: the generator written in MLX operations (`mlx_net`); the masking and paste-back as `Portable`."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load folds the norms into the convolutions)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        def real() -> FFCResNetGenerator:
+            net = FFCResNetGenerator()
+            sd = ctx.state_dict(key="state_dict", strip="", extra=_GLOBALS)
+            gen = {k.removeprefix("generator."): v for k, v in sd.items() if k.startswith("generator.")}
+            load_strict(net, gen, f"{ctx.variant.ref} checkpoint")
+            return net.eval()
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=real,
+            skeleton=FFCResNetGenerator,
+            sources=mlx_net.SOURCES,
+        )
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+
+        request_cache(self, 256)  # the buffer cache the network's temporaries reuse (held while this runner lives)
+
+    def _inpaint(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import mx, to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        image, mask = x[:, :3], x[:, 3:]
+        inp = torch.cat([image * (1 - mask), mask], 1).permute(0, 2, 3, 1).contiguous()
+        pred = to_torch(self.mlx(to_mx(inp).astype(getattr(mx, self.ctx.dtype))).astype(mx.float32))
+        return mask * pred.permute(0, 3, 1, 2) + (1 - mask) * image
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _MlxPortable}
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaces
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, whole=True)}

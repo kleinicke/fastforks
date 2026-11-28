@@ -116,6 +116,9 @@ class _MlxPortable(Portable):
             skeleton=_skeleton,
             sources=mlx_net.SOURCES,
         )
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+
+        request_cache(self, 512)  # the buffer cache the network's temporaries reuse (held while this runner lives)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Soft edge map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""

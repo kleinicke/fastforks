@@ -53,6 +53,11 @@ SHAPES = [
     Shape("ema-vfi-small", (245, 339)),
     Shape("depth-pro", (251, 333)),
     Shape("totalsegmentator-total", (61, 75), batch=False),
+    Shape("hed", (251, 333)),
+    Shape("teed", (251, 333)),
+    Shape("mlsd", (251, 333), batch=False),  # the mirrored bench image has no detections: an empty reference
+    Shape("lineart-anime", (251, 333)),
+    Shape("big-lama", (251, 333)),
     Shape("waft-a1", (237, 331), tol=2e-2),
     Shape("flowformer-small-things", (237, 331), tol=2e-2),
     Shape("megaflow", (237, 331), tol=2e-2),

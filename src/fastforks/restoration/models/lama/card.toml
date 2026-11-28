@@ -3,7 +3,7 @@ name = "LaMa (big-lama inpainting)"
 summary = "LaMa (Suvorov et al., WACV 2022): resolution-robust large-mask inpainting with fast Fourier convolutions: an encoder of three strided convs, 18 FFC residual blocks whose global branch convolves in the frequency domain (an image-wide receptive field from the first block) and a transposed-conv decoder. big-lama (51 M parameters) is the authors' best model, trained on Places365 at 256 x 256 and works at higher resolutions. Pass `mask=` (nonzero = the region to fill); the rest of the image is kept unchanged."
 tier = "experimental"
 outputs = ["image"]
-uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_conv", "mlx_port", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The labeled comparison scores masked regions of 50 inpainting cases from 25 DIV2K validation images cropped to 512 x 512.",
   "Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.",

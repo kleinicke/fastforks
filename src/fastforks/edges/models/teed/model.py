@@ -136,6 +136,9 @@ class _MlxPortable(_OneImage):
             skeleton=TED,
             sources=mlx_net.SOURCES,
         )
+        from fastforks._core.mlx import request_cache  # noqa: PLC0415 - imports mlx
+
+        request_cache(self, 512)  # the buffer cache the network's temporaries reuse (held while this runner lives)
 
     def _edges(self, x: torch.Tensor) -> torch.Tensor:
         """The edge map `[B, h, w]` at the detect size of `x` `[B, 3, h, w]` in 0..255."""
