@@ -43,7 +43,9 @@ certainty of every pixel on the GPU (about 144 MB for a 3000x4000 image), `v` ho
 single calls; for a stream of frames without a known pair list, RoMa v2 has the option `keep_descriptors=N`.
 
 `estimate_pose` is batched (`[P, N, 2]` points, `[P, 3, 3]` intrinsics: all pairs in one call) and has a `portable`
-(plain PyTorch) and a `kernels` (CUDA) backend like the models; `mode="auto"` picks the kernels when they load.
+(plain PyTorch), a `kernels` (CUDA) and an `mlx` (Metal kernels on Apple silicon, no torch needed) backend;
+`mode="auto"` picks the CUDA kernels for CUDA inputs, MLX on Apple silicon otherwise (logged; `FASTFORKS_MLX=0` keeps
+it on PyTorch). `estimate_fundamental` and `estimate_absolute_pose` take the same modes.
 """
 
 from fastforks._core.arguments import renamed_attributes

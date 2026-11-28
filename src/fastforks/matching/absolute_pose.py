@@ -66,7 +66,7 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
     *,
     threshold: float = 2.0,
     mask: torch.Tensor | None = None,
-    mode: Literal["auto", "portable", "kernels"] = "auto",
+    mode: Literal["auto", "portable", "kernels", "mlx"] = "auto",
 ) -> AbsolutePose:
     """P3P RANSAC + refinement of pixel-to-world matches, one camera or a batch at once.
 
@@ -76,8 +76,7 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
         k: Intrinsics, `[3, 3]` or `[P, 3, 3]`.
         threshold: Inlier threshold in pixels (reprojection error).
         mask: `[N]` / `[P, N]` bool, the matches to use (cameras of a batch with fewer matches pad with false).
-        mode: `"portable"` is plain PyTorch (any device); `"kernels"` the CUDA kernels (raise
-            `KernelUnavailableError` where they cannot run); `"auto"` the kernels on a CUDA device that has them.
+        mode: As for `estimate_pose` (`"mlx"`: the Metal kernels on Apple silicon).
 
     Returns:
         The `AbsolutePose`, unbatched if the inputs were.
@@ -86,6 +85,10 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
         InputError: Shapes do not match, fewer than 4 matches, or a non-positive threshold.
         KernelUnavailableError: `mode="kernels"` without a usable kernel binary / CUDA device.
     """
+    if rp._mlx(mode, points2d, "absolute"):  # noqa: SLF001
+        from fastforks.matching import mlx_pose  # noqa: PLC0415 - needs the mlx extra
+
+        return mlx_pose.estimate_absolute_pose(points2d, points3d, k, threshold=threshold, mask=mask)
     points2d = rp._tensor(points2d, "points2d")  # noqa: SLF001
     points3d = rp._tensor(points3d, "points3d", points2d.device)  # noqa: SLF001
     batched = points2d.dim() == 3  # noqa: PLR2004 - [P, N, 2]

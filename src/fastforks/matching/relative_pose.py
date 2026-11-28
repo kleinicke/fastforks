@@ -25,11 +25,17 @@ RoMa v2 matches (AUC@5 69.9 against 68.6 at the 0.5 px of the matching benchmark
 
 from __future__ import annotations
 
+import functools
+import importlib.util
 import logging
 import math
+import os
+import platform
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
+from fastforks._core.arrays import is_tensor
 from fastforks._core.errors import InputError, KernelUnavailableError
 from fastforks._core.lazy import lazy
 from fastforks._core.outputs import short_repr
@@ -73,6 +79,9 @@ _LO_DTYPE = "float32"  # a torch dtype name (torch is imported at the first call
 _LM_FINAL = 10
 _MSAC = True
 _LM_ROUND = 0
+# `mode="auto"` on Apple silicon (no CUDA): the solvers whose MLX kernels beat every other Mac path, single pair and
+# batched (docs/plans/gpu-pose-solver.md, "MLX kernels").
+_MLX_AUTO = frozenset({"essential", "fundamental", "absolute"})
 _SCORE_ELEMENTS = 2**26  # portable scoring chunk: elements of the [A, C, 5, n] Sampson intermediate (256 MB fp32)
 
 
@@ -121,7 +130,7 @@ def estimate_fundamental(
     *,
     threshold: float = 0.5,
     mask: torch.Tensor | None = None,
-    mode: Literal["auto", "portable", "kernels"] = "auto",
+    mode: Literal["auto", "portable", "kernels", "mlx"] = "auto",
 ) -> FundamentalMatrix:
     """Fundamental-matrix RANSAC (7-point solver) of pixel matches with unknown intrinsics, one pair or a batch.
 
@@ -139,6 +148,10 @@ def estimate_fundamental(
         InputError: Shapes do not match, fewer than 7 matches, or a non-positive threshold.
         KernelUnavailableError: `mode="kernels"` without a usable kernel binary / CUDA device.
     """
+    if _mlx(mode, points1, "fundamental"):
+        from fastforks.matching import mlx_pose  # noqa: PLC0415 - needs the mlx extra
+
+        return mlx_pose.estimate_fundamental(points1, points2, threshold=threshold, mask=mask)
     batched, p1, p2, valid = _check(points1, points2, threshold, mask, MIN_MATCHES_F)
     # Hartley normalisation as "intrinsics": centroid per image, one scale per pair (the mean distance from the
     # centroids over both images), so the Sampson error of the normalised problem is exactly scale^2 times the
@@ -215,7 +228,7 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
     *,
     threshold: float = 1.0,
     mask: torch.Tensor | None = None,
-    mode: Literal["auto", "portable", "kernels"] = "auto",
+    mode: Literal["auto", "portable", "kernels", "mlx"] = "auto",
 ) -> RelativePose:
     """Essential-matrix RANSAC + `recoverPose` of pixel matches, one pair or a batch of pairs at once.
 
@@ -228,7 +241,9 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
             upstream matching benchmarks do.
         mask: `[N]` / `[P, N]` bool, the matches to use (pairs of a batch with fewer matches pad with false).
         mode: `"portable"` is plain PyTorch (any device); `"kernels"` the CUDA kernels (raise
-            `KernelUnavailableError` where they cannot run); `"auto"` the kernels on a CUDA device that has them.
+            `KernelUnavailableError` where they cannot run); `"mlx"` the Metal kernels on Apple silicon (`mlx`
+            extra; no torch needed: NumPy inputs give `fastforks.get_outputs()` results); `"auto"` the kernels on a
+            CUDA device that has them, else MLX on Apple silicon where it is the fastest (`_MLX_AUTO`, logged once).
 
     Returns:
         The `RelativePose`, unbatched if the inputs were.
@@ -237,6 +252,10 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
         InputError: Shapes do not match, fewer than 5 matches, or a non-positive threshold.
         KernelUnavailableError: `mode="kernels"` without a usable kernel binary / CUDA device.
     """
+    if _mlx(mode, points1, "essential"):
+        from fastforks.matching import mlx_pose  # noqa: PLC0415 - needs the mlx extra
+
+        return mlx_pose.estimate_pose(points1, points2, k1, k2, threshold=threshold, mask=mask)
     batched, p1, p2, valid = _check(points1, points2, threshold, mask, MIN_MATCHES)
     k1, k2 = (_intrinsics(k, name, p1) for k, name in ((k1, "k1"), (k2, "k2")))
     solver = _solver(mode, p1.device)
@@ -255,12 +274,43 @@ def _intrinsics(k: object, name: str, like: torch.Tensor) -> torch.Tensor:
     return t.reshape(-1, 3, 3).to(torch.float32).expand(like.shape[0], 3, 3)
 
 
+def _mlx(mode: str, points: object, solver: str) -> bool:
+    """Whether a call runs the MLX kernels.
+
+    `mode="mlx"`, or `auto` off CUDA on Apple silicon for the solvers of `_MLX_AUTO` (logged once per solver).
+    """
+    if mode == "mlx":
+        return True
+    if mode != "auto" or solver not in _MLX_AUTO or not _apple_mlx():
+        return False
+    if is_tensor(points) and points.device.type == "cuda":
+        return False
+    _announce_mlx(solver)
+    return True
+
+
+@functools.cache
+def _apple_mlx() -> bool:
+    """Apple silicon with the `mlx` package, and `FASTFORKS_MLX` not `0`."""
+    return (
+        sys.platform == "darwin"
+        and platform.machine() == "arm64"
+        and os.environ.get("FASTFORKS_MLX", "1") != "0"
+        and importlib.util.find_spec("mlx") is not None
+    )
+
+
+@functools.cache
+def _announce_mlx(solver: str) -> None:
+    log.info("mode='auto' runs the %s RANSAC on the MLX Metal kernels (fastforks.kernels.ransac_mlx)", solver)
+
+
 def _solver(mode: str, device: torch.device) -> CubinModule | None:
     """The kernel module for `mode` on `device`, `None` for the portable path."""
     if mode == "portable":
         return None
     if mode not in {"auto", "kernels"}:
-        msg = f"mode must be 'auto', 'portable' or 'kernels', got {mode!r}"
+        msg = f"mode must be 'auto', 'portable', 'kernels' or 'mlx', got {mode!r}"
         raise InputError(msg)
     if device.type != "cuda":
         if mode == "kernels":
