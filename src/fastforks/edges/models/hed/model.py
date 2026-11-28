@@ -86,8 +86,61 @@ class Kernels(Portable):
         prepare_generic(self.net, ctx.device)
 
 
+def _skeleton() -> ControlNetHED_Apache2:
+    """The network without its checkpoint."""
+    return ControlNetHED_Apache2()
+
+
+class _MlxPortable(Portable):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), the side maps' resize and average as `Portable`."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        def real() -> ControlNetHED_Apache2:
+            net = _skeleton()
+            net.load_state_dict(ctx.state_dict())
+            return net.eval()
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=real,
+            skeleton=_skeleton,
+            sources=mlx_net.SOURCES,
+        )
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Soft edge map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        x = to_detect(image, self.ctx.params.short_side)
+        sides = self.mlx(to_mx(x.permute(0, 2, 3, 1).contiguous()))
+        acc = to_torch(sides[0])[..., 0]
+        for e in sides[1:]:
+            acc = (
+                acc
+                + F.interpolate(to_torch(e).permute(0, 3, 1, 2), x.shape[-2:], mode="bilinear", align_corners=False)[
+                    :, 0
+                ]
+            )
+        edge = torch.sigmoid(acc / len(sides))
+        if self.ctx.params.safe:
+            edge = safe_step(edge)
+        return {"edges": to_input(edge, image)}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, half_wino_f32=True),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaces
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, half_wino_f32=True)}

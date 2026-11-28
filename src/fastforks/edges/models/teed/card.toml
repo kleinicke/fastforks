@@ -3,7 +3,7 @@ name = "TEED edges"
 summary = "Tiny and efficient edge detector (Soria et al., ICCV 2023 workshops; controlnet_aux `TEEDdetector`, ComfyUI's \"TEED Soft-Edge Lines\"): a 58 k-parameter network whose four outputs are averaged into a soft edge map, quantized to a few levels by default."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["teed", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["teed", "cuda_graphs", "mlx_port", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"

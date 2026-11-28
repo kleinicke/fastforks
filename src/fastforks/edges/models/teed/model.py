@@ -111,9 +111,48 @@ class _OneImage(Portable):
     batch = 1
 
 
+class _MlxPortable(_OneImage):
+    """Apple MLX: the network written in MLX operations and Metal kernels (`mlx_net`); one image per call."""
+
+    module = Runner.module  # the MLX network is not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        Runner.__init__(self, ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        def real() -> TED:
+            net = TED()
+            net.load_state_dict(ctx.state_dict())
+            return net.eval()
+
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.network(net, ctx.dtype),
+            real=real,
+            skeleton=TED,
+            sources=mlx_net.SOURCES,
+        )
+
+    def _edges(self, x: torch.Tensor) -> torch.Tensor:
+        """The edge map `[B, h, w]` at the detect size of `x` `[B, 3, h, w]` in 0..255."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+        from fastforks.shared.teed import mlx_net  # noqa: PLC0415 - imports mlx
+
+        edge = to_torch(mlx_net.edge_map(self.mlx(to_mx(x.permute(0, 2, 3, 1).float().contiguous()))))
+        if self.ctx.params.safe_steps:
+            edge = safe_step(edge, self.ctx.params.safe_steps)
+        return edge
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OneImage),
-    "kernels_mlx": mlx_wrap.port(_OneImage),
+    "portable_mlx": _MlxPortable,
+    "kernels_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaces
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OneImage), "kernels_mlx": mlx_wrap.port(_OneImage)}

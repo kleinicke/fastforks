@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastforks._core.mlx import metal_kernel, mx, to_mx
+from fastforks._core.mlx import metal_kernel, mx
 from fastforks.kernels.conv_mlx import ops as conv_ops
 from fastforks.shared.mlx_graph import _conv_transpose2d_phases, conv1x1, conv1x1_ok
+from fastforks.shared.swin_sr import mlx_net as swin
 
 if TYPE_CHECKING:
     from .net.ted import TED
@@ -114,8 +115,8 @@ class _Conv:
     """A dense convolution with its bias: a GEMM, `conv_mlx.direct` or `mx.conv2d`, whichever is fastest."""
 
     def __init__(self, conv: Any, dtype: mx.Dtype) -> None:  # noqa: ANN401 - a torch module
-        self.w = to_mx(conv.weight.detach().float().permute(0, 2, 3, 1).contiguous()).astype(dtype)  # OHWI
-        self.b = to_mx(conv.bias.detach().float()).astype(dtype)
+        self.w = swin.arr(conv.weight.permute(0, 2, 3, 1), dtype)  # OHWI
+        self.b = swin.arr(conv.bias, dtype)
         self.stride: tuple[int, int] = tuple(conv.stride)
         self.padding: tuple[int, int] = tuple(conv.padding)
         co, kh, kw, ci = self.w.shape
@@ -142,9 +143,9 @@ class _Up:
         mods = list(block.features)
         self.steps = []
         for conv, deconv in zip(mods[0::3], mods[2::3], strict=True):
-            w = to_mx(deconv.weight.detach().float().contiguous()).astype(dtype)  # [Cin, Cout, kh, kw]
+            w = swin.arr(deconv.weight, dtype)  # [Cin, Cout, kh, kw]
             wt = mx.transpose(w, (1, 2, 3, 0))  # `mx.conv_transpose2d`'s [Cout, kh, kw, Cin]
-            bias = to_mx(deconv.bias.detach().float()).astype(dtype)
+            bias = swin.arr(deconv.bias, dtype)
             self.steps.append((_Conv(conv, dtype), w, wt, bias, tuple(deconv.stride), tuple(deconv.padding)))
 
     def __call__(self, x: mx.array) -> mx.array:
@@ -171,10 +172,11 @@ class MlxTED:
         self.ups = (_Up(net.up_block_1, dtype), _Up(net.up_block_2, dtype), _Up(net.up_block_3, dtype))
         fuse = net.block_cat
         # [tap, out channel] float32; DWconv1's output channel c reads input channel c // 8
-        self.fuse_w1 = to_mx(fuse.DWconv1.weight.detach().float()[:, 0].permute(1, 2, 0).reshape(9, 24).contiguous())
-        self.fuse_b1 = to_mx(fuse.DWconv1.bias.detach().float())
-        self.fuse_w2 = to_mx(fuse.DWconv2.weight.detach().float()[:, 0].permute(1, 2, 0).reshape(9, 24).contiguous())
-        self.fuse_b2 = to_mx(fuse.DWconv2.bias.detach().float().sum().reshape(1))
+        f32 = mx.float32
+        self.fuse_w1 = swin.arr(fuse.DWconv1.weight[:, 0].permute(1, 2, 0).reshape(9, 24), f32)
+        self.fuse_b1 = swin.arr(fuse.DWconv1.bias, f32)
+        self.fuse_w2 = swin.arr(fuse.DWconv2.weight[:, 0].permute(1, 2, 0).reshape(9, 24), f32)
+        self.fuse_b2 = swin.derived((1,), f32, lambda: fuse.DWconv2.bias.detach().double().numpy().sum().reshape(1))
         mx.eval(self.fuse_w1, self.fuse_b1, self.fuse_w2, self.fuse_b2)
 
     def _fuse(self, heads: list[mx.array]) -> mx.array:
