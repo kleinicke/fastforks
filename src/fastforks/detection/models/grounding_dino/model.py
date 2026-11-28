@@ -424,7 +424,9 @@ class _MlxPortable(Portable):
     """
 
     module = Runner.module  # the MLX network is not exportable
-    CACHE_MB: ClassVar[dict[str, int]] = {}  # the buffer cache this mode asks for, by variant ('*': all)
+    # 1080 x 1920 e2e float16 tiny: 402 / 397 / 388 / 385 / 362 ms at a 0 / 128 / 256 / 512 / 1024 MB cache
+    # (base 582 / 580 / 569 / 573 / 543, float32 tiny 494 / 496 / 482 / 468 / 458); 1024 holds a GB for 6 %
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 512}
 
     def __init__(self, ctx: Context) -> None:
         """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
@@ -472,7 +474,7 @@ class _MlxPortable(Portable):
                 self._text.popitem(last=False)
         return q
 
-    def image(self, x: Any, text: Any) -> tuple[Any, Any]:  # noqa: ANN401 - mx.arrays, mlx_net.Text
+    def image(self, x: Any, text: Any) -> tuple[Any, Any]:  # noqa: ANN401  # ty: ignore[invalid-method-override] - MLX in and out
         """Normalised NHWC input (MLX) + text features -> token logits `[Q, T]` and boxes `[Q, 4]` (float32, MLX)."""
         return self.mlx.image(x, text)
 
@@ -495,7 +497,7 @@ class _MlxPortable(Portable):
         keep = scores > score_threshold
         scores, flat = scores[keep], flat[keep]
         cx, cy, bw, bh = bx[flat // n].T
-        xyxy = np.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * np.float32([w, h, w, h])
+        xyxy = np.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * np.array([w, h, w, h], np.float32)
         return {
             "boxes": torch.from_numpy(xyxy.astype(np.float32).reshape(-1, 4)),
             "scores": torch.from_numpy(scores.astype(np.float32)),

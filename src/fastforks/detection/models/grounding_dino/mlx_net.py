@@ -7,19 +7,20 @@ and token valid), channels last, the run dtype unless noted:
   taps, width then height, each pass rounded); ImageNet mean / std; float32 NHWC.
 - Swin backbone: the input padded to the patch, the patch convolution as one GEMM, the layers on `shared.mlx_swin`
   (transformers' Swin: pad after the LayerNorm, -100 shift mask; a map no wider than the window gets no shift), each
-  odd map zero-padded before `PatchMerging`; stages 2-4 normed.
+  odd map zero-padded before `PatchMerging`; stages 2-4 normed. Stage 1's blocks run in two steps (attention, MLP).
 - Input projections: 1 x 1 convolutions as GEMMs, the fourth level a 3 x 3 stride-2 convolution of the stage-4 map,
   GroupNorm (32) with float32 statistics.
 - Text tower (`text`, once per query list): BERT with the phrase mask and phrase position ids, weights stored in the
   run dtype and computed in float32 (upcast layer by layer), the projection; the text position table (transformers
   casts the sine of the integer ids back to int64: only the exact +-1 survive) gathered by the position ids.
-- Encoder layers: the bi-directional fusion (one score matrix, softmax over text for the vision side and over pixels
-  for the text side, float32 softmax), the text enhancer (phrase mask), the deformable layer (offsets and weights one
-  GEMM in float32, the shared `msda` kernel).
+- Encoder layers: the bi-directional fusion (softmax over text for the vision side and over pixels for the text side,
+  float32; `FUSION_ROWS` vision rows at a time, two in flight, the text side's softmax online), the text enhancer
+  (phrase mask), the deformable layer (offsets and weights one GEMM in float32, the shared `msda` kernel).
 - Query selection: the proposals' logits, the encoder output's best token score (float32), the top 900 in descending
   order, the box MLP on those rows only; reference points float32.
-- Decoder: query position from the sine of the reference boxes, self-attention, text cross-attention, deformable
-  cross-attention, FFN; the refinement of the reference points float32 (layers 0-4: the last one's is not used).
+- Decoder, float32 activations (weights in the run dtype): query position from the sine of the reference boxes,
+  self-attention, text cross-attention, deformable cross-attention, FFN; the refinement of the reference points
+  (layers 0-4: the last one's is not used).
 - Heads float32: logits of the normed last hidden state against the text features (MM-Grounding-DINO: / sqrt(d) plus
   its bias), boxes of the last head plus the logit of the last input reference points.
 
@@ -61,6 +62,7 @@ LEVELS, POINTS = 4, 4  # fixed: feature levels and sampling points per level
 REF_EPS = 1e-5  # fixed: the decoder's `torch.special.logit(eps=1e-5)`
 WEIGHT_BITS = 22  # fixed: the uint8 resize's fixed-point precision limit (weights below 2^15: int16)
 VALID = (0.01, 0.99)  # fixed: proposals with a coordinate outside are invalid (`generate_encoder_output_proposals`)
+FUSION_ROWS = 8192  # tuning: vision rows per fusion chunk, two in flight (4096: leaner, 4 % slower)
 _SW = "model.backbone.conv_encoder.model."
 _BERT = "model.text_backbone."
 
@@ -120,6 +122,12 @@ def _mlp(x: mx.array, layers: Sequence[tuple[mx.array, mx.array | None]]) -> mx.
         if i < len(layers) - 1:
             x = mx.maximum(x, 0)
     return x
+
+
+def _cast(wb: tuple[mx.array, mx.array | None], dtype: mx.Dtype) -> tuple[mx.array, mx.array | None]:
+    """A weight / bias pair (an absent bias stays absent) in `dtype`."""
+    w, b = wb
+    return w.astype(dtype), b if b is None else b.astype(dtype)
 
 
 def _ln(x: mx.array, wb: tuple[mx.array, mx.array]) -> mx.array:
@@ -336,10 +344,22 @@ class _SwinBlock(mlx_swin.Block):
 
         self.rpb = swin.derived((1, heads, t, t), dt, rpb)
         self.ln1, self.ln2 = _norm(sd, p + "layernorm_before", dt), _norm(sd, p + "layernorm_after", dt)
+        self.stepped = False
         self.unshifted = self
         if self.shift:
             self.unshifted = copy.copy(self)
             self.unshifted.shift = 0
+
+    def __call__(self, x: mx.array, hw: tuple[int, int]) -> mx.array:
+        """`mlx_swin.Block`; `stepped` (stage 1): in two steps (attention, then MLP), one half's activations live."""
+        g = mlx_swin.windows(*hw, self.window, self.shift, x.dtype)
+        t = self.window * self.window
+        win = mlx_swin.ln_gather(x, g.idx, *self.ln1)
+        qkv = _linear(win, self.qkv).reshape(g.windows, t, 3, self.heads, self.head_dim)
+        hs, y = mlx_swin.gather_add_ln(x, _linear(self._attention(qkv, g), self.o), g.inv, *self.ln2)
+        if self.stepped:
+            mx.eval(hs, y)
+        return _linear(mlx_vit.gelu(_linear(y, self.fc1)), self.fc2) + hs
 
     def run(self, x: mx.array, hw: tuple[int, int]) -> mx.array:
         """The layer on `hw`: a map no wider than the window is one unshifted window (`set_shift_and_window_size`)."""
@@ -375,6 +395,8 @@ class Network:
             p = f"{_SW}encoder.layers.{i}."
             depth = _count(sd, p + "blocks.")
             blocks = [_SwinBlock(sd, f"{p}blocks.{j}.", j % 2 == 1, dt) for j in range(depth)]
+            for b in blocks if i == 0 else ():  # the largest map: its peak above the encoder's (base, float32)
+                b.stepped = b.unshifted.stepped = True
             ds = None
             if p + "downsample.reduction.weight" in sd:
                 ds = (_norm(sd, p + "downsample.norm", dt), _lin(sd, p + "downsample.reduction", dt)[0])
@@ -470,7 +492,7 @@ class Network:
         mask = mx.array(att)[None, None]
         heads = self.bert_heads
         for layer in self.bert:
-            w = {k: tuple(None if a is None else a.astype(f32) for a in v) for k, v in layer.items()}
+            w = {k: _cast(v, f32) for k, v in layer.items()}
             qkv = _linear(x, w["qkv"]).reshape(1, n, 3, heads, -1).transpose(2, 0, 3, 1, 4)
             d = qkv.shape[-1]
             o = _merge(attention(qkv[0], qkv[1], qkv[2], scale=d**-0.5, mask=mask))
@@ -478,8 +500,7 @@ class Network:
             h = _linear(mlx_vit.gelu(_linear(x, w["fc1"])), w["fc2"])
             x = mx.fast.layer_norm(x + h, *w["ln2"], BERT_EPS)
             mx.eval(x)
-        proj = tuple(None if a is None else a.astype(f32) for a in self.text_proj)
-        feat = mlx_port.tap("text_projection", _linear(x, proj)[None])[0].astype(self.dtype)
+        feat = mlx_port.tap("text_projection", _linear(x, _cast(self.text_proj, f32))[None])[0].astype(self.dtype)
         tpos = mx.array(self.text_table[pos]).astype(self.dtype)
         out = Text(feat, tpos, mx.array(att)[None, None])
         mx.eval(out.features, out.positions, out.mask)
@@ -577,17 +598,45 @@ class Network:
 
     def _fusion(self, p: dict[str, Any], v: mx.array, t: mx.array) -> tuple[mx.array, mx.array]:
         """`GroundingDinoFusionLayer`: the bi-directional attention of the normed vision and text features."""
+        f32 = mx.float32
         heads, e = self.fusion_heads, p["out_v"][0].shape[0]
         vn, tn = _ln(v, p["ln_v"]), _ln(t, p["ln_t"])
-        qv = _linear(vn, p["v_proj"])
         kt = _linear(tn, p["t_proj"])
         d = e // heads
-        qh, vv = _heads(qv[:, :e], heads), _heads(qv[:, e:], heads)  # [1, heads, S, d]
         kh, vt = _heads(kt[:, :e], heads), _heads(kt[:, e:], heads)  # [1, heads, T, d]
-        scores = (qh * d**-0.5) @ kh.transpose(0, 1, 3, 2)  # [1, heads, S, T]
-        ov = mx.softmax(scores, axis=-1, precise=True) @ vt
-        ot = mx.softmax(scores.transpose(0, 1, 3, 2), axis=-1, precise=True) @ vv
-        v = vn + p["gamma_v"] * _linear(_merge(ov), p["out_v"])
+        kh = kh.transpose(0, 1, 3, 2) * d**-0.5
+        rows, m, den, acc = [], None, None, None
+        prev: tuple[mx.array, ...] = ()
+        # the vision rows a chunk at a time; the text side's softmax over all rows online (float32)
+        for a in range(0, vn.shape[0], FUSION_ROWS):
+            vc = vn[a : a + FUSION_ROWS]
+            qv = _linear(vc, p["v_proj"])
+            qh, vv = _heads(qv[:, :e], heads), _heads(qv[:, e:], heads)  # [1, heads, R, d]
+            sc = qh @ kh  # [1, heads, R, T]
+            ov = mx.softmax(sc, axis=-1, precise=True) @ vt
+            rows.append(vc + p["gamma_v"] * _linear(_merge(ov), p["out_v"]))
+            sf = sc.astype(f32)
+            cm = mx.max(sf, axis=2, keepdims=True)  # [1, heads, 1, T]
+            nm = cm if m is None else mx.maximum(m, cm)
+            ex = mx.exp(sf - nm)
+            cs = ex.sum(axis=2)  # [1, heads, T]
+            ca = (ex.astype(vv.dtype).transpose(0, 1, 3, 2) @ vv).astype(f32)  # [1, heads, T, d]
+            if m is None:
+                den, acc = cs, ca
+            else:
+                r = mx.exp(m - nm)[:, :, 0]
+                den, acc = den * r + cs, acc * r[..., None] + ca
+            m = nm
+            cur = (rows[-1], m, den, acc)
+            mx.async_eval(*cur)
+            if prev:  # two chunks in flight
+                mx.eval(*prev)
+            prev = cur
+        if acc is None or den is None:
+            msg = "an empty vision map"
+            raise ValueError(msg)
+        ot = (acc / den[..., None]).astype(t.dtype)
+        v = rows[0] if len(rows) == 1 else mx.concatenate(rows)
         t = tn + p["gamma_t"] * _linear(_merge(ot), p["out_t"])
         return v, t
 
@@ -627,11 +676,12 @@ class Network:
     ) -> tuple[mx.array, mx.array]:
         """-> the last hidden state `[Q, 256]` and its input reference points `[Q, 4]` float32."""
         f32 = mx.float32
-        h = self.target
+        # float32 activations (weights in the run dtype): 900 queries, cheap; float16 boxes 0.023 -> 0.019 px (tiny)
+        vis, t, h = vis.astype(f32), t.astype(f32), self.target.astype(f32)
         e = h.shape[-1]
         prev = ref
         for i, p in enumerate(self.dec):
-            qpos = _mlp(_ref_sine(ref).astype(self.dtype), self.ref_head)
+            qpos = _mlp(_ref_sine(ref), self.ref_head)
             q = h + qpos
             qk = _linear(q, p["qk"])
             h = _ln(h + _linear(_attend(qk[:, :e], qk[:, e:], _linear(h, p["v"]), HEADS), p["o"]), p["ln1"])

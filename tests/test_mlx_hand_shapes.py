@@ -30,13 +30,17 @@ pytestmark = [pytest.mark.model, pytest.mark.mlx, pytest.mark.slow]
 
 @dataclass(frozen=True)
 class Shape:
-    """One family's check: a small ref, an odd `(h, w)` input, whether batch 2 is checked, the relative tolerance."""
+    """One family's check: a small ref, an odd `(h, w)` input, whether batch 2 is checked, the relative tolerance.
+
+    `options`: call options on top of the bench inputs (a detector's threshold, so random pixels give detections).
+    """
 
     ref: str
     size: tuple[int, int]
     batch: bool = True
     tol: float = 5e-3
     views: int = 2
+    options: tuple[tuple[str, Any], ...] = ()
 
 
 LABELS = 1e-3  # integer outputs (label maps): at most this share of elements may differ (ties at a boundary)
@@ -52,7 +56,7 @@ SHAPES = [
     Shape("waft-a1", (237, 331), tol=2e-2),
     Shape("flowformer-small-things", (237, 331), tol=2e-2),
     Shape("megaflow", (237, 331), tol=2e-2),
-    Shape("grounding-dino-tiny", (251, 333), batch=False),
+    Shape("grounding-dino-tiny", (251, 333), batch=False, options=(("score_threshold", 0.05),)),
 ]
 
 
@@ -101,6 +105,9 @@ def _check(got: dict[str, np.ndarray], want: dict[str, np.ndarray], tol: float, 
         if g is None or g.shape != w.shape:
             bad.append(f"{what} {k}: shape {None if g is None else g.shape} vs {w.shape}")
             continue
+        if not w.size:  # nothing compared: an empty output checks nothing (a detector without detections)
+            bad.append(f"{what} {k}: empty")
+            continue
         if w.dtype.kind in "iub":  # labels or masks: the share of elements that differ
             share = float(np.mean(g != w))
             if not share <= LABELS:
@@ -124,7 +131,8 @@ def test_hand_matches_reference_at_odd_size_and_batch_2(case: Shape, monkeypatch
     graph = "portable_mlx" in getattr(registry.import_model(card), "GRAPH_RUNNERS", {})
     monkeypatch.setenv("FASTFORKS_MLX_GRAPH", "0")
     model = task.load(case.ref, mode="portable", device="mlx", dtype="float32")
-    inputs = bench_inputs(model, BenchSize(*case.size, case.views))
+    args, kw = bench_inputs(model, BenchSize(*case.size, case.views))
+    inputs = (args, kw | dict(case.options))
     hand = _calls(model, inputs, batch=case.batch)
     del model
     gc.collect()
