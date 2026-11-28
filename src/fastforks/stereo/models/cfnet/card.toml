@@ -3,7 +3,7 @@ name = "CFNet"
 summary = "CFNet (Shen et al. 2021): cascade and fused cost volumes (fused 1/8-1/32 3-D volumes), then two refinement stages that adapt to the uncertainty of the disparity (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_port", "mlx_seg", "mlx_stereo", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/gallenszl/CFNet"
