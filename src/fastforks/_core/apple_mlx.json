@@ -12949,12 +12949,12 @@
   },
   "teed@1": {
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {

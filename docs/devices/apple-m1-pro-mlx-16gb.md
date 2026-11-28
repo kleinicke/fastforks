@@ -361,10 +361,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`hed`](../models/edges.md#hed) | 115 | 96.9 | unsupported | – | – | 1497 | – |
-| [`lineart-anime`](../models/edges.md#lineart_anime) | 79.3 | 61.8 | unsupported | – | – | 1096 | – |
-| [`mlsd`](../models/edges.md#mlsd) | 57.3 | 45.4 | unsupported | – | – | 914 | – |
-| [`teed`](../models/edges.md#teed) | 24.8 | 23.3 | 23.8 | 16.6 | 1.4x | 532 | 535 |
+| [`hed`](../models/edges.md#hed) | 116 | 94.3 | unsupported | – | – | 1393 | – |
+| [`lineart-anime`](../models/edges.md#lineart_anime) | 87.5 | 65.3 | unsupported | – | – | 1377 | – |
+| [`mlsd`](../models/edges.md#mlsd) | 62.7 | 43.5 | unsupported | – | – | 890 | – |
+| [`teed`](../models/edges.md#teed) | 19.0 | 16.5 | 23.8 | 16.6 | 1.0x | 534 | 535 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

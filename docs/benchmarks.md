@@ -327,10 +327,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB (MLX) |
 |---|---|
-| [`hed`](models/edges.md#hed) | 96.9 ms · portable fp16 |
-| [`lineart-anime`](models/edges.md#lineart_anime) | 61.8 ms · portable fp16 |
-| [`mlsd`](models/edges.md#mlsd) | 45.4 ms · portable fp16 |
-| [`teed`](models/edges.md#teed) | 16.6 ms · kernels fp16 |
+| [`hed`](models/edges.md#hed) | 94.3 ms · portable fp16 |
+| [`lineart-anime`](models/edges.md#lineart_anime) | 65.3 ms · portable fp16 |
+| [`mlsd`](models/edges.md#mlsd) | 43.5 ms · portable fp16 |
+| [`teed`](models/edges.md#teed) | 16.5 ms · portable fp16 |
 
 #### Promptable segmentation, 1024x1024
 
