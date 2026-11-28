@@ -340,7 +340,7 @@ class MlxGREAT(MlxIgevUpdate):
         super()._family(net, w)
         eav = net.excitive_attention_volume
         g = eav.global_spatial_refiner
-        self.agr = {
+        self.agr: dict[str, Any] = {
             "pre": w.conv(g.pre_channel_agg[0]),
             "cam": (_lin(w, g.cam_conv[0]), _lin(w, g.cam_conv[2])),
             "sam": w.conv(g.sam_conv),
@@ -365,7 +365,7 @@ class MlxGREAT(MlxIgevUpdate):
         fw, fb, _, _ = w.conv(eav.fuse_stem.conv, eav.fuse_stem.bn)  # (1, 5, 5): a 2-D convolution per plane
         self.fuse = (fw[:, 0], fb)
         agg = eav.eav_agg
-        self.agg = {  # BasicConvs, and lists of them for the `nn.Sequential`s
+        self.agg: dict[str, Any] = {  # BasicConvs, and lists of them for the `nn.Sequential`s
             n: [w.basic(x) for x in sub] if hasattr(sub, "__getitem__") else w.basic(sub)
             for n, sub in agg.named_children()
             if not n.startswith("feature_attn")
@@ -397,9 +397,10 @@ class MlxGREAT(MlxIgevUpdate):
 
     # matching features ------------------------------------------------------------------------------------------------
 
-    def _match(self, x: mx.array) -> mx.array:
+    def _match(self, f4: mx.array) -> mx.array:
         """`AdaptiveGlobalRefiner` of the 1/4 features `[1, H, W, 96]`."""
         a = self.agr
+        x = f4
         f = bl.relu(bl.inorm(bl.conv(x, a["pre"])))
         ff = f.astype(F32)
         pooled = mx.concatenate([ff.mean(axis=(1, 2), keepdims=True), ff.max(axis=(1, 2), keepdims=True)], axis=0)

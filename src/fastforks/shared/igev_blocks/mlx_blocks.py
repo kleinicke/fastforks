@@ -50,7 +50,7 @@ __all__ = [
     "relu",
 ]
 
-Conv = tuple[mx.array, mx.array, int, int]  # weight [O, k.., I], bias, stride, padding
+Conv = tuple[mx.array, mx.array, int | tuple[int, ...], int | tuple[int, ...]]  # weight [O, k.., I], bias, stride, pad
 IN_EPS = 1e-05  # nn.InstanceNorm2d's
 
 
@@ -138,7 +138,7 @@ class Weights:
         """`nn.Conv2d` / `nn.Conv3d` (and a batch norm after it)."""
         nd = m.weight.ndim
         w, b = self.pair(m, norm, (0, *range(2, nd), 1))
-        return w, b, _ints(m.stride), _ints(m.padding)  # type: ignore[return-value]
+        return w, b, _ints(m.stride), _ints(m.padding)
 
     def deconv(self, m: Any, norm: Any = None) -> Conv:  # noqa: ANN401
         """`nn.ConvTranspose2d`: weight `[Cout, kh, kw, Cin]`."""
@@ -295,6 +295,9 @@ def deconv(x: mx.array, c: Conv) -> mx.array:
     """A transposed 2-D convolution (`[Cout, kh, kw, Cin]`) or 3-D one (`[Cin, Cout, kd, kh, kw]`, stride 2)."""
     w, b, stride, padding = c
     if w.ndim == 5:  # noqa: PLR2004
+        if not isinstance(stride, int) or not isinstance(padding, int):  # pragma: no cover - the nets' are uniform
+            msg = f"igev mlx: a 3-D transposed convolution with per-axis stride {stride} / padding {padding}"
+            raise TypeError(msg)
         k = w.shape[2] - 2 * padding - stride  # output padding of an exact stride-x up-sampling
         y = _conv_transpose3d_phases(x, w, (stride,) * 3, (padding,) * 3, (k,) * 3)
         if y is None:  # pragma: no cover - the pair is padded to 32s, every volume level halves exactly
