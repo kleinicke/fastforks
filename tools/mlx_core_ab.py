@@ -589,6 +589,7 @@ QUICK_SCALE = 0.5  # the input side, as a share of the survey's (a smaller input
 QUICK_ROUND = 3  # timed samples per round
 QUICK_MIN_ROUNDS, QUICK_MAX_ROUNDS = 2, 8
 QUICK_BASE_ROUNDS = 3  # rounds of the graph baseline (measured once per session, ref, mode, dtype and size)
+REF_TRIES = 3  # reference net calls per reference sample (the fastest counts)
 QUICK_CHUNK = 0  # refs per process under `--lock` (`quick_chunks`; 0: all in one)
 BASELINE_DIR = Path(os.environ.get("FASTFORKS_AB_BASELINE", "/Volumes/Daten/ff-mlx/ab-baseline"))
 
@@ -634,7 +635,12 @@ def _normalized(net: list[float], ref: list[float]) -> list[float]:
 
 
 def _ref_net(mx: Any) -> Callable[[], float]:  # noqa: ANN401 - mlx.core
-    """A fixed small float16 network (matmuls and a convolution): its call time in ms (the drift reference)."""
+    """A fixed small float16 network (matmuls and a convolution): its call time in ms (the drift reference).
+
+    The fastest of `REF_TRIES` calls: right after a large network the first small call can take twice as long (the
+    big network's buffers being released), which is no drift of the GPU; a GPU shared with another job stays slower
+    over all of them.
+    """
     keys = mx.random.split(mx.random.key(0), 6)
     x = mx.random.normal((256, 512), key=keys[0]).astype(mx.float16)
     ws = [(mx.random.normal((512, 512), key=k) / 23).astype(mx.float16) for k in keys[1:5]]
@@ -642,7 +648,7 @@ def _ref_net(mx: Any) -> Callable[[], float]:  # noqa: ANN401 - mlx.core
     wc = (mx.random.normal((32, 3, 3, 32), key=keys[5]) / 17).astype(mx.float16)
     mx.eval(x, img, wc, *ws)
 
-    def call() -> float:
+    def once() -> float:
         t0 = time.perf_counter()
         for _ in range(4):
             y = x
@@ -653,8 +659,11 @@ def _ref_net(mx: Any) -> Callable[[], float]:  # noqa: ANN401 - mlx.core
         mx.synchronize()
         return 1e3 * (time.perf_counter() - t0)
 
+    def call() -> float:
+        return min(once() for _ in range(REF_TRIES))
+
     for _ in range(3):
-        call()
+        once()
     return call
 
 
@@ -722,24 +731,25 @@ def _quick_arm(
     loops = _loops(1e3 * timers.seconds)
     transients: list[int] = []
 
+    ms: list[float] = []
+    refs: list[float] = []
+
     def sample() -> float:
         timers.reset()
         for _ in range(loops):
             call()
         transients.append(timers.transient)
-        return 1e3 * timers.seconds / loops
-
-    ms: list[float] = []
-
-    def sample_ms() -> float:
-        ms.append(sample())
+        ms.append(1e3 * timers.seconds / loops)
         return ms[-1]
 
-    out["norm"], out["ci"] = _quick_rounds(sample_ms, ref, rounds, base)
+    def ref_ms() -> float:
+        refs.append(ref())
+        return refs[-1]
+
+    out["norm"], out["ci"] = _quick_rounds(sample, ref_ms, rounds, base)
     timers.on = False
-    out["net_ms"] = round(statistics.median(ms), 3)
-    out["net_transient_mb"] = round(max(transients) / 2**20, 1)
-    out["samples"] = len(ms)
+    out |= {"ref_ms": round(statistics.median(refs), 4), "net_ms": round(statistics.median(ms), 3)}
+    out |= {"net_transient_mb": round(max(transients) / 2**20, 1), "samples": len(ms)}
     if ctx["golden"]:
         held = [model]
         del model
@@ -825,7 +835,10 @@ def _quick_line(job: dict[str, Any], size: str, hand: dict[str, Any], base: dict
     ci_s = f"[{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "[-]"
     tx = (hand["net_transient_mb"] + 1) / (base["net_transient_mb"] + 1)
     out = f"{job['ref']:32s} {job['dtype']:8s} {size:>9s}  warm {hand['net_ms']:9.2f} / {base['net_ms']:9.2f} ms"
-    out += f" x{ratio:.3f} {ci_s} {_verdict(ci):6s}  transient {hand['net_transient_mb']:7.1f} /"
+    out += f" x{ratio:.3f} {ci_s} {_verdict(ci):6s}"
+    if "ref_ms" in base:  # the raw ratio and how far the reference net moved since the baseline
+        out += f" (raw x{hand['net_ms'] / base['net_ms']:.3f}, ref drift x{hand['ref_ms'] / base['ref_ms']:.2f})"
+    out += f"  transient {hand['net_transient_mb']:7.1f} /"
     out += f" {base['net_transient_mb']:7.1f} MB x{tx:.2f}"
     hq, gq = hand.get("quality", {}), base.get("quality", {})
     if "mean" in hq:
