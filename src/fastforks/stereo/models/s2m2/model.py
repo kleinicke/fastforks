@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -37,15 +38,20 @@ class Params:
 _UNUSED = ("feature_flow_attn.q_proj.", "feature_flow_attn.k_proj.", "upsample_mask_4x.", "disp_init.layer_norm1.")
 
 
-def _net(ctx: Context) -> S2M2:
+def _skeleton(ctx: Context) -> S2M2:
+    """The network without weights (its structure only)."""
     p: Params = ctx.params
-    net = S2M2(
+    return S2M2(
         feature_channels=p.feature_channels,
         dim_expansion=p.dim_expansion,
         num_transformer=p.num_transformer,
         use_positivity=p.use_positivity,
         refine_iter=p.refine_iter,
     )
+
+
+def _net(ctx: Context) -> S2M2:
+    net = _skeleton(ctx)
     # Strict, unlike upstream's `my_load_state_dict` (which keeps the random init of a tensor whose shape differs and
     # ignores unknown keys), except for the tensors every released checkpoint carries but the network does not use.
     load_strict(net, ctx.state_dict(key="state_dict"), f"{ctx.variant.ref} checkpoint", unused=_UNUSED)
@@ -148,11 +154,43 @@ class _OnePair(Portable):
     batch = 1
 
 
+class _MlxPortable(_S2M2Runner):
+    """The network in MLX operations (`mlx_net`: no exported graph), one pair per call."""
+
+    batch = 1
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX network from the conversion cache (the checkpoint only on a miss); no PyTorch one kept."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `mlx_wrap.port` builds this in float32
+        self.net = mlx_port.recorded(
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxS2M2(net, run.dtype),
+            real=lambda: _net(ctx),
+            skeleton=lambda: _skeleton(ctx),
+            sources=mlx_net.SOURCES,
+        )
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity, confidence and occlusion of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        out = self.net(to_mx(left.float()), to_mx(right.float()))
+        return {k: to_torch(v) for k, v in out.items()}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_run",)),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
 }
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_run",))}
 
 
 def image_pad(img: torch.Tensor, factor: int) -> torch.Tensor:

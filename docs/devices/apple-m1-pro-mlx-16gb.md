@@ -81,10 +81,10 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`raft-stereo-middlebury`](../models/stereo.md#raft_stereo) | 5151 | 3214 | 4193 | 2370 | 1.4x | 2746 | 3898 |
 | [`raft-stereo-sceneflow`](../models/stereo.md#raft_stereo) | 5151 | 3169 | 4162 | 2361 | 1.3x | 2741 | 3874 |
 | [`rt-monster-plusplus-mix-all`](../models/stereo.md#rt_monster_plusplus) | 891 | 605 | 852 | 511 | 1.2x | 1453 | 1591 |
-| [`s2m2-l`](../models/stereo.md#s2m2) | 8523 | 5464 | – | – | – | 5135 | – |
-| [`s2m2-m`](../models/stereo.md#s2m2) | 6278 | 4085 | – | – | – | 3490 | – |
-| [`s2m2-s`](../models/stereo.md#s2m2) | 4036 | 1835 | unsupported | – | – | 2779 | – |
-| [`s2m2-xl`](../models/stereo.md#s2m2) | 13001 | 10264 | – | – | – | 8376 | – |
+| [`s2m2-l`](../models/stereo.md#s2m2) | 5554 | 4233 | – | – | – | 4688 | – |
+| [`s2m2-m`](../models/stereo.md#s2m2) | 3361 | 2588 | – | – | – | 3796 | – |
+| [`s2m2-s`](../models/stereo.md#s2m2) | 1810 | 1379 | unsupported | – | – | 3047 | – |
+| [`s2m2-xl`](../models/stereo.md#s2m2) | 10391 | 8122 | – | – | – | 6420 | – |
 | [`selective-igev-eth3d-finetune`](../models/stereo.md#selective_igev) | 5420 | 3757 | 5448 | 3751 | 1.0x | 2776 | 2767 |
 | [`selective-igev-eth3d-train`](../models/stereo.md#selective_igev) | 5405 | 3753 | 5386 | 3755 | 1.0x | 2777 | 2768 |
 | [`selective-igev-kitti12`](../models/stereo.md#selective_igev) | 5443 | 3745 | 5363 | 3757 | 1.0x | 2764 | 2781 |

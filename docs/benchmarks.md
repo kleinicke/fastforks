@@ -118,10 +118,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`raft-stereo-middlebury`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3634 ms · kernels fp16 | 2370 ms · kernels fp16 | 416 ms · kernels fp16 | 121 ms · kernels fp16 | 313 ms · kernels fp16 | 110 ms · kernels fp16 | 63.6 ms · kernels fp16 |
 | [`raft-stereo-sceneflow`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3637 ms · kernels fp16 | 2361 ms · kernels fp16 | – | – | – | – | 63.6 ms · kernels fp16 |
 | [`rt-monster-plusplus-mix-all`](models/stereo.md#rt_monster_plusplus) | – | 612 ms · portable fp16 | 511 ms · kernels fp16 | 125 ms · kernels fp16 | 48.3 ms · portable fp16 | 105 ms · kernels fp16 | 49.4 ms · portable fp16 | 23.6 ms · kernels fp16 |
-| [`s2m2-l`](models/stereo.md#s2m2) | 376 ms · kernels fp16 | 6590 ms · portable fp16 | 5464 ms · portable fp16 | – | – | – | – | 91.7 ms · kernels fp16 |
-| [`s2m2-m`](models/stereo.md#s2m2) | 248 ms · kernels fp16 | 3620 ms · portable fp16 | 4085 ms · portable fp16 | – | – | – | – | 61.1 ms · kernels fp16 |
-| [`s2m2-s`](models/stereo.md#s2m2) | 113 ms · kernels fp16 | 1606 ms · portable fp16 | 1835 ms · portable fp16 | 163 ms · kernels fp16 | 56.8 ms · kernels fp16 | 137 ms · kernels fp16 | 62.4 ms · kernels fp16 | 29.0 ms · kernels fp16 |
-| [`s2m2-xl`](models/stereo.md#s2m2) | 682 ms · kernels fp16 | 13398 ms · portable fp16 | 10264 ms · portable fp16 | 1152 ms · kernels fp16 | 310 ms · kernels fp16 | 822 ms · kernels fp16 | 312 ms · kernels fp16 | 168 ms · kernels fp16 |
+| [`s2m2-l`](models/stereo.md#s2m2) | 376 ms · kernels fp16 | 6590 ms · portable fp16 | 4233 ms · portable fp16 | – | – | – | – | 91.7 ms · kernels fp16 |
+| [`s2m2-m`](models/stereo.md#s2m2) | 248 ms · kernels fp16 | 3620 ms · portable fp16 | 2588 ms · portable fp16 | – | – | – | – | 61.1 ms · kernels fp16 |
+| [`s2m2-s`](models/stereo.md#s2m2) | 113 ms · kernels fp16 | 1606 ms · portable fp16 | 1379 ms · portable fp16 | 163 ms · kernels fp16 | 56.8 ms · kernels fp16 | 137 ms · kernels fp16 | 62.4 ms · kernels fp16 | 29.0 ms · kernels fp16 |
+| [`s2m2-xl`](models/stereo.md#s2m2) | 682 ms · kernels fp16 | 13398 ms · portable fp16 | 8122 ms · portable fp16 | 1152 ms · kernels fp16 | 310 ms · kernels fp16 | 822 ms · kernels fp16 | 312 ms · kernels fp16 | 168 ms · kernels fp16 |
 | [`selective-igev-eth3d-finetune`](models/stereo.md#selective_igev) | – | 5708 ms · kernels fp16 | 3751 ms · kernels fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
 | [`selective-igev-eth3d-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 | 3753 ms · portable fp16 | – | – | – | – | 89.3 ms · kernels fp16 |
 | [`selective-igev-kitti12`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5709 ms · kernels fp16 | 3745 ms · portable fp16 | – | – | – | – | 89.2 ms · kernels fp16 |
