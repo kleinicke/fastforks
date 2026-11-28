@@ -364,8 +364,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dfine-s-coco`](models/detection.md#dfine) | – | 41.0 ms · portable fp16 | 29.4 ms · portable fp16 | – | – | – | – | 2.37 ms · kernels fp16 |
 | [`dfine-x-coco`](models/detection.md#dfine) | – | 101 ms · portable fp16 | 77.9 ms · portable fp16 | 14.8 ms · kernels fp16 | 6.81 ms · kernels fp16 | 14.4 ms · kernels fp16 | 13.1 ms · kernels fp16 | 6.05 ms · kernels fp16 |
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 19.5 ms · kernels fp16 | 192 ms · portable fp16 | 123 ms · portable fp16 | 19.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 18.1 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.86 ms · kernels fp16 |
-| [`grounding-dino-base`](models/detection.md#grounding_dino) | – | 1075 ms · portable fp32 | 889 ms · portable fp16 | – | – | – | – | – |
-| [`grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 846 ms · portable fp32 | 753 ms · portable fp16 | – | – | – | – | – |
+| [`grounding-dino-base`](models/detection.md#grounding_dino) | – | 1075 ms · portable fp32 | 606 ms · portable fp16 | – | – | – | – | – |
+| [`grounding-dino-tiny`](models/detection.md#grounding_dino) | – | 846 ms · portable fp32 | 387 ms · portable fp16 | – | – | – | – | – |
 | [`lw-detr-large-coco`](models/detection.md#lwdetr) | – | 72.7 ms · portable fp16 | 60.2 ms · portable fp16 | – | – | – | – | – |
 | [`lw-detr-medium-coco`](models/detection.md#lwdetr) | – | 47.2 ms · portable fp16 | 40.7 ms · portable fp16 | – | – | – | – | – |
 | [`lw-detr-small-coco`](models/detection.md#lwdetr) | – | 54.7 ms · portable fp16 | 28.4 ms · portable fp16 | – | – | – | – | – |

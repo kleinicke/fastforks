@@ -410,8 +410,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dfine-s-coco`](../models/detection.md#dfine) | 30.7 | 29.4 | unsupported | – | – | 512 | – |
 | [`dfine-x-coco`](../models/detection.md#dfine) | 99.4 | 77.9 | unsupported | – | – | 1220 | – |
 | [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 146 | 123 | unsupported | – | – | 1123 | – |
-| [`grounding-dino-base`](../models/detection.md#grounding_dino) | 1189 | 889 | unsupported | – | – | 1687 | – |
-| [`grounding-dino-tiny`](../models/detection.md#grounding_dino) | 933 | 753 | unsupported | – | – | 1499 | – |
+| [`grounding-dino-base`](../models/detection.md#grounding_dino) | 689 | 606 | unsupported | – | – | 1645 | – |
+| [`grounding-dino-tiny`](../models/detection.md#grounding_dino) | 463 | 387 | unsupported | – | – | 1525 | – |
 | [`lw-detr-large-coco`](../models/detection.md#lwdetr) | 63.2 | 60.2 | unsupported | – | – | 1005 | – |
 | [`lw-detr-medium-coco`](../models/detection.md#lwdetr) | 45.3 | 40.7 | unsupported | – | – | 730 | – |
 | [`lw-detr-small-coco`](../models/detection.md#lwdetr) | 30.8 | 28.4 | unsupported | – | – | 661 | – |
