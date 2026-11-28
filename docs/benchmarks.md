@@ -91,8 +91,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`great-igev-sceneflow`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9090 ms · portable fp16 | 8028 ms · portable fp16 | 579 ms · kernels fp16 | 176 ms · kernels fp16 | 477 ms · kernels fp16 | 196 ms · kernels fp16 | 98.3 ms · kernels fp16 |
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | 238 ms · kernels fp16 | 2378 ms · portable fp16 | 1769 ms · portable fp16 | – | – | – | – | 50.5 ms · kernels fp16 |
 | [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | 257 ms · kernels fp16 | 2759 ms · portable fp16 | 1991 ms · portable fp16 | 342 ms · kernels fp16 | 109 ms · kernels fp16 | 244 ms · kernels fp16 | 97.7 ms · kernels fp16 | 56.7 ms · kernels fp16 |
-| [`hitnet-eth3d`](models/stereo.md#hitnet) | – | 136 ms · kernels fp16 | 289 ms · portable fp16 | 31.4 ms · kernels fp16 | 11.0 ms · kernels fp16 | 28.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 6.22 ms · kernels fp16 |
-| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | – | 440 ms · kernels fp16 | 686 ms · portable fp16 | – | – | – | – | 14.3 ms · kernels fp16 |
+| [`hitnet-eth3d`](models/stereo.md#hitnet) | – | 136 ms · kernels fp16 | 256 ms · portable fp16 | 31.4 ms · kernels fp16 | 11.0 ms · kernels fp16 | 28.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 6.22 ms · kernels fp16 |
+| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | – | 440 ms · kernels fp16 | 624 ms · portable fp16 | – | – | – | – | 14.3 ms · kernels fp16 |
 | [`igev-plusplus-eth3d`](models/stereo.md#igev_plusplus) | – | 6139 ms · kernels fp16 | 5726 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev_plusplus) | – | 6124 ms · kernels fp16 | 5685 ms · portable fp16 | – | – | – | – | 104 ms · kernels fp16 |
 | [`igev-plusplus-kitti15`](models/stereo.md#igev_plusplus) | – | 6125 ms · kernels fp16 | 5701 ms · kernels fp16 | – | – | – | – | 104 ms · kernels fp16 |

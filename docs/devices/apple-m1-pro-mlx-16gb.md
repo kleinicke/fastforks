@@ -54,8 +54,8 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`great-igev-sceneflow`](../models/stereo.md#great_igev) | 12477 | 8028 | – | – | – | 5560 | – |
 | [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 2777 | 1769 | – | – | – | 2965 | – |
 | [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 3083 | 1991 | unsupported | – | – | 3015 | – |
-| [`hitnet-eth3d`](../models/stereo.md#hitnet) | 419 | 289 | unsupported | – | – | 1157 | – |
-| [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 1616 | 686 | unsupported | – | – | 1891 | – |
+| [`hitnet-eth3d`](../models/stereo.md#hitnet) | 335 | 256 | unsupported | – | – | 1158 | – |
+| [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 817 | 624 | unsupported | – | – | 1628 | – |
 | [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 7874 | 5853 | 7868 | 5726 | 1.0x | 2953 | 2959 |
 | [`igev-plusplus-kitti12`](../models/stereo.md#igev_plusplus) | 7956 | 5685 | 7821 | 5705 | 1.0x | 3016 | 2963 |
 | [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 7788 | 5768 | 7862 | 5701 | 1.0x | 2962 | 2962 |

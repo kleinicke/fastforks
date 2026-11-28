@@ -5856,6 +5856,9 @@
    }
   },
   "hitnet-middlebury-d400@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
