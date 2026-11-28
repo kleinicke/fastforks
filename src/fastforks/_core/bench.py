@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+from fastforks._core import arrays
 from fastforks._core.errors import FastforksError
 from fastforks._core.lazy import lazy
 
@@ -68,7 +69,12 @@ def bench_inputs(model: Model, size: BenchSize) -> BenchInputs:
 
 
 def synthetic_pair(height: int, width: int, device: torch.device, *, shift: int = 8) -> tuple[torch.Tensor, ...]:
-    """A textured RGB pair `[1, 3, H, W]` in `[0, 1]` whose right view is the left shifted by `shift` px (checks)."""
+    """A textured RGB pair `[1, 3, H, W]` in `[0, 1]` whose right view is the left shifted by `shift` px (checks).
+
+    On `arrays.HOST` (an array runner's input device) the pair stays on the CPU: the runner converts it to NumPy.
+    """
+    if device is arrays.HOST:
+        device = torch.device("cpu")
     gen = torch.Generator().manual_seed(0)
     coarse = torch.rand(1, 3, height // 16 + 2, (width + shift) // 16 + 2, generator=gen)
     img = F.interpolate(coarse, size=(height, width + shift), mode="bicubic", align_corners=False)
