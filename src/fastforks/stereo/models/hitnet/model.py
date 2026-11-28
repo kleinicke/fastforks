@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -44,10 +45,16 @@ class Params:
         ]
 
 
+def _skeleton(ctx: Context) -> HITNet:
+    """The network without weights (its structure only)."""
+    p = ctx.params
+    return HITNet(p.in_ch, p.channels, p.disparities, p.refine()).eval()
+
+
 def _net(ctx: Context) -> HITNet:
     """The network with the weights of the graph file."""
     p = ctx.params
-    net = HITNet(p.in_ch, p.channels, p.disparities, p.refine())
+    net = _skeleton(ctx)
     path = ctx.weights()[0]
     try:
         state = weights.state_dict(read_graph(path), len(p.channels) - 1)
@@ -183,9 +190,44 @@ class _OnePair(Portable):
         from . import mlx_costs  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
 
 
+class _MlxPortable(Runner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
+
+    batch = 1  # not measured on Apple GPUs
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX network from the conversion cache (the graph file only on a miss); no PyTorch one kept."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `mlx_wrap.port` builds this in float32
+        p = ctx.params
+        self.net = mlx_port.recorded(
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxHitnet(
+                net, run.dtype, pad_multiple=p.pad_multiple, pad_value=p.pad_value, pad_value_right=p.pad_value_right
+            ),
+            real=lambda: _net(ctx),
+            skeleton=lambda: _skeleton(ctx),
+            sources=mlx_net.SOURCES,
+        )
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of the pair (padded and cropped inside the network)."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=256),
 }
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(_OnePair, whole="disparity")}
