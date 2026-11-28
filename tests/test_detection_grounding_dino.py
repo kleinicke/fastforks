@@ -118,8 +118,8 @@ def test_phrase_masks_match_transformers() -> None:
     ids = [101, 2711, 1012, 3902, 2482, 1012, 2482, 1029, 102]
     att, pos = phrase_masks(ids, {101, 102, 1012, 1029})
     want_att, want_pos = m.generate_masks_with_special_tokens_and_transfer_map(torch.tensor([ids]))
-    assert torch.equal(att, want_att[0])
-    assert torch.equal(pos, want_pos[0])
+    assert np.array_equal(att, want_att[0].numpy())
+    assert np.array_equal(pos, want_pos[0].numpy())
 
 
 @pytest.mark.slow

@@ -52,6 +52,7 @@ SHAPES = [
     Shape("waft-a1", (237, 331), tol=2e-2),
     Shape("flowformer-small-things", (237, 331), tol=2e-2),
     Shape("megaflow", (237, 331), tol=2e-2),
+    Shape("grounding-dino-tiny", (251, 333), batch=False),
 ]
 
 
