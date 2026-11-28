@@ -48,10 +48,10 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 4326 | 2875 | unsupported | – | – | 2829 | – |
 | [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | – | 25847 | – | – | – | 4941 | – |
 | [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | 40293 | 20504 | – | 17814 | 1.2x | 4943 | 4613 |
-| [`great-igev-eth3d`](../models/stereo.md#great_igev) | 11467 | 7613 | unsupported | – | – | 5336 | – |
-| [`great-igev-kitti`](../models/stereo.md#great_igev) | 11481 | 7588 | unsupported | – | – | 5294 | – |
-| [`great-igev-middlebury`](../models/stereo.md#great_igev) | 23063 | 14680 | – | – | – | 5607 | – |
-| [`great-igev-sceneflow`](../models/stereo.md#great_igev) | 12477 | 8028 | – | – | – | 5560 | – |
+| [`great-igev-eth3d`](../models/stereo.md#great_igev) | 7350 | 5732 | unsupported | – | – | 2890 | – |
+| [`great-igev-kitti`](../models/stereo.md#great_igev) | 7301 | 5730 | unsupported | – | – | 2864 | – |
+| [`great-igev-middlebury`](../models/stereo.md#great_igev) | 15126 | 12474 | – | – | – | 4619 | – |
+| [`great-igev-sceneflow`](../models/stereo.md#great_igev) | 7503 | 5741 | – | – | – | 2865 | – |
 | [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 2777 | 1769 | – | – | – | 2965 | – |
 | [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 3083 | 1991 | unsupported | – | – | 3015 | – |
 | [`hitnet-eth3d`](../models/stereo.md#hitnet) | 335 | 256 | unsupported | – | – | 1158 | – |
