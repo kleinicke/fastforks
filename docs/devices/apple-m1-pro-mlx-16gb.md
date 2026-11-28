@@ -661,12 +661,12 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](../models/flow.md#flowformer) | 20537 | 13243 | unsupported | 1889 |
-| [`flowformer-small-sintel`](../models/flow.md#flowformer) | 20007 | 12987 | unsupported | 2056 |
-| [`flowformer-small-things`](../models/flow.md#flowformer) | 20971 | 13811 | unsupported | 1888 |
-| [`flowseek-t`](../models/flow.md#flowseek) | 1494 | 1281 | unsupported | 3729 |
-| [`flowseek-t-things`](../models/flow.md#flowseek) | 1481 | 1282 | unsupported | 3731 |
-| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 1471 | 1278 | unsupported | 3729 |
+| [`flowformer-small-chairs`](../models/flow.md#flowformer) | 16916 | 11994 | unsupported | 1894 |
+| [`flowformer-small-sintel`](../models/flow.md#flowformer) | 16914 | 12003 | unsupported | 1926 |
+| [`flowformer-small-things`](../models/flow.md#flowformer) | 16907 | 12001 | unsupported | 1948 |
+| [`flowseek-t`](../models/flow.md#flowseek) | 1449 | 1280 | unsupported | 3777 |
+| [`flowseek-t-things`](../models/flow.md#flowseek) | 1461 | 1280 | unsupported | 3793 |
+| [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | 1451 | 1281 | unsupported | 3771 |
 | [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 2494 | 1827 | unsupported | 1191 |
 | [`gmflow-scale1-things`](../models/flow.md#gmflow) | 2387 | 1690 | unsupported | 1150 |
 | [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | 5350 | 3600 | unsupported | 2843 |
@@ -676,7 +676,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | 6656 | 4616 | unsupported | 2842 |
 | [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | 5201 | 3509 | unsupported | 2839 |
 | [`gmflow-scale2-things`](../models/flow.md#gmflow) | 5250 | 3540 | unsupported | 2841 |
-| [`megaflow`](../models/flow.md#megaflow) | 13158 | 8480 | – | 6561 |
+| [`megaflow`](../models/flow.md#megaflow) | 7161 | 5841 | – | 4129 |
 | [`memflow`](../models/flow.md#memflow) | 8103 | 5579 | unsupported | 3649 |
 | [`memflow-kitti`](../models/flow.md#memflow) | 8082 | 5576 | unsupported | 3647 |
 | [`memflow-sintel`](../models/flow.md#memflow) | 8024 | 5606 | unsupported | 3634 |
@@ -701,9 +701,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sea-raft-s`](../models/flow.md#sea_raft) | 832 | 617 | unsupported | 2019 |
 | [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 828 | 621 | unsupported | 2021 |
 | [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 218 | 167 | unsupported | 985 |
-| [`waft-a1`](../models/flow.md#waft) | 8587 | 6080 | unsupported | 2583 |
-| [`waft-a1-kitti`](../models/flow.md#waft) | 8585 | 6078 | unsupported | 2564 |
-| [`waft-a1-sintel`](../models/flow.md#waft) | 8590 | 6076 | unsupported | 2564 |
+| [`waft-a1`](../models/flow.md#waft) | 7307 | 5377 | unsupported | 2217 |
+| [`waft-a1-kitti`](../models/flow.md#waft) | 7256 | 5364 | unsupported | 2366 |
+| [`waft-a1-sintel`](../models/flow.md#waft) | 7278 | 5366 | unsupported | 2255 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

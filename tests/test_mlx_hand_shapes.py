@@ -49,6 +49,9 @@ SHAPES = [
     Shape("ema-vfi-small", (245, 339)),
     Shape("depth-pro", (251, 333)),
     Shape("totalsegmentator-total", (61, 75), batch=False),
+    Shape("waft-a1", (237, 331), tol=2e-2),
+    Shape("flowformer-small-things", (237, 331), tol=2e-2),
+    Shape("megaflow", (237, 331), tol=2e-2),
 ]
 
 

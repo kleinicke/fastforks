@@ -460,10 +460,12 @@ float16 is auto's pick.
 - *Odd size and batch 2.* 437 x 645, batch of two pairs: float32 hand against graph mean difference 0.0000 in every
   family, float16 0.0003-0.0013 (flowseek 0.023; its goldens show the hand arm closer). Row 0 of the batch equals the
   single call (max difference 0) everywhere.
-- *Load.* No torch import on a cache hit, except FlowSeek: building its skeleton under `torch.device("meta")` runs the
-  vendored DINOv2 LayerScale's `init_values * torch.ones(dim)`, which imports `torch._dynamo` (0.6-0.77 s). Its
-  checkpoints are `.pth`, so `header_skeleton` does not apply. A/B `load_s` 0.04-0.05 s (memfof up to 0.41, flowseek
-  0.50-0.62) against the graph's 0.03-0.16 s. The first network call takes 0.28-17.2 s against the graph's 1.6-22.5 s
+- *Load.* No torch import on a cache hit. FlowSeek used to build its skeleton under `torch.device("meta")`, which
+  ran the vendored DINOv2 LayerScale's `init_values * torch.ones(dim)` and imported `torch._dynamo` (0.6-0.77 s);
+  `header_skeleton` now reads `.pth` checkpoints too (`torch.load(map_location="meta")`, 2026-11-28), and FlowSeek
+  loads through it: survey `load_s` float16 0.50-0.58 s (was 0.84-0.97), float32 0.94-1.05 (its larger cache file
+  read from the external disk). A/B `load_s` 0.04-0.05 s (memfof up to 0.41, flowseek 0.50-0.62, before the
+  change) against the graph's 0.03-0.16 s. The first network call takes 0.28-17.2 s against the graph's 1.6-22.5 s
   (flowseek 1.3-1.5 / 4.7-6.9, neuflow 0.4-0.5 / 2.6-4.2, recover 0.3-0.9 / 1.6-2.4).
 
 Accepted peak trades (in the table above): recover-mn float32 (warm 0.70, peak 1.03; e2e 1091 MB against MPS 2562;
@@ -474,10 +476,9 @@ Still flagged, with the reason:
 - recover-cx float16, warm 1.06 at the A/B's forced 2048 MB cache: the graph arm gains more from a large cache. Piece
   by piece the hand port matches it, and end to end at its own 256 MB it is faster than the old row (720.6 / 757.7
   ms).
-- FlowSeek's load (survey 0.84-0.97 s against the old 0.17-0.25): the `torch._dynamo` import above. Avoiding it needs
-  a vendored-code or a shared `mlx_port` change, left for another round.
-- WAFT, FlowFormer and MegaFlow were not ported: WAFT's warping transformer, FlowFormer's Twins encoder and cost
-  memory, and MegaFlow's ViT-L with the VGGT aggregator are too large for this round. They keep their graph runners.
+- FlowSeek's load (survey float16 0.50-0.58 s, float32 0.94-1.05, against the old 0.17-0.25): no `torch._dynamo`
+  import any more (see *Load.*); what is left is reading the full cache file, as in the other hand ports.
+- WAFT, FlowFormer and MegaFlow are now hand-written: see "Transformer flow ports" below.
 
 End to end (`tools/speed_survey.py`, two runs, the second run's rows kept; every row ok with the golden passing),
 against the graph port's MLX row (the old row) and the best MPS row:
@@ -493,9 +494,73 @@ against the graph port's MLX row (the old row) and the best MPS row:
 - No e2e warm or peak row is above the old one (the closest: memfof-spring float32 peak 2241 / 2244 MB, warm 0.96).
 - MPS is faster warm only on recover-rn float16 (405 / 411 ms).
 - Load (`load_s`, survey): memflow, neuflow and recover 0.18-0.32 s (old 0.13-0.32), memfof 0.33-0.57 (old
-  0.14-0.19), flowseek 0.84-0.97 (old 0.17-0.25). The hand ports read their full cache file at load. The first call
+  0.14-0.19), flowseek 0.84-0.97 (old 0.17-0.25; 0.50-1.05 since the `.pth` skeleton). The hand ports read their full cache file at load. The first call
   is much lower: flowseek 1.6-2.2 s (old 4.7-17), recover 0.6-1.0 (old 1.7-4.3), memflow 8.8-10.8 (old 11.7-14.5),
   memfof 3.0-19.0 (old 5.4-22.1).
+
+## Transformer flow ports (2026-11-28)
+
+WAFT (a1, a1-kitti, a1-sintel), FlowFormer Small (chairs, things, sintel) and MegaFlow are hand-written; their graph
+runners stay as `GRAPH_RUNNERS` (the A/B's graph arm). New shared pieces: the DPT head in
+`shared/depth_anything_v2/mlx_sd.py` (WAFT and FlowSeek), the VGGT aggregator blocks in `shared/mlx_vggt.py`
+(MegaFlow) and the Twins local / global blocks in `shared/mlx_twins.py` (FlowFormer); the ViT blocks are `mlx_vit`'s.
+All three load through `mlx_port.recorded` with `header_skeleton` in the run dtype and ask `request_cache` for 128 MB
+(the sweeps are in each `model.py`). The goldens pass in both dtypes, closer to the PyTorch reference than the graph
+arm's except WAFT float32 (7e-6 against 2-5e-6, budget 0.005).
+
+| ref | net warm x fp16 | net transient x fp16 | net warm x fp32 | net transient x fp32 |
+|---|---|---|---|---|
+| waft-a1 (-kitti, -sintel) | 1.00-1.06 (raw 0.94-1.02) | 0.98 | 0.83-0.95 | 0.81-0.82 |
+| flowformer-small-* | 0.95-0.98 | 0.85 | 0.96-0.99 | 0.97-1.02 |
+| megaflow | 0.82 | 0.61 | 0.81 | 0.45 |
+
+(`mlx_core_ab.py quick`, 544 x 960. WAFT float16 sits within noise of the graph arm, intervals across 1.)
+
+- *Resident.* float16 / float32 of the hand arm: waft 126 / 249 MB, flowformer 12 / 23, megaflow 1821 / 3608
+  (flowseek 82 / 164): 0.50 everywhere, no float32 islands.
+- *MegaFlow.* The CNN blocks, the DINOv2 ViT-L (`mlx_vit.Stepped`) and the 24 frame / global block pairs
+  (`mlx_vggt.Aggregator`, RoPE folded into permuted q / k channels) each run as compiled steps, two in flight, so
+  only a block's activations are live, which gives the 0.45-0.61 transient. The global correlation, the flow update
+  and the convex upsampling stay float32, as upstream's.
+- *FlowFormer.* No 4-D cost volume: the cost maps are patch-embedded a chunk of query pixels at a time and only their
+  latent tokens kept. Each update runs as four pipelined steps (decoder, motion, two GRU halves): one compiled update
+  held all its intermediates to the end (+0.34 GB at 544 x 960 float32) and two halves in flight together 0.35 GB.
+  GMA's context matrix is built after the cost memory, not live through both peaks (0.27 GB). Tried and dropped:
+  fused GMA attention (slower), a row-blocked matrix (heavier), eager updates (lean but 1.06 slower).
+- *Odd size and batch 2.* `tests/test_mlx_hand_shapes.py` covers waft-a1, flowformer-small-things and megaflow at
+  237 x 331 and batch 2 against the graph arm (float32; all pass at 2e-2 of the largest flow). Probes against torch CPU: flowformer float32 mean 6e-6 at
+  237 x 331 and 7e-6 at batch 2 (float16 3e-4); row 0 of a batch matches the single call.
+
+End to end (`tools/speed_survey.py` via `mlx_gate.py`, 1080 x 1920, every row ok with the golden passing), against the
+graph port's row (old) and the best MPS row:
+
+| ref | fp16 warm new / old s | fp16 peak new / old MB | fp32 warm new / old s | fp32 peak new / old MB | best MPS peak fp16 / fp32 |
+|---|---|---|---|---|---|
+| waft-a1 | 5.38 / 6.08 | 2217 / 2583 | 7.31 / 8.59 | 2874 / 2998 | 7185 / 8183 |
+| waft-a1-kitti | 5.36 / 6.08 | 2366 / 2564 | 7.26 / 8.59 | 2912 / 2983 | 7187 / 8188 |
+| waft-a1-sintel | 5.37 / 6.08 | 2255 / 2564 | 7.28 / 8.59 | 2895 / 2985 | 7187 / 9211 |
+| flowformer-small-chairs | 11.99 / 13.24 | 1894 / 1889 | 16.92 / 20.54 | 2206 / 1966 | 4797 / 7694 |
+| flowformer-small-things | 12.00 / 13.81 | 1948 / 1888 | 16.91 / 20.97 | 2393 / 1970 | 5822 / 6916 |
+| flowformer-small-sintel | 12.00 / 12.99 | 1926 / 2056 | 16.91 / 20.01 | 2172 / 1913 | 5821 / 6949 |
+| megaflow | 5.84 / 8.48 | 4129 / 6561 | 7.16 / 13.16 | 6920 / 11471 | 8832 / 11764 |
+
+- Warm 0.69-0.92 float16 and 0.54-0.85 float32 of the old rows; MPS is slower everywhere (waft 7.2-8.8 s,
+  flowformer 17.0 / 25.3-25.6, megaflow 11.1 / 16.3).
+- First call: waft 5.6-6.6 / 7.5-7.8 s (old 11.6-12.9 / 14.0-15.4), flowformer 14.0-14.7 / 18.9 (old 24.2-25.8 /
+  31.7-36.9), megaflow 6.4 / 7.9 (old 33.1 / 25.4).
+- Load (`load_s`): flowformer 0.21-0.29 s (old 0.93-1.34), waft-a1 0.47 / 0.53 (old 0.19-0.20), kitti and sintel
+  1.23-1.33 (old 0.20-0.38; a fresh-process profile gives 0.51 s, the survey's figure is not explained), megaflow 2.49 /
+  4.73 (old 0.43 / 0.21): reading its 1.2 / 2.4 GB cache file from the external disk (`convert_cached` 1.3 of 1.54 s
+  in a profile).
+
+Accepted peak trades: flowformer-small-* float32 end to end, 12-21 % above the old row's peak (2172-2393 against
+1913-1970 MB) at 0.81-0.85 of its warm time and below a third of the best MPS row; the net transient is equal
+(0.97-1.02). The extra is the buffer cache and the update steps' pipelining at 1080 x 1920.
+
+Still flagged, with the reason:
+
+- Load times of megaflow (2.5 / 4.7 s) and waft-a1-kitti / -sintel in the survey (1.2-1.3 s): reading the converted
+  weights from the cache disk, against the graph port's lazily mapped weights.
 
 ## Method (from 2026-11-27)
 

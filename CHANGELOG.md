@@ -26,6 +26,10 @@ No model family is new in this release; the changes are backends, platforms and 
   torch needed). On Apple silicon `mode="auto"` picks it for CPU and MPS tensors and NumPy inputs (logged at INFO):
   on synthetic pairs the relative pose is 5-10x faster per pair than one CPU core and 7-12x faster batched than
   MPS, at the same or better AUC; absolute pose is 1.4x / 5x faster than OpenCV. `FASTFORKS_MLX=0` keeps `auto` on the portable solvers. The portable solvers also run on MPS (float32).
+- WAFT, FlowFormer Small and MegaFlow run as hand-written MLX networks instead of the exported graph: at 1080 x 1920
+  on an M1 Pro, 8-31 % faster in float16 and 15-46 % in float32, with a much cheaper first call (MegaFlow 6.4 s
+  instead of 33 s) and a lower or equal peak, except FlowFormer float32 (up to 21 % higher, still a third of MPS's). FlowSeek
+  no longer imports `torch._dynamo` when it loads.
 
 ### Windows
 

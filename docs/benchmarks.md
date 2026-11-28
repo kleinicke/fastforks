@@ -544,12 +544,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
 |---|---|---|
-| [`flowformer-small-chairs`](models/flow.md#flowformer) | 17074 ms · portable fp16 | 13243 ms · portable fp16 |
-| [`flowformer-small-sintel`](models/flow.md#flowformer) | 17045 ms · portable fp16 | 12987 ms · portable fp16 |
-| [`flowformer-small-things`](models/flow.md#flowformer) | 17023 ms · portable fp16 | 13811 ms · portable fp16 |
-| [`flowseek-t`](models/flow.md#flowseek) | 2756 ms · portable fp16 | 1281 ms · portable fp16 |
-| [`flowseek-t-things`](models/flow.md#flowseek) | 2703 ms · portable fp32 | 1282 ms · portable fp16 |
-| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 2694 ms · portable fp32 | 1278 ms · portable fp16 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer) | 17074 ms · portable fp16 | 11994 ms · portable fp16 |
+| [`flowformer-small-sintel`](models/flow.md#flowformer) | 17045 ms · portable fp16 | 12003 ms · portable fp16 |
+| [`flowformer-small-things`](models/flow.md#flowformer) | 17023 ms · portable fp16 | 12001 ms · portable fp16 |
+| [`flowseek-t`](models/flow.md#flowseek) | 2756 ms · portable fp16 | 1280 ms · portable fp16 |
+| [`flowseek-t-things`](models/flow.md#flowseek) | 2703 ms · portable fp32 | 1280 ms · portable fp16 |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | 2694 ms · portable fp32 | 1281 ms · portable fp16 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | 2904 ms · portable fp16 | 1827 ms · portable fp16 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | 2756 ms · portable fp16 | 1690 ms · portable fp16 |
 | [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | 6039 ms · portable fp16 | 3600 ms · portable fp16 |
@@ -559,7 +559,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | 11300 ms · portable fp16 | 4616 ms · portable fp16 |
 | [`gmflow-scale2-sintel`](models/flow.md#gmflow) | 5725 ms · portable fp16 | 3509 ms · portable fp16 |
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | 5982 ms · portable fp16 | 3540 ms · portable fp16 |
-| [`megaflow`](models/flow.md#megaflow) | 11141 ms · portable fp16 | 8480 ms · portable fp16 |
+| [`megaflow`](models/flow.md#megaflow) | 11141 ms · portable fp16 | 5841 ms · portable fp16 |
 | [`memflow`](models/flow.md#memflow) | 10016 ms · portable fp32 | 5579 ms · portable fp16 |
 | [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 | 5576 ms · portable fp16 |
 | [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 | 5606 ms · portable fp16 |
@@ -584,9 +584,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`sea-raft-s`](models/flow.md#sea_raft) | 833 ms · kernels fp16 | 617 ms · portable fp16 |
 | [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 831 ms · kernels fp16 | 621 ms · portable fp16 |
 | [`sea-raft-s-spring`](models/flow.md#sea_raft) | 233 ms · kernels fp16 | 167 ms · portable fp16 |
-| [`waft-a1`](models/flow.md#waft) | 7168 ms · portable fp16 | 6080 ms · portable fp16 |
-| [`waft-a1-kitti`](models/flow.md#waft) | 7384 ms · portable fp16 | 6078 ms · portable fp16 |
-| [`waft-a1-sintel`](models/flow.md#waft) | 7430 ms · portable fp16 | 6076 ms · portable fp16 |
+| [`waft-a1`](models/flow.md#waft) | 7168 ms · portable fp16 | 5377 ms · portable fp16 |
+| [`waft-a1-kitti`](models/flow.md#waft) | 7384 ms · portable fp16 | 5364 ms · portable fp16 |
+| [`waft-a1-sintel`](models/flow.md#waft) | 7430 ms · portable fp16 | 5366 ms · portable fp16 |
 
 #### Matching, 768x1024
 
