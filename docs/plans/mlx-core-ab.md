@@ -534,6 +534,11 @@ Tools for a port (see each tool's docstring):
 - `tools/mlx_core_ab.py quick REF...` is the check while iterating. It runs in one process, and only the hand arm is
   timed, against a graph baseline cached once per session. Each sample is normalized by a fixed reference net timed
   around it. Inputs are float16 at half size. It stops once the interval is clearly beyond or inside ±10 %.
+  The reference net counts its fastest of 3 calls: one call right after a large network's release read about 2x slow,
+  so IGEV++ looked x0.64 instead of x0.94 raw. Wall times, quick with a cached baseline vs the full A/B (f16 only):
+  resnet50 4-5 s vs 21 s (x0.85-0.88 vs x0.88), mobilenet_v3_large 3-4 s vs 20 s (x0.77 vs x0.76), IGEV++ kitti12
+  47 s vs 625 s (83 s with a new baseline). At half size a ratio can differ from the full-size one: IGEV++ is x0.93
+  `open` quick vs x0.81 full, so the full A/B settles an `open` result.
 - `tools/mlx_gate.py REF...` is run once per port. It runs the goldens, one survey run (the rows the website and auto
   use) and the `gen_auto_mode` / `gen_docs` checks of the port's refs, and prints them as one pass/fail table. The
   full A/B (`--ab`) is only for a borderline quick result and the final audit; an accepted heavier row passes.
