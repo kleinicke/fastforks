@@ -29,8 +29,8 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`bridgedepth-sf`](../models/stereo.md#bridgedepth) | 4973 | 3977 | – | – | – | 2650 | – |
 | [`c-fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 4565 | 2737 | – | – | – | 2858 | – |
 | [`c-foundationstereo-s`](../models/stereo.md#c_foundationstereo) | 29962 | 18737 | – | – | – | 4010 | – |
-| [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 6066 | 2934 | – | – | – | 3733 | – |
-| [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | 4595 | 3841 | unsupported | – | – | 4754 | – |
+| [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 4902 | 2459 | – | – | – | 4587 | – |
+| [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | 5559 | 3039 | unsupported | – | – | 7831 | – |
 | [`cfnet-sceneflow`](../models/stereo.md#cfnet) | 2960 | 2104 | unsupported | – | – | 3950 | – |
 | [`coex-sceneflow`](../models/stereo.md#coex) | 282 | 215 | – | – | – | 947 | – |
 | [`crestereo-eth3d`](../models/stereo.md#crestereo) | 6118 | 4297 | 5212 | 3558 | 1.2x | 1557 | 1863 |
