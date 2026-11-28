@@ -321,8 +321,7 @@ Still flagged, with the reason:
   heavier. The cause was not located (GELU is already the fused one).
 - EoMT, 1.01-1.03: drift level. Sharing the half-block stepper with `mlx_vit` would need an `mlx_vit` edit, which
   was left for another round (another port is editing it).
-- grounding_dino was not ported: Swin + BERT + deformable attention + the fusion layers are too large for this
-  round. It keeps its graph runner.
+- grounding_dino was not ported in this round; it was hand-written on 2026-11-28 (see "Grounding DINO port").
 
 End to end (`tools/speed_survey.py`, two runs, the second run's rows kept; every row ok with the golden passing),
 against the graph port's MLX row (the old row) and the best MPS row:
@@ -561,6 +560,81 @@ Still flagged, with the reason:
 
 - Load times of megaflow (2.5 / 4.7 s) and waft-a1-kitti / -sintel in the survey (1.2-1.3 s): reading the converted
   weights from the cache disk, against the graph port's lazily mapped weights.
+
+## Grounding DINO port (2026-11-28)
+
+Grounding DINO tiny and base (and the mm variants, which share the runner) are hand-written in
+`detection/models/grounding_dino/mlx_net.py`. The graph runner stays as `GRAPH_RUNNERS` (the A/B's graph arm). The pieces:
+
+- the Swin backbone through `mlx_swin.Block`;
+- the BERT text tower, computed in float32 from run-dtype weights, once per query list, as before;
+- the fusion / text-enhancer / deformable encoder, with `ops.msda`;
+- the top-900 query selection;
+- the decoder;
+- the heads, in float32.
+
+The pixels come from a bit-exact numpy / MLX copy of torch's uint8 antialiased resize. The A/B scope is the image
+network (`image`); the text features are an input. It loads through the conversion cache in the run dtype. The
+runner asks `request_cache` for 512 MB. The goldens pass in both dtypes.
+
+| ref | net warm x fp16 | net transient x fp16 | net warm x fp32 | net transient x fp32 |
+|---|---|---|---|---|
+| grounding-dino-tiny | 0.74-0.93 | 0.49 | 0.77-0.79 | 0.89 |
+| grounding-dino-base | 0.88 | 0.37 | 0.85-0.92 | 0.97 |
+
+(`mlx_core_ab.py quick`, 384 x 672, two runs on the light lane while the stereo agent's jobs ran. Reference drift
+reached 1.8x, so the corrected ratios are the reliable ones. Tiny float16 was 0.74 in the cleaner run and 0.93
+[0.81, 1.09] in the contended one.)
+
+- *Resident.* float16 / float32: tiny 330 / 609 MB (0.54), base 358 / 741 (0.48).
+  No float32 islands in storage: BERT and the decoder compute in float32 from run-dtype weights.
+- *Fusion.* The bi-directional vision / text attention runs 8192 vision rows at a time, two chunks in flight. The text
+  side's softmax over all pixels is computed online in float32 (a running max, denominator and accumulator), so the
+  full `[heads, pixels, tokens]` score map is never live.
+  - With unbounded `async_eval` per chunk, Python ran ahead and the encoder peak rose to 1052 MB.
+  - 4096-row chunks evaluated synchronously were 4 % leaner but slower in float16.
+- *Swin.* Stage 1 (the largest map) evaluates each block in two steps (attention, then MLP). Above the encoder, its
+  peak was the call's peak for base in float32.
+- *float16 accuracy.* The decoder keeps float32 activations; the weights stay in the run dtype.
+  - The decoder is cheap: 900 queries, +5 ms.
+  - Golden box error with it: tiny 0.023 -> 0.019, base 0.031 -> 0.027 (bound 0.25).
+  - Tiny float16 is still about 2x the graph arm's error (0.0193 against 0.0090). That is below the `worse` budget
+    (ratio > 1.25 and more than 0.0125 above it).
+  - Tried and dropped, no gain: a float32 encoder (0.022, 13 % slower), a float32 Swin (0.022) and a float32 query
+    selection.
+- *Odd size.* `tests/test_mlx_hand_shapes.py` covers grounding-dino-tiny at 251 x 333 against the graph arm (score
+  threshold 0.05, so random input gives detections). The test now fails on an empty output instead of comparing
+  nothing.
+
+End to end (`tools/speed_survey.py` via `mlx_gate.py`, 800 x 1344, every row ok with the golden passing), against the
+graph port's row (old) and the best MPS row (portable float32; MPS has no float16 row):
+
+| ref | fp16 warm new / old s | fp16 peak new / old MB | fp32 warm new / old s | fp32 peak new / old MB | best MPS peak fp16 / fp32 |
+|---|---|---|---|---|---|
+| grounding-dino-tiny | 0.39 / 0.75 | 1525 / 1499 | 0.46 / 0.93 | 2049 / 1452 | - / 4787 |
+| grounding-dino-base | 0.61 / 0.89 | 1645 / 1687 | 0.69 / 1.19 | 2474 / 1939 | - / 3952 |
+
+- Warm time is 0.51 / 0.68 of the old rows in float16 and 0.50 / 0.58 in float32 (tiny / base). MPS takes 0.85 /
+  1.08 s. Auto now picks MLX float16 for both.
+- First call: tiny 1.45 / 1.57 s, base 1.63 / 1.38 (old 5.6-9.2 s). The text tower takes 28-73 ms on the first call
+  and 20-31 ms uncached after that.
+- A second shape costs 0.95-1.11 s (old 6.4-6.5).
+- Load (`load_s`): tiny 0.60 / 1.13 s, base 0.77 / 1.34 (old 2.2-4.3). Load peak footprint: 517-1105 MB (old 350),
+  since the weights are resident rather than lazily mapped.
+
+Accepted peak trades:
+
+- float32, 28-41 % above the old row's peak (2049 / 2474 against 1452 / 1939 MB). Warm time is 0.50-0.58 of the old
+  row's, the peak is below 0.63 of the best MPS row, and the net transient is lower (0.89 / 0.97). The extra is the
+  resident float32 weights (the graph port's footprint mapped them lazily) plus the 512 MB buffer cache.
+- tiny float16, 2 % above (1525 against 1499 MB). It runs at 0.51 of the old row's time and stays below its own
+  float32 row and the MPS row.
+- At 1080 x 1920 the call peak above the weights is 401 / 624 MB (tiny) and 400 / 766 MB (base), in float16 / float32.
+
+Still flagged, with the reason:
+
+- Tiny float16 golden box error is 2x the graph arm's (0.019 against 0.009), inside the budget. No float32 island
+  located on the image path closes the gap; see above.
 
 ## Method (from 2026-11-27)
 

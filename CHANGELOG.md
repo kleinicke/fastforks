@@ -30,6 +30,10 @@ No model family is new in this release; the changes are backends, platforms and 
   on an M1 Pro, 8-31 % faster in float16 and 15-46 % in float32, with a much cheaper first call (MegaFlow 6.4 s
   instead of 33 s) and a lower or equal peak, except FlowFormer float32 (up to 21 % higher, still a third of MPS's). FlowSeek
   no longer imports `torch._dynamo` when it loads.
+- Grounding DINO (tiny, base and the mm variants) runs as a hand-written MLX network instead of the exported graph.
+  At 800 x 1344 on an M1 Pro it is 1.5-2x faster (tiny float16 0.39 s instead of 0.75 s), and the first call takes
+  1.4-1.6 s instead of 5.6-9.2 s. `mode="auto"` now picks it in float16. The float32 peak is 28-41 % higher (the
+  weights are resident), still below MPS's.
 
 ### Windows
 
