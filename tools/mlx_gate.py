@@ -1,20 +1,28 @@
-"""The pre-commit gate for an MLX port: goldens, the as-shipped A/B and the generated-file checks, as one table.
+"""The once-per-port gate for an MLX port: goldens, its survey rows and the generated-file checks, as one table.
 
-    python tools/mlx_gate.py REF [REF ...] [--lock /Volumes/Daten/ff-mlx/gpu2.sh] [--skip ab] [--dtypes float16]
+    python tools/mlx_gate.py REF [REF ...] [--lock /Volumes/Daten/ff-mlx/gpu2.sh] [--skip survey] [--ab]
+                             [--dtypes float16 float32] [--device apple-m1-pro-mlx-16gb]
 
-For the refs a change touched, runs (each step a subprocess, in this order):
+Iterate with the quick tier (`tools/mlx_core_ab.py quick REF ...`); run this once a port is done, for its own refs
+(each step a subprocess, in this order):
 
 - `goldens`: the golden tests of each ref (`tests/test_golden.py::test_mlx[REF@N]`, `--golden-tests` for others), pass
   when none fails (a skip, such as a missing golden, is listed but not a failure);
-- `ab`: `tools/mlx_core_ab.py run --only REF ...` into a scratch file (all three arms: hand, graph, shipped), pass when
-  the row has no flag (`slower`, `heavier`, `worse`, `shipped-slower`) or only a `heavier` that is an accepted trade;
-- `gen_auto_mode`, `gen_docs`: `--check` (the generated files up to date).
+- `survey`: `tools/speed_survey.py run --device DEVICE --only REF ... --modes MODE --force`, the rows the website and
+  auto's choice use (they go into `docs/data/speed/<device>.jsonl`), pass when each (ref, dtype) row is `ok` and its
+  golden did not fail; the detail holds warm / first call against the Mac's MPS row of the same ref and dtype;
+- `ab` (only with `--ab`: when the quick tier is borderline against the graph arm, and in the final audit):
+  `tools/mlx_core_ab.py run --only REF ...` into a scratch file (all three arms), pass when the row has no flag
+  (`slower`, `heavier`, `worse`, `shipped-slower`) or only a `heavier` that is an accepted trade; the rows go to
+  `--ab-out` (default: a temp file), never into `docs/plans/mlx-core-ab.jsonl`;
+- `gen_auto_mode`, `gen_docs`: `--check` (the generated files up to date; after the survey rows changed they may need
+  regenerating).
 
-Prints one pass / fail row per (step, ref, dtype) and exits 1 when any fails. The A/B rows go to `--ab-out` (default: a
-temp file), never into `docs/plans/mlx-core-ab.jsonl`: copy them there yourself once they are the ones to keep.
+Prints one pass / fail row per (step, ref, dtype) and exits 1 when any fails.
 
-`--lock`: the GPU lock prefix for the two GPU steps. With `gpu2.sh` the goldens run under `--light` and the A/B under
-`--timed`; any other script (`gpu.sh`) wraps both as it is. Run the gate itself outside the lock.
+`--lock`: the GPU lock prefix for the GPU steps. With `gpu2.sh` the goldens run under `--light`, the survey and the A/B
+under `--timed`; any other script (`gpu.sh`) wraps each as it is. Run the gate itself outside the lock. `--chunk N`
+takes the lock once per N refs (default: once per step).
 """
 
 from __future__ import annotations
@@ -33,7 +41,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = Path(__file__).resolve().parent
-STEPS = ("goldens", "ab", "gen_auto_mode", "gen_docs")
+STEPS = ("goldens", "survey", "ab", "gen_auto_mode", "gen_docs")
+DEVICE = "apple-m1-pro-mlx-16gb"  # the MLX survey of this Mac (docs/data/devices.toml)
+MPS_DEVICE = "apple-m1-pro-16gb"  # its MPS rows, beside them
 
 
 @dataclass
@@ -48,10 +58,17 @@ class Check:
 
 
 def lock_prefix(lock: str | None, kind: str) -> list[str]:
-    """The command prefix for a GPU step (`kind`: `light` for goldens, `timed` for the A/B)."""
+    """The command prefix for a GPU step (`kind`: `light` for goldens, `timed` for the survey and the A/B)."""
     if not lock:
         return []
     return [lock, f"--{kind}"] if Path(lock).name == "gpu2.sh" else [lock]
+
+
+def chunks(xs: list[str], n: int) -> list[list[str]]:
+    """`xs` in consecutive chunks of at most `n` (`n` < 1: one chunk)."""
+    if n < 1:
+        return [xs] if xs else []
+    return [xs[i : i + n] for i in range(0, len(xs), n)]
 
 
 def golden_ids(collected: str, refs: list[str], tests: list[str]) -> dict[str, list[str]]:
@@ -119,6 +136,39 @@ def ab_checks(rows: list[dict[str, Any]], refs: list[str], dtypes: list[str]) ->
     return out
 
 
+def survey_checks(
+    rows: list[dict[str, Any]], mps: list[dict[str, Any]], refs: list[str], dtypes: list[str], mode: str = "portable"
+) -> list[Check]:
+    """One row per (ref, dtype) from the survey rows: pass when `ok` and its golden did not fail."""
+    out = []
+    for ref in refs:
+        for dt in dtypes:
+            got = [r for r in rows if r.get("ref") == ref and r.get("dtype") == dt and r.get("mode") == mode]
+            if not got:  # a dtype the card does not offer on MLX has no survey row; no row at all fails
+                other = any(r.get("ref") == ref and r.get("mode") == mode for r in rows)
+                out.append(Check("survey", ref, ok=other, detail="not offered" if other else "no row", dtype=dt))
+                continue
+            r = got[-1]
+            if r.get("status") == "unsupported":
+                out.append(Check("survey", ref, ok=True, detail=f"unsupported: {r.get('note', '')}"[:80], dtype=dt))
+                continue
+            if r.get("status") != "ok":
+                why = f"{r.get('status')}: {r.get('error', '')}"
+                out.append(Check("survey", ref, ok=False, detail=why[:80], dtype=dt))
+                continue
+            m = next((x for x in mps if (x.get("ref"), x.get("dtype"), x.get("mode")) == (ref, dt, mode)), {})
+            detail = f"warm {r['ms']:.1f} ms" + (f" (mps {m['ms']:.1f})" if "ms" in m else "")
+            detail += f", first {r.get('first_call_s', float('nan')):.2f} s"
+            detail += f" (mps {m['first_call_s']:.2f})" if "first_call_s" in m else ""
+            detail += f", peak {r.get('peak_footprint_mb', '?')} MB, golden {r.get('golden', '?')}"
+            out.append(Check("survey", ref, ok=r.get("golden") != "fail", detail=detail, dtype=dt))
+    return out
+
+
+def _jsonl(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(s) for s in path.read_text().splitlines() if s.strip()] if path.exists() else []
+
+
 def table(rows: list[Check]) -> str:
     """The gate rows as a fixed-width table."""
     w = max([len(r.ref) for r in rows] + [3])
@@ -135,15 +185,17 @@ def _run(cmd: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:  # noqa
 def _goldens(a: argparse.Namespace, tmp: Path) -> list[Check]:
     col = _run([sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/test_golden.py"])
     ids = golden_ids(col.stdout, a.refs, a.golden_tests)
-    nodes = [n for v in ids.values() for n in v]
     results: dict[str, str] = {}
-    if nodes:
-        xml = tmp / "goldens.xml"
-        env = os.environ | {"FF_TEST_DEFAULT_CACHES": os.environ.get("FF_TEST_DEFAULT_CACHES", "1")}
-        cmd = [*lock_prefix(a.lock, "light"), sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    env = os.environ | {"FF_TEST_DEFAULT_CACHES": os.environ.get("FF_TEST_DEFAULT_CACHES", "1")}
+    cmd = [*lock_prefix(a.lock, "light"), sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    for i, refs in enumerate(chunks(a.refs, a.chunk)):  # one lock call per chunk of refs
+        nodes = [n for r in refs for n in ids[r]]
+        if not nodes:
+            continue
+        xml = tmp / f"goldens-{i}.xml"
         p = _run([*cmd, f"--junitxml={xml}", *nodes], env=env)
         if xml.exists():
-            results = junit_results(xml.read_text())
+            results |= junit_results(xml.read_text())
         else:
             print(p.stdout[-2000:] + p.stderr[-2000:], file=sys.stderr)
     return golden_checks(ids, results)
@@ -151,13 +203,26 @@ def _goldens(a: argparse.Namespace, tmp: Path) -> list[Check]:
 
 def _ab(a: argparse.Namespace, tmp: Path) -> list[Check]:
     out = Path(a.ab_out) if a.ab_out else tmp / "ab.jsonl"
-    cmd = [*lock_prefix(a.lock, "timed"), sys.executable, str(TOOLS / "mlx_core_ab.py"), "run", "--only", *a.refs]
-    cmd += ["--dtypes", *a.dtypes, "--modes", *a.modes, "--out", str(out), "--tmp", str(tmp), "--force"]
-    p = _run(cmd)
-    if p.returncode:
-        print(p.stdout[-2000:] + p.stderr[-2000:], file=sys.stderr)
-    rows = [json.loads(s) for s in out.read_text().splitlines() if s.strip()] if out.exists() else []
+    for refs in chunks(a.refs, a.chunk):  # one lock call per chunk of refs (the rows merge into `out`)
+        cmd = [*lock_prefix(a.lock, "timed"), sys.executable, str(TOOLS / "mlx_core_ab.py"), "run", "--only", *refs]
+        cmd += ["--dtypes", *a.dtypes, "--modes", *a.modes, "--out", str(out), "--tmp", str(tmp), "--force"]
+        p = _run(cmd)
+        if p.returncode:
+            print(p.stdout[-2000:] + p.stderr[-2000:], file=sys.stderr)
+    rows = _jsonl(out)
     return ab_checks(rows, a.refs, a.dtypes)
+
+
+def _survey(a: argparse.Namespace) -> list[Check]:
+    for refs in chunks(a.refs, a.chunk):
+        cmd = [*lock_prefix(a.lock, "timed"), sys.executable, str(TOOLS / "speed_survey.py"), "run"]
+        cmd += ["--device", a.device, "--only", *refs, "--modes", *a.modes, "--force"]
+        p = _run(cmd)
+        if p.returncode:
+            print(p.stdout[-2000:] + p.stderr[-2000:], file=sys.stderr)
+    speed = ROOT / "docs" / "data" / "speed"
+    rows, mps = _jsonl(speed / f"{a.device}.jsonl"), _jsonl(speed / f"{MPS_DEVICE}.jsonl")
+    return [c for m in a.modes for c in survey_checks(rows, mps, a.refs, a.dtypes, m)]
 
 
 def _gen(step: str) -> Check:
@@ -177,6 +242,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dtypes", nargs="*", default=["float16", "float32"])
     ap.add_argument("--modes", nargs="*", default=["portable"])
     ap.add_argument("--golden-tests", nargs="*", default=["test_mlx"], help="tests/test_golden.py tests to run")
+    ap.add_argument("--chunk", type=int, default=0, help="refs per GPU lock call (default: all in one)")
+    ap.add_argument("--ab", action="store_true", help="also the full A/B (borderline quick tier, final audit)")
+    ap.add_argument("--device", default=DEVICE, help="the survey device slug (docs/data/devices.toml)")
     ap.add_argument("--ab-out", default=None, help="keep the A/B rows here (default: a temp file)")
     a = ap.parse_args(argv)
     sys.path.insert(0, str(TOOLS))
@@ -185,7 +253,9 @@ def main(argv: list[str] | None = None) -> int:
         tmp = Path(d)
         if "goldens" not in a.skip:
             rows += _goldens(a, tmp)
-        if "ab" not in a.skip:
+        if "survey" not in a.skip:
+            rows += _survey(a)
+        if a.ab and "ab" not in a.skip:
             rows += _ab(a, tmp)
     rows += [_gen(s) for s in ("gen_auto_mode", "gen_docs") if s not in a.skip]
     print(table(rows))

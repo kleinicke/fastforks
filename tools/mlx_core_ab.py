@@ -4,6 +4,8 @@
     python tools/mlx_core_ab.py run [--only REF ...] [--family FAMILY ...] [--dtypes float16 float32]
                                     [--modes portable] [--out FILE] [--cache-mb 2048] [--force] [--no-prime]
                                     [--flagged] [--repeats 2] [--no-shipped] [--keep-quality]
+    python tools/mlx_core_ab.py quick [REF ...] [--family F ...] [--dtypes float16] [--scale 0.5] [--no-golden]
+                                      [--rebaseline] [--session TAG] [--lock gpu2.sh [--chunk N]]  # iterating
     python tools/mlx_core_ab.py table [--out FILE]                                 # the markdown table of the rows
     python tools/mlx_core_ab.py md [--out FILE] [--md FILE]      # rewrite the generated part of mlx-core-ab.md
 
@@ -47,6 +49,19 @@ The method (docs/plans/mlx-core-ab.md, "Method"):
   interval lies above `SLOWER`; `md` also lists float16 hand arms keeping more than `ISLAND` of their float32 resident
   memory and counts the rows whose arms make a different number of network calls (`net_ms` sums them per model call);
 - `--flagged` re-measures the rows flagged under these rules, `--keep-quality` carries their golden check over.
+
+Two tiers. `run` (the full method below) is for a borderline quick result and the final audit. While porting, `quick`
+gives an answer in seconds to a minute: one process for all its refs, each model loaded once; only the hand arm is
+timed, against the graph arm's baseline of the same (ref, mode, dtype, input size, MLX version), measured once per
+session (`--session`, `FASTFORKS_AB_SESSION`, default the date) and cached in `BASELINE_DIR` (`FASTFORKS_AB_BASELINE`);
+float16 and the input at `QUICK_SCALE` of the survey's (synthetic) by default. Each network sample is divided by the
+time of a fixed reference net (`_ref_net`) timed right before and after it, so a GPU that is busier than when the
+baseline was taken (another job in the light lane) shifts both. The hand arm runs in rounds of `QUICK_ROUND` samples
+and stops once the bootstrap interval of hand / graph lies wholly beyond 1 +- `QUICK_BAND` (`slower` / `faster`) or
+wholly inside it (`same`), at most `--rounds`; `open` is the borderline case the full `run` decides. Prints warm ms,
+the interval and verdict, the transient peaks, the golden errors of both arms (`--no-golden` skips them) and the wall
+time. Run it under `gpu2.sh --light` (or `--lock gpu2.sh`, which also splits it into `--chunk` refs per lock call):
+its timings are indicative only and never go into the rows.
 
 Under `gpu2.sh --timed` (tools/gpu_lock.py) a worker holds the exclusive GPU lock only around its timed calls.
 
@@ -566,6 +581,262 @@ def _quality(held: list[Any], spec: dict[str, Any]) -> dict[str, Any]:
 
 def _sig(v: float) -> float:
     return float(f"{v:.4g}")
+
+
+# Quick tier: one process, the hand arm against a cached graph baseline (for iterating on a port; `run` is the gate).
+QUICK_BAND = 0.10  # decided once the interval lies wholly outside 1 +- this (or wholly inside it)
+QUICK_SCALE = 0.5  # the input side, as a share of the survey's (a smaller input: faster rounds)
+QUICK_ROUND = 3  # timed samples per round
+QUICK_MIN_ROUNDS, QUICK_MAX_ROUNDS = 2, 8
+QUICK_BASE_ROUNDS = 3  # rounds of the graph baseline (measured once per session, ref, mode, dtype and size)
+QUICK_CHUNK = 0  # refs per process under `--lock` (`quick_chunks`; 0: all in one)
+BASELINE_DIR = Path(os.environ.get("FASTFORKS_AB_BASELINE", "/Volumes/Daten/ff-mlx/ab-baseline"))
+
+
+def _small(label: str, scale: float) -> str:
+    """The input label `HxW` scaled by `scale`, each side a multiple of 32 and at least 64 (`1.0`: unchanged)."""
+    if scale >= 1:
+        return label
+    return "x".join(str(max(64, round(int(v) * scale / 32) * 32)) for v in label.split("x"))
+
+
+def _verdict(ci: list[float], band: float = QUICK_BAND) -> str:
+    """`slower` / `faster` (the interval wholly beyond 1 +- `band`), `same` (wholly inside it), else `open`."""
+    if not ci:
+        return "open"
+    lo, hi = ci
+    if lo > 1 + band:
+        return "slower"
+    if hi < 1 - band:
+        return "faster"
+    if lo >= 1 - band and hi <= 1 + band:
+        return "same"
+    return "open"
+
+
+def _session() -> str:
+    """The baseline session: `FASTFORKS_AB_SESSION`, else today's date (a baseline is measured once a day)."""
+    return os.environ.get("FASTFORKS_AB_SESSION") or time.strftime("%Y-%m-%d")
+
+
+def _baseline_path(job: dict[str, Any], size: str, mlx: str, session: str, root: Path = BASELINE_DIR) -> Path:
+    """The cached graph baseline of (ref, mode, dtype, input size) under MLX `mlx` in `session`."""
+    return root / session / f"{job['ref']}--{job['mode']}--{job['dtype']}--{size}--mlx{mlx}.json"
+
+
+def _normalized(net: list[float], ref: list[float]) -> list[float]:
+    """Each network sample over the reference net's time around it (the mean of the samples before and after it).
+
+    `ref` has one sample more than `net` (ref, net, ref, net, ..., ref): a GPU that runs slower for a while (another
+    job, heat) slows both, so the ratio drifts less than the network time.
+    """
+    return [n / ((ref[i] + ref[i + 1]) / 2) for i, n in enumerate(net)]
+
+
+def _ref_net(mx: Any) -> Callable[[], float]:  # noqa: ANN401 - mlx.core
+    """A fixed small float16 network (matmuls and a convolution): its call time in ms (the drift reference)."""
+    keys = mx.random.split(mx.random.key(0), 6)
+    x = mx.random.normal((256, 512), key=keys[0]).astype(mx.float16)
+    ws = [(mx.random.normal((512, 512), key=k) / 23).astype(mx.float16) for k in keys[1:5]]
+    img = mx.random.normal((1, 96, 96, 32), key=keys[5]).astype(mx.float16)
+    wc = (mx.random.normal((32, 3, 3, 32), key=keys[5]) / 17).astype(mx.float16)
+    mx.eval(x, img, wc, *ws)
+
+    def call() -> float:
+        t0 = time.perf_counter()
+        for _ in range(4):
+            y = x
+            for w in ws:
+                y = mx.maximum(y @ w, 0)
+            z = mx.conv2d(img, wc, padding=1)
+            mx.eval(y, z)
+        mx.synchronize()
+        return 1e3 * (time.perf_counter() - t0)
+
+    for _ in range(3):
+        call()
+    return call
+
+
+def _quick_rounds(
+    sample: Callable[[], float], ref: Callable[[], float], rounds: int, base: list[list[float]] | None
+) -> tuple[list[list[float]], list[float]]:
+    """Normalized samples per round (`QUICK_ROUND` each), and the interval against `base`.
+
+    With a `base`, stops once `_verdict` is decided (after `QUICK_MIN_ROUNDS`), at most `rounds`; without one, runs
+    `rounds` rounds (the baseline itself).
+    """
+    got: list[list[float]] = []
+    ci: list[float] = []
+    for r in range(rounds):
+        refs, nets = [ref()], []
+        for _ in range(QUICK_ROUND):
+            nets.append(sample())
+            refs.append(ref())
+        got.append(_normalized(nets, refs))
+        if base is not None and r + 1 >= QUICK_MIN_ROUNDS:
+            ci = _ci(got, base)
+            if _verdict(ci) != "open":
+                break
+    return got, ci
+
+
+def _quick_arm(
+    job: dict[str, Any], arm: str, ctx: dict[str, Any], rounds: int, base: list[list[float]] | None
+) -> dict[str, Any]:
+    """Load one arm in this process, call it, time it in rounds (`_quick_rounds`), check its golden; drop it.
+
+    `job["input"]` is the (smaller) input size; `ctx`: `timers` (`_Timers`), `ref` (`_ref_net`), `golden` (bool).
+    """
+    import torch  # noqa: PLC0415
+
+    from speed_survey import MPS_WARMUP, _inputs  # noqa: PLC0415
+
+    timers, ref = ctx["timers"], ctx["ref"]
+    mx = timers.mx
+    os.environ["FASTFORKS_MLX_GRAPH"] = "1" if arm == "graph" else "0"  # read at load time (`graph_switch`)
+    task = __import__(f"fastforks.{job['task']}", fromlist=["load"])
+    out: dict[str, Any] = {}
+    t0 = time.perf_counter()
+    model = task.load(job["ref"], mode=job["mode"], device="mlx", dtype=job["dtype"])
+    out["load_s"] = round(time.perf_counter() - t0, 2)
+    if arm == "hand":
+        timers.patch_hand(job["family"])
+    timers.patch_copies()
+    args, kw, _ = _inputs(model, {**job, "scene": ""})
+
+    def call() -> None:
+        with torch.inference_mode():
+            model(*args, **kw)
+
+    timers.on = True
+    t0 = time.perf_counter()
+    call()
+    out["first_s"] = round(time.perf_counter() - t0, 2)
+    if not timers.calls:
+        msg = "no MLX network call seen"
+        raise RuntimeError(msg)
+    for _ in range(MPS_WARMUP):
+        timers.reset()
+        call()
+    loops = _loops(1e3 * timers.seconds)
+    transients: list[int] = []
+
+    def sample() -> float:
+        timers.reset()
+        for _ in range(loops):
+            call()
+        transients.append(timers.transient)
+        return 1e3 * timers.seconds / loops
+
+    ms: list[float] = []
+
+    def sample_ms() -> float:
+        ms.append(sample())
+        return ms[-1]
+
+    out["norm"], out["ci"] = _quick_rounds(sample_ms, ref, rounds, base)
+    timers.on = False
+    out["net_ms"] = round(statistics.median(ms), 3)
+    out["net_transient_mb"] = round(max(transients) / 2**20, 1)
+    out["samples"] = len(ms)
+    if ctx["golden"]:
+        held = [model]
+        del model
+        out["quality"] = _quality(held, {**job, "arm": arm})
+    else:
+        del model
+    gc.collect()
+    mx.clear_cache()
+    return out
+
+
+def quick(a: argparse.Namespace) -> int:
+    """The quick tier (module docstring): per job the hand arm against the session's graph baseline, one process."""
+    sys.path.insert(0, str(TOOLS))
+    import gpu_lock  # noqa: PLC0415
+
+    todo = jobs(a.refs, a.family, a.modes, a.dtypes)
+    if not todo:
+        print("no hand-ported job matches", file=sys.stderr)
+        return 1
+    os.environ["FASTFORKS_OFFLINE"] = "1"
+    os.environ["FASTFORKS_MLX_CACHE_MB"] = str(a.cache_mb)
+    with gpu_lock.session("mlx_core_ab quick"):
+        from fastforks._core.mlx import mx  # noqa: PLC0415
+        from fastforks.shared import mlx_graph  # noqa: PLC0415
+
+        timers = _Timers(mx)
+        for cls in (mlx_graph.MlxModule, mlx_graph.GraphNet):
+            timers.patch(cls)
+        ctx = {"timers": timers, "ref": _ref_net(mx), "golden": a.golden}
+        mlx = _mlx_version()
+        for job in todo:
+            t0 = time.perf_counter()
+            size = _small(job["input"], a.scale)
+            path = _baseline_path(job, size, mlx, a.session or _session(), Path(a.baseline_dir))
+            try:
+                base = None if a.rebaseline else json.loads(path.read_text())
+            except (OSError, json.JSONDecodeError):
+                base = None
+            try:
+                if base is None:
+                    with gpu_lock.timed():  # the exclusive lock (under `--timed`) for the baseline only
+                        base = _quick_arm(job | {"input": size}, "graph", ctx, a.base_rounds, None)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(base))
+                    base["new"] = True
+                hand = _quick_arm(job | {"input": size}, "hand", ctx, a.rounds, base["norm"])
+            except Exception as e:  # noqa: BLE001 - one job's failure, the others go on
+                print(f"{job['ref']:32s} {job['dtype']:8s} {size:>9s}  error: {' '.join(str(e).split())[:200]}")
+                continue
+            print(_quick_line(job, size, hand, base, time.perf_counter() - t0), flush=True)
+    return 0
+
+
+def quick_chunks(a: argparse.Namespace) -> int:
+    """`quick` with `--lock`: one `quick` process per `--chunk` refs, each under the lock (`gpu2.sh --light`).
+
+    `--chunk N` splits the refs into one process (and lock call) per N; this process holds no lock.
+    """
+    refs = list(dict.fromkeys(j["ref"] for j in jobs(a.refs, a.family, a.modes, a.dtypes)))
+    if not refs:
+        print("no hand-ported job matches", file=sys.stderr)
+        return 1
+    prefix = [a.lock, "--light"] if Path(a.lock).name == "gpu2.sh" else [a.lock]
+    opts = ["--modes", *a.modes, "--dtypes", *a.dtypes, "--scale", str(a.scale), "--rounds", str(a.rounds)]
+    opts += ["--base-rounds", str(a.base_rounds), "--baseline-dir", a.baseline_dir, "--cache-mb", str(a.cache_mb)]
+    opts += ["--session", a.session or _session()]
+    opts += [*(() if a.golden else ("--no-golden",)), *(("--rebaseline",) if a.rebaseline else ())]
+    worst = 0
+    n = a.chunk if a.chunk > 0 else len(refs)
+    for i in range(0, len(refs), n):
+        cmd = [*prefix, sys.executable, __file__, "quick", *refs[i : i + n], *opts]
+        worst = max(worst, subprocess.run(cmd, check=False).returncode)
+    return worst
+
+
+def _quick_line(job: dict[str, Any], size: str, hand: dict[str, Any], base: dict[str, Any], wall: float) -> str:
+    """One printed row: warm ratio, its interval and verdict, transient peaks, golden errors, wall time."""
+    ratio = statistics.median(x for r in hand["norm"] for x in r) / statistics.median(
+        x for r in base["norm"] for x in r
+    )
+    ci = hand["ci"]
+    ci_s = f"[{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "[-]"
+    tx = (hand["net_transient_mb"] + 1) / (base["net_transient_mb"] + 1)
+    out = f"{job['ref']:32s} {job['dtype']:8s} {size:>9s}  warm {hand['net_ms']:9.2f} / {base['net_ms']:9.2f} ms"
+    out += f" x{ratio:.3f} {ci_s} {_verdict(ci):6s}  transient {hand['net_transient_mb']:7.1f} /"
+    out += f" {base['net_transient_mb']:7.1f} MB x{tx:.2f}"
+    hq, gq = hand.get("quality", {}), base.get("quality", {})
+    if "mean" in hq:
+        out += (
+            f"  golden mean {hq['mean']:.3g} (graph {gq.get('mean', float('nan')):.3g}, bound {hq['bound_mean']:.3g})"
+        )
+        out += " WORSE" if _worse(hq, gq) else ""
+    elif hq:
+        out += f"  golden {next(iter(hq.values()))!s:.60s}"
+    out += f"  {hand['samples']} samples, {wall:.0f} s{' (new baseline)' if base.get('new') else ''}"
+    return out
 
 
 # Orchestration.
@@ -1143,6 +1414,25 @@ def md(rows: list[dict[str, Any]], peaks: dict[str, dict[tuple[str, str], float]
     return "\n".join(out)
 
 
+def _quick_parser(sub: Any) -> None:  # noqa: ANN401 - argparse's subparsers action
+    """The `quick` subcommand's options."""
+    q = sub.add_parser("quick", help="the quick tier: hand arm against the session's cached graph baseline")
+    q.add_argument("refs", nargs="*", default=[])
+    q.add_argument("--family", nargs="*", default=[])
+    q.add_argument("--modes", nargs="*", default=["portable"])
+    q.add_argument("--dtypes", nargs="*", default=["float16"])
+    q.add_argument("--scale", type=float, default=QUICK_SCALE, help="input side share of the survey's (1: as is)")
+    q.add_argument("--rounds", type=int, default=QUICK_MAX_ROUNDS, help="most rounds of the hand arm")
+    q.add_argument("--base-rounds", type=int, default=QUICK_BASE_ROUNDS, help="rounds of a new graph baseline")
+    q.add_argument("--no-golden", dest="golden", action="store_false", help="skip the golden check")
+    q.add_argument("--rebaseline", action="store_true", help="measure the graph baseline again")
+    q.add_argument("--session", default=None, help="baseline session tag (default: FASTFORKS_AB_SESSION or the date)")
+    q.add_argument("--baseline-dir", default=str(BASELINE_DIR))
+    q.add_argument("--cache-mb", type=int, default=CACHE_MB)
+    q.add_argument("--chunk", type=int, default=QUICK_CHUNK, help="refs per process under --lock (0: all in one)")
+    q.add_argument("--lock", default=None, help="run each chunk under this lock script (gpu.sh / gpu2.sh: --light)")
+
+
 def main() -> int:
     """Command line (see the module docstring)."""
     p = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
@@ -1165,6 +1455,7 @@ def main() -> int:
             s.add_argument(
                 "--no-prime", dest="prime", action="store_false", help="skip the warm-up process before each arm"
             )
+    _quick_parser(sub)
     t = sub.add_parser("table")
     t.add_argument("--out", default=str(OUT))
     t = sub.add_parser("md", help="rewrite the generated part of docs/plans/mlx-core-ab.md")
@@ -1179,6 +1470,8 @@ def main() -> int:
         for j in jobs(a.only, a.family, a.modes, a.dtypes):
             print(f"{j['ref']:40s} {j['family']:20s} {j['mode']:9s} {j['dtype']:8s} {j['input']}")
         return 0
+    if a.cmd == "quick":
+        return quick_chunks(a) if a.lock else quick(a)
     if a.cmd == "table":
         print(table(_read(Path(a.out))), end="")
         return 0

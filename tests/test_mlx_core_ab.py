@@ -95,3 +95,45 @@ def test_md_sections() -> None:
     assert "| r | 90 / 100 | 0.90 |" in text
     assert "0 rows flagged" in text
     assert "0.90-1.00" in text
+
+
+def test_quick_small_input() -> None:
+    assert ab._small("480x640", 0.5) == "256x320"  # 240 rounds to 256 (a multiple of 32)
+    assert ab._small("100x60", 0.5) == "64x64"
+    assert ab._small("375x1242", 1.0) == "375x1242"
+
+
+def test_quick_verdict() -> None:
+    assert ab._verdict([1.12, 1.30]) == "slower"
+    assert ab._verdict([0.70, 0.88]) == "faster"
+    assert ab._verdict([0.95, 1.04]) == "same"
+    assert ab._verdict([0.95, 1.15]) == "open"
+    assert ab._verdict([]) == "open"
+
+
+def test_quick_baseline_path(tmp_path: Path) -> None:
+    job = {"ref": "rife-4.25", "mode": "portable", "dtype": "float16"}
+    p = ab._baseline_path(job, "224x320", "0.32.4", "2026-11-28", tmp_path)
+    assert p == tmp_path / "2026-11-28" / "rife-4.25--portable--float16--224x320--mlx0.32.4.json"
+    assert p != ab._baseline_path(job | {"dtype": "float32"}, "224x320", "0.32.4", "2026-11-28", tmp_path)
+
+
+def test_quick_normalized_cancels_drift() -> None:
+    # the GPU runs 2x slower for the second half: the network samples double, so do the reference ones
+    net, ref = [10.0, 10.0, 20.0, 20.0], [1.0, 1.0, 1.0, 2.0, 2.0]
+    assert ab._normalized(net, ref) == [10.0, 10.0, 20.0 / 1.5, 10.0]
+
+
+def test_quick_rounds_stop_once_decided() -> None:
+    base = [[1.0, 1.01, 0.99]] * 3
+    calls = {"n": 0}
+
+    def slow() -> float:
+        calls["n"] += 1
+        return 1.5
+
+    got, ci = ab._quick_rounds(slow, lambda: 1.0, 8, base)
+    assert len(got) == ab.QUICK_MIN_ROUNDS
+    assert ab._verdict(ci) == "slower"
+    got, _ = ab._quick_rounds(slow, lambda: 1.0, 3, None)  # a baseline: all its rounds
+    assert len(got) == 3

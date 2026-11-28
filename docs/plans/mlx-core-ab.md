@@ -531,8 +531,12 @@ transient peak flags 2 more rows heavier. 96 rows show different call counts.
 
 Tools for a port (see each tool's docstring):
 
-- `tools/mlx_gate.py REF...` runs the goldens, the as-shipped A/B and the `gen_auto_mode` / `gen_docs` checks of the
-  touched refs and prints them as one pass/fail table. An accepted heavier row passes.
+- `tools/mlx_core_ab.py quick REF...` is the check while iterating. It runs in one process, and only the hand arm is
+  timed, against a graph baseline cached once per session. Each sample is normalized by a fixed reference net timed
+  around it. Inputs are float16 at half size. It stops once the interval is clearly beyond or inside ±10 %.
+- `tools/mlx_gate.py REF...` is run once per port. It runs the goldens, one survey run (the rows the website and auto
+  use) and the `gen_auto_mode` / `gen_docs` checks of the port's refs, and prints them as one pass/fail table. The
+  full A/B (`--ab`) is only for a borderline quick result and the final audit; an accepted heavier row passes.
 - `tools/mlx_layer_diff.py REF --dtype f16 --size HxW [--time]` compares per tap against the torch reference. It
   prints max / mean / relative diff and the first diverging tap (`--atol` for small residuals). The taps come from
   `shared/mlx_port.tap`.

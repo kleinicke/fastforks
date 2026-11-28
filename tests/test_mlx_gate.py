@@ -33,6 +33,29 @@ def test_lock_prefix() -> None:
     assert gate.lock_prefix("/x/gpu2.sh", "timed") == ["/x/gpu2.sh", "--timed"]
 
 
+def test_chunks() -> None:
+    assert gate.chunks(["a", "b", "c"], 2) == [["a", "b"], ["c"]]
+    assert gate.chunks(["a", "b"], 0) == [["a", "b"]]
+    assert gate.chunks([], 2) == []
+
+
+def test_survey_checks() -> None:
+    rows = [
+        {"ref": "a", "mode": "portable", "dtype": "float16", "status": "ok", "ms": 10.0, "first_call_s": 1.0}
+        | {"golden": "pass", "peak_footprint_mb": 500},
+        {"ref": "b", "mode": "portable", "dtype": "float16", "status": "ok", "ms": 5.0, "golden": "fail"},
+        {"ref": "c", "mode": "portable", "dtype": "float16", "status": "failed", "error": "boom"},
+    ]
+    mps = [{"ref": "a", "mode": "portable", "dtype": "float16", "ms": 20.0, "first_call_s": 2.0}]
+    got = {(c.ref, c.dtype): c for c in gate.survey_checks(rows, mps, ["a", "b", "c", "d"], ["float16", "float32"])}
+    assert got["a", "float16"].ok
+    assert "mps 20.0" in got["a", "float16"].detail
+    assert got["a", "float32"].ok  # not offered: the ref has rows, none of this dtype
+    assert not got["b", "float16"].ok  # golden failed
+    assert not got["c", "float16"].ok
+    assert not got["d", "float16"].ok  # no row at all
+
+
 def test_golden_ids_and_results() -> None:
     ids = gate.golden_ids(COLLECTED, ["crestereo-eth3d", "rife-4.25", "none"], ["test_mlx", "test_gpu"])
     assert ids["crestereo-eth3d"] == [
