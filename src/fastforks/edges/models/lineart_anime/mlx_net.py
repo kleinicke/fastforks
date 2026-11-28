@@ -41,7 +41,6 @@ class Network:
                 )
             )
             block = next((m for m in layers if hasattr(m, "outermost")), None)
-        self._forward = mx.compile(self._run)
 
     def _level(self, i: int, x: mx.array) -> mx.array:
         """Level `i` (0: the outermost, the last: the innermost) of the U-Net."""
@@ -54,6 +53,7 @@ class Network:
         if not last:
             h = self._level(i + 1, mlx_conv.instance_norm(h))
         h = mlx_conv.instance_norm(up(mx.maximum(h, 0)))
+        mx.eval(h)  # one level at a time: MLX holds temporaries until a step ends
         return mx.concatenate([x, h], axis=-1)
 
     def _run(self, x: mx.array) -> mx.array:
@@ -62,7 +62,9 @@ class Network:
 
     def __call__(self, x: mx.array) -> mx.array:
         """The line map of the NHWC image `x`."""
-        return self._forward(x)
+        y = self._run(x)
+        mx.eval(y)
+        return y
 
 
 def network(net: UnetGenerator, dtype: str) -> Network:

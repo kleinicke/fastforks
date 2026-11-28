@@ -18,7 +18,7 @@ from fastforks.shared import mlx_conv
 if TYPE_CHECKING:
     from .net import MobileV2_MLSD_Large
 
-LAYOUT = "mlsd-v1"
+LAYOUT = "mlsd-v2"
 SOURCES = (Path(__file__), Path(mlx_conv.__file__), Path(__file__).with_name("net") / "mbv2_mlsd_large.py")
 STRIDE2 = 2
 TAPS = (1, 3, 6, 10, 13)  # the backbone features whose outputs the decoder reads
@@ -63,9 +63,11 @@ class Network:
         self.head = (
             conv(c.conv1[0], bn=c.conv1[1]),
             conv(c.conv2[0], bn=c.conv2[1]),
-            conv(c.conv3, out=slice(7, None)),
+            conv(c.conv3),  # all 16 outputs: 9 is a ragged width for MLX's GEMM, the 9 kept are sliced after
         )
-        self._forward = mx.compile(self._run)
+        self._coarse = mx.compile(self._run_coarse)
+        self._front = mx.compile(self._run_front)
+        self._back = mx.compile(self._run_back)
 
     @staticmethod
     def _cbr(layer: tuple[mlx_conv.Conv, bool], x: mx.array) -> mx.array:
@@ -74,7 +76,23 @@ class Network:
             x = mx.pad(x, [(0, 0), (0, 1), (0, 1), (0, 0)])
         return _relu6(conv(x))
 
-    def _run(self, x: mx.array) -> mx.array:
+    def _fuse(self, stage: int, deep: mx.array, skip: mx.array) -> mx.array:
+        """The two inputs of fusion stage `stage` upsampled and concatenated (the `a` map first)."""
+        up_b, up_a, upscale, _, _ = self.stages[stage]
+        b = mx.maximum(up_b(deep), 0)
+        a = mx.maximum(up_a(skip), 0)
+        if upscale:
+            b = mlx_conv.resize(b, (b.shape[1] * 2, b.shape[2] * 2), align_corners=True)
+        return mx.concatenate([a, b], axis=-1)
+
+    def _convs(self, stage: int, x: mx.array) -> mx.array:
+        """The two residual 3x3 convolutions of fusion stage `stage` on its concatenated input."""
+        _, _, _, b1, b2 = self.stages[stage]
+        x = mx.maximum(b1(x), 0) + x
+        return mx.maximum(b2(x), 0)
+
+    def _run_coarse(self, x: mx.array) -> tuple[mx.array, mx.array]:
+        """The backbone and the first three fusion stages: the deep map (stride 2) and the finest tap."""
         x = self._cbr(self.stem, x)
         taps = []
         for i, (body, project, res) in enumerate(self.blocks, 1):
@@ -86,23 +104,32 @@ class Network:
             if i in TAPS:
                 taps.append(x)
         c1, c2, c3, c4, c5 = taps
-        x = None
-        for (up_b, up_a, upscale, b1, b2), skip in zip(self.stages, (c4, c3, c2, c1), strict=True):
-            deep = c5 if x is None else x
-            b = mx.maximum(up_b(deep), 0)
-            a = mx.maximum(up_a(skip), 0)
-            if upscale:
-                b = mlx_conv.resize(b, (b.shape[1] * 2, b.shape[2] * 2), align_corners=True)
-            x = mx.concatenate([a, b], axis=-1)
-            x = mx.maximum(b1(x), 0) + x
-            x = mx.maximum(b2(x), 0)
+        x = c5
+        for stage, skip in enumerate((c4, c3, c2)):
+            x = self._convs(stage, self._fuse(stage, x, skip))
+        return x, c1
+
+    def _run_front(self, deep: mx.array, c1: mx.array) -> mx.array:
+        return self._fuse(3, deep, c1)
+
+    def _run_back(self, x: mx.array) -> mx.array:
         h1, h2, h3 = self.head
-        return h3(mx.maximum(h2(mx.maximum(h1(x), 0)), 0))
+        x = self._convs(3, x)
+        return h3(mx.maximum(h2(mx.maximum(h1(x), 0)), 0))[..., 7:]
 
     def __call__(self, x: mx.array) -> mx.array:
-        """The maps of `x`, evaluated."""
+        """The maps of `x`, evaluated.
+
+        Three steps, each evaluated before the next: MLX keeps a step's temporaries until its command buffers have
+        run, and the finest stage's Winograd 3x3 (128 -> 128 channels at the half resolution) alone needs about
+        6x its input; one compiled forward peaked at 1.55x the graph port's transient (float16) for the same speed.
+        """
         with mlx_conv.mode():
-            y = self._forward(x.astype(self.stem[0].w.dtype))
+            deep, c1 = self._coarse(x.astype(self.stem[0].w.dtype))
+            mx.eval(deep, c1)
+            cat = self._front(deep, c1)
+            mx.eval(cat)
+            y = self._back(cat)
             mx.eval(y)
         return y
 
