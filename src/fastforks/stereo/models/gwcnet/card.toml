@@ -3,7 +3,7 @@ name = "GwcNet"
 summary = "GwcNet (Guo et al. 2019): group-wise correlation 3-D cost volume, stacked 3-D hourglasses and soft-argmin regression (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "mlx_graph", "mlx_port", "mlx_stereo", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_port", "mlx_stereo", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The original code's KITTI 2012 / 2015 fine-tuned weights are not included.",
   "The dominant 3D convolutions run in cuDNN in both modes, so kernels gains less over portable than for other stereo models. Portable is slightly slower than the original code at 994x1482 but allocates less than half the memory.",

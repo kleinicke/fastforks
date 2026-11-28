@@ -3,7 +3,7 @@ name = "PSMNet"
 summary = "PSMNet (Chang and Chen 2018): spatial-pyramid features, a concatenation 3-D cost volume with three stacked 3-D hourglasses and soft-argmin regression (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_port", "mlx_seg", "mlx_stereo", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/JiaRenChang/PSMNet"
