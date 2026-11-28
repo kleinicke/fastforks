@@ -20,7 +20,7 @@ import contextlib
 import functools
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 import torch.nn.functional as F
@@ -477,8 +477,50 @@ class Kernels(_Fast):
         return Runner.module(self)
 
 
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`) from the checkpoint's tensors, one pair per call."""
+
+    batch = 1  # one pair per call (`mlx_net`)
+    dtypes = ("float32", "float16")
+    Params = Params
+    module = Runner.module  # the MLX network is not exportable
+    CACHE_MB: ClassVar[dict[str, int]] = {"*": 128}  # the buffer cache this mode asks for, by variant ('*': all)
+    # The e2e footprint carries it: 128 / 512 / 1024 MB gave 4062 / 4462 / 5036 MB float16 and 6592 / 7096 / 7548
+    # float32 at the same speed (within 1.3 %; the graph port 6494 / 11157; 1080 x 1920, M1 Pro)
+
+    def __init__(self, ctx: Context) -> None:
+        """The MLX network from the conversion cache (the first load converts the checkpoint's weights)."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        path = ctx.weights()[0]
+        iters = ctx.params.iters
+        self.mlx = mlx_port.recorded(
+            ctx,
+            mlx_net.LAYOUT,
+            lambda sd: mlx_net.MlxMegaFlow(sd, ctx.dtype, iters),
+            real=ctx.state_dict,
+            skeleton=lambda: mlx_port.header_skeleton(path),
+            sources=mlx_net.SOURCES,
+        )
+        if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
+            from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
+
+            request_cache(self, mb)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded, normalised pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"flow": to_torch(self.mlx(to_mx(image1.float()), to_mx(image2.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _MlxPortable,
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable)}
