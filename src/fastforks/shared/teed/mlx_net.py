@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any
 
 from fastforks._core.mlx import metal_kernel, mx
 from fastforks.kernels.conv_mlx import ops as conv_ops
+from fastforks.shared.mlx_conv import swin
 from fastforks.shared.mlx_graph import _conv_transpose2d_phases, conv1x1, conv1x1_ok
-from fastforks.shared.swin_sr import mlx_net as swin
 
 if TYPE_CHECKING:
     from .net.ted import TED

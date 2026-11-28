@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastforks._core.mlx import mx
 from fastforks.shared import mlx_conv
@@ -47,7 +47,9 @@ class _Spectral:
             b, h, w // 2 + 1, 2 * c
         )  # channel c * 2 + re / im
         wt = self.fu.w.reshape(2 * c, 2 * c).T.astype(mx.float32)
-        z = mx.maximum(mx.matmul(z, wt) + self.fu.b.astype(mx.float32), 0).reshape(b, h, w // 2 + 1, c, 2)
+        z = mx.maximum(mx.matmul(z, wt) + cast("mx.array", self.fu.b).astype(mx.float32), 0).reshape(
+            b, h, w // 2 + 1, c, 2
+        )
         out = mx.fft.irfft2(z[..., 0] + 1j * z[..., 1], s=(h, w), axes=[1, 2]) * (1 / norm)
         return self.conv2(s + out.astype(s.dtype))
 
@@ -73,7 +75,7 @@ class Network:
     def __init__(self, net: FFCResNetGenerator, dtype: str) -> None:
         """The arrays of `net` (float32, or the meta skeleton on a cache hit) in `dtype`, the norms folded in."""
         dt = getattr(mx, dtype)
-        layers = list(net.model)
+        layers: list[Any] = list(net.model)
         stem, *downs = (m for m in layers if _is(m, "FFC_BN_ACT"))
         self.stem = mlx_conv.Conv(stem.ffc.convl2l, dt, bn=stem.bn_l)
         self.downs = [mlx_conv.Conv(m.ffc.convl2l, dt, bn=m.bn_l) for m in downs]

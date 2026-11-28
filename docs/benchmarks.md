@@ -323,6 +323,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1075 ms · portable fp16 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | 1254 ms · portable fp16 | 570 ms · portable fp16 |
 
+#### Edges, 1080x1920
+
+| model | Apple M1 Pro 16 GB (MLX) |
+|---|---|
+| [`hed`](models/edges.md#hed) | 96.9 ms · portable fp16 |
+| [`lineart-anime`](models/edges.md#lineart_anime) | 61.8 ms · portable fp16 |
+| [`mlsd`](models/edges.md#mlsd) | 45.4 ms · portable fp16 |
+| [`teed`](models/edges.md#teed) | 16.6 ms · kernels fp16 |
+
 #### Promptable segmentation, 1024x1024
 
 | model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
@@ -646,7 +655,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
 |---|---|---|
-| [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 | 225 ms · portable fp16 |
+| [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 | 193 ms · portable fp16 |
 | [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 | 239 ms · kernels fp16 |
 | [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 | 5231 ms · portable fp16 |
 | [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 | 1031 ms · portable fp16 |

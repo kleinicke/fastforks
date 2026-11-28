@@ -353,13 +353,18 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | [`anyline`](../models/edges.md#anyline) | 55.4 | 43.8 | 55.4 | 39.8 | 1.1x | 729 | 731 |
-| [`hed`](../models/edges.md#hed) | 74.9 | 65.2 | unsupported | – | – | 1174 | – |
 | [`lineart`](../models/edges.md#lineart) | 78.6 | 51.6 | 77.5 | 51.5 | 1.0x | 882 | 883 |
-| [`lineart-anime`](../models/edges.md#lineart_anime) | 51.8 | 44.5 | unsupported | – | – | 982 | – |
 | [`lineart-coarse`](../models/edges.md#lineart) | 80.0 | 51.8 | 81.0 | 52.4 | 1.0x | 867 | 842 |
-| [`mlsd`](../models/edges.md#mlsd) | 46.3 | 35.8 | unsupported | – | – | 676 | – |
 | [`pidinet`](../models/edges.md#pidinet) | 196 | 173 | 107 | 75.1 | 2.3x | 728 | 732 |
-| [`teed`](../models/edges.md#teed) | 19.6 | 19.2 | 17.5 | 14.1 | 1.4x | 492 | 523 |
+
+### Edges, synthetic, 1080x1920
+
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
+|---|---|---|---|---|---|---|---|
+| [`hed`](../models/edges.md#hed) | 115 | 96.9 | unsupported | – | – | 1497 | – |
+| [`lineart-anime`](../models/edges.md#lineart_anime) | 79.3 | 61.8 | unsupported | – | – | 1096 | – |
+| [`mlsd`](../models/edges.md#mlsd) | 57.3 | 45.4 | unsupported | – | – | 914 | – |
+| [`teed`](../models/edges.md#teed) | 24.8 | 23.3 | 23.8 | 16.6 | 1.4x | 532 | 535 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -779,7 +784,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | portable bf16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| [`big-lama`](../models/restoration.md#lama) | 347 | 225 | – | unsupported | – | – | 990 | – |
+| [`big-lama`](../models/restoration.md#lama) | 247 | 193 | – | unsupported | – | – | 916 | – |
 | [`codeformer`](../models/restoration.md#codeformer) | 484 | 285 | – | 481 | 239 | 1.2x | 1597 | 1637 |
 | [`dat-2-x4`](../models/restoration.md#dat) | 8587 | 5231 | – | unsupported | – | – | 3643 | – |
 | [`dat-light-x4`](../models/restoration.md#dat) | 1761 | 1031 | – | unsupported | – | – | 2751 | – |
