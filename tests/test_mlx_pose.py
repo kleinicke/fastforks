@@ -173,15 +173,19 @@ def test_mlx_pose_without_torch():
 
 def test_auto_picks_mlx_and_logs(monkeypatch: pytest.MonkeyPatch) -> None:
     p1, p2, k, *_ = scene(2, 500, outliers=0.3)
+    monkeypatch.setenv("FASTFORKS_MLX", "1")  # conftest turns MLX routing off for the other tests
+    rp._apple_mlx.cache_clear()
     rp._announce_mlx.cache_clear()
     messages: list[str] = []
-    # record the call itself: other tests in a session may change the logger's handlers or propagation
     monkeypatch.setattr(rp.log, "info", lambda msg, *args: messages.append(msg % args))
-    pose = estimate_pose(p1, p2, k, k)
-    assert pose.ok.all()
-    assert any("MLX" in m for m in messages)
-    assert rp._mlx("auto", p1, "essential")
-    assert not rp._mlx("portable", p1, "essential")
+    try:
+        pose = estimate_pose(p1, p2, k, k)
+        assert pose.ok.all()
+        assert any("MLX" in m for m in messages)
+        assert rp._mlx("auto", p1, "essential")
+        assert not rp._mlx("portable", p1, "essential")
+    finally:
+        rp._apple_mlx.cache_clear()
 
 
 def test_numpy_float64_inputs():

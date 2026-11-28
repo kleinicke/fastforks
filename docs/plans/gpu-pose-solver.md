@@ -162,3 +162,17 @@ the copy of the result to the host.
 - `auto` picks `mlx` for all three on Apple silicon (`relative_pose._MLX_AUTO`) for inputs that are not CUDA tensors
   (CPU and MPS tensors, NumPy), logged once per solver at INFO; `FASTFORKS_MLX=0` keeps the portable path. Results
   come back as the input type (torch on the input device, or NumPy under `set_outputs("numpy")`).
+
+Interleaved check (2026-11-28, seed 0, one GPU job per problem in the order mlx, CPU, OpenCV, MPS, mlx; the load
+average was 5-7 from other agents' CPU work). The table above ran MLX/MPS and CPU/OpenCV in separate jobs, so the
+ratios are the comparable figure. Speed-up of mlx over the best existing Mac option:
+
+| problem | AUC@5 mlx / portable CPU | one pair: mlx vs best (x) | batched: mlx vs best (x) |
+|---|---|---|---|
+| essential | 88.5 / 82.9 | 7.1 (portable CPU 43.9 ms) | 11.9 (portable MPS 16.4 ms/pair) |
+| fundamental | 69.1 / 62.6 | 5.8 (portable CPU 29.0 ms) | 6.7 (portable MPS 7.9 ms/pair) |
+| absolute | 98.4 / 99.7 | 1.4 (OpenCV 5.4 ms) | 6.6 (OpenCV 5.4 ms/pair) |
+
+The two mlx runs in each block agree within 10% (6.4 / 5.9 ms, 1.36 / 1.40 ms/pair for essential). The portable CPU
+single pair is faster here than in the table above (44 vs 79 ms for essential), so the single-pair essential speed-up
+is 7x, not 10x. The absolute AUC gap is the same seed-0 sampling miss as above.
