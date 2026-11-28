@@ -10,7 +10,7 @@
 | hardware | 16-core GPU; the families with an MLX port (device="mlx") |
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-19 to 2026-11-27 |
+| measured | 2026-11-19 to 2026-11-28 |
 | rows | 1740 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
@@ -37,14 +37,14 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | 13339 | 10693 | – | – | – | 5189 | – |
 | [`dlnr-middlebury`](../models/stereo.md#dlnr) | 2234 | 1711 | unsupported | – | – | 2841 | – |
 | [`dlnr-sceneflow`](../models/stereo.md#dlnr) | 2276 | 1662 | unsupported | – | – | 2844 | – |
-| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 385 | 335 | unsupported | – | – | 1201 | – |
-| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 386 | 336 | unsupported | – | – | 1199 | – |
-| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 386 | 337 | unsupported | – | – | 1200 | – |
-| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 463 | 411 | unsupported | – | – | 1396 | – |
-| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 461 | 411 | unsupported | – | – | 1390 | – |
-| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 461 | 411 | unsupported | – | – | 1394 | – |
-| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 461 | 412 | unsupported | – | – | 1394 | – |
-| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 389 | 339 | unsupported | – | – | 1145 | – |
+| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 383 | 334 | unsupported | – | – | 1202 | – |
+| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 387 | 338 | unsupported | – | – | 1148 | – |
+| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 388 | 339 | unsupported | – | – | 1149 | – |
+| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 462 | 412 | unsupported | – | – | 1392 | – |
+| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 455 | 408 | unsupported | – | – | 1394 | – |
+| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 456 | 408 | unsupported | – | – | 1400 | – |
+| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 455 | 408 | unsupported | – | – | 1395 | – |
+| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 382 | 338 | unsupported | – | – | 1217 | – |
 | [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 4326 | 2875 | unsupported | – | – | 2829 | – |
 | [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | – | 25847 | – | – | – | 4941 | – |
 | [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | 40293 | 20504 | – | 17814 | 1.2x | 4943 | 4613 |
@@ -52,8 +52,8 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`great-igev-kitti`](../models/stereo.md#great_igev) | 11481 | 7588 | unsupported | – | – | 5294 | – |
 | [`great-igev-middlebury`](../models/stereo.md#great_igev) | 23063 | 14680 | – | – | – | 5607 | – |
 | [`great-igev-sceneflow`](../models/stereo.md#great_igev) | 12477 | 8028 | – | – | – | 5560 | – |
-| [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 3676 | 2450 | – | – | – | 2169 | – |
-| [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 4102 | 2933 | unsupported | – | – | 2876 | – |
+| [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 2777 | 1769 | – | – | – | 2965 | – |
+| [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 3083 | 1991 | unsupported | – | – | 3015 | – |
 | [`hitnet-eth3d`](../models/stereo.md#hitnet) | 419 | 289 | unsupported | – | – | 1157 | – |
 | [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 1616 | 686 | unsupported | – | – | 1891 | – |
 | [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 7874 | 5853 | 7868 | 5726 | 1.0x | 2953 | 2959 |
@@ -76,7 +76,7 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`monster-plusplus-mix-all`](../models/stereo.md#monster_plusplus) | 13670 | 10647 | unsupported | – | – | 3033 | – |
 | [`monster-sceneflow`](../models/stereo.md#monster) | 13099 | 10064 | unsupported | – | – | 2941 | – |
 | [`nmrf-sceneflow`](../models/stereo.md#nmrf) | 2224 | 1438 | unsupported | – | – | 2241 | – |
-| [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 3638 | 2597 | unsupported | – | – | 2941 | – |
+| [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 3042 | 2111 | unsupported | – | – | 2602 | – |
 | [`raft-stereo-eth3d`](../models/stereo.md#raft_stereo) | 5141 | 3193 | 4194 | 2361 | 1.4x | 2719 | 3875 |
 | [`raft-stereo-middlebury`](../models/stereo.md#raft_stereo) | 5151 | 3214 | 4193 | 2370 | 1.4x | 2746 | 3898 |
 | [`raft-stereo-sceneflow`](../models/stereo.md#raft_stereo) | 5151 | 3169 | 4162 | 2361 | 1.3x | 2741 | 3874 |
