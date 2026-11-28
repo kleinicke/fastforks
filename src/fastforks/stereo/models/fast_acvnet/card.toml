@@ -3,7 +3,7 @@ name = "Fast-ACVNet"
 summary = "Fast-ACVNet (Xu et al. 2022): MobileNetV2 features; attention weights from a correlation volume (1/8 group-wise, propagated to 1/4; Fast-ACVNet+: 1/4) select the top-24 disparities of a concatenation volume, then a 3-D hourglass, top-2 soft-argmax and superpixel upsampling (max disparity 192)."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2", "mlx_graph", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2", "mlx_graph", "mlx_port", "mlx_stereo", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Kernels at 994 x 1482 reserve 960 MB vs 756 MB portable (peak allocated 664 vs 651 MB; original 1441 MB), 34 % faster; the difference is cached allocator blocks of the CUDA graph / cuDNN workspaces.",

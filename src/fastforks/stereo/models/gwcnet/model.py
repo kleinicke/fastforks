@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -32,8 +33,12 @@ class Params:
     cuda_graphs: bool
 
 
+def _skeleton(p: Params) -> GwcNet:
+    return GwcNet(p.max_disp, use_concat_volume=p.concat_volume).eval()
+
+
 def _net(ctx: Context) -> GwcNet:
-    net = GwcNet(ctx.params.max_disp, use_concat_volume=ctx.params.concat_volume)
+    net = _skeleton(ctx.params)
     net.load_state_dict(ctx.state_dict(key="model"))
     return net.eval().to(ctx.device)
 
@@ -154,8 +159,41 @@ class Kernels(Runner):
         self._graphs.release()
 
 
+class _MlxPortable(Runner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
+
+    batch = 1
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX network from the conversion cache (the checkpoint only on a miss); no PyTorch one kept."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `mlx_wrap.port` builds this in float32
+        self.net = mlx_port.recorded(
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxGwcNet(net, run.dtype),
+            real=lambda: _net(ctx),
+            skeleton=lambda: _skeleton(ctx.params),
+            sources=mlx_net.SOURCES,
+        )
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, whole="disparity")}

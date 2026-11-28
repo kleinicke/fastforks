@@ -20,53 +20,33 @@ transients to one half's.
 
 from __future__ import annotations
 
+import functools
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import numpy as np
 
 from fastforks._core.mlx import mx
 from fastforks.kernels.graph_mlx.ops import depthwise, gwc_volume, trilinear, warp_dot
+from fastforks.shared import mlx_stereo
 from fastforks.shared.mlx_graph import _conv_transpose3d_phases
+from fastforks.shared.mlx_stereo import Conv as _Conv
+from fastforks.shared.mlx_stereo import Weights, folded
+from fastforks.shared.mlx_stereo import leaky as _leaky
+from fastforks.shared.mlx_stereo import relu as _relu
+from fastforks.shared.mlx_stereo import relu6 as _relu6
 
 if TYPE_CHECKING:
     from .net.fast_acv import Fast_ACVNet
     from .net.fast_acv_plus import Fast_ACVNet_plus
 
-__all__ = ["MlxFastACV"]
+__all__ = ["LAYOUT", "SOURCES", "MlxFastACV"]
+
+LAYOUT = "fastacv-v1"
+SOURCES = (Path(__file__), Path(mlx_stereo.__file__))
 
 TOP_K = 24  # upstream's attention candidates per pixel (`model.TOP_K`)
 EPS = 1e-05  # upstream's L2-norm epsilon
 # the five propagation taps of upstream's one-hot 3 x 3 filters, (row, column) in the replicate-padded map
 _TAPS = ((0, 0), (1, 1), (2, 2), (2, 0), (0, 2))
-
-_Conv = tuple[mx.array, mx.array, int, int]  # weight [O, k.., I], bias, stride, padding
-
-
-def _folded(conv: Any, norm: Any, axis: int = 0) -> tuple[np.ndarray, np.ndarray]:  # noqa: ANN401 - torch modules
-    """A convolution's weight and bias with its batch norm (or None) folded in; `axis`: the weight's output axis."""
-    w = conv.weight.detach().float().numpy()
-    b = np.zeros(w.shape[axis], np.float32) if conv.bias is None else conv.bias.detach().float().numpy()
-    if norm is not None:
-        scale = norm.weight.detach().float().numpy().astype(np.float64) / np.sqrt(
-            norm.running_var.float().numpy().astype(np.float64) + norm.eps
-        )
-        shape = [1] * w.ndim
-        shape[axis] = -1
-        w = (w * scale.reshape(shape)).astype(np.float32)
-        b = (norm.bias.detach().float().numpy() + (b - norm.running_mean.float().numpy()) * scale).astype(np.float32)
-    return w, b
-
-
-def _leaky(x: mx.array) -> mx.array:
-    return mx.maximum(x, 0.01 * x)
-
-
-def _relu(x: mx.array) -> mx.array:
-    return mx.maximum(x, 0)
-
-
-def _relu6(x: mx.array) -> mx.array:
-    return mx.clip(x, 0, 6)
 
 
 def _shifts(x: mx.array) -> list[mx.array]:
@@ -77,66 +57,20 @@ def _shifts(x: mx.array) -> list[mx.array]:
     return [p[..., i : i + h, j : j + w, :] for i, j in _TAPS]
 
 
-class _Weights:
-    """Copies of the vendored modules' weights in one MLX dtype."""
-
-    def __init__(self, dtype: mx.Dtype) -> None:
-        self.dtype = dtype
-
-    def a(self, a: np.ndarray) -> mx.array:
-        return mx.array(np.ascontiguousarray(a)).astype(self.dtype)
-
-    def conv(self, conv: Any, norm: Any = None) -> _Conv:  # noqa: ANN401 - torch modules of the vendored net
-        w, b = _folded(conv, norm)
-        perm = (0, 2, 3, 4, 1) if w.ndim == 5 else (0, 2, 3, 1)  # noqa: PLR2004 - 3-D / 2-D
-        return self.a(w.transpose(perm)), self.a(b), int(conv.stride[0]), int(conv.padding[0])
-
-    def basic(self, m: Any) -> _Conv:  # noqa: ANN401
-        return self.conv(m.conv, m.bn if m.use_bn else None)
-
-    def deconv(self, conv: Any, norm: Any = None) -> _Conv:  # noqa: ANN401
-        w, b = _folded(conv, norm, axis=1)  # [Cin, Cout, kh, kw] -> [Cout, kh, kw, Cin]
-        return self.a(w.transpose(1, 2, 3, 0)), self.a(b), int(conv.stride[0]), int(conv.padding[0])
-
-    def deconv3(self, m: Any) -> tuple[mx.array, mx.array, bool]:  # noqa: ANN401
-        """A transposed 3-D `BasicConv`: weight `[Cin, Cout, kd, kh, kw]` (`_conv_transpose3d_phases`'s), bias, act."""
-        w, b = _folded(m.conv, m.bn if m.use_bn else None, axis=1)
-        return self.a(w), self.a(b), m.relu
-
-    def conv2x(self, m: Any) -> tuple[_Conv, _Conv]:  # noqa: ANN401
-        return self.deconv(m.conv1.conv, m.conv1.bn), self.basic(m.conv2)
-
-    def stem(self, seq: Any) -> tuple[_Conv, _Conv]:  # noqa: ANN401
-        """`BasicConv -> Conv2d -> BatchNorm2d -> ReLU`."""
-        return self.basic(seq[0]), self.conv(seq[1], seq[2])
-
-    def att(self, m: Any) -> tuple[_Conv, _Conv]:  # noqa: ANN401
-        return self.basic(m.im_att[0]), self.conv(m.im_att[1])
-
-    def dw(self, conv: Any, norm: Any) -> tuple[mx.array, mx.array, int]:  # noqa: ANN401
-        w, b = _folded(conv, norm)  # [C, 1, kh, kw] -> [kh, kw, C]
-        return self.a(w[:, 0].transpose(1, 2, 0)), self.a(b), int(conv.stride[0])
-
-    def block(self, m: Any) -> tuple[Any, ...]:  # noqa: ANN401
-        """A MobileNetV2 block: (expand or None, depthwise, project, skip)."""
-        if hasattr(m, "conv_pwl"):
-            return self.conv(m.conv_pw, m.bn1), self.dw(m.conv_dw, m.bn2), self.conv(m.conv_pwl, m.bn3), m.has_skip
-        return None, self.dw(m.conv_dw, m.bn1), self.conv(m.conv_pw, m.bn2), m.has_skip
-
-    def hourglass(self, m: Any, levels: int) -> dict[str, Any]:  # noqa: ANN401
-        """An hourglass: `levels` strided pairs, their gates, the transposed convs, the merges and their gates."""
-        out: dict[str, Any] = {}
-        for k in range(1, levels + 1):
-            out[f"conv{k}"] = [self.basic(c) for c in getattr(m, f"conv{k}")]
-            out[f"up{k}"] = self.deconv3(getattr(m, f"conv{k}_up" if hasattr(m, f"conv{k}_up") else f"conv{k}_up_"))
-        for name, sub in m.named_children():
-            if name.startswith("feature_att"):
-                out[name] = self.att(sub)
-            elif name.startswith("agg"):
-                out[name] = [self.basic(c) for c in sub]
-        if hasattr(m, "conv_final"):
-            out["final"] = self.conv(m.conv_final)
-        return out
+def _hourglass_weights(w: Weights, m: Any, levels: int) -> dict[str, Any]:  # noqa: ANN401 - a vendored hourglass
+    """An hourglass: `levels` strided pairs, their gates, the transposed convs, the merges and their gates."""
+    out: dict[str, Any] = {}
+    for k in range(1, levels + 1):
+        out[f"conv{k}"] = [w.basic(c) for c in getattr(m, f"conv{k}")]
+        out[f"up{k}"] = w.deconv3(getattr(m, f"conv{k}_up" if hasattr(m, f"conv{k}_up") else f"conv{k}_up_"))
+    for name, sub in m.named_children():
+        if name.startswith("feature_att"):
+            out[name] = w.att(sub)
+        elif name.startswith("agg"):
+            out[name] = [w.basic(c) for c in sub]
+    if hasattr(m, "conv_final"):
+        out["final"] = w.conv(m.conv_final)
+    return out
 
 
 class MlxFastACV:
@@ -147,7 +81,7 @@ class MlxFastACV:
         self.dtype = getattr(mx, dtype)
         self.plus = not hasattr(net, "patch")
         self.maxdisp = int(net.maxdisp)
-        pre, post = _Weights(mx.float32), _Weights(self.dtype)
+        pre, post = Weights(mx.float32), Weights(self.dtype)
         f = net.feature
         self.stem = pre.conv(f.conv_stem, f.bn1)
         self.blocks = [[pre.block(b) for stage in getattr(f, f"block{i}") for b in stage] for i in range(5)]
@@ -159,23 +93,25 @@ class MlxFastACV:
         if self.plus:
             p: Any = net
             self.match = (pre.basic(p.conv), pre.conv(p.desc))
-            w, b = _folded(p.corr_stem.conv, p.corr_stem.bn)  # [8, 1, 3, 3, 3] -> [8, kh, kw, kd]
-            self.corr_stem = (pre.a(w[:, 0].transpose(0, 2, 3, 1)), pre.a(b))
+            fold = functools.cache(lambda: folded(p.corr_stem.conv, p.corr_stem.bn))  # [8, 1, 3, 3, 3]
+            self.corr_stem = (
+                pre.a((8, 3, 3, 3), lambda: fold()[0][:, 0].transpose(0, 2, 3, 1)),
+                pre.a((8,), lambda: fold()[1]),
+            )
             self.corr_att = pre.att(p.corr_feature_att_4)
-            self.hg_att = pre.hourglass(p.hourglass_att, 3)
+            self.hg_att = _hourglass_weights(pre, p.hourglass_att, 3)
         else:
             n: Any = net
             self.stem_8 = pre.stem(n.stem_8)
-            w, _ = _folded(n.patch, None)  # [12, 1, 1, 3, 3] -> [3, 3, 12]
-            self.patch = pre.a(w[:, 0, 0].transpose(1, 2, 0))
+            self.patch = pre.a((3, 3, 12), lambda: n.patch.weight.detach().float().numpy()[:, 0, 0].transpose(1, 2, 0))
             self.corr_att = pre.att(n.corr_feature_att_8)
-            self.hg_att = pre.hourglass(n.hourglass_att, 2)
-            self.gamma = float(n.gamma.detach().float().item())
-            self.beta = float(n.beta.detach().float().item())
+            self.hg_att = _hourglass_weights(pre, n.hourglass_att, 2)
+            self.gamma = float(pre.a((1,), lambda: n.gamma.detach().float().numpy().reshape(1)).item())
+            self.beta = float(pre.a((1,), lambda: n.beta.detach().float().numpy().reshape(1)).item())
         self.concat_feature = (post.basic(net.concat_feature[0]), post.conv(net.concat_feature[1]))
         self.concat_stem = post.basic(net.concat_stem)
         self.concat_att = post.att(net.concat_feature_att_4)
-        self.hg = post.hourglass(net.hourglass, 2)
+        self.hg = _hourglass_weights(post, net.hourglass, 2)
         self.spx_4 = post.stem(net.spx_4)
         self.spx_2 = post.conv2x(net.spx_2)
         self.spx = post.deconv(net.spx[0])
@@ -235,12 +171,7 @@ class MlxFastACV:
         return _relu(self._c(_leaky(self._c(x, m[0])), m[1]))
 
     def _mobile(self, x: mx.array, blocks: list[tuple[Any, ...]]) -> mx.array:
-        for expand, (w, b, stride), project, skip in blocks:
-            y = x if expand is None else _relu6(self._c(x, expand))
-            y = _relu6(depthwise(y, w, b, (stride, stride), (1, 1), (1, 1)))
-            y = self._c(y, project)
-            x = x + y if skip else y
-        return x
+        return mlx_stereo.mobile(x, blocks, self._c)
 
     def _gate(self, cost: mx.array, im: mx.array, att: tuple[_Conv, _Conv]) -> mx.array:
         """`channelAtt`: `cost` `[B, D, H, W, C]` gated by the left image's features `[B, H, W, K]`."""
