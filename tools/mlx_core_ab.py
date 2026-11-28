@@ -156,6 +156,7 @@ SCOPE = {
     "rcnn": (("Net", "dense"),),
     "xfeat": (("MlxDense", "__call__"),),
     "loftr": (("MlxLoFTR", "_dense"),),
+    "grounding_dino": (("Network", "image"),),  # the graph port's `image` (the text tower: once per query list)
 }
 
 

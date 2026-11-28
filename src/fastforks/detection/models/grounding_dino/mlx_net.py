@@ -3,8 +3,8 @@
 The maths of transformers' `GroundingDinoForObjectDetection` as `model.Portable.image` runs it (two-stage, every pixel
 and token valid), channels last, the run dtype unless noted:
 
-- Pixels (`pixels`): uint8 values, the antialiased bilinear resize as two matrix products (PyTorch's separable
-  weights), rounded; ImageNet mean / std; float32 NHWC.
+- Pixels (`pixels`): uint8 values, PyTorch's uint8 antialiased bilinear resize bit for bit (int16 fixed-point
+  taps, width then height, each pass rounded); ImageNet mean / std; float32 NHWC.
 - Swin backbone: the input padded to the patch, the patch convolution as one GEMM, the layers on `shared.mlx_swin`
   (transformers' Swin: pad after the LayerNorm, -100 shift mask; a map no wider than the window gets no shift), each
   odd map zero-padded before `PatchMerging`; stages 2-4 normed.
@@ -59,6 +59,7 @@ GROUPS = 32  # fixed: the input projections' GroupNorm groups
 HEADS = 8  # fixed: deformable / decoder attention heads (config `encoder_attention_heads`, `decoder_attention_heads`)
 LEVELS, POINTS = 4, 4  # fixed: feature levels and sampling points per level
 REF_EPS = 1e-5  # fixed: the decoder's `torch.special.logit(eps=1e-5)`
+WEIGHT_BITS = 22  # fixed: the uint8 resize's fixed-point precision limit (weights below 2^15: int16)
 VALID = (0.01, 0.99)  # fixed: proposals with a coordinate outside are invalid (`generate_encoder_output_proposals`)
 _SW = "model.backbone.conv_encoder.model."
 _BERT = "model.text_backbone."
@@ -147,17 +148,45 @@ def logit(x: mx.array, eps: float) -> mx.array:
     return mx.log(x / (1 - x))
 
 
-def aa_matrix(inp: int, out: int) -> np.ndarray:
-    """`[out, inp]` weights of PyTorch's antialiased bilinear resize along one axis (`mlx_graph._aa_matrix`)."""
+def aa_taps(inp: int, out: int) -> tuple[np.ndarray, np.ndarray, int]:
+    """PyTorch's uint8 antialiased bilinear resize along one axis: source indices and int16 fixed-point weights.
+
+    `(idx [K, out] int32, w [K, out] int32, bits)`: output `i` is `(sum_k x[idx[k, i]] * w[k, i] + 2^(bits-1)) >>
+    bits`, clamped to 0..255 (`compute_index_ranges_int16_weights`: the weights of `aa_filter` in double, scaled by
+    the largest power of two (at most 2^22) that keeps the biggest one below 2^15, rounded half up; unused taps
+    weigh 0).
+    """
     s = inp / out
     support, inv = max(s, 1.0), (1.0 / s if s >= 1.0 else 1.0)
-    m = np.zeros((out, inp), dtype=np.float64)
+    rows = []
     for i in range(out):
         c = s * (i + 0.5)
         lo, hi = max(int(c - support + 0.5), 0), min(int(c + support + 0.5), inp)
-        w = np.maximum(0.0, 1.0 - np.abs((np.arange(lo, hi) - c + 0.5) * inv))
-        m[i, lo:hi] = w / w.sum()
-    return m.astype(np.float32)
+        wt = np.maximum(0.0, 1.0 - np.abs((np.arange(lo, hi) - c + 0.5) * inv))
+        rows.append((lo, wt / wt.sum()))
+    top = max(float(wt.max()) for _, wt in rows)
+    bits = 0
+    while bits < WEIGHT_BITS and int(0.5 + top * (1 << (bits + 1))) < (1 << 15):
+        bits += 1
+    k = max(len(wt) for _, wt in rows)
+    idx, w = np.zeros((k, out), np.int32), np.zeros((k, out), np.int32)
+    for i, (lo, wt) in enumerate(rows):
+        n = len(wt)
+        idx[:n, i] = np.arange(lo, lo + n)
+        idx[n:, i] = lo
+        w[:n, i] = np.floor(0.5 + wt * (1 << bits))
+    return idx, w, bits
+
+
+def _resize_axis(x: mx.array, taps: tuple[mx.array, mx.array, int], axis: int) -> mx.array:
+    """One pass of `aa_taps` on int32 uint8 levels along `axis` (exact integer arithmetic)."""
+    idx, w, bits = taps
+    shape = [1] * x.ndim
+    shape[axis] = w.shape[1]
+    acc = mx.full([1] * x.ndim, 1 << (bits - 1), mx.int32) if bits else mx.zeros([1] * x.ndim, mx.int32)
+    for j in range(w.shape[0]):
+        acc = acc + mx.take(x, idx[j], axis=axis) * w[j].reshape(shape)
+    return mx.clip(mx.right_shift(acc, bits), 0, 255)
 
 
 def image_sine(h: int, w: int) -> np.ndarray:
@@ -408,21 +437,25 @@ class Network:
         self.mean = mx.array(MEAN, f32)
         self.std = mx.array(STD, f32)
         self._tables: dict[tuple[tuple[int, int], ...], dict[str, Any]] = {}
-        self._resize: dict[tuple[int, int, int, int], tuple[mx.array, mx.array]] = {}
+        self._resize: dict[tuple[int, int], tuple[mx.array, mx.array, int]] = {}
 
     # pre-processing
 
     def pixels(self, image: mx.array, size: tuple[int, int]) -> mx.array:
-        """`[1, 3, H, W]` float32 in [0, 1] -> the normalised network input `[1, h, w, 3]` float32 at `size`."""
-        x = mx.clip(mx.round(image[0] * 255), 0, 255)
-        h, w = x.shape[1:]
-        if (h, w) != tuple(size):
-            key = (h, w, *size)
-            if key not in self._resize:
-                self._resize = {key: (mx.array(aa_matrix(h, size[0])), mx.array(aa_matrix(w, size[1]).T))}
-            mh, mw = self._resize[key]
-            x = mx.clip(mx.round(mh @ x @ mw), 0, 255)
-        return ((x.transpose(1, 2, 0) / 255 - self.mean) / self.std)[None]
+        """`[1, 3, H, W]` float32 in [0, 1] -> the normalised network input `[1, h, w, 3]` float32 at `size`.
+
+        The resize is torchvision's uint8 path on the CPU (`Portable.pixels`), bit-exact: width first, then height,
+        each pass rounded to uint8 levels.
+        """
+        x = mx.clip(mx.round(image[0] * 255), 0, 255).astype(mx.int32)
+        for axis, out in ((2, size[1]), (1, size[0])):
+            inp = x.shape[axis]
+            if inp != out:
+                if (inp, out) not in self._resize:
+                    idx, w, bits = aa_taps(inp, out)
+                    self._resize[inp, out] = (mx.array(idx), mx.array(w), bits)
+                x = _resize_axis(x, self._resize[inp, out], axis)
+        return ((x.astype(mx.float32).transpose(1, 2, 0) / 255 - self.mean) / self.std)[None]
 
     # text
 
@@ -469,6 +502,7 @@ class Network:
                 mx.eval(t)
             if i in self.stage_norms:
                 feats.append((mx.contiguous(_ln(t, self.stage_norms[i])), (h, w)))
+                mlx_port.tap(f"hidden_states_norms.stage{i + 1}", feats[-1][0].reshape(1, h, w, -1))
             if ds is not None:
                 c = t.shape[-1]
                 m = t.reshape(h, w, c)
@@ -571,8 +605,8 @@ class Network:
             a = self._deformable(p, v + tab["pos"], v, shapes, lambda off: tab["ref"] + off / tab["norm"])
             v = _ln(v + a, p["ln1"])
             v = _ln(v + _relu_linear(v, p["fc1"], p["fc2"]), p["ln2"])
-            mlx_port.tap(f"encoder.layers.{i}[0]", v[None])
-            mlx_port.tap(f"encoder.layers.{i}[1]", t[None])
+            mlx_port.tap(f"encoder.layers.{i}.text_enhancer_layer[0]", t[None])
+            mlx_port.tap(f"encoder.layers.{i}.deformable_layer[0]", v[None])
             mx.eval(v, t)
         return v, t
 
