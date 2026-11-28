@@ -157,15 +157,24 @@ def recorded(  # noqa: PLR0913 - the builder, both networks and the cache key
     return out
 
 
-def header_skeleton(path: str | Path) -> dict[str, Any]:
-    """A safetensors file's tensors as empty ones of their shapes, from its header only: a state-dict skeleton.
+def header_skeleton(path: str | Path, *, strip: str = "module.") -> dict[str, Any]:
+    """A checkpoint's tensors as empty ones of their shapes, from its header only: a state-dict skeleton.
 
     For a builder that reads the checkpoint's tensors by name rather than a module (`recorded`'s `skeleton`, called
-    under the meta device): no checkpoint read and no network class to import on a hit.
+    under the meta device): no checkpoint read and no network class to import on a hit (building a vendored network
+    on the meta device can import `torch._dynamo`, ~1 s). A safetensors file gives its JSON header; a pickled flat
+    state dict (`torch.save(model.state_dict())`) is unpickled onto the meta device (`weights_only`, no storage read),
+    its keys stripped of `strip` as `Runner.state_dict` does.
     """
     import torch  # noqa: PLC0415 - the skeleton's tensors
 
-    with Path(path).open("rb") as f:
+    from fastforks._core.checkpoint import _is_safetensors  # noqa: PLC0415 - imports torch
+
+    path = Path(path)
+    if not _is_safetensors(path):
+        sd = torch.load(path, map_location="meta", weights_only=True)
+        return {(k.removeprefix(strip) if strip else k): v for k, v in sd.items()}
+    with path.open("rb") as f:
         n = int.from_bytes(f.read(8), "little")
         header = json.loads(f.read(n))
     return {k: torch.empty(v["shape"]) for k, v in header.items() if k != "__metadata__"}

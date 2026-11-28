@@ -124,13 +124,13 @@ class _MlxPortable(Runner):
 
         from . import mlx_net  # noqa: PLC0415 - imports mlx
 
-        iters = ctx.params.iters
+        iters, path = ctx.params.iters, ctx.weights()[0]
         self.mlx = mlx_port.recorded(
             ctx,
             mlx_net.LAYOUT,
             lambda sd: mlx_net.MlxFlowSeek(sd, ctx.dtype, iters),
             real=ctx.state_dict,
-            skeleton=lambda: FlowSeek().state_dict(),
+            skeleton=lambda: mlx_port.header_skeleton(path),
             sources=mlx_net.SOURCES,
         )
         if mb := self.CACHE_MB.get(ctx.variant.id, self.CACHE_MB.get("*", 0)):  # held while this runner lives
