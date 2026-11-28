@@ -1298,6 +1298,43 @@ def test_mlx_igev_plusplus_matches_torch():
     torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
 
 
+def test_mlx_great_igev_matches_torch():
+    """`great_igev.mlx_net.MlxGREAT` against the folded `forward_fast` (random weights and batch norms, float32): the
+    adaptive refiner, the row cross attention, the outlook / window / shifted-window encoders (every split 8 .. 1),
+    the concat volume in two disparity chunks (its split first convolution), the volume transformer hourglass."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    import copy  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.stereo.models.great_igev import mlx_net, portable  # noqa: PLC0415
+    from fastforks.stereo.models.great_igev.net.great_igev import GREATStereo  # noqa: PLC0415
+    from fastforks.stereo.models.great_igev.net.inference import fold_for_inference  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    args = types.SimpleNamespace(
+        hidden_dims=[128] * 3, corr_levels=2, corr_radius=4, n_downsample=2, n_gru_layers=3, max_disp=192
+    )
+    net = GREATStereo(args).eval()
+    g = torch.Generator().manual_seed(1)
+    _random_batch_norms(net, g)
+    left = torch.rand(1, 3, 128, 192, generator=g) * 255
+    right = (torch.roll(left, -5, 3) + 5 * torch.randn(1, 3, 128, 192, generator=g)).clamp(0, 255)
+    ref = copy.deepcopy(net)
+    fold_for_inference(ref, half=False, channels_last=False)
+    with torch.no_grad():
+        want = portable.forward_fast(ref, left, right, 3)[:, 0]
+    old = mlx_net.CC_PLANES
+    mlx_net.CC_PLANES = 2 * 96 * 32 * 48 * 30  # 30 planes: chunks [0, 30), [30, 48) with their halos
+    try:
+        got = to_torch(mlx_net.MlxGREAT(net, "float32", 3)(to_mx(left), to_mx(right)))
+    finally:
+        mlx_net.CC_PLANES = old
+    assert got.shape == want.shape
+    torch.testing.assert_close(got, want, atol=2e-3, rtol=2e-3)
+
+
 @pytest.mark.parametrize(("arch", "size"), [("l0", 512), ("xl0", 512)])
 def test_mlx_efficientvit_sam_matches_torch(arch, size):
     """`efficientvit_sam.mlx_net.MlxEncoder` against `fast.Trunk` and the final norm (random weights and batch norms).

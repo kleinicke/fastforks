@@ -19,7 +19,7 @@ from fastforks.kernels.graph_mlx.ops import gwc_volume
 
 from . import mlx_blocks as bl
 
-__all__ = ["MlxIgevBase"]
+__all__ = ["MlxIgevBase", "MlxIgevUpdate"]
 
 GROUPS = 8  # the group-wise correlation's groups (`forward_fast`)
 
@@ -38,8 +38,9 @@ class MlxIgevBase:
         self.feature = w.feature(net.feature)
         self.stem_2 = (w.basic(net.stem_2[0]), w.conv(net.stem_2[1]))
         self.stem_4 = (w.basic(net.stem_4[0]), w.conv(net.stem_4[1]))
-        self.conv, self.desc = w.basic(net.conv), w.conv(net.desc)
-        self.classifier = w.conv(net.classifier)
+        if hasattr(net, "desc"):  # the group-wise families' matching head (GREAT-IGEV: its own `_match`)
+            self.conv, self.desc = w.basic(net.conv), w.conv(net.desc)
+            self.classifier = w.conv(net.classifier)
         if hasattr(net, "cost_agg"):  # one volume (IGEV++: three, its own `_geometry`)
             self.corr_stem, self.corr_att = w.basic(net.corr_stem), w.att(net.corr_feature_att)
             self.hg = w.hourglass(net.cost_agg)
@@ -149,3 +150,27 @@ class MlxIgevBase:
         out = bl.context_upsample(disp[0, :, :, 0] * 4.0, prob)
         mx.eval(out)
         return out
+
+
+class MlxIgevUpdate(MlxIgevBase):
+    """IGEV-Stereo's context encoder (`context_zqr_convs`) and 3-level `BasicMultiUpdateBlock` (GREAT-IGEV's too)."""
+
+    def _family(self, net: Any, w: bl.Weights) -> None:  # noqa: ANN401 - `IGEVStereo`
+        self.cnet = w.context(net.cnet, net.context_zqr_convs)
+        ub = net.update_block
+        self.grus = [w.gru(ub.gru04), w.gru(ub.gru08), w.gru(ub.gru16)]
+
+    def _context(self, im: mx.array) -> tuple[list[mx.array], list[mx.array]]:
+        context = bl.context(im, self.cnet)
+        return [n for n, _ in context], [c for _, cs in context for c in cs]
+
+    def _iteration(self, *state: mx.array) -> tuple[mx.array, ...]:
+        """One update (`BasicMultiUpdateBlock`, three GRU levels) and the disparity step."""
+        net0, net1, net2, disp = state[:4]
+        ctx, lookups = state[4:10], list(state[10:])
+        net2 = bl.gru(net2, list(ctx[4:6]), bl.pool2x(net1), self.grus[2])
+        x = mx.concatenate([bl.pool2x(net0), bl.interp(net2, net1.shape[1:3])], axis=-1)
+        net1 = bl.gru(net1, list(ctx[2:4]), x, self.grus[1])
+        x = mx.concatenate([self._motion(disp, lookups), bl.interp(net1, net0.shape[1:3])], axis=-1)
+        net0 = bl.gru(net0, list(ctx[0:2]), x, self.grus[0])
+        return net0, net1, net2, disp + self._delta(net0)

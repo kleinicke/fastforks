@@ -1,7 +1,8 @@
 """The IGEV-family blocks on Apple MLX in `mlx.core` operations (NHWC maps, NDHWC volumes, batch norms folded).
 
-Weights are copied from the vendored torch modules (`net/`) by `Weights(dtype)`; the forward functions mirror the
-modules of `net/extractor.py` and `net/submodule.py` and the cost-volume `hourglass` the families share:
+Weights are copied from the vendored torch modules (`net/`) by `Weights(dtype)` (cache-ready: `mlx_port.tensor`); the
+forward functions mirror the modules of `net/extractor.py` and `net/submodule.py` and the cost-volume `hourglass` the
+families share:
 
 - `feature`: the MobileNetV2 trunk with its up-sampling (`Feature`), `[x4, x8, x16, x32]`;
 - `context`: the context encoder (`MultiBasicEncoder`, batch norms), per level `(net, inp)`;
@@ -14,13 +15,19 @@ Instance norms take float32 statistics; everything else runs in the activations'
 
 from __future__ import annotations
 
-from typing import Any
+import functools
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from fastforks._core.mlx import mx
 from fastforks.kernels.graph_mlx.ops import bilinear_nhwc, depthwise, linear_sample
+from fastforks.shared import mlx_port
 from fastforks.shared.mlx_graph import _conv_transpose3d_phases
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 __all__ = [
     "Conv",
@@ -83,27 +90,60 @@ def inorm(x: mx.array) -> mx.array:
     return ((xf - mean) * mx.rsqrt(var + IN_EPS)).astype(x.dtype)
 
 
+def _ints(v: Any) -> int | tuple[int, ...]:  # noqa: ANN401 - a module's stride / padding
+    """One int when every axis agrees (what `mx.conv2d` / `mx.conv3d` and the transposed kernels take), else a tuple."""
+    t = tuple(int(n) for n in v) if isinstance(v, (tuple, list)) else (int(v),)
+    return t[0] if len(set(t)) == 1 else t
+
+
 class Weights:
-    """Copies of the vendored modules' weights in one MLX dtype (every conversion is a NumPy one on the host)."""
+    """Cache-ready copies of the vendored modules' weights in one MLX dtype.
+
+    Every weight-derived array is declared with its final shape and read through `mlx_port.tensor`: built in NumPy
+    (batch norms folded, transposed) on a first load, taken from the conversion cache on a `mlx_port.recorded` hit
+    (outside `recorded`, converted right away).
+    """
 
     def __init__(self, dtype: mx.Dtype) -> None:
         """Convert to `dtype`."""
         self.dtype = dtype
 
     def a(self, a: np.ndarray) -> mx.array:
-        """An array in the dtype."""
+        """An array in the dtype, converted now (not through the cache)."""
         return mx.array(np.ascontiguousarray(a)).astype(self.dtype)
+
+    def t(self, shape: tuple[int, ...], make: Callable[[], np.ndarray], dtype: mx.Dtype | None = None) -> mx.array:
+        """The array of `shape` that `make()` computes from weight values (cached: `make` not run on a hit)."""
+        dt = self.dtype if dtype is None else dtype
+
+        def convert() -> mx.array:
+            a = make()
+            if tuple(a.shape) != shape:
+                msg = f"igev mlx: built {a.shape}, declared {shape}"
+                raise AssertionError(msg)
+            return mx.array(np.ascontiguousarray(a, np.float32)).astype(dt)
+
+        return mlx_port.tensor(SimpleNamespace(shape=shape), dt, convert)
+
+    def pair(self, m: Any, norm: Any, perm: tuple[int, ...], axis: int = 0) -> tuple[mx.array, mx.array]:  # noqa: ANN401
+        """A convolution's (folded) weight permuted by `perm` and its bias."""
+        fold = functools.cache(lambda: _folded(m, norm, axis))
+        shape = tuple(int(n) for n in m.weight.shape)
+        return (
+            self.t(tuple(shape[i] for i in perm), lambda: fold()[0].transpose(perm)),
+            self.t((shape[axis],), lambda: fold()[1]),
+        )
 
     def conv(self, m: Any, norm: Any = None) -> Conv:  # noqa: ANN401 - torch modules of the vendored net
         """`nn.Conv2d` / `nn.Conv3d` (and a batch norm after it)."""
-        w, b = _folded(m, norm)
-        perm = (0, 2, 3, 4, 1) if w.ndim == 5 else (0, 2, 3, 1)  # noqa: PLR2004 - 3-D / 2-D
-        return self.a(w.transpose(perm)), self.a(b), int(m.stride[0]), int(m.padding[0])
+        nd = m.weight.ndim
+        w, b = self.pair(m, norm, (0, *range(2, nd), 1))
+        return w, b, _ints(m.stride), _ints(m.padding)  # type: ignore[return-value]
 
     def deconv(self, m: Any, norm: Any = None) -> Conv:  # noqa: ANN401
         """`nn.ConvTranspose2d`: weight `[Cout, kh, kw, Cin]`."""
-        w, b = _folded(m, norm, axis=1)
-        return self.a(w.transpose(1, 2, 3, 0)), self.a(b), int(m.stride[0]), int(m.padding[0])
+        w, b = self.pair(m, norm, (1, 2, 3, 0), axis=1)
+        return w, b, int(m.stride[0]), int(m.padding[0])
 
     def basic(self, m: Any) -> tuple[Conv, bool, bool]:  # noqa: ANN401
         """`BasicConv` (batch norm folded) or `BasicConv_IN` (instance norm kept): (conv, instance norm, act)."""
@@ -112,8 +152,8 @@ class Weights:
         is3 = m.conv.weight.ndim == 5  # noqa: PLR2004
         if isinstance(m.conv, _transposed()):
             if is3:
-                w, b = _folded(m.conv, bn, axis=1)
-                return (self.a(w), self.a(b), int(m.conv.stride[0]), int(m.conv.padding[0])), inorm, bool(m.relu)
+                w, b = self.pair(m.conv, bn, (0, 1, 2, 3, 4), axis=1)
+                return (w, b, int(m.conv.stride[0]), int(m.conv.padding[0])), inorm, bool(m.relu)
             return self.deconv(m.conv, bn), inorm, bool(m.relu)
         return self.conv(m.conv, bn), inorm, bool(m.relu)
 
@@ -130,16 +170,18 @@ class Weights:
         down = None if m.downsample is None else self.conv(m.downsample[0], m.downsample[1])
         return self.conv(m.conv1, m.norm1), self.conv(m.conv2, m.norm2), down
 
+    def dw(self, c: Any, n: Any = None) -> tuple[mx.array, mx.array, int]:  # noqa: ANN401
+        """A depthwise convolution: `([kh, kw, C], bias, stride)`."""
+        fold = functools.cache(lambda: _folded(c, n))
+        ch, _, kh, kw = (int(v) for v in c.weight.shape)
+        w = self.t((kh, kw, ch), lambda: fold()[0][:, 0].transpose(1, 2, 0))
+        return w, self.t((ch,), lambda: fold()[1]), int(c.stride[0])
+
     def mobile(self, m: Any) -> tuple[Any, ...]:  # noqa: ANN401
         """A MobileNetV2 block: (expand or None, depthwise `([kh, kw, C], bias, stride)`, project, skip)."""
-
-        def dw(c: Any, n: Any) -> tuple[mx.array, mx.array, int]:  # noqa: ANN401
-            w, b = _folded(c, n)
-            return self.a(w[:, 0].transpose(1, 2, 0)), self.a(b), int(c.stride[0])
-
         if hasattr(m, "conv_pwl"):
-            return self.conv(m.conv_pw, m.bn1), dw(m.conv_dw, m.bn2), self.conv(m.conv_pwl, m.bn3), m.has_skip
-        return None, dw(m.conv_dw, m.bn1), self.conv(m.conv_pw, m.bn2), m.has_skip
+            return self.conv(m.conv_pw, m.bn1), self.dw(m.conv_dw, m.bn2), self.conv(m.conv_pwl, m.bn3), m.has_skip
+        return None, self.dw(m.conv_dw, m.bn1), self.conv(m.conv_pw, m.bn2), m.has_skip
 
     def feature(self, f: Any) -> dict[str, Any]:  # noqa: ANN401 - extractor.Feature
         """`Feature`: the MobileNetV2 stem and stages, the three up-sampling merges and `conv4`."""
@@ -175,11 +217,12 @@ class Weights:
 
     def gru(self, m: Any) -> tuple[Conv, Conv]:  # noqa: ANN401 - update.ConvGRU
         """`ConvGRU`: the z and r convolutions as one (`[z | r]` out), the q convolution."""
-        wz, bz = _folded(m.convz, None)
-        wr, br = _folded(m.convr, None)
-        zr = self.a(np.concatenate([wz, wr]).transpose(0, 2, 3, 1)), self.a(np.concatenate([bz, br]))
-        pad = int(m.convz.padding[0])
-        return (*zr, 1, pad), self.conv(m.convq)
+        o, i, kh, kw = (int(v) for v in m.convz.weight.shape)
+        fz = functools.cache(lambda: _folded(m.convz, None))
+        fr = functools.cache(lambda: _folded(m.convr, None))
+        w = self.t((2 * o, kh, kw, i), lambda: np.concatenate([fz()[0], fr()[0]]).transpose(0, 2, 3, 1))
+        b = self.t((2 * o,), lambda: np.concatenate([fz()[1], fr()[1]]))
+        return (w, b, 1, int(m.convz.padding[0])), self.conv(m.convq)
 
     def gru_split(self, m: Any, hidden: int, inputs: int) -> tuple[tuple[Conv, Conv], Conv]:  # noqa: ANN401
         """A plain ConvGRU (`convz`, `convr`, `convq` with biases) whose input starts with a constant map.
@@ -187,16 +230,24 @@ class Weights:
         The input channels are `[h (hidden) | constant (inputs) | rest]`: returns the `gru` weights of `[h | rest]`
         (no bias) and one convolution of the constant to `[z | r | q]` with the biases, the `ctx` of `gru`.
         """
-        ws, bs = zip(*(_folded(c, None) for c in (m.convz, m.convr, m.convq)), strict=True)
+        folds = [functools.cache(lambda c=c: _folded(c, None)) for c in (m.convz, m.convr, m.convq)]
+        o, i, kh, kw = (int(v) for v in m.convz.weight.shape)
         pad = int(m.convz.padding[0])
+        rest = i - inputs
 
         def keep(w: np.ndarray) -> np.ndarray:
             return np.concatenate([w[:, :hidden], w[:, hidden + inputs :]], 1).transpose(0, 2, 3, 1)
 
-        zero = self.a(np.zeros(hidden, np.float32))
-        zr = (self.a(np.concatenate([keep(ws[0]), keep(ws[1])])), self.a(np.zeros(2 * hidden, np.float32)), 1, pad)
-        ctx = np.concatenate([w[:, hidden : hidden + inputs] for w in ws]).transpose(0, 2, 3, 1)
-        return (zr, (self.a(keep(ws[2])), zero, 1, pad)), (self.a(ctx), self.a(np.concatenate(bs)), 1, pad)
+        zero = mx.zeros((hidden,), self.dtype)
+        wzr = self.t((2 * o, kh, kw, rest), lambda: np.concatenate([keep(folds[0]()[0]), keep(folds[1]()[0])]))
+        zr = (wzr, mx.zeros((2 * hidden,), self.dtype), 1, pad)
+        wq = self.t((o, kh, kw, rest), lambda: keep(folds[2]()[0]))
+        ctx = self.t(
+            (3 * o, kh, kw, inputs),
+            lambda: np.concatenate([f()[0][:, hidden : hidden + inputs] for f in folds]).transpose(0, 2, 3, 1),
+        )
+        bias = self.t((3 * o,), lambda: np.concatenate([f()[1] for f in folds]))
+        return (zr, (wq, zero, 1, pad)), (ctx, bias, 1, pad)
 
 
 def _transposed() -> tuple[type, ...]:

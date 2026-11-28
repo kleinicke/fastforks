@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -30,7 +31,7 @@ class Params:
     cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
-def _net(ctx: Context) -> GREATStereo:
+def _skeleton(ctx: Context) -> GREATStereo:
     args = types.SimpleNamespace(
         hidden_dims=[128] * 3,
         corr_levels=2,  # upstream `cv_levels` / `cv_radius`
@@ -39,9 +40,13 @@ def _net(ctx: Context) -> GREATStereo:
         n_gru_layers=3,
         max_disp=ctx.params.max_disp,
     )
-    net = GREATStereo(args)
+    return GREATStereo(args).eval()
+
+
+def _net(ctx: Context) -> GREATStereo:
+    net = _skeleton(ctx)
     net.load_state_dict(ctx.state_dict())
-    return net.eval().to(ctx.device)
+    return net.to(ctx.device)
 
 
 class Portable(Runner):
@@ -132,9 +137,42 @@ class MetalKernels(Portable):
         patch_igev(self.net, FastGeoEncodingVolume, ConvGRU, stereo_metal.load(ctx.device))
 
 
+class _MlxPortable(Runner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
+
+    batch = 1
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX network from the conversion cache (the checkpoint only on a miss); no PyTorch one kept."""
+        super().__init__(ctx)
+        from fastforks.shared import mlx_port  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        run = dataclasses.replace(ctx, dtype=mlx_wrap.run_dtype(ctx))  # `mlx_wrap.port` builds this in float32
+        self.net = mlx_port.recorded(
+            run,
+            mlx_net.LAYOUT,
+            lambda net: mlx_net.MlxGREAT(net, run.dtype, ctx.params.iters),
+            real=lambda: _net(ctx),
+            skeleton=lambda: _skeleton(ctx),
+            sources=mlx_net.SOURCES,
+        )
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), cache_mb=1024),
 }
+# FASTFORKS_MLX_GRAPH=1 (diagnostics, tools/mlx_core_ab.py): the exported-graph port the hand-written network replaced
+GRAPH_RUNNERS = {"portable_mlx": mlx_wrap.port(Portable, whole="disparity")}
